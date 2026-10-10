@@ -136,4 +136,11 @@ Rules learned the hard way:
   0x30E1E44-0x30E1E54 and the 9720 `RegisterGetRegionFailed` entry probe 0x30E1E54-0x30E1E6C; 0x30E1E6C-0x30E1F70
   (260 B) free. The caves also use the layout padding of `CrashReportManager` (+0x11 re-entry flag, +0x12/+0x13
   per-session counters) as writable state.
+* `scripts/re/title_diag_caves.py` — KFDIAG 9400-9490 (DIAG only), title-screen probes: per-frame `ColorfulManager.ChangeScene`
+  from `BootScene.ManagedUpdate` (9400), `<ChangeSceneAsync>` state (9410+s), `SceneManager.ChangeScene` `_isChanging`
+  gate (9420+f), `TitleScene.PreBeginAsync` entry + raw LR (9430), `TitleView.Initialize` liveness of the view and
+  `_canvasGroup` before `set_alpha` (9440+bits), `set_alpha` returned (9460), `TitleView.OnDestroy` (9470),
+  `LoadSprite` completion (9490+bits). Caves fill the previously free `0x30E1E6C-0x30E1F70` of the same dead
+  `getMessageParts` body (now 0 B free); hooks at 0x15C9E6C, 0x31EA4B0, 0x1CAC914, 0x31C3DDC, 0x31C797C, 0x31C798C,
+  0x31C7DB8, 0x16EB024. The 9500-9549 range is taken by `kicker_diag_caves.py`.
 * `scripts/re/_disfull.py` = `a64dis.py` that does not stop at the first `ret` (whole-function listings).
