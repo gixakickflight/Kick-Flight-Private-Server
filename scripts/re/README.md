@@ -125,4 +125,15 @@ Rules learned the hard way:
   moved out of it on 2026-10-06 to `SetModel` 0x159D1C0-0x159D200 and 0x159D764-0x159D784 and the dead `GetMenuType`
   body 0x1570EF8-0x1570F18; the wait's DIAG exit probe (9300 created / 9301 timeout / 9302 skip) sits at
   0x1570FB8-0x1570FF0 (all four windows branch-swept: nothing outside the dead bodies lands in them).
+* `scripts/re/error_report_caves.py` — **production** client error reporting (all flavours): in-match anomalies
+  (`CrashReportManager.SetAnalysisException` hook 0x17CAEBC) and managed exceptions (`ExceptionHandler.HandleLog`
+  type-4 hook 0x30E1C28) go to `/analysis/index` through `AnalysisManager.RegisterGetRegionFailed` instead of
+  Crashlytics. Dead body: `Firebase.Crashlytics.ExceptionHandler.getMessageParts` 0x30E1CD4-0x30E1F70 (668 B), whose
+  only caller is `HandleLog`+0x54, i.e. the instruction after hook C; entry-stubbed `mov x0, xzr; ret` in every
+  flavour, no other incoming branch (full sweep), only data ref is its methodPointers entry. Layout: stub
+  0x30E1CD4-0x30E1CDC, production blob (cave C then B) 0x30E1CDC-0x30E1E10; in KF_DIAG builds the instrumented copy
+  (KFDIAG 9701-9712) replaces it at the same offset up to 0x30E1E44, then the 9700 `Register` probe
+  0x30E1E44-0x30E1E54 and the 9720 `RegisterGetRegionFailed` entry probe 0x30E1E54-0x30E1E6C; 0x30E1E6C-0x30E1F70
+  (260 B) free. The caves also use the layout padding of `CrashReportManager` (+0x11 re-entry flag, +0x12/+0x13
+  per-session counters) as writable state.
 * `scripts/re/_disfull.py` = `a64dis.py` that does not stop at the first `ret` (whole-function listings).

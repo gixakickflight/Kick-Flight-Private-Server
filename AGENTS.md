@@ -63,6 +63,7 @@ producción; solo sirve para leer qué hace el cliente por dentro. Documentació
 | 9100–9113 | fixes de kicker (2026-10-09): puerta del dron de Owlbert (`9100` `_setter.IsMine`, `9101` `_target.IsMine`, `9102` resultado, `9103` el match de dueño de `CreateSmog` pasa) y raíz del bind de Anna (`9110` arranca la condición 15 en el caster, `9111` entra la cueva con `_setterPlayer != null`, `9112` `GetKickerSkillConditionInitInfo(3)` no nulo, `9113` vuelve `AcceptCondition`). Overrides DIAG en `StartDisconnectTime` (A) y `PhotonPropertyManagerBase.CheckInitializeError` (B + sondas pequeñas), cuerpos muertos en TODOS los flavours | `scripts/re/kicker_fix_caves.py` |
 | 9190+ | spacing del smog de la SS de Owlbert (2026-10-10; reubicado 2026-10-11): `9190 + int(paso × 10)` en cada `SmogConditionAction.CreateSmog`, donde `paso = SpecialSkillTrap.interval (>0)`, si no `2 × radius`. `9220` = S=3, `9270` = fallback radius 4. Caves de producción y override DIAG en `HomeSummonModelController.<LoadModelAsync>d__25.MoveNext` 0x159E25C (muerto en TODOS los flavours; la revisión anterior en `GameManager.BeginReconnectRoomFailed` pisaba código vivo con KF_PHOTON=1) | `scripts/re/smog_spacing_cave.py` |
 | 9303–9338 | replays con `KF_PHOTON=1` (2026-10-12): `9303` entra `ReplayManager.BeginSession`, `9304/9305` resultado de `CanBeginSession`, `9306` `BeginRecordingSession` devolvió una `ReplayRecordingSession`, `9307` entra `EndSession`, `9310` entra `ResultManager.<UploadReplayDataAsync>` estado 0, `9311/9312` `PhotonManager.IsMyPlayerMaster`, `9313/9314` `ArchiveData.IsUploadReplayData`, `9315/9316` `BattleId` no vacío/vacío, `9329`–`9332` `ReplayWriteResult.WriteState` crudo (Invalid=-1 → 9329, Progress=0 → 9330, FinishSucceeded=1 → 9331), `9338` entra `StartPlayback`. Solo en `KF_DIAG=1 & KF_PHOTON=1`; las caves viven en cuerpos muertos ya `ret`-stubbeados (`List<LocalClient.InternalMsg>.Contains` 0x2F277C0 — compartido con la cave del getter real —, `<CallbackBattleStartSuccess>b__46_0` 0x13ED8FC) y el hook de entrada es `b` | `scripts/re/replay_diag_caves.py` |
+| 9700–9720 | reporte de errores del cliente (2026-10-10): `9700` `ExceptionHandler.Register` suscribió `HandleLog` (sin él la vía C no corre nunca), `9701` `HandleLog` con `LogType.Exception`, `9702` la cave C llama a `SetAnalysisException`, `9703`/`9704` C descartada por reentrada / presupuesto agotado, `9710`/`9711` la cave B reenvía una anomalía / una excepción (tras el dedupe), `9712` B descartada por presupuesto, `9720` entra `AnalysisManager.RegisterGetRegionFailed` (cualquier llamador). Copia instrumentada de las caves de producción en el mismo cuerpo muerto (`ExceptionHandler.getMessageParts` 0x30E1CD4, muerto en TODOS los flavours) | `scripts/re/error_report_caves.py` |
 | LR crudo | origen de cada NRE (`KF_NRE_LR=1`) | cave H |
 
 ### Añadir o cambiar una sonda
@@ -83,6 +84,34 @@ producción; solo sirve para leer qué hace el cliente por dentro. Documentació
 - Reubicar un bloque de caves entero a otro cuerpo: `scripts/re/relocate_diag_region.py` (relinka `bl`/`adrp` externos
   y los hooks entrantes; así salieron las regiones D/E de `LoadDeckSummonModel`, que el DIAG tenía que stubear y por
   eso ningún summon cargaba en DIAG).
+
+### Reporte de errores del cliente (producción, 2026-10-10)
+
+Dos caves de producción (todos los flavours, `scripts/re/error_report_caves.py`, detalles en su docstring) mandan al
+servidor lo que el cliente retail solo le daba a Crashlytics, por el canal `/analysis/index` que ya existe:
+`AnalysisManager.RegisterGetRegionFailed(cause)` lo envuelve como `{"cause": s}` con la clave de serie
+`PhotonGetResionPingFailed` y `AnalysisManager.ManagedUpdate` manda uno por frame.
+
+- B, anomalías de partida: hook en `CrashReportManager.SetAnalysisException` 0x17CAEBC (justo después del dedupe del
+  `HashSet`), `cause = "[Analysis]" + msg` (`msg` = `"1:<texto>//2:<texto>..."` de `GameManager.SetAnalysisException`).
+  Ya no se llama a `Crashlytics.LogException`.
+- C, excepciones gestionadas: hook en `Firebase.Crashlytics.ExceptionHandler.HandleLog` 0x30E1C28 (rama `type == 4`),
+  `SetAnalysisException("\n" + message + "\n" + stackTrace, true)` → el mismo `HashSet` deduplica cada mensaje+pila
+  único una vez por sesión ANTES de encolar y la cadena acaba en B: `cause = "[Analysis]\n<message>\n<stack>"`
+  (truncado a 2500 caracteres antes del dedupe). Se salta `getMessageParts`/`LoggedException`/Crashlytics.
+- Guardas: bytes de relleno de `CrashReportManager` (+0x11 bandera "reenviando excepción" contra la reentrada, +0x12/+0x13
+  contadores de anomalías/excepciones, tope 16 por tipo y por proceso; tras el tope C no asigna nada). Los Method* de
+  `Singleton<T>.get_Instance` salen de slots de metadatos en .bss que inicializa el arranque
+  (`ColorfulManager.<BeginAsync>d__21.MoveNext`); las caves hacen `cbz` y descartan si siguen a 0.
+- C depende de que Firebase registre `HandleLog` (`Crashlytics.PlatformAccessor..cctor` → `Register` solo si
+  `AndroidImpl.IsSDKInitialized()`, es decir `FirebaseCrashlyticsInternal.GetInstance() != null`). Los logcat del
+  cliente dicen `FirebaseApp initialization successful` + `CrashlyticsInitProvider initialization successful`, pero la
+  prueba es `KFDIAG 9700` en un build DIAG. Si no aparece: `Application.CallLogCallback` (0x29A44DC) NO sirve de
+  alternativa, porque el nativo solo lo llama tras `SetLogCallbackDefined(true)`, que solo hace
+  `add_logMessageReceived` y el único suscriptor es ese `Register`; la alternativa es forzar el registro convirtiendo
+  en `nop` el `tbz w0, #0, #0x30dd044` de 0x30DD018 (el cctor llama a `Register` aunque el SDK no esté inicializado).
+- Lado servidor: un `cause` que empieza por `"[Analysis]\n"` es una excepción; `"[Analysis]"` seguido de otra cosa es una
+  anomalía (o un `SendPurchaseFailed`); sin prefijo son los fallos de región de serie (`GetPingFailed`, `DisconnectCause`).
 
 ### Localizar una NRE con `KF_NRE_LR=1`
 
