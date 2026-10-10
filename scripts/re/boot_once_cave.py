@@ -18,6 +18,7 @@ x8 is a scratch register at a void function's entry; NZCV is not live.
 
 Cave window: 0x13ED970-0x13ED98C, the free tail of the entry-stubbed NormalMatchingController.<CallbackBattleStartSuccess>
 b__46_0 body (0x13ED998 is where it ends; verified free in all flavours by scripts/re/check_cave_hosts.py).
+The last 12 B of that window (0x13ED98C-0x13ED998) now hold the epilogue copy of scripts/re/title_retry_cave.py.
 
     python.exe scripts/re/boot_once_cave.py     # prints the expected/replacement hex for the patch table
 """

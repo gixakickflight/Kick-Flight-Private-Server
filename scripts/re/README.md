@@ -157,6 +157,14 @@ Rules learned the hard way:
   allocation padding) instead of every frame. The ~15 `TitleScene.PreBeginAsync` runs came from the production patch
   `bypass _isChangeScene check` (0x1CAC918), which disables the gate that dropped the duplicate requests in stock.
   Cave 0x13ED970-0x13ED98C (dead tail of `<CallbackBattleStartSuccess>b__46_0`).
+* `scripts/re/title_retry_cave.py` — **production** offline-boot recovery (2026-10-11): a boot-time "Communication Error" whose
+  OK handler is `NetworkManager.<>c__DisplayClass128_0.<OpenErrorWindowOnFailed>b__0` (transport failure, code 0) used to
+  leave the half-initialised Title on the LOADING splash (stock only reloads Title for code 0x7cf, timeouts and "not
+  reachable"). The `ne` return block 0x31BBE54-0x31BBE60 now calls `ColorfulManager.get_IsInitializedOcto` (0x31E6D3C) and
+  takes the 0x7cf path (`ChangeScene(Title)`, 0x31BBDD8) while it is false; otherwise it jumps to a copy of the original
+  epilogue at 0x13ED98C-0x13ED998 (the 12 B left by boot_once_cave.py, **0 B free now**). It is independent of the
+  BootScene latch (BootScene is unloaded before `TitleScene.PreBeginAsync` runs) and of the gate bypass at 0x1CAC918.
+  No KFDIAG probe: after the OK tap the existing 9410/9430 lines must reappear.
 * `HomeSummonModelController.SetModel` is entry-stubbed, so `SummonAnimator` (+0x40) / `ModelController` (+0x48) /
   `ModelTransform` (+0x38) stay null. Audit of every consumer (2026-10-11): guarded already = `SetGachaRoot`,
   `SetDiscDetailRoot`, `GetBone`, `SetBrightness`, `UnloadModel`, `OutGameModelController.UnloadSummonModel`,

@@ -1134,6 +1134,23 @@ NATIVE_PATCHES: dict[str, list[dict[str, object]]] = {
             "expected": bytes.fromhex("f30f1ef8"),
             "replacement": bytes.fromhex("d58ef817"),
         },
+        # Boot-time "Communication Error" -> OK (2026-10-11, source and evidence: scripts/re/title_retry_cave.py). Stock reloads Title
+        # from a failed-request dialog only for timeouts, "not reachable" and server code 0x7cf; any other transport failure
+        # (code 0) just closes the dialog and leaves the half-initialised Title on the LOADING splash. While the boot request
+        # has not succeeded yet (ColorfulManager.IsInitializedOcto false) the OK of OpenErrorWindowOnFailed's default handler
+        # now takes the 0x7cf path too. In-game errors (Octo initialised) keep the stock behaviour.
+        {
+            "description": "OpenErrorWindowOnFailed.<>b__0 `ne` return block -> IsInitializedOcto ? epilogue copy (see next patch) : reload Title (boot-time communication error OK retries)",
+            "offset": 0x31BBE54,
+            "expected": bytes.fromhex("fd7b41a9f44fc2a8c0035fd6"),
+            "replacement": bytes.fromhex("baab009400fcff34ccc68817"),
+        },
+        {
+            "description": "cave: replayed epilogue of OpenErrorWindowOnFailed.<>b__0 (dead tail of NormalMatchingController.<CallbackBattleStartSuccess>b__46_0, after the boot once-latch cave)",
+            "offset": 0x13ED98C,
+            "expected": bytes.fromhex("f44f41a9f50743f8c0035fd6"),
+            "replacement": bytes.fromhex("fd7b41a9f44fc2a8c0035fd6"),
+        },
         {
             "description": "safely skip weapon attachment when WeaponModelController is null in PlayerCharacter.SetModel",
             "offset": 0x13C941C,
