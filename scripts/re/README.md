@@ -136,4 +136,12 @@ Rules learned the hard way:
   0x30E1E44-0x30E1E54 and the 9720 `RegisterGetRegionFailed` entry probe 0x30E1E54-0x30E1E6C; 0x30E1E6C-0x30E1F70
   (260 B) free. The caves also use the layout padding of `CrashReportManager` (+0x11 re-entry flag, +0x12/+0x13
   per-session counters) as writable state.
+* `scripts/re/rush_push_cave.py` — **production** rush-pursuit "push in front" (2026-10-10): `PlayerStateEntrained`
+  `UpdateAction` 0x17D7474 / `IsFinish` 0x17D79DC `bl` hooks, keyed on the MoveAttack attach timer (`PlayerCharacter`
+  +0x340 > 0). Chained caves in four free tails, all verified free in the 8 flavours and branch-swept:
+  0x1A2AC1C-0x1A2AC50 (`PhotonPropertyManagerBase<object>.CheckInitializeError`, full), 0x159E32C-0x159E354
+  (`<LoadModelAsync>d__25.MoveNext`; 20 B prod / 28 B DIAG), 0x31C49A4-0x31C49D4 (`TitleView.SetAllButtonActive`; 36 B),
+  and DIAG-only 0x13CE7A4-0x13CE7BC (`UpdateIdleTypeRate` tail). KFDIAG 9800 = push ran this frame, 9801 = IsFinish held
+  past the stock 0.5 s (9800-9819 reserved). Remaining free after this: 0x1A2AC1C-0x1A2AC50 none, 0x159E354 none,
+  0x31C49C4-0x31C49D4 (16 B), 0x13CE7BC-0x13CE7C8 (12 B), 0x13ED970-0x13ED998 (40 B).
 * `scripts/re/_disfull.py` = `a64dis.py` that does not stop at the first `ret` (whole-function listings).

@@ -32,6 +32,10 @@ Patches:
      At the hook v9/v10/v11 = dasher position (Transform.get_position at 0x145AC1C), x19 = this; the cave uses only
      s16-s21 (caller-saved, dead here: get_forward is called next), sets no flags and returns with `ret`
      (mid-function `bl` hook, HitCallback saved x30 in its prologue).
+Follow-up (2026-10-10, scripts/re/rush_push_cave.py): PlayerStateEntrained's 720 deg/s orbit made the victims circle the
+dasher. Two more caves (UpdateAction 0x17D7474, IsFinish 0x17D79DC), keyed on the MoveAttack attach timer
+(PlayerCharacter +0x340 > 0), make the victim ride in FRONT of the dasher until the dash ends; stock entrainment is
+untouched. Patch 1 below is still what routes the victim into PlayerStateEntrained.
 Cave: the dead body of the entry-stubbed GameManager.<BeginAsync>b__1 (stub 0x1579940-0x1579948 "mov w0,#0; ret",
 unconditional in production; body 0x1579948-0x157999C, only its own internal branches land in it).
 

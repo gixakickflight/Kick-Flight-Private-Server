@@ -2469,6 +2469,62 @@ NATIVE_PATCHES: dict[str, list[dict[str, object]]] = {
             "expected": bytes.fromhex("08292c1e"),
             "replacement": bytes.fromhex("397b0494"),  # bl #0x1579948
         },
+        # Rush pursuit "push in front" (2026-10-10): PlayerStateEntrained orbited the hit target around the dasher; while the
+        # victim carries the MoveAttack attach timer (PlayerCharacter +0x340 > 0, written only by AcceptAttachCharacter) the
+        # orbit angle follows the dasher's yaw (victim rides in front) and IsFinish holds until the dash ends. Stock
+        # entrainment (tornado-type skills; no attach) is unchanged. Source and RE notes: scripts/re/rush_push_cave.py.
+        # Cave windows are the free tails of dead bodies (entry-stubbed in every flavour); KFDIAG 9800/9801 in DIAG builds.
+        {
+            "description": "cave: PlayerStateEntrained.UpdateAction orbit angle follows the dasher yaw for MoveAttack-attached victims, part 1 (dead tail of CheckInitializeError)",
+            "offset": 0x1a2ac1c,
+            "expected": bytes.fromhex("e2030032e0031faae3031faaf30300322afaf59702000014f3030032e003132afd7b43a9f44f42a9f65741a9f85fc4a8c0035fd6"),
+            "replacement": bytes.fromhex("680a40f9034143bd6820201e0d010054fd7bbea9e01300bd601640f9e1031faa80470194e1031faabacded172128221ec0035fd6"),
+        },
+        *([
+            {
+                "description": "cave: rush push part 2 (get_eulerAngles, KFDIAG 9800) (dead tail of HomeSummonModelController.<LoadModelAsync>d__25.MoveNext)",
+                "offset": 0x159e32c,
+                "expected": bytes.fromhex("600e00f9e8030032e00300320200001408008012681200b9fd7b42a9"),
+                "replacement": bytes.fromhex("36ad479400c984520578f897e01340bdfd7bc2a8e0031faac0035fd6"),
+            },
+            {
+                "description": "cave: rush push IsFinish hold, DIAG variant branches to the 9801 probe (dead tail of TitleView.SetAllButtonActive)",
+                "offset": 0x31c49a4,
+                "expected": bytes.fromhex("252da697733240f9730000b5e0031faa0e3e8197e00313aae103142afd7b42a9f44f41a9"),
+                "replacement": bytes.fromhex("01102c1e0020211ecb000054680a40f9024143bd4020211e4d00005479278817c0035fd6"),
+            },
+            {
+                "description": "cave: rush push 9801 probe tail (dead tail of PlayerCharacter.UpdateIdleTypeRate)",
+                "offset": 0x13ce7a4,
+                "expected": bytes.fromhex("001da84efd7b46a9f44f45a9f65744a9e923436deb2b426d"),
+                "replacement": bytes.fromhex("e9031eaa20c98452e7b6ff97fe0309aa01f0271ec0035fd6"),
+            },
+        ] if os.environ.get("KF_DIAG") == "1" else [
+            {
+                "description": "cave: rush push part 2 (get_eulerAngles) (dead tail of HomeSummonModelController.<LoadModelAsync>d__25.MoveNext)",
+                "offset": 0x159e32c,
+                "expected": bytes.fromhex("600e00f9e8030032e00300320200001408008012"),
+                "replacement": bytes.fromhex("36ad4794e01340bdfd7bc2a8e0031faac0035fd6"),
+            },
+            {
+                "description": "cave: rush push IsFinish hold: finish threshold 0.5 s -> 31 s while the MoveAttack attach has > 0.5 s left (dead tail of TitleView.SetAllButtonActive)",
+                "offset": 0x31c49a4,
+                "expected": bytes.fromhex("252da697733240f9730000b5e0031faa0e3e8197e00313aae103142afd7b42a9f44f41a9"),
+                "replacement": bytes.fromhex("01102c1e0020211ecb000054680a40f9024143bd4020211e4d00005401f0271ec0035fd6"),
+            },
+        ]),
+        {
+            "description": "PlayerStateEntrained.UpdateAction `fadd s1, s1, s2` (angle += dt*720) -> bl rush push cave",
+            "offset": 0x17d7474,
+            "expected": bytes.fromhex("2128221e"),
+            "replacement": bytes.fromhex("ea4d0994"),
+        },
+        {
+            "description": "PlayerStateEntrained.IsFinish `fmov s1, #0.5` -> bl rush push hold cave",
+            "offset": 0x17d79dc,
+            "expected": bytes.fromhex("01102c1e"),
+            "replacement": bytes.fromhex("f2b36794"),
+        },
         # ---- Owlbert (5) SS smog: create the drone when the caster OR the carrier is local (patch A) ----
         # handoff/dsh-owlbert-1/report.md Q4/Q5, handoff/dsh-owlbert-2/report.md. Hook site 0x18498E4
         # (SmogConditionAction.StartAction `ldr x20,[x19,#0x40]`); cave replays it and branches to the
