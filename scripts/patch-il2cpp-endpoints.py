@@ -882,6 +882,15 @@ NATIVE_PATCHES: dict[str, list[dict[str, object]]] = {
             "replacement": bytes.fromhex("c0035fd6"),  # ret
         },
         {
+            # SetModel is stubbed above, so SummonAnimator is never created and every skill description window with a
+            # summon threw here (SkillDescriptionWindow.CreateSummonModelCoroutine). Return through the epilogue: the
+            # window opens without the 3D summon.
+            "description": "skip the null SummonAnimator in OutGameModelController.CreateSummonModel",
+            "offset": 0x1552DAC,
+            "expected": bytes.fromhex("1005f397"),  # bl #0x12141ec
+            "replacement": bytes.fromhex("eaffff17"),  # b #0x1552d54
+        },
+        {
             "description": "safely bypass weapon attachment when instantiated model is null in Weapon.Initialize",
             "offset": 0x1818FD8,
             "expected": bytes.fromhex("560000b584ece797"),  # cbnz x22, #0x1818fe0; bl #0x12141ec
