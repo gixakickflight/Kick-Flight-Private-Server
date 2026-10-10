@@ -14,6 +14,13 @@ scene actually changes. Each call starts a `ColorfulManager.<ChangeSceneAsync>d_
 `GRE.SceneManager.ChangeScene`, which returns immediately when `SceneManager._isChanging` (+0x58) is already set. So N frames
 before the first backend answer => N log lines, but only the first one should really change scene.
 
+RESULT (2026-10-11): confirmed, but the duplicates were NOT stock behaviour: the production patch "bypass _isChangeScene
+check in SceneManager.ChangeScene" (0x1CAC918, `cbz w8` -> `b`) disables the gate, so 9420/9421 only *observe* the flag
+(9421 = would have been rejected) while all ~15 requests run `_ChangeSceneAsync` -> `PreBeginAsync` (caller:
+`SceneManager.<PreBeginSceneAsync>d__37.MoveNext` blr 0x1CB230C). Each Title load destroys the previous TitleView
+(9442 = view dead). Fixed by scripts/re/boot_once_cave.py; the expected counts after the fix are 9400 x1, 9410/9411 x1,
+9420 x1, 9421 x0, 9430 x1, 9447 x1, 9442/9443 x0, 9460 x1, 9470 x0.
+
 Probes (all `KFDIAG v=N`; 9400-9499 were unused; the task asked for 9500-9549 but those are taken by kicker_diag_caves.py)
 -------------------------------------------------------------------------------------------------------------------
   9400  BootScene.ManagedUpdate is about to call ColorfulManager.ChangeScene(Title) (hook 0x15C9E6C, one per frame).

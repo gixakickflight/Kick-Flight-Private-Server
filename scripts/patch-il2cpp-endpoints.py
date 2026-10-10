@@ -902,6 +902,34 @@ NATIVE_PATCHES: dict[str, list[dict[str, object]]] = {
             "expected": bytes.fromhex("1005f397"),  # bl #0x12141ec
             "replacement": bytes.fromhex("eaffff17"),  # b #0x1552d54
         },
+        # Rest of the "SetModel is a stub" audit (2026-10-11): HomeSummonModelController +0x40 SummonAnimator and +0x48
+        # ModelController stay null, so every unguarded consumer is rewritten to return / skip (in place, no cave).
+        # Guarded already (op_Equality/Inequality): SetGachaRoot, SetDiscDetailRoot, GetBone, SetBrightness, UnloadModel,
+        # OnManagedUpdate +0x204, PlaySummonHomeMotion's own null check.
+        {
+            "description": "HomeSummonModelController.PlayIdleLoopIfExist: return when SummonAnimator is null",
+            "offset": 0x159DCBC,
+            "expected": bytes.fromhex("740000b5"),  # cbnz x20, #0x159dcc8
+            "replacement": bytes.fromhex("940200b4"),  # cbz x20, #0x159dd0c (function epilogue + ret)
+        },
+        {
+            "description": "HomeSummonModelController.PlayHomeAnim: return when SummonAnimator is null",
+            "offset": 0x159E0BC,
+            "expected": bytes.fromhex("e0031faa"),  # mov x0, xzr (then bl NRE)
+            "replacement": bytes.fromhex("3c010014"),  # b #0x159e5ac (ldp x29,x30,[sp,#0x10]; ldr x19,[sp],#0x20; ret)
+        },
+        {
+            "description": "SkillDescriptionWindow.OnManagedUpdate: skip SetOutlineWidthScale when ModelController is null",
+            "offset": 0x183974C,
+            "expected": bytes.fromhex("a86ae797"),  # bl #0x12141ec
+            "replacement": bytes.fromhex("d5ffff17"),  # b #0x18396a0 (the function's ret epilogue; the call was its tail)
+        },
+        {
+            "description": "SkillDescriptionWindow.<PlayCloseModel>b__77_0: skip SetOutlineWidthScale when ModelController is null",
+            "offset": 0x183F12C,
+            "expected": bytes.fromhex("3054e797"),  # bl #0x12141ec
+            "replacement": bytes.fromhex("05000014"),  # b #0x183f140 (past the call, rest of the close animation runs)
+        },
         {
             "description": "safely bypass weapon attachment when instantiated model is null in Weapon.Initialize",
             "offset": 0x1818FD8,
@@ -1089,6 +1117,22 @@ NATIVE_PATCHES: dict[str, list[dict[str, object]]] = {
             "offset": 0x31C77D8,
             "expected": bytes.fromhex("540000b584328197"),
             "replacement": bytes.fromhex("b40000b41f2003d5"),
+        },
+        # Title screen root cause (2026-10-11, source and evidence: scripts/re/boot_once_cave.py). BootScene.ManagedUpdate
+        # requests ChangeScene(Title) every frame; stock drops the duplicates in SceneManager.ChangeScene's `_isChangeScene`
+        # gate, which the "bypass _isChangeScene check" patch (0x1CAC918) turns off, so Title was loaded ~15 times (each load
+        # destroyed the previous TitleView mid-Initialize). The gate bypass stays for everybody else; BootScene is one-shot.
+        {
+            "description": "cave: BootScene.ManagedUpdate once-latch (BootScene+0x47 padding byte) (dead tail of NormalMatchingController.<CallbackBattleStartSuccess>b__46_0)",
+            "offset": 0x13ED970,
+            "expected": bytes.fromhex("e1031faa339e12947f02006be0179f1a02000014e0031f2afd7b42a9"),
+            "replacement": bytes.fromhex("081c4139a800003528008052081c0139f30f1ef827710714c0035fd6"),
+        },
+        {
+            "description": "BootScene.ManagedUpdate entry `str x19, [sp, #-0x20]!` -> b once-latch cave (ChangeScene(Title) once instead of every frame)",
+            "offset": 0x15C9E1C,
+            "expected": bytes.fromhex("f30f1ef8"),
+            "replacement": bytes.fromhex("d58ef817"),
         },
         {
             "description": "safely skip weapon attachment when WeaponModelController is null in PlayerCharacter.SetModel",

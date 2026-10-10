@@ -150,5 +150,17 @@ Rules learned the hard way:
   (`<LoadModelAsync>d__25.MoveNext`; 20 B prod / 28 B DIAG), 0x31C49A4-0x31C49D4 (`TitleView.SetAllButtonActive`; 36 B),
   and DIAG-only 0x13CE7A4-0x13CE7BC (`UpdateIdleTypeRate` tail). KFDIAG 9800 = push ran this frame, 9801 = IsFinish held
   past the stock 0.5 s (9800-9819 reserved). Remaining free after this: 0x1A2AC1C-0x1A2AC50 none, 0x159E354 none,
-  0x31C49C4-0x31C49D4 (16 B), 0x13CE7BC-0x13CE7C8 (12 B), 0x13ED970-0x13ED998 (40 B).
+  0x31C49C4-0x31C49D4 (16 B), 0x13CE7BC-0x13CE7C8 (12 B), 0x13ED970-0x13ED998 (40 B; 0x13ED970-0x13ED98C now used
+  by boot_once_cave.py, 12 B left).
+* `scripts/re/boot_once_cave.py` — **production** title-screen root-cause fix (2026-10-11): `BootScene.ManagedUpdate`
+  (0x15C9E1C, entry hook `b`) requests `ChangeScene(Title)` once per BootScene instance (latch byte BootScene+0x47,
+  allocation padding) instead of every frame. The ~15 `TitleScene.PreBeginAsync` runs came from the production patch
+  `bypass _isChangeScene check` (0x1CAC918), which disables the gate that dropped the duplicate requests in stock.
+  Cave 0x13ED970-0x13ED98C (dead tail of `<CallbackBattleStartSuccess>b__46_0`).
+* `HomeSummonModelController.SetModel` is entry-stubbed, so `SummonAnimator` (+0x40) / `ModelController` (+0x48) /
+  `ModelTransform` (+0x38) stay null. Audit of every consumer (2026-10-11): guarded already = `SetGachaRoot`,
+  `SetDiscDetailRoot`, `GetBone`, `SetBrightness`, `UnloadModel`, `OutGameModelController.UnloadSummonModel`,
+  `SkillDescriptionWindow.OnManagedUpdate`+0x204; patched in place (no cave) = `OutGameModelController.CreateSummonModel`
+  0x1552DAC, `PlayIdleLoopIfExist` 0x159DCBC, `PlayHomeAnim` 0x159E0BC (-> epilogue at 0x159E5AC),
+  `SkillDescriptionWindow.OnManagedUpdate` 0x183974C and `<PlayCloseModel>b__77_0` 0x183F12C (skip `SetOutlineWidthScale`).
 * `scripts/re/_disfull.py` = `a64dis.py` that does not stop at the first `ret` (whole-function listings).
