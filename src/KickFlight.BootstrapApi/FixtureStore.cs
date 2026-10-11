@@ -18,6 +18,8 @@ public sealed class FixtureStore
     private readonly object _gate = new();
     private FixtureSnapshot? _snapshot;
     private string? _fingerprint;
+    private FixtureDefinition? _iosBootFixture;
+    private string? _iosBootFingerprint;
 
     public FixtureStore(IOptions<HarnessOptions> options, IWebHostEnvironment environment, ILogger<FixtureStore> logger)
     {
@@ -32,11 +34,56 @@ public sealed class FixtureStore
         string.Equals(NormalizePath(f.Path), NormalizePath(path), StringComparison.Ordinal));
 
     public FixtureDefinition? MatchDirect(string method, string path)
+        => MatchDirect(method, path, null);
+
+    public FixtureDefinition? MatchDirect(string method, string path, int? clientAssetPlatform)
     {
-        var matches = GetSnapshot().Fixtures.Where(f =>
+        var candidates = GetSnapshot().Fixtures.Where(f =>
             f.Enabled && string.Equals(f.Method, method, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(NormalizePath(f.Path), NormalizePath(path), StringComparison.Ordinal)).Take(2).ToArray();
-        return matches.Length == 1 ? matches[0] : null;
+        if (clientAssetPlatform is int platform)
+        {
+            var platformMatches = candidates.Where(f => f.ClientAssetPlatform == platform).ToArray();
+            if (platformMatches.Length == 1) return platformMatches[0];
+            if (platformMatches.Length > 1) return null;
+        }
+        var genericMatches = candidates.Where(f => f.ClientAssetPlatform is null).ToArray();
+        return genericMatches.Length == 1 ? genericMatches[0] : null;
+    }
+
+    public FixtureDefinition? GetIosBootFixture()
+    {
+        var path = RepositoryPaths.Resolve(_options.IosBootFixturePath, _environment.ContentRootPath);
+        var fingerprint = File.Exists(path)
+            ? $"{path}:{File.GetLastWriteTimeUtc(path).Ticks}:{new FileInfo(path).Length}"
+            : $"{path}:missing";
+        if (_iosBootFingerprint == fingerprint) return _iosBootFixture;
+
+        lock (_gate)
+        {
+            if (_iosBootFingerprint == fingerprint) return _iosBootFixture;
+            _iosBootFixture = null;
+            if (File.Exists(path))
+            {
+                try
+                {
+                    var fixture = JsonSerializer.Deserialize<FixtureDefinition>(File.ReadAllText(path), JsonOptions)
+                        ?? throw new InvalidDataException("The iOS boot fixture was empty.");
+                    fixture.SourceFile = path;
+                    Validate(fixture);
+                    if (fixture.ClientAssetPlatform != 2 || !string.Equals(fixture.Method, "POST", StringComparison.OrdinalIgnoreCase) ||
+                        !string.Equals(NormalizePath(fixture.Path), "/boot/index", StringComparison.Ordinal) || fixture.StatusCode != 200)
+                        throw new InvalidDataException("The iOS boot fixture must be a platform-2 POST /boot/index 200 response.");
+                    _iosBootFixture = fixture;
+                }
+                catch (Exception exception)
+                {
+                    _logger.LogError(exception, "Could not load the platform-specific iOS boot fixture");
+                }
+            }
+            _iosBootFingerprint = fingerprint;
+            return _iosBootFixture;
+        }
     }
 
     public FixtureSnapshot GetSnapshot()
@@ -69,7 +116,7 @@ public sealed class FixtureStore
                 }
             }
 
-            var duplicates = fixtures.Where(f => f.Enabled).GroupBy(f => $"{NormalizeHost(f.Host)}|{f.Method.ToUpperInvariant()}|{NormalizePath(f.Path)}")
+            var duplicates = fixtures.Where(f => f.Enabled).GroupBy(f => $"{NormalizeHost(f.Host)}|{f.Method.ToUpperInvariant()}|{NormalizePath(f.Path)}|{f.ClientAssetPlatform?.ToString() ?? "*"}")
                 .Where(g => g.Count() > 1).Select(g => g.Key);
             errors.AddRange(duplicates.Select(d => $"Duplicate enabled fixture route: {d}"));
             _snapshot = new FixtureSnapshot(fixtures, errors);

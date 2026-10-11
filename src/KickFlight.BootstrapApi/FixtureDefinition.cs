@@ -10,6 +10,8 @@ public sealed class FixtureDefinition
     public required string Host { get; init; }
     public required string Method { get; init; }
     public required string Path { get; init; }
+    /// <summary>Optional direct-client discriminator for routes such as the platform-specific boot response.</summary>
+    public int? ClientAssetPlatform { get; init; }
     public int StatusCode { get; init; } = 200;
     public string ContentType { get; init; } = "application/json; charset=utf-8";
     public Dictionary<string, string> Headers { get; init; } = new(StringComparer.OrdinalIgnoreCase);

@@ -1,0 +1,15 @@
+{
+  "id": "accepted-boot-index-ios-platform-2-d2c",
+  "enabled": true,
+  "host": "kickflight-api.grenge.jp",
+  "method": "POST",
+  "path": "/boot/index",
+  "statusCode": 200,
+  "contentType": "application/octet-stream",
+  "headers": {
+    "x-app-status-code": "0",
+    "x-kickflight-fixture": "accepted-boot-index-ios-platform-2-d2c"
+  },
+  "bodyBase64": "ABEiM0RVZneImaq7zN3u/+4ZG7cl5F/07+0OAC5uJy0/3A0Ii5ZqZFDzOzrFYgu/mR5rWS9jESR+NzzLp9LpcxwpVbR4g8sIlyHnd7Wr20442252M5RgOGaEOA0L6z7d",
+  "clientAssetPlatform": 2
+}

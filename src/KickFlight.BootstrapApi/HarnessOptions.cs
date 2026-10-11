@@ -5,6 +5,14 @@ public sealed class HarnessOptions
     public bool StrictMode { get; set; } = true;
     public string FixtureDirectory { get; set; } = "config/fixtures";
     public string ResourceCatalogPath { get; set; } = "config/resources/catalog.json";
+    /// <summary>
+    /// Optional, isolated iOS Octo resources. The immutable catalog and payload tree are staged below the existing
+    /// read-only .local mount; absence keeps the iOS profile disabled rather than falling back to Android assets.
+    /// </summary>
+    public string IosResourceCatalogPath { get; set; } = ".local/ios-resources/12346-r2/catalog.json";
+    /// <summary>Tracked, versioned manifest whose bytes must match the staged immutable iOS catalog.</summary>
+    public string IosResourceManifestPath { get; set; } = "src/KickFlight.BootstrapApi/catalog-ios-12346.json";
+    public string IosBootFixturePath { get; set; } = "src/KickFlight.BootstrapApi/boot-index-ios-platform-2.json";
     public string CaptureDirectory { get; set; } = "captures";
     public bool PersistCaptures { get; set; }
     public int MaxCapturedBodyBytes { get; set; } = 65_536;
@@ -40,5 +48,11 @@ public sealed class HarnessOptions
     public Dictionary<string, string> MasterDownloadOriginsByHost { get; set; } = new(StringComparer.OrdinalIgnoreCase)
     {
         ["kick-flight-fenix.us.ci"] = "https://kick-flight-fenix.us.ci"
+    };
+
+    /// <summary>Host-specific HTTPS origin for the separate iOS asset catalog.</summary>
+    public Dictionary<string, string> IosOctoCdnUrlFormatsByHost { get; set; } = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["kick-flight-fenix.us.ci"] = "https://kick-flight-fenix.us.ci/ios/cdn/{o}"
     };
 }
