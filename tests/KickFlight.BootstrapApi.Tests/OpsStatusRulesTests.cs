@@ -141,6 +141,24 @@ public sealed class OpsStatusRulesTests
     }
 
     [Fact]
+    public void Unity_format_stack_frames_separate_different_exceptions()
+    {
+        // The live reporter's format (2026-10-11): two different NullReferenceExceptions used to share one fingerprint.
+        const string removeDebuff = "[Analysis]\nNullReferenceException: Object reference not set to an instance of an object.\n" +
+            "Colorful.ConditionEffectController.RemoveDebuff (Colorful.ConditionType type, System.Boolean isTrap) (at <00000000000000000000000000000000>:0)\n" +
+            "Colorful.ConditionActionController.RemoveCondition (Colorful.ConditionActionBase conditionAction) (at <00000000000000000000000000000000>:0)\n";
+        const string hpGauge = "[Analysis]\nNullReferenceException: Object reference not set to an instance of an object.\n" +
+            "Colorful.OwnHPGaugeView.Initialize (UnityEngine.Transform parent) (at <00000000000000000000000000000000>:0)\n" +
+            "Colorful.HPGaugePresenter.Initialize (Colorful.PlayerCharacter mine) (at <00000000000000000000000000000000>:0)\n";
+        var a = OpsFingerprint.Classify(removeDebuff);
+        var b = OpsFingerprint.Classify(hpGauge);
+        Assert.Equal("client_exception", a.Kind);
+        Assert.NotEqual(a.Fingerprint, b.Fingerprint);
+        Assert.Equal("NullReferenceException\nColorful.ConditionEffectController.RemoveDebuff (Colorful.ConditionType type, System.Boolean isTrap)\n" +
+                     "Colorful.ConditionActionController.RemoveCondition (Colorful.ConditionActionBase conditionAction)", a.Signature);
+    }
+
+    [Fact]
     public void Hitagi_warp_skill_type_reports_are_known_benign_unless_mixed_with_a_real_anomaly()
     {
         // Live 2026-10-11: every Hitagi kicker-skill cast logs this, then warps normally (AcceptWarp -> SendWarp).

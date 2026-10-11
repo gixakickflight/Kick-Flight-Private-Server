@@ -30,11 +30,14 @@ public static partial class OpsFingerprint
     {
         var text = cause.StartsWith(ReportPrefix, StringComparison.Ordinal) ? cause[ReportPrefix.Length..] : cause;
         var lines = text.Replace("\r", "").Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-        var frames = lines.Where(line => line.StartsWith("at ", StringComparison.Ordinal))
+        // Mono prints "at Colorful.Foo.Bar (...) [0x0001c] in <...>:0"; the client's Unity log handler (what the error
+        // reporter forwards) prints "Colorful.Foo.Bar (...) (at <...>:0)" without the "at ". Both are frames; without
+        // the second form every NullReferenceException collapsed into one group.
+        var frames = lines.Where(IsFrame)
             .Take(FramesInFingerprint)
             .Select(NormalizeFrame)
             .ToList();
-        var head = lines.FirstOrDefault(line => !line.StartsWith("at ", StringComparison.Ordinal)) ?? "";
+        var head = lines.FirstOrDefault(line => !IsFrame(line)) ?? "";
         var hasException = frames.Count > 0 || ExceptionType().IsMatch(head);
 
         // "NullReferenceException: Object reference ..." -> the type; a free-form anomaly -> its first line with
@@ -72,9 +75,15 @@ public static partial class OpsFingerprint
     [GeneratedRegex(@"^\d+:")]
     private static partial Regex BatchIndex();
 
+    private static bool IsFrame(string line) =>
+        line.StartsWith("at ", StringComparison.Ordinal) || line.Contains(" (at <", StringComparison.Ordinal);
+
     private static string NormalizeFrame(string frame)
     {
-        // "at Colorful.Foo.Bar (System.Int32 x) [0x0001c] in <a1b2...>:0" -> "at Colorful.Foo.Bar (System.Int32 x)"
+        // "at Colorful.Foo.Bar (System.Int32 x) [0x0001c] in <a1b2...>:0" -> "at Colorful.Foo.Bar (System.Int32 x)";
+        // Unity's "Colorful.Foo.Bar (System.Int32 x) (at <a1b2...>:0)" -> "Colorful.Foo.Bar (System.Int32 x)"
+        var unity = frame.IndexOf(" (at <", StringComparison.Ordinal);
+        if (unity > 0) frame = frame[..unity];
         var cut = frame.IndexOf(" [0x", StringComparison.Ordinal);
         if (cut < 0) cut = frame.IndexOf(" in ", StringComparison.Ordinal);
         if (cut > 0) frame = frame[..cut];
