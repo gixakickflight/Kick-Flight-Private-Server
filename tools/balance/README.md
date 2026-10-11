@@ -158,6 +158,15 @@ Numbers render as `<input type="number" step="any">`, booleans as checkboxes, st
 text. Row-link columns (`id`, `kickerId`, `attackCount`, `skillId`, `specialSkillId`,
 `kickerAbilityId`) and the documented read-only columns are shown as read-only chips.
 
+**Enum dropdowns.** Every column in the enum registry (`tools/balance/enums.json`, served by
+`GET /api/enums`) renders as a `<select>` whose options are `"<id> - <name>"` — e.g.
+`conditionType` shows `1 - AttackRate`, `7 - Burn`, `trapType` shows `7 - Bomb`, and
+`skill.skillCategoryType` (a documented read-only column) becomes editable because the names make
+it safe to pick a value. The value written is still the raw integer; nothing else about a save
+changes. A row whose current value is not in the registry gets its own `"<id> - (unknown)"` option,
+which is selected by default and preserved on save, so a value the registry has not mapped yet is
+never silently changed. Columns without a mapping keep their number input.
+
 Every section whose table has an override file shows an **override** badge and a **Revert to base**
 button. Reverting deletes the override file (after backing it up) so the base `config/` file applies
 again; like a save, it needs the API restart. **Export overrides** downloads a zip of every override
@@ -194,6 +203,25 @@ Before an override file is overwritten (or deleted by a revert) the server copie
 in effect - the override if there was one, else the base `config/` file - to the backup dir as
 `<name>-<yyyymmdd-hhmmss>.json`; `GET /api/diff/<name>` lists the field-level differences against the
 newest backup.
+
+## Adding an enum (or a mapped column)
+
+`tools/balance/enums.json` has two objects:
+
+* `enums` — one entry per client enum: `{"source": "<where the names were verified>",
+  "values": {"<id>": "<MemberName>", ...}}`. `source` is required in spirit (it is what keeps a
+  label honest): cite the file and line the names came from, e.g.
+  `docs/COMBAT_MASTERS_FILL_IN.md:71 (TrapType)`. Do **not** guess a name — leave the value out of
+  `values` and the UI will show it as `(unknown)`.
+* `fields` — which column renders as a dropdown: `{"<table>.<column>": "<enum name>"}`, where
+  `<table>` is the name without the `masters_` prefix and the enum name must exist under `enums`.
+
+To add one: append the enum under `enums`, add the `"<table>.<field>": "<enum name>"` line under
+`fields`, and reload the page — the server reads the file on every request, no restart needed. A
+malformed file (unknown enum name, empty `values`, a non-string label) makes `GET /api/enums`
+answer 500 and the page falls back to plain number inputs, so a typo can never break editing.
+`python tools/balance/test_balance.py` checks that the registry loads, that every mapped field
+exists in its table's schema, and that a dropdown save round-trips the integer.
 
 ## Apply tab (footer)
 
@@ -263,6 +291,7 @@ and JSON body are passed through to the browser.
 | `GET /api/kickers` | `{id, name, weaponType, roleType, skillId}` per kicker (override-aware) |
 | `GET /api/discs` | `{id, name, rarityType, discType, skillId, effect, type, attribute, rarity}` per disc (override-aware) |
 | `GET /api/effect-schema` | `{tables: {name: {fields: {col: type}, defaults: {...}}}}` |
+| `GET /api/enums` | `{enums: {name: {source, values: {id: label}}}, fields: {"table.field": name}}` |
 | `GET /api/tables` | `[{name, source, overridden, base, overrideMtime, baseMtime}, ...]` |
 | `GET /api/table/<name>` | full effective array: override file if present, else `config/masters_<name>.json` |
 | `POST /api/table/<name>` | body `{"rows": [...]}`; validates, backs up, writes the **override** file, returns `{ok, written, override}` |

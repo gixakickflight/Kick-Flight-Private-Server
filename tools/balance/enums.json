@@ -1,0 +1,324 @@
+{
+  "_readme": "Named client enums for the balance WebUI. 'enums' holds one entry per client enum: an ordered-ish {value: memberName} map plus a 'source' string naming where the names come from. 'fields' maps '<table>.<column>' (the masters_<table>.json file and the C# master field) to one of those enum names; every mapped column renders as a '<id> - <name>' <select> in index.html, and a value that is not in 'values' is shown and kept as '<id> - (unknown)'. Add an enum under 'enums', then list the columns that use it under 'fields' (see tools/balance/README.md). Values whose meaning could not be sourced are left out on purpose: the UI labels them (unknown) instead of guessing.",
+  "enums": {
+    "ConditionType": {
+      "source": "docs/COMBAT_MASTERS_FILL_IN.md:63 (Enums, ConditionType); scripts/generate_combat_masters.py:44-46,301-306 (COND_*); value 34 OneShotKiller from scripts/generate_combat_masters.py:791 (34 = self OneShotKiller). 33 is absent from the source table.",
+      "values": {
+        "0": "None",
+        "1": "AttackRate",
+        "2": "SpeedRate",
+        "3": "DefenseRate",
+        "4": "DamageRate",
+        "5": "Poison",
+        "6": "Paralysis",
+        "7": "Burn",
+        "8": "Stun",
+        "9": "Silent",
+        "10": "Drain",
+        "11": "Regeneration",
+        "12": "Inhale",
+        "13": "BlowoffCollider",
+        "14": "Restrainted",
+        "15": "Restraint",
+        "16": "Prison",
+        "17": "Dot",
+        "18": "Smog",
+        "19": "SmogDisturb",
+        "20": "SmogProtection",
+        "21": "Gravity",
+        "22": "Confusion",
+        "23": "PullIn",
+        "24": "Stealth",
+        "25": "Panda",
+        "26": "ShieldForward",
+        "27": "ShieldAll",
+        "28": "AttackSpeedRate",
+        "29": "RocketLauncherTarget",
+        "30": "AutoMove",
+        "31": "BoostHealSpeedRate",
+        "32": "SpecialSkillGaugeRate",
+        "34": "OneShotKiller"
+      }
+    },
+    "ConditionTriggerType": {
+      "source": "docs/COMBAT_MASTERS_FILL_IN.md:64 (ConditionTriggerType); scripts/generate_combat_masters.py:47-48,307 (TRIGGER_*)",
+      "values": {
+        "0": "None",
+        "1": "ReceiveDamage",
+        "2": "AddDamage",
+        "3": "Execute",
+        "4": "EnterTrap",
+        "5": "EnterEnemyTeamTrap",
+        "6": "EnterMyTeamTrap",
+        "7": "All"
+      }
+    },
+    "KickerAbilityTrigger": {
+      "source": "scripts/generate_abilities.py:10-17 (per-passive trigger values actually delivered; the client member names are not in the sources, so these labels describe the call site)",
+      "values": {
+        "1": "Heal path (ApplyHeal / ApplyCondition)",
+        "2": "AbilityConditionAction (AddDamage)",
+        "3": "Avoid / BarrelRoll",
+        "4": "Own death (PlayerStateDead)",
+        "5": "Trap placed (AddTrap)",
+        "6": "Takedown (ApplyDamage -> ApplyDeadState)"
+      }
+    },
+    "SkillType": {
+      "source": "docs/COMBAT_MASTERS_FILL_IN.md:65 (SkillType 1 Disc, 2 Kicker, 3 Wind); scripts/generate_combat_masters.py:169-171 (id 1 / skillType 3 is the guardian eye laser)",
+      "values": {
+        "1": "Disc",
+        "2": "Kicker",
+        "3": "Wind (guardian eye laser)"
+      }
+    },
+    "SkillActionType": {
+      "source": "docs/COMBAT_MASTERS_FILL_IN.md:66 (SkillActionType, full)",
+      "values": {
+        "1": "ShotAttack",
+        "2": "AroundAttack",
+        "3": "MoveAttack",
+        "4": "FrontAttack",
+        "5": "BeamAttack",
+        "6": "Support",
+        "7": "Trap",
+        "8": "Warp",
+        "9": "Sword",
+        "10": "TwoGuns",
+        "11": "Hammer",
+        "12": "ThrowingStar",
+        "13": "Drone",
+        "14": "RocketLauncher",
+        "15": "Gun",
+        "16": "PunchGlove",
+        "17": "Bowgun",
+        "18": "Shield",
+        "19": "Bat",
+        "20": "Nunchaku",
+        "21": "VerticalLoop",
+        "22": "AutoMove",
+        "23": "JapaneseSword",
+        "24": "Laser"
+      }
+    },
+    "SkillCategoryType": {
+      "source": "docs/COMBAT_MASTERS_FILL_IN.md:67 (SkillCategoryType); scripts/generate_translations.py:51,67-70",
+      "values": {
+        "0": "Attack",
+        "1": "Heal",
+        "2": "Buff",
+        "3": "Trap",
+        "4": "Warp",
+        "5": "Move"
+      }
+    },
+    "TargetAreaType": {
+      "source": "docs/COMBAT_MASTERS_FILL_IN.md:68 (TargetAreaType; the aim preview)",
+      "values": {
+        "0": "None",
+        "2": "Cube",
+        "5": "Cylinder",
+        "8": "Sphere",
+        "11": "CylinderLong",
+        "14": "Plane",
+        "17": "Cone"
+      }
+    },
+    "AttributeType": {
+      "source": "docs/COMBAT_MASTERS_FILL_IN.md:69 (AttributeType); scripts/generate_translations.py:56",
+      "values": {
+        "0": "None",
+        "1": "Fire",
+        "2": "Water",
+        "3": "Wind"
+      }
+    },
+    "TrapType": {
+      "source": "docs/COMBAT_MASTERS_FILL_IN.md:71 (TrapType)",
+      "values": {
+        "0": "None",
+        "1": "Slow",
+        "2": "Silent",
+        "3": "Turret",
+        "4": "Decoy",
+        "5": "Inhale",
+        "6": "Smog",
+        "7": "Bomb",
+        "8": "Condition",
+        "9": "Empty",
+        "10": "BatBomb"
+      }
+    },
+    "SkillHealType": {
+      "source": "docs/COMBAT_MASTERS_FILL_IN.md:72 (SkillHealType); semantics at :126",
+      "values": {
+        "1": "Hp",
+        "2": "BoostGauge",
+        "3": "HpDrain",
+        "4": "SpDrain",
+        "5": "Condition"
+      }
+    },
+    "BlowOffDirectionType": {
+      "source": "docs/COMBAT_MASTERS_FILL_IN.md:73 (BlowOffDirectionType); semantics at :128",
+      "values": {
+        "0": "None",
+        "1": "Up",
+        "2": "Down",
+        "3": "Press",
+        "4": "AttackDirection"
+      }
+    },
+    "WeaponType": {
+      "source": "docs/COMBAT_MASTERS_FILL_IN.md:74 (WeaponType); scripts/generate_combat_masters.py:36-38",
+      "values": {
+        "0": "Sword",
+        "1": "TwoGuns",
+        "2": "Hammer",
+        "3": "ThrowingStar",
+        "4": "Drone",
+        "5": "RocketLauncher",
+        "6": "Gun",
+        "7": "PunchGlove",
+        "8": "Bowgun",
+        "9": "Shield",
+        "10": "Bat",
+        "11": "Nunchaku",
+        "12": "JapaneseSword",
+        "13": "Laser"
+      }
+    },
+    "RoleType": {
+      "source": "scripts/generate_translations.py:41 (roleType ordered list); scripts/generate_kicker_parameters.py:8",
+      "values": {
+        "0": "Speed",
+        "1": "Support",
+        "2": "Attack",
+        "3": "Tank"
+      }
+    },
+    "RarityType": {
+      "source": "tools/balance/index.html:292 (existing RARITY_LABELS); config/masters_disc_rarity.json (rarityType 0-3)",
+      "values": {
+        "0": "N",
+        "1": "R",
+        "2": "SR",
+        "3": "UR"
+      }
+    },
+    "HitEffectType": {
+      "source": "docs/COMBAT_MASTERS_FILL_IN.md:56 (HitEffectType, commonHitEffectType); scripts/generate_combat_masters.py:29-32",
+      "values": {
+        "0": "None",
+        "1": "CommonS",
+        "2": "CommonM",
+        "3": "CommonL",
+        "4": "SlashS",
+        "5": "SlashM",
+        "6": "SlashL",
+        "7": "BlowS",
+        "8": "BlowM",
+        "9": "BlowL",
+        "10": "GunS",
+        "11": "GunM",
+        "12": "GunL"
+      }
+    },
+    "CollisionType": {
+      "source": "docs/COMBAT_MASTERS_FILL_IN.md:57 (CollisionType); scripts/generate_combat_masters.py:33",
+      "values": {
+        "0": "Box",
+        "1": "Sphere",
+        "2": "Capsule",
+        "3": "Cylinder"
+      }
+    },
+    "CollisionHitType": {
+      "source": "docs/COMBAT_MASTERS_FILL_IN.md:58 (CollisionHitType); scripts/generate_combat_masters.py:34",
+      "values": {
+        "0": "One (first target only)",
+        "1": "All",
+        "2": "AllAndRehit",
+        "3": "AllCount",
+        "4": "AllAndRehitCount"
+      }
+    },
+    "PlayerBoneType": {
+      "source": "docs/COMBAT_MASTERS_FILL_IN.md:60 (PlayerBoneType, parentBone); scripts/generate_combat_masters.py:35",
+      "values": {
+        "-1": "None",
+        "0": "RightHand",
+        "1": "LeftHand",
+        "2": "Hip",
+        "3": "Neck",
+        "4": "RightHeel",
+        "5": "LeftHeel",
+        "6": "Head",
+        "7": "Spine",
+        "8": "Front",
+        "9": "Common"
+      }
+    },
+    "BulletEndType": {
+      "source": "docs/COMBAT_MASTERS_FILL_IN.md:61 (BulletEndType)",
+      "values": {
+        "0": "Normal",
+        "1": "FadeOut"
+      }
+    },
+    "BulletActionType": {
+      "source": "docs/COMBAT_MASTERS_FILL_IN.md:62 (BulletActionType)",
+      "values": {
+        "0": "Normal",
+        "1": "RocketLauncherSkill"
+      }
+    },
+    "TransformType": {
+      "source": "docs/COMBAT_MASTERS_FILL_IN.md:87,131 (transformType; only 0 = world is documented, every served row is 0)",
+      "values": {
+        "0": "World"
+      }
+    }
+  },
+  "fields": {
+    "skill.skillType": "SkillType",
+    "skill.skillActionType": "SkillActionType",
+    "skill.skillCategoryType": "SkillCategoryType",
+    "skill.targetAreaType": "TargetAreaType",
+    "skill.attributeType": "AttributeType",
+    "disc.rarityType": "RarityType",
+    "kicker_parameter.roleType": "RoleType",
+    "kicker_parameter.weaponType": "WeaponType",
+    "kicker_ability.triggerType": "KickerAbilityTrigger",
+    "kicker_ability_condition.conditionType": "ConditionType",
+    "kicker_ability_condition.triggerType": "ConditionTriggerType",
+    "skill_condition.conditionType": "ConditionType",
+    "skill_condition.triggerType": "ConditionTriggerType",
+    "special_skill_condition.conditionType": "ConditionType",
+    "special_skill_condition.triggerType": "ConditionTriggerType",
+    "skill_heal.skillHealType": "SkillHealType",
+    "skill_blow_off.directionType": "BlowOffDirectionType",
+    "special_skill_blow_off.directionType": "BlowOffDirectionType",
+    "skill_trap.trapType": "TrapType",
+    "special_skill_trap.trapType": "TrapType",
+    "skill_collision.collisionType": "CollisionType",
+    "skill_collision.collisionHitType": "CollisionHitType",
+    "special_skill_collision.collisionType": "CollisionType",
+    "special_skill_collision.collisionHitType": "CollisionHitType",
+    "weapon_attack_collision.collisionType": "CollisionType",
+    "weapon_attack_collision.collisionHitType": "CollisionHitType",
+    "skill_hit.commonHitEffectType": "HitEffectType",
+    "skill_hit.parentBone": "PlayerBoneType",
+    "skill_hit.transformType": "TransformType",
+    "special_skill_hit.commonHitEffectType": "HitEffectType",
+    "special_skill_hit.parentBone": "PlayerBoneType",
+    "special_skill_hit.transformType": "TransformType",
+    "weapon_attack_hit.commonHitEffectType": "HitEffectType",
+    "weapon_attack_hit.parentBone": "PlayerBoneType",
+    "weapon_attack_hit.transformType": "TransformType",
+    "special_skill_bullet.endType": "BulletEndType",
+    "special_skill_bullet.actionType": "BulletActionType",
+    "weapon_attack_bullet.endType": "BulletEndType",
+    "weapon_attack_bullet.actionType": "BulletActionType"
+  }
+}

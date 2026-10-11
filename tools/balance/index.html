@@ -116,6 +116,12 @@
   label.field input[type=number]:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
   label.field input[type=number].dirty { border-color: var(--dirty); background: #2b2415; color: #ffd79a; }
   label.field input[type=number].invalid { border-color: var(--err); }
+  label.field select {
+    width: 100%; padding: 4px 6px; background: var(--bg); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 4px; font: 12px/1.4 ui-monospace, Consolas, monospace;
+  }
+  label.field select:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+  label.field select.dirty { border-color: var(--dirty); background: #2b2415; color: #ffd79a; }
   label.field input[type=checkbox] { width: 15px; height: 15px; margin: 2px 0; accent-color: var(--accent); }
   label.field input[type=checkbox].dirty { outline: 2px solid var(--dirty); }
   label.field.readonly .ro {
@@ -339,6 +345,7 @@ const state = {
   data: {},       /* table name -> rows (working copy) or null when unreadable */
   pristine: {},   /* table name -> deep copy as loaded, for dirty detection */
   effectSchema: {}, /* table name -> {fields, defaults} from /api/effect-schema (add/delete allowed) */
+  enums: { enums: {}, fields: {} }, /* /api/enums: named client enums + {table.field: enum} map */
   tables: {},      /* table name -> {overridden, source, ...} from /api/tables */
   apply: null,     /* last /api/apply status (pending overrides + health) */
   applying: false,
@@ -398,11 +405,25 @@ function rowsOf(table) {
   return Array.isArray(rows) ? rows : [];
 }
 
+/* The enum a column maps to (from /api/enums), or null when it is a plain number column. */
+function enumNameFor(table, key) {
+  const fields = state.enums && state.enums.fields;
+  return (fields && fields[table + "." + key]) || null;
+}
+
+function enumValues(name) {
+  const definition = state.enums && state.enums.enums && state.enums.enums[name];
+  return (definition && definition.values) || null;
+}
+
 /* Editable when it is a number/bool column that is not a link or a documented
-   read-only column; strings and any structured value stay read-only. */
+   read-only column; strings and any structured value stay read-only. A column in the
+   enum registry becomes an editable dropdown even where READONLY_FIELDS listed it - the
+   names are what make it safe to edit it (e.g. skill.skillCategoryType). */
 function fieldMode(table, key, value) {
   if (table === "translation") return key === "text" ? "text" : "readonly";
   if (LINK_FIELDS.has(key)) return "readonly";
+  if (typeof value === "number" && Number.isInteger(value) && enumNameFor(table, key)) return "enum";
   const readonly = READONLY_FIELDS[table];
   if (readonly && readonly.has(key)) return "readonly";
   if (typeof value === "boolean") return /^special_skill_/.test(table) ? "bool" : "readonly";
@@ -776,6 +797,32 @@ function renderField(table, row, key, value) {
     input.addEventListener("input", onFieldInput);
     state.inputs.set(fieldKey(table, row.id, key), input);
     label.appendChild(input);
+    return label;
+  }
+  if (mode === "enum") {
+    /* Named dropdown: options are "<id> - <member name>". The stored value stays the raw
+       integer. A current value the registry does not know keeps its own option, so it is
+       shown and preserved (never silently changed to a known value). */
+    const values = enumValues(enumNameFor(table, key)) || {};
+    const select = el("select");
+    const current = Number(value);
+    const ids = Object.keys(values).map(Number).filter(function (id) {
+      return Number.isFinite(id);
+    }).sort(function (a, b) { return a - b; });
+    let known = false;
+    for (const id of ids) {
+      if (id === current) known = true;
+      select.appendChild(el("option", { value: String(id) }, id + " - " + values[String(id)]));
+    }
+    if (!known) select.appendChild(el("option", { value: String(current) }, formatValue(value) + " - (unknown)"));
+    select.value = String(current);
+    select.dataset.table = table;
+    select.dataset.rowId = String(row.id);
+    select.dataset.field = key;
+    select.dataset.int = "1";
+    select.addEventListener("change", onFieldInput);
+    state.inputs.set(fieldKey(table, row.id, key), select);
+    label.appendChild(select);
     return label;
   }
   if (mode === "bool") {
@@ -2003,6 +2050,13 @@ async function boot() {
       const schema = await fetchJSON("/api/effect-schema", { cache: "no-store" });
       state.effectSchema = (schema && schema.tables) || {};
     } catch (error) { state.effectSchema = {}; }
+    try {
+      const enums = await fetchJSON("/api/enums", { cache: "no-store" });
+      state.enums = {
+        enums: (enums && enums.enums) || {},
+        fields: (enums && enums.fields) || {}
+      };
+    } catch (error) { state.enums = { enums: {}, fields: {} }; }
     await loadOverrides();
     await loadApplyStatus();
     await loadMaintenance();

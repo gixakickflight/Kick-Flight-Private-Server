@@ -39,6 +39,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO / "tools" / "balance"))
+import server as balance_server  # noqa: E402  (module under test: the enum registry loader)
 ROOT = Path("/tmp/kf-balance-test")
 BASE = ROOT / "base"
 OVERRIDES = ROOT / "overrides"
@@ -466,6 +468,55 @@ def main():
         status, _ = request("/api/discs", headers={"Origin": "http://127.0.0.1:%d" % PORT})
         check("same-origin Origin -> 200", status == 200, "got %s" % status)
 
+        # -- enum registry --------------------------------------------------------
+        status, payload = request("/api/enums")
+        enums = (payload or {}).get("enums") or {}
+        field_map = (payload or {}).get("fields") or {}
+        check("GET /api/enums returns enums + fields",
+              status == 200 and enums and field_map, "status %s" % status)
+        check("conditionType is a named enum (1 = AttackRate)",
+              enums.get("ConditionType", {}).get("values", {}).get("1") == "AttackRate",
+              "ConditionType %s" % enums.get("ConditionType"))
+        check("trapType is a named enum (7 = Bomb)",
+              enums.get("TrapType", {}).get("values", {}).get("7") == "Bomb",
+              "TrapType %s" % enums.get("TrapType"))
+        check("skill_condition.conditionType and skill_trap.trapType are mapped",
+              field_map.get("skill_condition.conditionType") == "ConditionType" and
+              field_map.get("skill_trap.trapType") == "TrapType",
+              "%s" % field_map)
+        check("every mapped field names a defined enum",
+              all(name in enums for name in field_map.values()),
+              "dangling %s" % [f for f, n in field_map.items() if n not in enums])
+        # The server-side loader is what the endpoint uses; assert it independently.
+        try:
+            registry = balance_server.load_enums()
+        except (OSError, ValueError) as error:
+            registry = None
+            check("server.load_enums() loads the registry", False, str(error))
+        else:
+            check("server.load_enums() loads the registry",
+                  isinstance(registry.get("enums"), dict) and bool(registry.get("fields")))
+        # Every mapped <table>.<column> must exist in that table's served schema.
+        registry = registry or {"enums": enums, "fields": field_map}
+        missing = []
+        for field in sorted(registry["fields"]):
+            table, _, column = field.partition(".")
+            rows = json.loads(base_file(table).read_text(encoding="utf-8"))
+            if not rows or column not in rows[0]:
+                missing.append(field)
+        check("every mapped field exists in the table schema", not missing,
+              "missing %s" % missing)
+        bad_labels = []
+        for name, definition in registry["enums"].items():
+            for value, label in (definition.get("values") or {}).items():
+                if not str(value).lstrip("-").isdigit() or not isinstance(label, str) or not label:
+                    bad_labels.append((name, value, label))
+        check("enum values are integers with a non-empty name", not bad_labels,
+              "%s" % bad_labels[:5])
+        index_text = (REPO / "tools" / "balance" / "index.html").read_text(encoding="utf-8")
+        check("index.html consumes /api/enums and preserves unknown values",
+              "/api/enums" in index_text and "(unknown)" in index_text)
+
         # -- override read: no override yet -> base file --------------------------
         status, tables = request("/api/tables")
         by_name = {t["name"]: t for t in (tables or [])}
@@ -556,6 +607,27 @@ def main():
                                  {"rows": [r for r in table2 if r["id"] != next_id]})
         check("delete the effect row through the override flow",
               status == 200 and result and result.get("ok") is True, "status %s" % status)
+
+        # -- enum dropdown save keeps the raw integer -----------------------------
+        status, rows_now = request("/api/table/skill_condition")
+        original_condition = rows_now[0]["conditionType"]
+        chosen = 5 if original_condition != 5 else 1   # 5 Poison / 1 AttackRate, both in the registry
+        edited = [dict(r) for r in rows_now]
+        edited[0]["conditionType"] = chosen
+        status, result = request("/api/table/skill_condition", "POST", {"rows": edited})
+        on_disk = json.loads(override_file("skill_condition").read_text(encoding="utf-8"))
+        check("saving a dropdown value writes the raw integer",
+              status == 200 and on_disk[0]["conditionType"] == chosen and
+              isinstance(on_disk[0]["conditionType"], int),
+              "status %s value %r" % (status, on_disk[0]["conditionType"]))
+        edited[0]["conditionType"] = 999   # not in the registry: must be preserved, not clamped
+        status, result = request("/api/table/skill_condition", "POST", {"rows": edited})
+        on_disk = json.loads(override_file("skill_condition").read_text(encoding="utf-8"))
+        check("an unmapped enum value is preserved as an integer",
+              status == 200 and on_disk[0]["conditionType"] == 999,
+              "status %s value %r" % (status, on_disk[0]["conditionType"]))
+        edited[0]["conditionType"] = original_condition
+        request("/api/table/skill_condition", "POST", {"rows": edited})
 
         # -- validation -----------------------------------------------------------
         bad_type = dict(spec["defaults"])

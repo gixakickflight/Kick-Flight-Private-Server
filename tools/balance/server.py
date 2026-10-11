@@ -50,6 +50,9 @@ ICON_DIR = BALANCE_DIR / "icons"
 INDEX_FILE = BALANCE_DIR / "index.html"
 LOGIN_FILE = BALANCE_DIR / "login.html"
 DISC_CARDS_FILE = DOCS_DIR / "disc_cards.json"
+# Named client enums (value -> member name) and the {table.field: enum} mapping the UI turns into
+# dropdowns; the file itself documents each enum's source.  See tools/balance/README.md.
+ENUMS_FILE = BALANCE_DIR / "enums.json"
 
 
 def _env_path(name, default):
@@ -336,6 +339,34 @@ def load_disc_cards():
                 continue
             cards[str(card.get("discId", key))] = card
     return cards
+
+
+def load_enums():
+    """``enums.json`` -> ``{"enums": {name: {source, values}}, "fields": {"table.field": name}}``.
+
+    Read fresh on every request (the file is tiny) so adding an enum needs no server restart.
+    Raises OSError/ValueError with a readable message when the file is missing or malformed; the
+    /api/enums route answers 500 and the UI then keeps every field as a plain number input.
+    """
+    with ENUMS_FILE.open(encoding="utf-8") as handle:
+        doc = json.load(handle)
+    if not isinstance(doc, dict):
+        raise ValueError("enums.json must be a JSON object")
+    enums = doc.get("enums")
+    fields = doc.get("fields")
+    if not isinstance(enums, dict) or not isinstance(fields, dict):
+        raise ValueError('enums.json must have object "enums" and object "fields"')
+    for name, definition in enums.items():
+        values = definition.get("values") if isinstance(definition, dict) else None
+        if not isinstance(values, dict) or not values:
+            raise ValueError("enum %r must be an object with a non-empty \"values\" object" % name)
+        for value, label in values.items():
+            if not isinstance(label, str) or not label:
+                raise ValueError("enum %r value %r has no name" % (name, value))
+    for field, name in fields.items():
+        if name not in enums:
+            raise ValueError("field %r points at undefined enum %r" % (field, name))
+    return {"enums": enums, "fields": fields}
 
 
 # --------------------------------------------------------------------------- #
@@ -1251,6 +1282,9 @@ class BalanceHandler(BaseHTTPRequestHandler):
         if path == "/api/effect-schema":
             self.handle_effect_schema()
             return
+        if path == "/api/enums":
+            self.handle_enums()
+            return
         if path == "/api/tables":
             self.send_json(200, list_tables())
             return
@@ -1491,6 +1525,13 @@ class BalanceHandler(BaseHTTPRequestHandler):
                 for table, schema in EFFECT_SCHEMAS.items()
             }
         })
+
+    def handle_enums(self):
+        """Named client enums plus the {table.field: enum} map the UI renders as dropdowns."""
+        try:
+            self.send_json(200, load_enums())
+        except (OSError, ValueError) as error:
+            self.send_error_json(500, "could not load enums.json: %s" % error)
 
     def handle_get_maintenance(self):
         status, payload = admin_state()
