@@ -678,10 +678,10 @@
       "host": "159.54.134.159",
       "requestPath": "/cdn/koDJHb",
       "logicalName": "CriWare CueSheet bgm_battle05.acb",
-      "description": "Audio cue sheet for bgm_battle05",
-      "sourcePath": "../Kick-Flight-Assets/octo_sorted/5_unknown/526B6F444A4862_e368a98d4f8d412718c50f4198edc98b.bin",
+      "description": "Audio cue sheet for bgm_battle05 (stand-in: bgm_battle01 with its name strings renamed; the original bgm_battle05.awb was never captured, so that track played silent)",
+      "sourcePath": "content/resources/audio/bgm_battle05.acb",
       "contentType": "application/octet-stream",
-      "sha256": "e579c805703b25adc55408ddf93cbcf7db20d948a649310b453c66ec55169e16"
+      "sha256": "abb5b31414b6ea71fd58538ebed1657bb2674aa69110d8a3e1761d640e069f5e"
     },
     {
       "id": "audio-acb-bgm_menu00",

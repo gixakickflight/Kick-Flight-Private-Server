@@ -139,9 +139,9 @@
         "bgm_battle05.acb"
       ],
       "objectName": "koDJHb",
-      "sourcePath": "../Kick-Flight-Assets/octo_sorted/5_unknown/526B6F444A4862_e368a98d4f8d412718c50f4198edc98b.bin",
+      "sourcePath": "content/resources/audio/bgm_battle05.acb",
       "logicalName": "CriWare CueSheet bgm_battle05.acb",
-      "description": "Audio cue sheet for bgm_battle05"
+      "description": "Audio cue sheet for bgm_battle05 (stand-in: bgm_battle01 with its name strings renamed; the original bgm_battle05.awb was never captured, so that track played silent)"
     },
     {
       "id": "audio-acb-bgm_menu00",
@@ -714,6 +714,7 @@
       "octoId": 54,
       "names": [
         "bgm_battle01.awb",
+        "bgm_battle05.awb",
         "stream_o9LHyy.awb"
       ],
       "objectName": "o9LHyy",
