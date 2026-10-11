@@ -41,9 +41,11 @@
     width: 320px; min-width: 320px; display: flex; flex-direction: column;
     border-right: 1px solid var(--line); background: var(--bg2);
   }
-  #tabs { display: flex; gap: 6px; padding: 10px; }
+  /* A grid, not one flex row: the fixed-width sidebar cannot fit every tab on a single line (the Maintenance tab used
+     to spill under the panel), so tabs wrap onto further rows of equal-width buttons. */
+  #tabs { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 6px; padding: 10px; }
   #tabs button {
-    flex: 1; padding: 7px 10px; border: 1px solid var(--line); background: var(--bg3);
+    min-width: 0; padding: 7px 8px; border: 1px solid var(--line); background: var(--bg3);
     color: var(--fg2); border-radius: 6px; cursor: pointer; font: inherit;
   }
   #tabs button.on { background: var(--accent); border-color: var(--accent); color: #06131f; font-weight: 600; }
