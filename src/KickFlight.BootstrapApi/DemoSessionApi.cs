@@ -1869,8 +1869,11 @@ public sealed partial class DemoSessionApi
     // A rejection is HTTP 200 carrying a non-zero x-app-status-code: the code, not the HTTP status, is what the
     // client reads as the failure signal. Only 2005 opens its name-rule popup - the canned text lives in the
     // prefab, so it explains the rules it knows and cannot be reworded from here - while 2002/2003/2004 fall
-    // through to the generic error dialog. The body stays schema-shaped so nothing comes out half-deserialized.
-    private static LocalFixtureResult NameRejected(HttpContext context, byte[] key, string reason)
+    // through to the generic error dialog. The body must be PLAINTEXT JSON like the forced-update and maintenance
+    // answers: NetworkManager.GetResponseErrorFromResponse (0x31B2AE0) JsonUtility-parses downloadHandler.text
+    // without D2C-decoding it, so an encrypted body parsed to an empty code and TutorialInputNameWindow's error
+    // callback (0x146F858) took the generic path (network error, tutorial closed, player left unnamed).
+    private static IResult NameRejected(HttpContext context, byte[] key, string reason)
     {
         context.Response.Headers["x-app-status-code"] = "2005";
         var body = JsonSerializer.Serialize(new
@@ -1888,7 +1891,7 @@ public sealed partial class DemoSessionApi
                 }
             }
         });
-        return BinaryJson(body, key);
+        return Results.Text(body, "application/json", Encoding.UTF8, StatusCodes.Status200OK);
     }
 
     private async Task<IResult?> HandleTeamCreateAsync(HttpContext context, SessionState state, byte[] key)

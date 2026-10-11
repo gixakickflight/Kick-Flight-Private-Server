@@ -608,6 +608,11 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
         using var response = await RawPostAsync(await CreateSessionAsync(), "/tutorial/end", new { name });
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("2005", response.Headers.GetValues("x-app-status-code").Single());
+
+        // The client JsonUtility-parses error bodies as plain text (NetworkManager.GetResponseErrorFromResponse);
+        // an encrypted body parsed to an empty code and sent the player to the generic network error unnamed.
+        using var error = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("2005", error.RootElement.GetProperty("error").GetProperty("code").GetString());
     }
 
     [Fact]
