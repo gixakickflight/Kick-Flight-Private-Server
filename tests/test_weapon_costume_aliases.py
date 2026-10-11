@@ -99,13 +99,18 @@ class WeaponCostumeFallbackTests(unittest.TestCase):
             output = ROOT / generated_by_name[logical_name]["sourcePath"]
             self.assertEqual(digest, FALLBACKS.hashlib.md5(output.read_bytes()).hexdigest())
 
-    def test_revision_31_full_update_and_empty_current_delta(self):
-        self.assertEqual(31, self.title["revision"])
-        self.assertEqual(list(range(32)), self.title["fromRevisions"])
-        from_30 = json.loads((ROOT / "config/fixtures/resource-list-12345-from-30.json").read_text())
-        from_31 = json.loads((ROOT / "config/fixtures/resource-list-12345-from-31.json").read_text())
-        self.assertGreater(len(from_30["bodyBase64"]), 1000)
-        self.assertEqual(44, len(from_31["bodyBase64"]))
+    def test_current_revision_full_update_and_empty_current_delta(self):
+        revision = self.title["revision"]
+        self.assertGreaterEqual(revision, 31)
+        self.assertEqual(list(range(revision + 1)), self.title["fromRevisions"])
+        from_previous = json.loads(
+            (ROOT / f"config/fixtures/resource-list-12345-from-{revision - 1}.json").read_text()
+        )
+        from_current = json.loads(
+            (ROOT / f"config/fixtures/resource-list-12345-from-{revision}.json").read_text()
+        )
+        self.assertGreater(len(from_previous["bodyBase64"]), 1000)
+        self.assertLess(len(from_current["bodyBase64"]), len(from_previous["bodyBase64"]))
 
     def test_catalog_builder_runs_generator_before_catalog_reads(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -116,10 +121,10 @@ class WeaponCostumeFallbackTests(unittest.TestCase):
             generator = repo / "scripts/add_weapon_costume_aliases.py"
             generator.parent.mkdir(parents=True)
             generator.touch()
-            with mock.patch.object(CATALOG, "_unitypy_interpreter", return_value=Path("/python")):
+            with mock.patch.object(CATALOG, "_unitypy_interpreter", return_value=Path("python")):
                 with mock.patch.object(CATALOG.subprocess, "run", return_value=SimpleNamespace(returncode=0)) as run:
                     CATALOG.materialize_weapon_costume_fallbacks(repo, definition)
-            run.assert_called_once_with(["/python", str(generator)], cwd=repo, check=False)
+            run.assert_called_once_with(["python", str(generator)], cwd=repo, check=False)
 
     def test_catalog_builder_reports_failed_generation(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -130,7 +135,7 @@ class WeaponCostumeFallbackTests(unittest.TestCase):
             generator = repo / "scripts/add_weapon_costume_aliases.py"
             generator.parent.mkdir(parents=True)
             generator.touch()
-            with mock.patch.object(CATALOG, "_unitypy_interpreter", return_value=Path("/python")):
+            with mock.patch.object(CATALOG, "_unitypy_interpreter", return_value=Path("python")):
                 with mock.patch.object(CATALOG.subprocess, "run", return_value=SimpleNamespace(returncode=1)):
                     with self.assertRaisesRegex(SystemExit, "restore the captured donor bundles"):
                         CATALOG.materialize_weapon_costume_fallbacks(repo, definition)

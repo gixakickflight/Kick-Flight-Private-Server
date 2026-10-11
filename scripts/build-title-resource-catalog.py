@@ -245,6 +245,29 @@ def materialize_kicker_skin_thumbnails(repo: Path, definition_path: Path) -> Non
         )
 
 
+def materialize_localize_bundles(repo: Path, definition_path: Path) -> None:
+    """Build the durable per-language localize bundles before the catalog reads title entries.
+
+    The client maps its saved language id to en/es/ja/pt/ko/fr/de and looks each language up by name in the
+    Octo database; a shared zh bundle under alias names makes two CABs collide and a missing language name
+    fails the load silently (native NRE). The generator never calls this catalog builder, so the one-way
+    subprocess cannot recurse. Custom --definition builds stay isolated from the production manifest.
+    """
+    default_definition = (repo / "config/resources/title-minimum.json").resolve()
+    if definition_path.resolve() != default_definition:
+        return
+    generator = repo / "scripts/build-localize-bundles.py"
+    if not generator.is_file():
+        raise SystemExit(f"Localize bundle generator is missing: {generator}")
+    interpreter = _unitypy_interpreter(repo)
+    result = subprocess.run([str(interpreter), str(generator)], cwd=repo, check=False)
+    if result.returncode:
+        raise SystemExit(
+            "Could not generate physical per-language localize bundles before catalog build. "
+            "Check the captured donor bundles and UnityPy 1.25.3."
+        )
+
+
 def encode_data(*, octo_id: int, name: str, object_name: str, source: bytes) -> bytes:
     # Tags recovered from the native IL2CPP custom-attribute generators. They
     # deliberately differ from property declaration order: priority=6,
@@ -288,6 +311,7 @@ def main() -> None:
     fixtures_path = resolve_path(repo, args.fixtures)
     materialize_weapon_costume_fallbacks(repo, definition_path)
     materialize_kicker_skin_thumbnails(repo, definition_path)
+    materialize_localize_bundles(repo, definition_path)
     definition = json.loads(definition_path.read_text(encoding="utf-8-sig"))
 
     if args.server_base_url:

@@ -70,6 +70,7 @@ jobs:
               "scripts/build-title-resource-catalog.ps1", "scripts/build_kicker_catalog.py",
               "scripts/build_complete_catalog.py", "scripts/build-kicker-skin-thumbnail-bundles.py",
               "scripts/add_weapon_costume_aliases.py",
+              "scripts/build-localize-bundles.py",
               "scripts/update-apk-catalog-sha.py",
           }
           for path in changed:

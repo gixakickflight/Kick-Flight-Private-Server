@@ -392,6 +392,14 @@ def _create_entries(document: dict[str, Any], write: bool) -> tuple[list[dict[st
     specs = build_fallback_specs(document)
     if len(specs) != 35:
         raise ValueError(f"expected 35 fallback routes, found {len(specs)}")
+    # Other generators (kicker thumbnails, per-language localize bundles) append entries after this one. Keep
+    # every already-materialized fallback's Octo id/objectName so a rebuild does not renumber it above those
+    # neighbours and churn the database on every run. New routes still get fresh ids from the current maximum.
+    existing_generated = {
+        entry["names"][0]: entry
+        for entry in document["entries"]
+        if entry.get("id", "").startswith(FALLBACK_ID_PREFIX) and len(entry.get("names", [])) == 1
+    }
     old_entries = [entry for entry in document["entries"] if not entry.get("id", "").startswith(FALLBACK_ID_PREFIX)]
     # Remove the old shared Octo aliases while preserving each authentic route at the head of its source entry.
     for entry in old_entries:
@@ -414,11 +422,19 @@ def _create_entries(document: dict[str, Any], write: bool) -> tuple[list[dict[st
         entry_id = _fallback_id(logical_name)
         if entry_id in used_ids:
             raise ValueError(f"duplicate generated resource id {entry_id}")
-        object_name = _base62_digest(logical_name, used_objects)
-        while next_octo in used_octos:
+        prior = existing_generated.get(logical_name)
+        if prior is not None:
+            object_name = prior["objectName"]
+            octo_id = int(prior["octoId"])
+            if object_name in used_objects or octo_id in used_octos:
+                raise ValueError(f"{logical_name}: existing fallback identity collides with the catalog")
+        else:
+            object_name = _base62_digest(logical_name, used_objects)
+            while next_octo in used_octos:
+                next_octo += 1
+            octo_id = next_octo
             next_octo += 1
-        octo_id = next_octo
-        next_octo += 1
+        used_objects.add(object_name)
         used_octos.add(octo_id)
 
         donor_path = (ROOT / donor_entry["sourcePath"]).resolve()

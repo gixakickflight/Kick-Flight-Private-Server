@@ -97,7 +97,9 @@ public sealed class HarnessTests : IClassFixture<ServerTestHostFixture>
         AssertOctoRevision(body, title.Revision);
         var protobufText = Encoding.UTF8.GetString(body);
         Assert.Contains("ui/localize/en/title/title_logo.unity3d", protobufText);
-        Assert.Contains("7pXtSo", protobufText);
+        // title_logo is served by its own generated en clone (the zh capture row is removed like every other
+        // ui/localize/zh route), so its Octo objectName is the generator's, not the capture's 7pXtSo.
+        Assert.Contains("l1X500", protobufText);
         Assert.Contains("Og1RF0", protobufText);
         Assert.Contains("ujPPwv", protobufText);
         Assert.Contains("Ei4139", protobufText);
