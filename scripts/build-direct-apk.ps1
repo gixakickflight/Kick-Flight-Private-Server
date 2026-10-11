@@ -94,6 +94,10 @@ try {
         $env:KF_UNITY_EXPERIMENTAL_ALLOCATORS = $previousExperimentalAllocators
     }
 
+    # Previous-session exit reporter: uploads native crashes / ANRs / LMK kills to <server>/diag/upload at next start.
+    & python (Join-Path $repo 'scripts\patch-exit-reporter.py') $decoded --base-url $config.serverBaseUrl
+    if ($LASTEXITCODE -ne 0) { throw "Exit reporter patch failed with exit code $LASTEXITCODE." }
+
     & java -jar $apktool b $decoded -o $unsigned
     if ($LASTEXITCODE -ne 0) { throw "Apktool build failed with exit code $LASTEXITCODE." }
 

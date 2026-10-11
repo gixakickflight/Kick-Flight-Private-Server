@@ -52,6 +52,8 @@ python3 "$repo/scripts/patch-il2cpp-endpoints.py" \
   --armv7 "$work/decoded/lib/armeabi-v7a/libil2cpp.so" \
   --arm64-unity "$work/decoded/lib/arm64-v8a/libunity.so" \
   --base-url "$server_base_url"
+# Previous-session exit reporter: uploads native crashes / ANRs / LMK kills to <server>/diag/upload at next start.
+python3 "$repo/scripts/patch-exit-reporter.py" "$work/decoded" --base-url "$server_base_url"
 apktool b "$work/decoded" -o "$work/unsigned.apk"
 zipalign -p -f 4 "$work/unsigned.apk" "$work/aligned.apk"
 
