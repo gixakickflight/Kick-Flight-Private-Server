@@ -725,9 +725,14 @@ public sealed partial class DemoSessionApi
         // kickerAiDiscId1..4) - and Unity's JsonUtility ignores the ones the class does not declare. Remove the
         // aliases once the real field list is known. kickerAiDiscDeckId stays 1 because KickerAiDiscDeck has rows
         // 1..6 and a reference to a missing deck is the same kind of null.
-        var tutorialKickerAis = Enumerable.Range(1, 14).Select(k => new
+        // Seven rows, not one per kicker: BattleUtil.CreateTutorialBattleInfo (RVA 0x15BB6D0) sorts the rows by
+        // TeamNumber and copies rows 3..N-1 (control tutorial) or 0..N-1 into a PlayerBattleInfo[] of fixed length
+        // 5 / 8 (slot 0 = the player), so more than 7 rows throws IndexOutOfRangeException at 0x15BC32C and the
+        // tutorial hangs on its loading screen. teamNumber = k keeps that sort stable.
+        var tutorialKickerAis = Enumerable.Range(1, 7).Select(k => new
         {
             id = k,
+            teamNumber = k,
             kickerId = k,
             kickerAiParameterId = k,
             kickerAiDiscDeckId = 1,
