@@ -4,25 +4,53 @@ Las partidas con varios humanos necesitan un servidor compatible con Photon: tra
 sala `battle-NNN` por Photon (NameServer 5058 -> MasterServer 5055 -> GameServer 5056, UDP). Los bots los sigue
 poniendo nuestro API (`BattleMatchmakingService.BuildRoster`).
 
-## Despliegue actual (2026-09-21)
+## Despliegue actual (VPS con Docker, revisado 2026-10-10)
+
+* Photon corre en el VPS como el servicio `photon` de `deploy/docker-compose.vps.yml` (contenedor `deploy-photon-1`),
+  construido con `deploy/photon/Dockerfile` a partir de `submodules/luxonserver`. El workflow
+  `.github/workflows/deploy-vps-main.yml` lo reconstruye y recrea cuando cambian `submodules/luxonserver`,
+  `.gitmodules` o cualquier cosa bajo `deploy/photon/` (flag `photon`). Recrear el contenedor tira las partidas en
+  curso: desplegar en una ventana tranquila.
+* Puntero del submódulo: `b35e3cf` (rama `tanuki-server` de `tanukifurhire/luxonserver`), con el submódulo anidado
+  `Luxon/` en `5401810` (Gixarde3, "recover peers stuck on reliable receive window": deja de confirmar los paquetes
+  fiables que caen fuera de la ventana para que el emisor los reenvíe, y desconecta al peer cuya ventana no avanza en
+  20 s seguidos de descartes).
+* Qué parches de `0001`-`0010` están vivos y por qué vía (comprobado el 2026-10-10 contra `b35e3cf`/`5401810`):
+
+  | parche | estado en la imagen |
+  | --- | --- |
+  | 0001, 0002, 0004, 0005, 0008, 0009, 0010 | commits del puntero `b35e3cf` (`0004` ampliado después por `b35e3cf`, que añade actor y propiedades al log de cada op) |
+  | 0003 | sustituido por `f160000` ("let late joiners into closed battle rooms"): el `GameClosed` se salta para **cualquier** sala `battle-*`, no solo para quien ya está en `expected_users` |
+  | 0006, 0007 | **no** están en ningún commit de `Luxon/`; los aplica el `Dockerfile` en la etapa de build desde `deploy/photon/luxon-patches/` (`git apply`, la build falla si no aplican y comprueba con `grep` que los valores 4096 / 32 / 30000 quedaron en `enet_peer.hpp`) |
+
+  Antes del 2026-10-10 el `Dockerfile` no aplicaba `0006`/`0007`: la imagen viva (creada el 2026-10-07) tenía la
+  ventana fiable de 128 y 7 reenvíos / 10 s de cabecera, y en 48 h registró ~27 400 `Receive window
+  incoming_reliable is too small! Dropping reliable packet!`. `0008` ya fijaba 30 s en `ServerManager::setup()`, así
+  que el timeout de desconexión efectivo era 30 s también entonces; lo que faltaba era la ventana y los 32 reenvíos.
+* `0006`/`0007` se rebasaron sobre `5401810` (solo cambia el contexto de `0007`; `0006` además actualiza
+  `apps/enet_reliable_window_test.cpp`, que tenía 128/129 fijos). No se solapan con `5401810`: `0006` solo cambia el
+  tamaño de la ventana, y la lógica de no-ACK y de peer atascado de `5401810` se dispara con `out_of_window()` sea cual
+  sea ese tamaño; `0007` gobierna los reenvíos **salientes** del servidor, `5401810` los descartes **entrantes**.
+* Al subir el puntero de `submodules/luxonserver` o de `Luxon/`, la build de Docker dirá si `0006`/`0007` siguen
+  aplicando; si el nuevo `Luxon/` ya los lleva como commits, borra el parche correspondiente de
+  `deploy/photon/luxon-patches/` (si no, `git apply` falla porque el parche ya está aplicado).
+* Config: `deploy/photon/config.yml.template` (`envsubst` de `KF_PUBLIC_HOST` al arrancar). Logs:
+  `docker logs deploy-photon-1`.
+
+## Despliegue anterior (VM con systemd, 2026-09-21; histórico)
 
 * Host: `51.79.241.70` (Ubuntu 24.04), servicio `luxon-server.service` (systemd, `Restart=always`).
 * Binario: `/opt/luxon-server/luxon_server`, config `/opt/luxon-server/config.yml` (= `config.yml` del fork con
   `external_address: 51.79.241.70:<puerto>`). Fuente en `~/kickflight/luxonserver` (fork `Gixarde3/luxonserver`
-  @ `a84ecc3` + `scripts/luxonserver/000{1..5}-*.patch` aplicados con `git am` en el fork, y `0006`/`0007-*.patch` aplicados dentro del
-  submodulo `Luxon/` del fork). En la VM, `0008-*.patch`, `0009-*.patch` y `0010-*.patch` quedaron aplicados en el
-  árbol de trabajo sin commit (observado el 2026-09-21); el diff exportado se verificó contra el servidor con
-  `git apply --check -R`.
-* Estado del fork y del puntero del submodulo, comprobado el 2026-09-22 con `git ls-remote`: la rama
-  **`tanuki-server` de `tanukifurhire/luxonserver`** (base `a84ecc3`, punta `a3539b8`) lleva ocho de los diez
-  parches como commits, los que tocan `src/*.cpp` (`0001`-`0005` y `0008`-`0010`), sin trailers de atribución, y
-  `a3539b8` es el puntero que fija este repo (`.gitmodules` apunta a ese fork y declara `branch = tanuki-server`).
-  Los otros dos, `0006` y `0007`, van dentro del submódulo anidado `Luxon/`, cuyo puntero esta rama no toca (sigue
-  en `9424d75`): se aplican aparte, como dice la tabla de
-  [RECREATE_FROM_SCRATCH.md](RECREATE_FROM_SCRATCH.md) §6.4. `Gixarde3/luxonserver` sólo tiene `main` en
-  `a84ecc3`: los SHA que antes citaba este
-  apartado (`1e9f1e4`, `e093b87`, `1bc49a1`, `4320af8`, `d85e14b`, `f0a50b8`) son los que produce `git am` con el
-  mismo padre y autor, es decir los del clon de la VM, no commits de ningún remoto.
+  @ `a84ecc3` + `scripts/luxonserver/000{1..5}-*.patch` aplicados con `git am` en el fork, y `0006`/`0007-*.patch`
+  (hoy en `deploy/photon/luxon-patches/`) aplicados dentro del submodulo `Luxon/` del fork). En la VM, `0008-*.patch`,
+  `0009-*.patch` y `0010-*.patch` quedaron aplicados en el árbol de trabajo sin commit (observado el 2026-09-21); el
+  diff exportado se verificó contra el servidor con `git apply --check -R`.
+* Estado del fork el 2026-09-22: la rama `tanuki-server` de `tanukifurhire/luxonserver` (base `a84ecc3`, punta
+  entonces `a3539b8`) llevaba como commits los ocho parches que tocan `src/*.cpp` (`0001`-`0005` y `0008`-`0010`);
+  `0006` y `0007` iban dentro del submódulo anidado `Luxon/` (entonces en `9424d75`), que esa rama no tocaba.
+  `Gixarde3/luxonserver` sólo tiene `main` en `a84ecc3`: los SHA `1e9f1e4`, `e093b87`, `1bc49a1`, `4320af8`,
+  `d85e14b`, `f0a50b8` eran los del clon de la VM producidos por `git am`, no commits de ningún remoto.
 * Al subir la rama, `git-lfs` avisa de un objeto pendiente, el de `WASMImpl/C/cwsdpmi.exe` (el único fichero del
   árbol que va por LFS), y GitHub lo rechaza (`can not upload new objects to public fork`); ninguno de los ocho
   commits que se suben añade objetos LFS, porque sólo tocan `src/*.cpp`, así que la subida va con
@@ -94,14 +122,16 @@ Los dos humanos reciben el id de sala en el Stage 3 a la vez; el segundo `JoinGa
 que el creador haya entrado al GameServer (`is_created == false`) y `validate_join` respondía `GameIdNotExists`, que
 el cliente trata como desconexion fatal ("Title Disconnect Error" en el jugador 2). El parche deja pasar ese caso para
 ids `battle-*`; el handler del GameServer ya crea o une al llegar. Está en la rama `tanuki-server` de
-`tanukifurhire/luxonserver` y el puntero del submodulo de este repo (`a3539b8`) lo incluye.
+`tanukifurhire/luxonserver` y el puntero del submodulo de este repo (`b35e3cf`) lo incluye.
 
 ## Parche `0003-expected-users-join-closed-battle-room.patch`
 
 El cliente maestro cierra la sala (`IsOpen=false`) unos ~100 ms despues de crearla; si el otro humano llega al
 GameServer despues de eso, `validate_join` respondia `GameClosed` (32764) y ese jugador (el mas lento, al azar) recibia
 "Title Disconnect Error". Ambos humanos entran por el MasterServer y estan en `expected_users`, asi que para ids
-`battle-*` la reserva vale aunque la sala ya este cerrada. `0002` solo agrega el log de por que se rechaza un join
+`battle-*` la reserva vale aunque la sala ya este cerrada. Sustituido desde el 2026-10-05 por `f160000`, que salta el
+`GameClosed` para toda sala `battle-*` (el MasterServer valida el join antes de añadir al jugador a `expected_users`,
+así que la excepción de `0003` nunca cubría al que llegaba tarde). `0002` solo agrega el log de por que se rechaza un join
 (`journalctl -u luxon-server | grep rejected`).
 
 ## Parche `0005-replay-room-properties-to-late-joiner.patch`
@@ -112,14 +142,14 @@ con `CallbackRoomPropertiesUpdate`, es decir con el *evento* PropertiesUpdate) s
 reenvia ahora las propiedades actuales a quien entra segundo en una sala `battle-*` como evento, justo despues de
 la respuesta del join. `0004` solo registra cada operacion (op code) que manda cada peer del GameServer.
 
-## Parche `0006-luxon-enet-receive-window-4096.patch` (submodulo `Luxon/`)
+## Parche `0006-luxon-enet-receive-window-4096.patch` (submodulo `Luxon/`, `deploy/photon/luxon-patches/`)
 
 La reimplementacion ENet de Luxon tenia una ventana de recepcion fiable de 128 secuencias por canal (ENet real usa
 4096). Con 8 kickers sincronizados por el maestro, un paquete fiable atrasado desbordaba la ventana en pocos frames,
 el servidor tiraba paquetes fiables (`[ENet] Receive window incoming_reliable is too small!`) y el cliente acababa
 desconectado: todos los kickers desaparecian y el reloj se paraba (2026-09-21). Ventanas ahora 4096 / 1024 / 256.
 
-## Parche `0007-luxon-enet-resend-tolerance.patch` (submodulo `Luxon/`)
+## Parche `0007-luxon-enet-resend-tolerance.patch` (submodulo `Luxon/`, `deploy/photon/luxon-patches/`)
 
 `Client is now stale` en Luxon significa que un comando fiable enviado por el servidor no fue confirmado tras
 `max_resends` reintentos o `disconnect_timeout_ms`. Con los valores de Luxon (7 / 10 s) una rafaga de perdida solo en

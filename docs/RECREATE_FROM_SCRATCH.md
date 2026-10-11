@@ -170,7 +170,7 @@ git ls-tree HEAD submodules/luxonserver
 
 Si prefieres partir del proyecto original en vez del fork, clona
 `https://github.com/niansa/LuxonServer` y aplica los parches de
-`scripts/luxonserver/*.patch` en orden numérico con `git am`; es exactamente lo
+`scripts/luxonserver/*.patch` (y, dentro de `Luxon/`, `deploy/photon/luxon-patches/*.patch`) en orden numérico con `git am`; es exactamente lo
 que se hizo para producir el fork, y [PHOTON_SERVER.md](PHOTON_SERVER.md) lo
 documenta paso a paso.
 
@@ -554,13 +554,18 @@ presentes antes de aplicar los parches 0006 y 0007.
 
 ### 6.4 Aplica los parches y compila
 
-Los diez parches de `scripts/luxonserver/` no van todos en el mismo sitio:
+Los diez parches no van todos en el mismo sitio:
 
-| parche | dónde se aplica |
-| --- | --- |
-| 0001–0005 | raíz de LuxonServer (`src/*.cpp`) |
-| 0006, 0007 | **dentro del submódulo `Luxon/`** (`include/luxon/enet_peer.hpp`) |
-| 0008–0010 | raíz de LuxonServer |
+| parche | fichero | dónde se aplica |
+| --- | --- | --- |
+| 0001–0005 | `scripts/luxonserver/` | raíz de LuxonServer (`src/*.cpp`) |
+| 0006, 0007 | `deploy/photon/luxon-patches/` | **dentro del submódulo `Luxon/`** (`include/luxon/enet_peer.hpp`) |
+| 0008–0010 | `scripts/luxonserver/` | raíz de LuxonServer |
+
+El puntero actual (`b35e3cf`, con `Luxon/` en `5401810`) ya lleva 0001–0005 y 0008–0010 como commits (0003
+sustituido por `f160000`); 0006 y 0007, rebasados sobre `5401810`, los aplica `deploy/photon/Dockerfile` en cada
+build. Si compilas a mano, aplícalos tú dentro de `Luxon/` con `git apply`. Detalle en
+[PHOTON_SERVER.md](PHOTON_SERVER.md).
 
 Orden y compilación (verbatim de [PHOTON_SERVER.md](PHOTON_SERVER.md)):
 

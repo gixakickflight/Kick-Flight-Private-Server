@@ -1,0 +1,104 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: tanuki <t@x>
+Date: Mon, 21 Sep 2026 10:40:34 +0000
+Subject: [PATCH] enet: 4096-entry reliable receive window (ENet default);
+ Kick-Flight rooms overflowed the 128 window and dropped reliable packets
+
+Rebased onto 5401810 (out-of-window packets are no longer ACKed; stalled
+peers are disconnected after 20 s): the window size is independent of
+that logic. enet_reliable_window_test now derives its sequence numbers
+from the window size instead of hardcoding 128/129.
+---
+ apps/enet_reliable_window_test.cpp | 31 ++++++++++++++++--------------
+ include/luxon/enet_peer.hpp        |  6 +++---
+ 2 files changed, 20 insertions(+), 17 deletions(-)
+
+diff --git a/apps/enet_reliable_window_test.cpp b/apps/enet_reliable_window_test.cpp
+index 0e3ff4f..02011e3 100644
+--- a/apps/enet_reliable_window_test.cpp
++++ b/apps/enet_reliable_window_test.cpp
+@@ -45,29 +45,32 @@ int main() {
+         peer.handle_incoming_packet(hdr, commands, 20);
+     };
+ 
+-    // With base sequence 1 and a 128-command window, sequence 129 is rejected.
++    // Must match the incoming_reliable window in enet_peer.hpp (4096, ENet default).
++    constexpr uint32_t window = 4096;
++
++    // With base sequence 1, sequence window + 1 is the first one outside the window and is rejected.
+     // It must not be ACKed, or the sender will never retransmit the missing gap.
+-    send_reliable(129);
++    send_reliable(window + 1);
+     assert(EnetPeerTestAccess::ack_count(peer) == 0);
+     assert(!peer.dispatch_one());
+ 
+     // Once the gap is filled, the formerly out-of-window packet is recoverable.
+-    for (uint32_t seq = 1; seq <= 128; ++seq)
++    for (uint32_t seq = 1; seq <= window; ++seq)
+         send_reliable(seq);
+-    assert(EnetPeerTestAccess::ack_count(peer) == 128);
++    assert(EnetPeerTestAccess::ack_count(peer) == window);
+ 
+-    for (uint32_t seq = 1; seq <= 128; ++seq)
++    for (uint32_t seq = 1; seq <= window; ++seq)
+         assert(peer.dispatch_one());
+-    assert(dispatched.size() == 128);
++    assert(dispatched.size() == window);
+ 
+-    send_reliable(129);
+-    assert(EnetPeerTestAccess::ack_count(peer) == 129);
++    send_reliable(window + 1);
++    assert(EnetPeerTestAccess::ack_count(peer) == window + 1);
+     assert(peer.dispatch_one());
+-    assert(dispatched.size() == 129 && dispatched.back() == 129);
++    assert(dispatched.size() == window + 1 && dispatched.back() == window + 1);
+ 
+     // A duplicate already accepted remains ACKable so its sender can stop retrying.
+-    send_reliable(129);
+-    assert(EnetPeerTestAccess::ack_count(peer) == 130);
++    send_reliable(window + 1);
++    assert(EnetPeerTestAccess::ack_count(peer) == window + 2);
+ 
+     // A single in-window reliable command resets the stalled-window timer.
+     EnetPeerConfig progress_config;
+@@ -91,7 +94,7 @@ int main() {
+         if (state == EnetConnectionState::Disconnected)
+             ++progress_disconnects;
+     };
+-    send_progress_reliable(129);
++    send_progress_reliable(window + 1);
+     std::this_thread::sleep_for(std::chrono::milliseconds(20));
+     send_progress_reliable(1);
+     std::this_thread::sleep_for(std::chrono::milliseconds(50));
+@@ -112,8 +115,8 @@ int main() {
+         EnetCommand cmd;
+         cmd.header.command_type = EnetCommandType::SendReliable;
+         cmd.header.flags = FlagValue::Reliable;
+-        cmd.header.reliable_seq = 129;
+-        cmd.set_payload(ByteArray{129});
++        cmd.header.reliable_seq = window + 1;
++        cmd.set_payload(ByteArray{static_cast<uint8_t>(window + 1)});
+         std::array<EnetCommand, 1> commands{std::move(cmd)};
+         stalled_peer.handle_incoming_packet(stalled_hdr, commands, 20);
+     };
+diff --git a/include/luxon/enet_peer.hpp b/include/luxon/enet_peer.hpp
+index 9220252..9974e29 100644
+--- a/include/luxon/enet_peer.hpp
++++ b/include/luxon/enet_peer.hpp
+@@ -186,10 +186,10 @@ public:
+     std::queue<EnetCommand> outgoing_unreliable;
+ 
+     // incoming storage
+-    sliding_flat_map<uint32_t, EnetCommand, 128> incoming_reliable;           // by reliable_seq
+-    sliding_flat_map<uint32_t, EnetCommand, 256> incoming_unreliable;         // by unreliable_seq
++    sliding_flat_map<uint32_t, EnetCommand, 4096> incoming_reliable;           // by reliable_seq
++    sliding_flat_map<uint32_t, EnetCommand, 1024> incoming_unreliable;         // by unreliable_seq
+     std::queue<EnetCommand> incoming_unsequenced;                             // ready to dispatch (also reassembled frags)
+-    sliding_flat_map<uint32_t, EnetCommand, 64> incoming_unsequenced_frags;   // reliable_seq -> fragment cmd for unsequenced fragments
++    sliding_flat_map<uint32_t, EnetCommand, 256> incoming_unsequenced_frags;   // reliable_seq -> fragment cmd for unsequenced fragments
+ 
+     // seq numbers
+     uint32_t incoming_reliable_seq = 0;
+-- 
+2.43.0
+

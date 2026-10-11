@@ -3,6 +3,7 @@
 !submodules/luxonserver
 !submodules/luxonserver/**
 submodules/luxonserver/.git
+submodules/luxonserver/**/.git
 submodules/luxonserver/build
 submodules/luxonserver/vcpkg/buildtrees
 submodules/luxonserver/vcpkg/packages

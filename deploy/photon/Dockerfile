@@ -6,6 +6,20 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 COPY submodules/luxonserver/ ./
 COPY deploy/photon/mbedtls-gcc14.patch /tmp/mbedtls-gcc14.patch
+# Kick-Flight ENet transport patches for the nested Luxon submodule (pinned at 5401810): 0006 = 4096-entry reliable
+# receive window, 0007 = 32 resends / 30 s. The other server patches (0001-0005, 0008-0010) are already commits in the
+# luxonserver pin. `git apply` is all-or-nothing and rejects context drift, so a submodule bump that conflicts with a
+# patch fails the build instead of shipping without it; the grep checks prove the values actually landed.
+COPY deploy/photon/luxon-patches/ /tmp/luxon-patches/
+RUN set -eu; \
+    cd Luxon; \
+    for p in /tmp/luxon-patches/*.patch; do \
+      echo "Applying ${p##*/}"; \
+      git apply --verbose "$p"; \
+    done; \
+    grep -q 'sliding_flat_map<uint32_t, EnetCommand, 4096> incoming_reliable;' include/luxon/enet_peer.hpp; \
+    grep -q 'uint8_t max_resends = 32;' include/luxon/enet_peer.hpp; \
+    grep -q 'int disconnect_timeout_ms = 30000;' include/luxon/enet_peer.hpp
 RUN cmake -S . -B build -G Ninja \
       -DCMAKE_BUILD_TYPE=Release \
       -DLUXON_SERVER_USE_SANMAKE=OFF \
