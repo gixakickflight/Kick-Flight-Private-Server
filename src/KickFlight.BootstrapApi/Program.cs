@@ -206,14 +206,26 @@ app.MapGet("/health/ready", async (FixtureStore store, ResourceCatalogStore reso
 {
     var snapshot = store.GetSnapshot();
     var resourceSnapshot = resourceStore.GetSnapshot();
+    var iosResourceSnapshot = resourceStore.GetIosSnapshot();
+    var iosBootFixtureReady = store.GetIosBootFixture() is not null;
     var photonStatus = await photonManager.CheckHealthAsync(ct);
-    var errors = snapshot.Errors.Concat(resourceSnapshot.Errors).ToList();
+    var errors = snapshot.Errors.Concat(resourceSnapshot.Errors).Concat(iosResourceSnapshot.Errors).ToList();
+    if (resourceStore.IsIosCatalogReady && !iosBootFixtureReady)
+        errors.Add("The iOS platform-2 boot fixture is missing or invalid.");
     if (photonStatus.Enabled && !photonStatus.MasterReachable)
     {
         errors.Add($"Photon MasterServer unreachable at {photonStatus.Host}:{photonStatus.MasterServerPort}");
     }
     return errors.Count == 0
-        ? Results.Json(new { status = "ready", fixtureCount = snapshot.Fixtures.Count, resourceCount = resourceSnapshot.Resources.Count, photon = photonStatus })
+        ? Results.Json(new
+        {
+            status = "ready", fixtureCount = snapshot.Fixtures.Count,
+            resourceCount = resourceSnapshot.Resources.Count,
+            iosResourceCount = iosResourceSnapshot.Resources.Count,
+            iosCatalogReady = resourceStore.IsIosCatalogReady,
+            iosBootFixtureReady,
+            photon = photonStatus
+        })
         : Results.Json(new { status = "not-ready", errors, photon = photonStatus }, statusCode: 503);
 });
 
@@ -233,11 +245,35 @@ app.MapMethods("/{**path}", new[] { "GET", "POST", "PUT", "PATCH", "DELETE", "HE
         var demoResult = await demoSessionApi.TryHandleAsync(context);
         if (demoResult is not null) return demoResult;
 
+        var requestPath = context.Request.Path.Value ?? "/";
+        var isIosList = requestPath.StartsWith($"/v1/list/{ResourceCatalogStore.IosAssetVersion}/", StringComparison.Ordinal);
+        var isIosCdn = requestPath.StartsWith("/ios/cdn/", StringComparison.Ordinal);
+        var isIosBoot = directClient && HttpMethods.IsPost(context.Request.Method) && requestPath == "/boot/index" &&
+                        int.TryParse(context.Request.Headers["x-app-asset-platform"], out var platform) && platform == 2;
+        if (directClient && (isIosBoot || isIosList || isIosCdn) &&
+            (!resourceStore.IsIosCatalogReady || (isIosBoot && store.GetIosBootFixture() is null)))
+        {
+            context.Response.Headers["x-app-status-code"] = "1";
+            return Results.Json(new { error = "ios-resource-catalog-unavailable", assetVersion = ResourceCatalogStore.IosAssetVersion },
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+
         if (HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method))
         {
+            if (directClient && isIosList)
+            {
+                var fromRevisionText = requestPath[(requestPath.LastIndexOf('/') + 1)..];
+                if (!int.TryParse(fromRevisionText, out var fromRevision) ||
+                    fromRevision is < 0 or > ResourceCatalogStore.IosCatalogRevision)
+                    return Results.Json(new { error = "unsupported-ios-catalog-revision" }, statusCode: StatusCodes.Status404NotFound);
+                var database = IosOctoDatabase.Build(resourceStore.GetIosSnapshot(), fromRevision);
+                return new LocalFixtureResult(database, "application/x-protobuf", StatusCodes.Status200OK);
+            }
             var resource = directClient
-                ? resourceStore.MatchDirect(context.Request.Path.Value ?? "/")
-                : resourceStore.Match(host, context.Request.Path.Value ?? "/");
+                ? isIosCdn
+                    ? resourceStore.MatchIosDirect(requestPath)
+                    : resourceStore.MatchDirect(requestPath)
+                : resourceStore.Match(host, requestPath);
             if (resource is not null)
             {
                 context.Response.Headers.CacheControl = "public,max-age=31536000,immutable";
@@ -250,8 +286,8 @@ app.MapMethods("/{**path}", new[] { "GET", "POST", "PUT", "PATCH", "DELETE", "HE
         }
 
         var fixture = directClient
-            ? store.MatchDirect(context.Request.Method, context.Request.Path.Value ?? "/")
-            : store.Match(host, context.Request.Method, context.Request.Path.Value ?? "/");
+            ? isIosBoot ? store.GetIosBootFixture() : store.MatchDirect(context.Request.Method, requestPath)
+            : store.Match(host, context.Request.Method, requestPath);
         if (fixture is null)
         {
             loggerFactory.CreateLogger("FixtureRouting").LogWarning(
@@ -277,20 +313,31 @@ app.MapMethods("/{**path}", new[] { "GET", "POST", "PUT", "PATCH", "DELETE", "HE
             context.Request.Method, host, context.Request.Path, fixture.Id, fixture.StatusCode);
 
         var body = fixture.GetBodyBytes();
-        if (directClient && (context.Request.Path.Value ?? "").StartsWith("/v1/list/", StringComparison.Ordinal))
+        if (directClient && requestPath.StartsWith("/v1/list/", StringComparison.Ordinal))
         {
             // The Octo database carries the CDN url format (field 5). It is baked with the LAN address at build time,
             // but a client reaching us through another name (kickflightsg.ddns.net from outside) must download from
             // that same name, so rewrite the format to the host the request actually came through - or to the
             // configured external CDN when the bundles are hosted elsewhere.
-            var urlFormat = options.Value.OctoCdnUrlFormat;
-            if (string.IsNullOrWhiteSpace(urlFormat))
+            string? urlFormat;
+            if (isIosList)
             {
-                var hostFormat = options.Value.OctoCdnUrlFormatsByHost.FirstOrDefault(pair =>
+                urlFormat = options.Value.IosOctoCdnUrlFormatsByHost.FirstOrDefault(pair =>
                     string.Equals(pair.Key, context.Request.Host.Host, StringComparison.OrdinalIgnoreCase)).Value;
-                urlFormat = string.IsNullOrWhiteSpace(hostFormat)
-                    ? $"{context.Request.Scheme}://{context.Request.Host}/cdn/{{o}}"
-                    : hostFormat;
+                if (string.IsNullOrWhiteSpace(urlFormat))
+                    urlFormat = $"{context.Request.Scheme}://{context.Request.Host}/ios/cdn/{{o}}";
+            }
+            else
+            {
+                urlFormat = options.Value.OctoCdnUrlFormat;
+                if (string.IsNullOrWhiteSpace(urlFormat))
+                {
+                    var hostFormat = options.Value.OctoCdnUrlFormatsByHost.FirstOrDefault(pair =>
+                        string.Equals(pair.Key, context.Request.Host.Host, StringComparison.OrdinalIgnoreCase)).Value;
+                    urlFormat = string.IsNullOrWhiteSpace(hostFormat)
+                        ? $"{context.Request.Scheme}://{context.Request.Host}/cdn/{{o}}"
+                        : hostFormat;
+                }
             }
             body = OctoDatabaseUrl.Rewrite(body, urlFormat);
         }
