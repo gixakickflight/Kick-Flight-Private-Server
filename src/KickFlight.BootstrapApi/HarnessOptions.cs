@@ -28,5 +28,8 @@ public sealed class HarnessOptions
     /// fronts the API but the app sees its internal HTTP scheme. The host-specific format is used only when
     /// OctoCdnUrlFormat is not set; unmatched hosts keep the request-scheme fallback.
     /// </summary>
-    public Dictionary<string, string> OctoCdnUrlFormatsByHost { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, string> OctoCdnUrlFormatsByHost { get; set; } = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["kick-flight-fenix.us.ci"] = "https://kick-flight-fenix.us.ci/cdn/{o}"
+    };
 }

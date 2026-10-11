@@ -145,13 +145,17 @@ public sealed class HarnessTests : IClassFixture<ServerTestHostFixture>
     }
 
     [Fact]
-    public async Task Public_domain_uses_its_configured_https_cdn_origin()
+    public async Task Public_domain_uses_default_https_cdn_origin_even_when_forwarded_proto_is_http()
     {
+        Assert.Equal("https://kick-flight-fenix.us.ci/cdn/{o}",
+            new HarnessOptions().OctoCdnUrlFormatsByHost["kick-flight-fenix.us.ci"]);
         using var factory = _factory.WithWebHostBuilder(builder => builder.ConfigureAppConfiguration((_, config) =>
+        {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Harness:DirectClientHosts:0"] = "kick-flight-fenix.us.ci"
-            })));
+            });
+        }));
         using var request = new HttpRequestMessage(HttpMethod.Get, "/v1/list/12345/0");
         request.Headers.Host = "kick-flight-fenix.us.ci";
         request.Headers.TryAddWithoutValidation("X-Forwarded-Proto", "http");
