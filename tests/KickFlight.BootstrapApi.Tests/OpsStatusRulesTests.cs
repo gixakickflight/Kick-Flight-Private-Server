@@ -139,4 +139,20 @@ public sealed class OpsStatusRulesTests
         Assert.True(OpsFingerprint.IsClientReport("[Analysis] x"));
         Assert.False(OpsFingerprint.IsClientReport("NameServer ping failed"));
     }
+
+    [Fact]
+    public void Hitagi_warp_skill_type_reports_are_known_benign_unless_mixed_with_a_real_anomaly()
+    {
+        // Live 2026-10-11: every Hitagi kicker-skill cast logs this, then warps normally (AcceptWarp -> SendWarp).
+        var single = OpsFingerprint.Classify("[Analysis]1:AcceptWarp(): InvalidSkillActionType 7.38299999999998,,1001446,JapaneseSword");
+        var batch = OpsFingerprint.Classify("[Analysis]1:AcceptWarp(): InvalidSkillActionType 2.168,battle-791694221,1001446,JapaneseSword" +
+                                            "//2:AcceptWarp(): InvalidSkillActionType 8.065,battle-791694221,1001446,JapaneseSword");
+        Assert.Equal(OpsFingerprint.KnownBenignKind, single.Kind);
+        Assert.Equal(OpsFingerprint.KnownBenignKind, batch.Kind);
+
+        var otherWeapon = OpsFingerprint.Classify("[Analysis]1:AcceptWarp(): InvalidSkillActionType 3.5,battle-1,1,Spear");
+        var mixed = OpsFingerprint.Classify("[Analysis]1:AcceptWarp(): InvalidSkillActionType 2.1,b,1,JapaneseSword//2:ResolveZombie(): x 4");
+        Assert.Equal(OpsFingerprint.AnomalyKind, otherWeapon.Kind);
+        Assert.Equal(OpsFingerprint.AnomalyKind, mixed.Kind);
+    }
 }

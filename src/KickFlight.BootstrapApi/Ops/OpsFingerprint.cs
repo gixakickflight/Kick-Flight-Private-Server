@@ -16,6 +16,11 @@ public static partial class OpsFingerprint
     public const string ReportPrefix = "[Analysis]";
     public const string ExceptionKind = "client_exception";
     public const string AnomalyKind = "client_anomaly";
+    /// <summary>
+    /// An anomaly batch made only of messages the retail client logs although nothing is wrong (see KnownBenign);
+    /// it is still stored in the timeline but is not one of OpsReports' error kinds.
+    /// </summary>
+    public const string KnownBenignKind = "client_known_benign";
     private const int FramesInFingerprint = 3;
 
     public static bool IsClientReport(string cause) => cause.StartsWith(ReportPrefix, StringComparison.Ordinal);
@@ -40,8 +45,32 @@ public static partial class OpsFingerprint
 
         var signature = frames.Count == 0 ? title : title + "\n" + string.Join("\n", frames);
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(signature));
-        return (hasException ? ExceptionKind : AnomalyKind, Convert.ToHexString(hash, 0, 8).ToLowerInvariant(), signature);
+        var kind = hasException ? ExceptionKind : IsKnownBenignBatch(text) ? KnownBenignKind : AnomalyKind;
+        return (kind, Convert.ToHexString(hash, 0, 8).ToLowerInvariant(), signature);
     }
+
+    /// <summary>
+    /// Messages of GameManager.StoreAnalysisException that are false positives. PlayerCharacter.AcceptWarp logs
+    /// "InvalidSkillActionType" whenever the caster's skill is not Warp (8) or ThrowingStar (12) per
+    /// SkillActionTypeExtensions.IsWarpSkill, but Hitagi's kicker skill (JapaneseSword, 23) derives from
+    /// WarpSkillAction, so every Hitagi cast logs it and then warps normally (PlayerRPCController.SendWarp).
+    /// </summary>
+    private static readonly string[] KnownBenign = ["AcceptWarp(): InvalidSkillActionType "];
+
+    /// <summary>True when every "N:message" entry of a "1:a//2:b" batch is a known false positive.</summary>
+    private static bool IsKnownBenignBatch(string text)
+    {
+        var entries = text.Trim().Split("//", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        return entries.Length > 0 && entries.All(entry =>
+        {
+            var message = BatchIndex().Replace(entry, "");
+            return KnownBenign.Any(prefix => message.StartsWith(prefix, StringComparison.Ordinal))
+                && message.EndsWith(",JapaneseSword", StringComparison.Ordinal);
+        });
+    }
+
+    [GeneratedRegex(@"^\d+:")]
+    private static partial Regex BatchIndex();
 
     private static string NormalizeFrame(string frame)
     {
