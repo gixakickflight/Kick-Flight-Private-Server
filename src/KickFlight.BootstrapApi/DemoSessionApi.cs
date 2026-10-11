@@ -633,6 +633,11 @@ public sealed partial class DemoSessionApi
             ("SpecialSkillCondition", "masters_special_skill_condition.json"),
             ("SpecialSkillBlowOff", "masters_special_skill_blow_off.json"),
             ("SpecialSkillTrap", "masters_special_skill_trap.json"),
+            // Result-screen stamps: ResultUIManager.PlayRandomStamp picks from GoodsUtil.GetStampMaster(1, {Win|Lose|Draw}),
+            // i.e. StampSituation rows whose Stamp has defaultFlag; with neither table served the list was empty and
+            // List.get_Item(0) threw ArgumentOutOfRangeException on every result screen.
+            ("Stamp", "masters_stamp.json"),
+            ("StampSituation", "masters_stamp_situation.json"),
         })
         {
             var json = LoadJson(contentRoot, "config/" + fileName, "[]");
