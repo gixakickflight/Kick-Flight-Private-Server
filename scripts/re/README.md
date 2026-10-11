@@ -50,7 +50,8 @@ selected player reached the manager setter. Their caves occupy the free tail `0x
 Rules learned the hard way:
 
 - Never call `UnityEngine.Debug.Log*` from patched code on the x86_64 AVD: its stack-trace capture walks the
-  cave frames (no unwind info) and crashes in `libunity.so+0x34426c`. `__android_log_print` (PLT `0x10D6270`)
+  cave frames (no unwind info) and crashes (the `libunity.so+0x34426c` frame is Unity's crash handler overflowing its own
+  32 KB signal stack, see AGENTS.md "Reportero de salidas y crashes nativos", not the fault itself). `__android_log_print` (PLT `0x10D6270`)
   is safe.
 - Function-entry hooks must use `b` (a `bl` clobbers the caller's LR before the prologue saves it) and the cave
   jumps back to entry+4 after re-executing the displaced instruction. Mid-function hooks may use `bl`+`ret`.

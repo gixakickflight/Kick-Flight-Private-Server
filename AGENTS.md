@@ -115,6 +115,37 @@ servidor lo que el cliente retail solo le daba a Crashlytics, por el canal `/ana
 - Lado servidor: un `cause` que empieza por `"[Analysis]\n"` es una excepción; `"[Analysis]"` seguido de otra cosa es una
   anomalía (o un `SendPurchaseFailed`); sin prefijo son los fallos de región de serie (`GetPingFailed`, `DisconnectCause`).
 
+### Reportero de salidas y crashes nativos (2026-10-11)
+
+`kf.ExitReportProvider` (`scripts/exit-reporter/`, añadido por `scripts/patch-exit-reporter.py`) va en la APK de
+producción desde 2.11.3: al arrancar sube a `<servidor>/diag/upload` cada salida anómala de `ApplicationExitInfo`
+(CRASH, CRASH_NATIVE, ANR, LOW_MEMORY, SIGNALED en primer plano) más la cola del logcat propio. En el VPS quedan en
+`/opt/kickflight/.local/diag-uploads/diag-upload-*-logcat.txt` (root, leer con `sudo`), primera línea
+`KF-EXIT-REPORT v1`. Un CRASH_NATIVE trae `trace: tombstone-proto-base64` (protobuf `Tombstone` de Android: registros,
+backtrace, volcados de memoria y TODAS las maps del proceso).
+
+Por qué los crashes nativos llegan "ciegos": el manejador de señal de Unity corre en una pila alternativa de 32 KB y en
+`libunity+0x6D86C4` llama a `0x344238`, que reserva ~37 KB y escribe en `0x344268`: desborda su propia pila. La cola
+`E CRASH` trae registros pero `backtrace:` vacío, el frame `libunity+0x34426c` aparece en TODOS los crashes (no es la
+causa) y, cuando hay tombstone, describe ese segundo fallo ("stack pointer is not in a rw map"). En el emulador el
+proceso queda colgado ("main thread is trapped") y Android lo apunta como ANR.
+Sin maps, el `pc` se resuelve por descarte: las bases son múltiplos de página (`pc & 0xfff == rva & 0xfff`), `pc` y
+`lr` del mismo módulo difieren lo que sus offsets, y la instrucción candidata debe ser un load cuya base+inmediato dé el
+`fault addr`. Así se resolvió `UnityPreload` fault 0x104 = `libunity+0x2CAB34` (`ldr w9,[x0,#8]` en un lookup de hash
+map en `0x2CAAE8`, llamado desde `0x2C3070`/`0x2BF2B0` con `this` = 4): carrera del loader con la carga de la escena.
+`UnityMain` fault 0x18 (Nothing A142, tras `MatchingScene`) no está en libunity/libil2cpp/libcri: probablemente una
+librería del sistema.
+Pendiente en la rama `fix/cri-download-crash` (2.11.4, retenida): el reportero guarda `/proc/self/maps` de las `.so`
+de la app a los ~20 s/~90 s y lo adjunta como `=== native libraries ===` (`rva = pc - start` de la mapping con
+offset 0), y la idea sin probar de saltar ese `bl 0x344238` para que debuggerd escriba un tombstone normal.
+
+Primera sesión tras la PRIMERA descarga de assets (instalación nueva): `ColorfulManager.<PreDownloadInitializeAsync>`
+registra `colorful.acf` antes de que DownloadScene lo descargue y Title añade `common_se`/`bgm_title` de ficheros que
+aún no existen (`AudioManager.AddCueSheet` devuelve la hoja ya existente por nombre), así que toda esa sesión tiene el
+audio roto (silencio hasta Home, BGM superpuesta, SFX equivocados) y el primer voice 3D crashea en
+`libcri_ware_unity.so+0x59d28` (fault 0x7b0) al llegar a READY GO. Una actualización pequeña no lo provoca. Arreglo
+verificado en emulador, en la rama 2.11.4: reset de audio + re-registro del ACF tras la descarga.
+
 ### Localizar una NRE con `KF_NRE_LR=1`
 
 `KFDIAG v=<n>` justo antes de la excepción en logcat es `LR & 0xFFFFFFFF` (puede salir negativo). Base del módulo:
@@ -138,8 +169,9 @@ master `Field` (string inline en `DemoSessionApi.cs`), no era el cliente.
   `WeaponAttackActionBase.CallbackAttackCollisionDestroy(LifeTime)` marca el golpe como fallo, anula el objetivo y
   `ResetComboCount()`. Con `One` el primer impacto destruye el collider con tipo `Hit` y el combo encadena.
   Cambiado en el generador y en el JSON (pendiente de verificar en juego).
-- Los CRASH de logcat bajo ndk_translation siempre muestran `libunity+0x34426c`: solo valen `fault addr` y el nombre
-  del hilo. `UnityPreload` + fault 0 ~6-12 s después de `D/Unity: GameScene` es la carrera intermitente del loader.
+- Los CRASH de logcat (emulador y móviles) siempre muestran `libunity+0x34426c`: es el manejador de Unity
+  desbordando su pila alternativa (ver "Reportero de salidas y crashes nativos"), no el crash; solo valen
+  `fault addr`, registros y el nombre del hilo. `UnityPreload` + fault 0 ~6-12 s después de `D/Unity: GameScene` es la carrera intermitente del loader.
 - Los masters `Field`, `BattleRule` (fallback) y otros son strings inline en `DemoSessionApi.InitializeMasters`;
   `python scripts/re/served_master.py <Tabla>` enseña lo que realmente recibe el cliente.
 
