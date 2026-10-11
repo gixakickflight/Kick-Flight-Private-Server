@@ -145,6 +145,60 @@ public sealed class HarnessTests : IClassFixture<ServerTestHostFixture>
     }
 
     [Fact]
+    public async Task Public_domain_uses_its_configured_https_cdn_origin()
+    {
+        using var factory = _factory.WithWebHostBuilder(builder => builder.ConfigureAppConfiguration((_, config) =>
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Harness:DirectClientHosts:0"] = "kick-flight-fenix.us.ci"
+            })));
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/v1/list/12345/0");
+        request.Headers.Host = "kick-flight-fenix.us.ci";
+        request.Headers.TryAddWithoutValidation("X-Forwarded-Proto", "http");
+        using var response = await factory.CreateClient().SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = Encoding.UTF8.GetString(await response.Content.ReadAsByteArrayAsync());
+        Assert.Contains("https://kick-flight-fenix.us.ci/cdn/{o}", body);
+        Assert.DoesNotContain("http://kick-flight-fenix.us.ci/cdn/{o}", body);
+    }
+
+    [Fact]
+    public async Task Explicit_cdn_format_overrides_host_specific_format()
+    {
+        using var factory = _factory.WithWebHostBuilder(builder => builder.ConfigureAppConfiguration((_, config) =>
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Harness:DirectClientHosts:0"] = "kick-flight-fenix.us.ci",
+                ["Harness:OctoCdnUrlFormat"] = "https://assets.example.test/cdn/{o}"
+            })));
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/v1/list/12345/0");
+        request.Headers.Host = "kick-flight-fenix.us.ci";
+        using var response = await factory.CreateClient().SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = Encoding.UTF8.GetString(await response.Content.ReadAsByteArrayAsync());
+        Assert.Contains("https://assets.example.test/cdn/{o}", body);
+        Assert.DoesNotContain("https://kick-flight-fenix.us.ci/cdn/{o}", body);
+    }
+
+    [Fact]
+    public async Task Public_ip_keeps_the_request_scheme_cdn_fallback()
+    {
+        using var factory = _factory.WithWebHostBuilder(builder => builder.ConfigureAppConfiguration((_, config) =>
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Harness:DirectClientHosts:0"] = "159.54.134.159"
+            })));
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/v1/list/12345/0");
+        request.Headers.Host = "159.54.134.159:18080";
+        request.Headers.TryAddWithoutValidation("X-Forwarded-Proto", "https");
+        using var response = await factory.CreateClient().SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = Encoding.UTF8.GetString(await response.Content.ReadAsByteArrayAsync());
+        Assert.Contains("http://159.54.134.159:18080/cdn/{o}", body);
+        Assert.DoesNotContain("https://kick-flight-fenix.us.ci/cdn/{o}", body);
+    }
+
+    [Fact]
     public async Task Octo_supported_old_revision_receives_current_database_and_future_revision_is_not_fallback()
     {
         var title = ReadTitleResourceDefinition();

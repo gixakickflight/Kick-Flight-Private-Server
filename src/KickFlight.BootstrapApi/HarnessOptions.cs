@@ -22,4 +22,11 @@ public sealed class HarnessOptions
     /// 700 MB download does not have to squeeze through this machine's uplink.
     /// </summary>
     public string? OctoCdnUrlFormat { get; set; }
+
+    /// <summary>
+    /// Optional CDN URL formats for specific direct-client hosts. This is useful when a public TLS proxy
+    /// fronts the API but the app sees its internal HTTP scheme. The host-specific format is used only when
+    /// OctoCdnUrlFormat is not set; unmatched hosts keep the request-scheme fallback.
+    /// </summary>
+    public Dictionary<string, string> OctoCdnUrlFormatsByHost { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
