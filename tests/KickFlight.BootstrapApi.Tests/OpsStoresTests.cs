@@ -19,7 +19,8 @@ public sealed class OpsStoresTests : IDisposable
     [Fact]
     public async Task Ndjson_store_round_trips_all_row_types_with_filters_and_prune()
     {
-        var t0 = new DateTime(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc);
+        // The store names each file after the UTC day it is written (not the row time), so the rows must be "today".
+        var t0 = DateTime.UtcNow.Date;
         var store = new NdjsonOpsStore(_directory);
         await store.InitializeAsync(CancellationToken.None);
 
