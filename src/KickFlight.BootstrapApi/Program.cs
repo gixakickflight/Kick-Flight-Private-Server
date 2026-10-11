@@ -283,9 +283,15 @@ app.MapMethods("/{**path}", new[] { "GET", "POST", "PUT", "PATCH", "DELETE", "HE
             // but a client reaching us through another name (kickflightsg.ddns.net from outside) must download from
             // that same name, so rewrite the format to the host the request actually came through - or to the
             // configured external CDN when the bundles are hosted elsewhere.
-            var urlFormat = string.IsNullOrWhiteSpace(options.Value.OctoCdnUrlFormat)
-                ? $"{context.Request.Scheme}://{context.Request.Host}/cdn/{{o}}"
-                : options.Value.OctoCdnUrlFormat;
+            var urlFormat = options.Value.OctoCdnUrlFormat;
+            if (string.IsNullOrWhiteSpace(urlFormat))
+            {
+                var hostFormat = options.Value.OctoCdnUrlFormatsByHost.FirstOrDefault(pair =>
+                    string.Equals(pair.Key, context.Request.Host.Host, StringComparison.OrdinalIgnoreCase)).Value;
+                urlFormat = string.IsNullOrWhiteSpace(hostFormat)
+                    ? $"{context.Request.Scheme}://{context.Request.Host}/cdn/{{o}}"
+                    : hostFormat;
+            }
             body = OctoDatabaseUrl.Rewrite(body, urlFormat);
         }
         return new LocalFixtureResult(body, fixture.ContentType, fixture.StatusCode);
