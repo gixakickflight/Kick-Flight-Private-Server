@@ -6,6 +6,7 @@ using System.Text.Json;
 using KickFlight.BootstrapApi.Ops;
 using KickFlight.BootstrapApi.PlayerStore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace KickFlight.BootstrapApi;
 
@@ -81,11 +82,12 @@ public sealed partial class DemoSessionApi
     private readonly ClientUpdateState _clientUpdate;
     private readonly TimeProvider _timeProvider;
     private readonly OpsTelemetryService _ops;
+    private readonly HarnessOptions _harnessOptions;
 
     public DemoSessionApi(ILogger<DemoSessionApi> logger, IWebHostEnvironment environment,
         BattleMatchmakingService matchmaking, BattleReplayService replays, IPlayerStore playerStore,
         IConfiguration configuration, MaintenanceState maintenance, ClientUpdateState clientUpdate,
-        TimeProvider timeProvider, OpsTelemetryService ops)
+        TimeProvider timeProvider, OpsTelemetryService ops, IOptions<HarnessOptions> harnessOptions)
     {
         _logger = logger;
         _ops = ops;
@@ -95,6 +97,7 @@ public sealed partial class DemoSessionApi
         _clientUpdate = clientUpdate;
         _timeProvider = timeProvider;
         _playerStore = playerStore;
+        _harnessOptions = harnessOptions.Value;
         _contentRoot = environment.ContentRootPath;
         _grpcPort = configuration.GetValue("GrpcPort", 18081);
         _mastersOverrides = new MasterOverrides(configuration[MasterOverrides.ConfigurationKey], environment.ContentRootPath);
@@ -1751,15 +1754,18 @@ public sealed partial class DemoSessionApi
 
     private string BuildDownloadMasterJson(HttpRequest request)
     {
-        var host = request.Host;
-        var scheme = request.Scheme;
+        var configuredOrigin = _harnessOptions.MasterDownloadOriginsByHost.FirstOrDefault(pair =>
+            string.Equals(pair.Key, request.Host.Host, StringComparison.OrdinalIgnoreCase)).Value;
+        var origin = string.IsNullOrWhiteSpace(configuredOrigin)
+            ? $"{request.Scheme}://{request.Host}"
+            : configuredOrigin.TrimEnd('/');
         return JsonSerializer.Serialize(new
         {
             masterDownloadList = _encryptedMasters.Select(kvp => new
             {
                 name = kvp.Key,
                 hash = Convert.ToHexString(SHA256.HashData(kvp.Value)).ToLowerInvariant(),
-                url = $"{scheme}://{host}/demo-master/{kvp.Key}",
+                url = $"{origin}/demo-master/{kvp.Key}",
                 size = kvp.Value.Length
             }).ToArray()
         });

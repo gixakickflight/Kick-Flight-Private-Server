@@ -32,4 +32,13 @@ public sealed class HarnessOptions
     {
         ["kick-flight-fenix.us.ci"] = "https://kick-flight-fenix.us.ci/cdn/{o}"
     };
+
+    /// <summary>
+    /// Canonical origins for master downloads when the public TLS proxy forwards requests to the API over HTTP.
+    /// Unmatched hosts retain the request scheme and host, which keeps direct Android/IP clients on their HTTP origin.
+    /// </summary>
+    public Dictionary<string, string> MasterDownloadOriginsByHost { get; set; } = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["kick-flight-fenix.us.ci"] = "https://kick-flight-fenix.us.ci"
+    };
 }
