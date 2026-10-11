@@ -656,6 +656,64 @@ public sealed class HarnessTests : IClassFixture<ServerTestHostFixture>
     }
 
     [Fact]
+    public async Task Download_master_uses_canonical_https_origin_but_keeps_android_ip_http_origin()
+    {
+        using var factory = _factory.WithWebHostBuilder(builder => builder.ConfigureAppConfiguration((_, configuration) =>
+            configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Harness:DirectClientHosts:0"] = "kick-flight-fenix.us.ci",
+                ["Harness:DirectClientHosts:1"] = "159.54.134.159"
+            })));
+        var client = factory.CreateClient();
+        const string sessionKey = "0123456789abcdef0123456789abcdef";
+        const string commonCode = "1a837b9ee2ae11a07a0f529a4cd4b61c";
+        var commonCodeBytes = Encoding.ASCII.GetBytes(commonCode);
+        var uuid = Guid.NewGuid().ToString("N");
+        var authPayload = JsonSerializer.Serialize(new { hash = sessionKey, uuid });
+        var encodedAuth = D2CCodec.Encode(Encoding.UTF8.GetBytes(authPayload), commonCodeBytes, new byte[16]);
+        using var authRequest = new HttpRequestMessage(HttpMethod.Post, "/auth/index")
+        {
+            Content = new ByteArrayContent(encodedAuth)
+        };
+        authRequest.Headers.Host = "kick-flight-fenix.us.ci";
+        using var authResponse = await client.SendAsync(authRequest);
+        Assert.Equal(HttpStatusCode.OK, authResponse.StatusCode);
+        var accessToken = authResponse.Headers.GetValues("x-app-access-token").Single();
+
+        async Task<JsonDocument> GetMasterList(string host)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, "/download/master")
+            {
+                Content = new ByteArrayContent(Array.Empty<byte>())
+            };
+            request.Headers.Host = host;
+            request.Headers.Add("x-app-access-token", accessToken);
+            using var response = await client.SendAsync(request);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            return JsonDocument.Parse(D2CCodec.Decode(await response.Content.ReadAsByteArrayAsync(),
+                Encoding.ASCII.GetBytes(sessionKey)));
+        }
+
+        using var publicHost = await GetMasterList("kick-flight-fenix.us.ci");
+        using var androidIp = await GetMasterList("159.54.134.159:18080");
+        var publicRows = publicHost.RootElement.GetProperty("masterDownloadList").EnumerateArray().ToArray();
+        var androidRows = androidIp.RootElement.GetProperty("masterDownloadList").EnumerateArray().ToArray();
+        Assert.NotEmpty(publicRows);
+        Assert.Equal(publicRows.Length, androidRows.Length);
+        for (var index = 0; index < publicRows.Length; index++)
+        {
+            var publicRow = publicRows[index];
+            var androidRow = androidRows[index];
+            var name = publicRow.GetProperty("name").GetString();
+            Assert.Equal(name, androidRow.GetProperty("name").GetString());
+            Assert.Equal(publicRow.GetProperty("hash").GetString(), androidRow.GetProperty("hash").GetString());
+            Assert.Equal(publicRow.GetProperty("size").GetInt32(), androidRow.GetProperty("size").GetInt32());
+            Assert.Equal($"https://kick-flight-fenix.us.ci/demo-master/{name}", publicRow.GetProperty("url").GetString());
+            Assert.Equal($"http://159.54.134.159:18080/demo-master/{name}", androidRow.GetProperty("url").GetString());
+        }
+    }
+
+    [Fact]
     public async Task Rapid_ball_masters_are_served_with_goal_guardians()
     {
         var client = _factory.CreateClient();
