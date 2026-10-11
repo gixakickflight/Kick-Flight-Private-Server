@@ -77,6 +77,9 @@ else
 fi
 
 release_dir="$releases_dir/$release_sha"
+# KF_RELEASE_SHA for the API container (deploy/docker-compose.vps.yml): the ops telemetry tags each server start
+# with it. A rollback switches it back to the commit it restores.
+compose_release_sha=$release_sha
 rm -rf -- "$release_dir"
 mkdir -p "$release_dir"
 tar -xzf "$archive" --no-same-owner --no-same-permissions -C "$release_dir"
@@ -133,6 +136,7 @@ rollback_on_error() {
     fi
     if [[ "$source_sync_started" == true && -n "$previous_release" && -d "$previous_release" ]]; then
       sync_release "$previous_release" || true
+      compose_release_sha=${previous_sha:-unknown}
       compose_from_app up -d --build || true
       if [[ "$deploy_balance" == true ]]; then
         sudo -n systemctl daemon-reload && sudo -n systemctl restart kickflight-balance || true
@@ -204,7 +208,7 @@ PY
     if [[ "$db_mode" == external ]]; then
       compose_file="$app_dir/deploy/docker-compose.vps.external-db.yml"
     fi
-    KF_ASSETS_PATH="$assets_root" docker compose \
+    KF_ASSETS_PATH="$assets_root" KF_RELEASE_SHA="$compose_release_sha" docker compose \
       --env-file "$app_dir/.env" --project-name deploy \
       -f "$compose_file" "$@"
   )

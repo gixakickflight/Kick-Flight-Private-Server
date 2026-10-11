@@ -212,6 +212,22 @@
   #latestInformationStatus .line.ok { color: var(--ok); }
   #latestInformationStatus .line.err { color: var(--err); }
   #latestInformationStatus .line.info { color: var(--fg2); }
+  /* Health panel */
+  .mbtns button.on { border-color: var(--ok); color: var(--ok); }
+  #healthGrid { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+  .hcard { flex: 1 1 110px; min-width: 96px; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; background: var(--bg3); }
+  .hcard .n { font-size: 20px; font-weight: 600; }
+  .hcard .l { font-size: 11px; color: var(--fg2); }
+  .htable { width: 100%; border-collapse: collapse; font-size: 12px; margin: 6px 0; }
+  .htable th, .htable td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .htable th { color: var(--fg2); font-weight: 600; }
+  .htable code { font-size: 11px; overflow-wrap: anywhere; }
+  .htable tr.hrow:hover { background: var(--bg3); }
+  #healthStatus:empty { display: none; }
+  #healthStatus .line { font: 11px/1.5 ui-monospace, Consolas, monospace; }
+  #healthStatus .line.ok { color: var(--ok); }
+  #healthStatus .line.err { color: var(--err); }
+  #healthStatus .line.info { color: var(--fg2); }
 </style>
 </head>
 <body>
@@ -229,6 +245,7 @@
       <button type="button" data-tab="discs">Discs</button>
       <button type="button" data-tab="text">Text</button>
       <button type="button" data-tab="latest-information">Latest information</button>
+      <button type="button" data-tab="health">Health</button>
       <button type="button" data-tab="maintenance">Maintenance</button>
     </div>
     <div id="filters">
@@ -329,6 +346,11 @@ const state = {
   savingMaintenance: false,
   latestInformation: null,
   savingLatestInformation: false,
+  health: null,          /* {summary, exceptions, error} from /api/ops/* */
+  healthWindow: "deploy",/* deploy (this release) / 24h / 7d */
+  healthLoading: false,
+  healthBattle: null,    /* {data, error} from /api/ops/battle/<id> */
+  healthBattleId: "",
   inputs: new Map(),   /* "table|rowId|field" -> input element */
   dirtyFields: new Set(),
   dirtyTables: new Set(),
@@ -519,7 +541,7 @@ function buildDiscFilters() {
 
 function filteredItems() {
   const text = document.getElementById("filterText").value.trim().toLowerCase();
-  if (state.tab === "maintenance" || state.tab === "latest-information") return [];
+  if (state.tab === "maintenance" || state.tab === "latest-information" || state.tab === "health") return [];
   if (state.tab === "text") {
     return state.screens.filter(function (screen) {
       if (!text) return true;
@@ -569,6 +591,13 @@ function renderList() {
   clear(list);
   if (state.tab === "latest-information") {
     list.appendChild(el("li", { class: "count" }, "Announcements shown in the in-game Latest Information screen"));
+    return;
+  }
+  if (state.tab === "health") {
+    const problems = state.health && state.health.summary && state.health.summary.problemMatches;
+    list.appendChild(el("li", { class: "count" }, problems
+      ? problems.length + " problem match(es) in the selected window"
+      : "Outcomes, client exceptions and a battle drill-down"));
     return;
   }
   if (state.tab === "maintenance") {
@@ -849,6 +878,10 @@ function renderPanel() {
   }
   if (state.tab === "latest-information") {
     renderLatestInformationPanel(panel);
+    return;
+  }
+  if (state.tab === "health") {
+    renderHealthPanel(panel);
     return;
   }
   if (state.tab === "text") {
@@ -1667,6 +1700,251 @@ async function applyNow() {
   renderApplyStatus();
 }
 
+/* ----------------------------------------------------------------- health */
+
+const HEALTH_WINDOWS = [
+  ["deploy", "This release"],
+  ["24h", "Last 24 h"],
+  ["7d", "Last 7 days"]
+];
+
+function healthLine(lines) {
+  const box = document.getElementById("healthStatus");
+  if (!box) return;
+  clear(box);
+  for (const line of lines) box.appendChild(el("div", { class: "line " + line[0] }, line[1]));
+}
+
+async function loadHealth() {
+  state.healthLoading = true;
+  const window = state.healthWindow || "deploy";
+  const query = "?window=" + encodeURIComponent(window);
+  try {
+    const loaded = await Promise.all([
+      fetchJSON("/api/ops/summary" + query, { cache: "no-store" }),
+      fetchJSON("/api/ops/exceptions" + query, { cache: "no-store" })
+    ]);
+    state.health = { summary: loaded[0], exceptions: loaded[1], error: null };
+  } catch (error) {
+    state.health = { summary: null, exceptions: null, error: error.message };
+  }
+  state.healthLoading = false;
+  return state.health;
+}
+
+async function loadHealthBattle(battleId) {
+  state.healthBattleId = battleId;
+  state.healthBattle = null;
+  renderPanel();
+  try {
+    const data = await fetchJSON("/api/ops/battle/" + encodeURIComponent(battleId), { cache: "no-store" });
+    state.healthBattle = { data: data, error: null };
+  } catch (error) {
+    state.healthBattle = { data: null, error: error.message };
+  }
+  renderPanel();
+}
+
+function healthCard(label, value) {
+  const card = el("div", { class: "hcard" });
+  card.appendChild(el("div", { class: "n" }, value === undefined || value === null ? "-" : String(value)));
+  card.appendChild(el("div", { class: "l" }, label));
+  return card;
+}
+
+function codeCell(text) {
+  const code = el("code", null, text);
+  code.style.whiteSpace = "pre-wrap";
+  return code;
+}
+
+function healthTable(headers, rows) {
+  const table = el("table", { class: "htable" });
+  const headRow = el("tr");
+  for (const header of headers) headRow.appendChild(el("th", null, header));
+  const thead = el("thead");
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+  const tbody = el("tbody");
+  for (const row of rows) {
+    const tr = el("tr", { class: "hrow" });
+    for (const cell of row) {
+      const td = el("td");
+      if (cell instanceof Node) td.appendChild(cell);
+      else td.textContent = cell === undefined || cell === null || cell === "" ? "-" : String(cell);
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  return table;
+}
+
+function renderHealthPanel(panel) {
+  const wrap = el("div", { class: "mpanel" });
+  wrap.style.maxWidth = "1100px";
+
+  const head = el("div", { class: "phead" });
+  const box = el("div");
+  box.appendChild(el("h1", null, "Health"));
+  box.appendChild(el("div", { class: "meta" },
+    "the game server's loopback-only /admin/ops/* telemetry: match outcomes, client exceptions and a battle drill-down"));
+  head.appendChild(box);
+  wrap.appendChild(head);
+
+  const controls = el("div", { class: "mbtns" });
+  for (const pair of HEALTH_WINDOWS) {
+    const button = el("button", { type: "button" }, pair[1]);
+    if ((state.healthWindow || "deploy") === pair[0]) button.className = "on";
+    button.disabled = !!state.healthLoading;
+    button.addEventListener("click", function () {
+      state.healthWindow = pair[0];
+      state.healthBattle = null;
+      state.healthBattleId = "";
+      loadHealth().then(function () { renderList(); renderPanel(); });
+    });
+    controls.appendChild(button);
+  }
+  wrap.appendChild(controls);
+
+  const health = state.health;
+  if (!health || !health.summary) {
+    wrap.appendChild(el("p", { class: "note" },
+      health && health.error ? "could not read telemetry: " + health.error : "loading telemetry..."));
+    panel.appendChild(wrap);
+    return;
+  }
+
+  const summary = health.summary;
+  const totals = summary.totals || {};
+  const info = summary.window || {};
+  wrap.appendChild(el("p", { class: "note" },
+    "window " + (info.name || state.healthWindow) + " · since " + (info.since || "-") +
+    " · release " + (info.releaseSha || "-") + " · run " + (info.runId || "-") +
+    " · store " + ((summary.telemetry && summary.telemetry.store) || "-")));
+
+  const outcomes = el("section", { class: "sec" });
+  outcomes.appendChild(el("h2", null, "Match outcomes"));
+  const outcomeGrid = el("div", { id: "healthGrid" });
+  for (const pair of [["clean", totals.clean], ["partial", totals.partial], ["abandoned", totals.abandoned],
+                      ["never started", totals.neverStarted], ["running", totals.running], ["matching", totals.matching]]) {
+    outcomeGrid.appendChild(healthCard(pair[0], pair[1]));
+  }
+  outcomes.appendChild(outcomeGrid);
+  wrap.appendChild(outcomes);
+
+  const players = el("section", { class: "sec" });
+  players.appendChild(el("h2", null, "Player statuses"));
+  const playerGrid = el("div", { id: "healthGrid" });
+  for (const pair of [["completed", totals.completedPlayers], ["reconnected", totals.reconnectedCompleted],
+                      ["reconnect failed", totals.reconnectFailed], ["dropped silent", totals.droppedSilent],
+                      ["relaunched", totals.relaunched], ["matching failures", totals.matchingFailures],
+                      ["matching timeouts", totals.matchingTimeouts], ["cancelled", totals.cancelled],
+                      ["exceptions", totals.exceptions]]) {
+    playerGrid.appendChild(healthCard(pair[0], pair[1]));
+  }
+  players.appendChild(playerGrid);
+  wrap.appendChild(players);
+
+  const exceptions = el("section", { class: "sec" });
+  exceptions.appendChild(el("h2", null, "Client exceptions by fingerprint"));
+  const groups = (health.exceptions && health.exceptions.groups) || [];
+  if (health.exceptions && health.exceptions.error) {
+    exceptions.appendChild(el("p", { class: "note" }, "could not read exceptions: " + health.exceptions.error));
+  } else if (!groups.length) {
+    exceptions.appendChild(el("p", { class: "note" }, "no client error reports in this window"));
+  } else {
+    const rows = groups.slice(0, 50).map(function (group) {
+      const users = group.users || [];
+      const userText = users.join(", ") + (group.userCount > users.length ? " +" + (group.userCount - users.length) : "");
+      const versions = (group.appVersions || []).map(function (v) { return v.key + " x" + v.count; }).join(", ");
+      return [group.kind || "-", group.count, codeCell((group.fingerprint || "") + "\n" + (group.signature || "")),
+              userText || "-", versions || "-", group.lastAt || "-"];
+    });
+    exceptions.appendChild(healthTable(["Kind", "Count", "Fingerprint / signature", "Users", "App versions", "Last"], rows));
+  }
+  wrap.appendChild(exceptions);
+
+  const problems = el("section", { class: "sec" });
+  problems.appendChild(el("h2", null, "Problem matches"));
+  const problemRows = (summary.problemMatches || []).slice(0, 100).map(function (match) {
+    const button = el("button", { type: "button" }, "drill down");
+    button.addEventListener("click", function () { loadHealthBattle(match.battleId); });
+    const statuses = (match.participants || []).map(function (p) { return p.userId + "=" + p.status; }).join(", ");
+    return [button, match.battleId, match.outcome || "-", (match.humans || 0) + "h/" + (match.bots || 0) + "b",
+            match.custom ? "custom" : "-", statuses || "-"];
+  });
+  if (!problemRows.length) {
+    problems.appendChild(el("p", { class: "note" }, "no problem matches in this window"));
+  } else {
+    problems.appendChild(healthTable(["", "Battle", "Outcome", "Roster", "Type", "Participants"], problemRows));
+  }
+  const byId = el("div", { class: "mfield" });
+  byId.appendChild(el("span", { class: "k" }, "Or open a battle by id"));
+  const idWrap = el("div", { class: "mbtns" });
+  const idInput = el("input", { type: "text", value: state.healthBattleId || "" });
+  const idButton = el("button", { type: "button" }, "Open");
+  idButton.addEventListener("click", function () {
+    const value = idInput.value.trim();
+    if (value) loadHealthBattle(value);
+  });
+  idWrap.appendChild(idInput);
+  idWrap.appendChild(idButton);
+  byId.appendChild(idWrap);
+  problems.appendChild(byId);
+  wrap.appendChild(problems);
+
+  if (state.healthBattle) {
+    const drill = el("section", { class: "sec" });
+    drill.appendChild(el("h2", null, "Battle " + (state.healthBattleId || "")));
+    if (state.healthBattle.error) {
+      drill.appendChild(el("p", { class: "note" }, "could not load battle: " + state.healthBattle.error));
+    } else {
+      const data = state.healthBattle.data || {};
+      const battle = data.battle;
+      if (battle) {
+        drill.appendChild(el("p", { class: "note" },
+          "outcome " + (battle.outcome || "open") + " · rule " + battle.ruleId + " · field " + battle.fieldId +
+          " · humans " + battle.humans + " · bots " + battle.bots + " · created " + (battle.createdAt || "-")));
+      }
+      const participantRows = (data.participants || []).map(function (p) {
+        return [p.userId, p.status, p.kickerId + "/" + p.costumeId, p.team,
+                (p.appVersion || "-") + " " + (p.deviceName || ""), p.reconnectBegins, p.exceptionCount];
+      });
+      drill.appendChild(healthTable(["User", "Status", "Kicker/Costume", "Team", "App / device", "Reconnects", "Exceptions"], participantRows));
+      const timelineRows = (data.timeline || []).slice(-300).map(function (event) {
+        return [event.at || "-", event.kind || "-", event.userId || "-", codeCell(JSON.stringify(event.payload || {}))];
+      });
+      drill.appendChild(el("h2", null, "Timeline (oldest first)"));
+      drill.appendChild(healthTable(["At", "Kind", "User", "Payload"], timelineRows));
+    }
+    wrap.appendChild(drill);
+  }
+
+  const telemetry = summary.telemetry || {};
+  const stats = el("section", { class: "sec" });
+  stats.appendChild(el("h2", null, "Telemetry writer"));
+  stats.appendChild(el("p", { class: "note" },
+    "store " + (telemetry.store || "-") + " · queue " + (telemetry.queueDepth === undefined ? "-" : telemetry.queueDepth) +
+    " · written " + (telemetry.written === undefined ? "-" : telemetry.written) +
+    " · dropped " + (telemetry.dropped === undefined ? "-" : telemetry.dropped) +
+    " · errors " + (telemetry.writeErrors === undefined ? "-" : telemetry.writeErrors) +
+    " · tracked battles " + (telemetry.trackedBattles === undefined ? "-" : telemetry.trackedBattles)));
+  if (telemetry.lastWriteError) stats.appendChild(el("p", { class: "note" }, "last error: " + telemetry.lastWriteError));
+  wrap.appendChild(stats);
+
+  const help = el("section", { class: "sec" });
+  help.appendChild(el("h2", null, "How it reaches the API"));
+  help.appendChild(el("p", { class: "note" },
+    "The API only answers /admin/ops/* on its own loopback and its HTTP port is not published. This tool runs it " +
+    "inside the container (docker exec deploy-api-1 curl -sS http://127.0.0.1:8080/admin/ops/...); set " +
+    "KF_BALANCE_OPS_URL to call the endpoint directly on a dev host."));
+  wrap.appendChild(help);
+
+  wrap.appendChild(el("div", { id: "healthStatus" }));
+  panel.appendChild(wrap);
+}
+
 /* -------------------------------------------------------------------- boot */
 
 function wireEvents() {
@@ -1676,7 +1954,7 @@ function wireEvents() {
       state.tab = button.dataset.tab;
       for (const other of tabs) other.classList.toggle("on", other === button);
       document.getElementById("filters").style.display =
-        state.tab === "maintenance" || state.tab === "latest-information" ? "none" : "flex";
+        state.tab === "maintenance" || state.tab === "latest-information" || state.tab === "health" ? "none" : "flex";
       document.getElementById("discFilters").style.display =
         state.tab === "discs" ? "block" : "none";
       renderList();
@@ -1729,6 +2007,7 @@ async function boot() {
     await loadApplyStatus();
     await loadMaintenance();
     await loadLatestInformation();
+    await loadHealth();
     buildScreens();
     buildDiscFilters();
     renderList();

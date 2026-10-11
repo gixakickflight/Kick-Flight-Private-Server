@@ -24,6 +24,7 @@ import json
 import math
 import os
 import re
+import shlex
 import sqlite3
 import subprocess
 import sys
@@ -36,7 +37,7 @@ from http.cookies import SimpleCookie
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, quote, unquote, urlsplit
 
 from auth import (ACCOUNT_LOGIN_MAX_FAILURES, AuthStore, LoginRateLimiter, load_jwt_secret,
                   normalize_username)
@@ -150,11 +151,21 @@ LATEST_INFO_MAX_CHARS = 12000
 LATEST_INFO_MAX_HTML_BYTES = 1024 * 1024
 LATEST_INFO_MAX_URL_CHARS = 2048
 
+# Health tab: the game API's read-only /admin/ops/* telemetry endpoints.  Reached exactly like the other
+# loopback-only admin routes (docker exec curl inside the API container by default), with the same escape
+# hatches.  KF_BALANCE_OPS_CMD, when set, must contain "{url}" (the shell-quoted absolute URL).
+OPS_URL = os.environ.get("KF_BALANCE_OPS_URL", "")
+OPS_CONTAINER = os.environ.get("KF_BALANCE_OPS_CONTAINER", ADMIN_CONTAINER)
+OPS_INTERNAL_URL = os.environ.get("KF_BALANCE_OPS_INTERNAL_URL", "http://127.0.0.1:8080/admin/ops")
+OPS_CMD = os.environ.get("KF_BALANCE_OPS_CMD", "")
+OPS_BATTLE_ID_RE = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
+
 TABLE_NAME_RE = re.compile(r"^[a-z_]+$")
 ICON_NAME_RE = re.compile(r"^(?:kicker|disc)_[0-9]+\.png$")
 TABLE_URL_RE = re.compile(r"^/api/table/([^/]*)$")
 REVERT_URL_RE = re.compile(r"^/api/table/([^/]*)/revert$")
 DIFF_URL_RE = re.compile(r"^/api/diff/([^/]*)$")
+OPS_BATTLE_URL_RE = re.compile(r"^/api/ops/battle/([^/]*)$")
 
 MAX_BODY_BYTES = 32 * 1024 * 1024
 MAX_REPORTED_ERRORS = 12
@@ -752,6 +763,24 @@ def _http_admin(method, url, body):
         return 502, {"ok": False, "error": "admin request failed: %s" % error}
 
 
+def _http_ops(url):
+    """GET the ops endpoint over HTTP and keep the API's own status and JSON error body."""
+    request = urllib.request.Request(url, method="GET")
+    try:
+        with urllib.request.urlopen(request, timeout=ADMIN_TIMEOUT) as response:
+            text = response.read().decode("utf-8", "replace").strip()
+            return response.status, (json.loads(text) if text else None)
+    except urllib.error.HTTPError as error:
+        detail = error.read().decode("utf-8", "replace").strip()
+        try:
+            payload = json.loads(detail) if detail else None
+        except ValueError:
+            payload = None
+        return error.code, payload if payload is not None else {"ok": False, "error": detail or ("HTTP %d" % error.code)}
+    except (urllib.error.URLError, ValueError, OSError) as error:
+        return 502, {"ok": False, "error": "ops request failed: %s" % error}
+
+
 def admin_state():
     """(status, payload) of GET /admin/maintenance."""
     if ADMIN_URL:
@@ -796,6 +825,51 @@ def latest_information_set(payload):
          LATEST_INFO_INTERNAL_URL, "-H", "Content-Type: application/json", "-d", "@-"],
         body,
     )
+
+
+def _with_window(url, window):
+    if not window:
+        return url
+    separator = "&" if "?" in url else "?"
+    return "%s%swindow=%s" % (url, separator, quote(window, safe=""))
+
+
+def _ops_url(path, window):
+    return _with_window((OPS_URL or OPS_INTERNAL_URL) + path, window)
+
+
+def _run_ops(url):
+    """docker exec curl, keeping both the JSON body and the HTTP status curl reports with -w."""
+    command = ["docker", "exec", OPS_CONTAINER, "curl", "-sS", "-w", "\n%{http_code}", url]
+    try:
+        completed = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=ADMIN_TIMEOUT)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return 502, {"ok": False, "error": "ops command failed: %s" % error}
+    text = completed.stdout.decode("utf-8", "replace").strip()
+    if completed.returncode != 0:
+        detail = completed.stderr.decode("utf-8", "replace").strip() or text
+        return 502, {"ok": False, "error": "ops command exited %d: %s" % (completed.returncode, detail)}
+    body, _, status_text = text.rpartition("\n")
+    try:
+        status = int(status_text)
+    except ValueError:
+        status = 502
+    body = body.strip()
+    try:
+        payload = json.loads(body) if body else None
+    except ValueError:
+        return 502, {"ok": False, "error": "ops endpoint returned non-JSON: %s" % body[:200]}
+    return status, payload
+
+
+def ops_state(path, window=None):
+    """(status, payload) of GET /admin/ops<path>; the window query is optional."""
+    url = _ops_url(path, window)
+    if OPS_URL:
+        return _http_ops(url)
+    if OPS_CMD:
+        return _run_admin(OPS_CMD.format(url=shlex.quote(url)), None)
+    return _run_ops(url)
 
 
 # --------------------------------------------------------------------------- #
@@ -1192,6 +1266,16 @@ class BalanceHandler(BaseHTTPRequestHandler):
         if path == "/api/latest-information":
             self.handle_get_latest_information()
             return
+        if path == "/api/ops/summary":
+            self.handle_ops_summary()
+            return
+        if path == "/api/ops/exceptions":
+            self.handle_ops_exceptions()
+            return
+        match = OPS_BATTLE_URL_RE.match(path)
+        if match:
+            self.handle_ops_battle(match.group(1))
+            return
         if path == "/api/layout":
             # docs/localize_layout.json: where every LocalizeText of the UI prefabs sits (scripts/extract_localize_layout.py)
             layout = DOCS_DIR / "localize_layout.json"
@@ -1451,6 +1535,34 @@ class BalanceHandler(BaseHTTPRequestHandler):
         status, payload = latest_information_state()
         if status == 200 and payload is None:
             status, payload = 502, {"ok": False, "error": "empty response from the latest-information admin endpoint"}
+        self.send_json(status, payload)
+
+    def query_window(self):
+        """The ?window= value of the current request, or None so the API applies its own default (deploy)."""
+        values = parse_qs(urlsplit(self.path).query).get("window") or []
+        return values[-1].strip() if values else None
+
+    def handle_ops_summary(self):
+        self.send_ops("/summary", self.query_window())
+
+    def handle_ops_exceptions(self):
+        self.send_ops("/exceptions", self.query_window())
+
+    def handle_ops_battle(self, battle_id):
+        battle_id = unquote(battle_id)
+        if not OPS_BATTLE_ID_RE.fullmatch(battle_id):
+            self.send_error_json(400, "invalid battle id")
+            return
+        self.send_ops("/battle/" + quote(battle_id, safe=""), None)
+
+    def send_ops(self, path, window):
+        status, payload = ops_state(path, window)
+        if status == 200 and payload is None:
+            status, payload = 502, {
+                "ok": False,
+                "error": "empty response from the ops endpoint: the API only answers its own loopback "
+                         "and the command must run there (docker exec / SSH tunnel)",
+            }
         self.send_json(status, payload)
 
     def handle_post_latest_information(self):

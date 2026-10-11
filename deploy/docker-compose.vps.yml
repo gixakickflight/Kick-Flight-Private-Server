@@ -1,6 +1,21 @@
 # Complete single-host deployment for a public VPS. Copy .env.vps.example to .env and set both required values.
 # The existing root docker-compose.yml is kept as the developer/local setup.
 
+# Bounded container logs: Docker's json-file driver otherwise grows each log without limit (the API alone wrote
+# ~15 MB in its first half hour on the VPS). Durable records (players, ops telemetry) live in PostgreSQL, not here.
+# Changing a service's logging options recreates that container on the next `compose up`.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+x-logging-api: &api-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "10"
+
 services:
   geoip-db:
     build:
@@ -8,6 +23,7 @@ services:
       dockerfile: deploy/geoip/Dockerfile
     image: kickflight/geoip-db:alpine-3.23
     restart: unless-stopped
+    logging: *default-logging
     volumes:
       - geoip-data:/var/lib/geoip
     healthcheck:
@@ -21,6 +37,7 @@ services:
   postgres:
     image: postgres:17.11-alpine
     restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_USER: postgres
       POSTGRES_DB: postgres
@@ -43,6 +60,7 @@ services:
       context: ..
       dockerfile: deploy/photon/Dockerfile
     restart: unless-stopped
+    logging: *default-logging
     environment:
       KF_PUBLIC_HOST: ${KF_PUBLIC_HOST:?Set KF_PUBLIC_HOST to the VPS public IPv4 or DNS name}
     volumes:
@@ -79,11 +97,15 @@ services:
       context: ..
       dockerfile: Dockerfile
     restart: unless-stopped
+    logging: *api-logging
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       HttpPort: "8080"
       GrpcPort: "18081"
       KF_REPO_ROOT: /srv/repo
+      # Commit being deployed (scripts/deploy-vps-ci.sh exports it from the workflow's GITHUB_SHA). Every API start
+      # records it in the ops telemetry's server_runs table; the Health tab's default window is "this release".
+      KF_RELEASE_SHA: ${KF_RELEASE_SHA:-unknown}
       PlayerStore__ConnectionString: Host=postgres;Port=5432;Database=kickflight;Username=kickflight;Password=${KF_DB_PASSWORD:?Set KF_DB_PASSWORD in the root .env}
       PhotonServer__Enabled: "true"
       # This value is for health checks from the API container. Photon itself advertises KF_PUBLIC_HOST to clients.
@@ -127,6 +149,7 @@ services:
       dockerfile: deploy/nginx/Dockerfile
     image: kickflight/nginx-geoip:alpine-3.23
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "${KF_HTTP_PORT:-18080}:18080/tcp"
     volumes:
@@ -147,6 +170,7 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    logging: *default-logging
     # Host networking lets Caddy proxy to the existing public 18080 mapping
     # without changing/recreating the API, Photon, or CDN network.
     network_mode: host
@@ -161,6 +185,7 @@ services:
   grpc:
     image: nginx:1.27-alpine
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "18081:18081/tcp"
     volumes:

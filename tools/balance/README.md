@@ -68,6 +68,10 @@ runs `docker restart deploy-api-1` and polls `/health/ready`). There is no hot r
 | `KF_BALANCE_LATEST_INFO_CONTAINER` | container the default `docker exec` command targets (defaults to `KF_BALANCE_ADMIN_CONTAINER`) |
 | `KF_BALANCE_LATEST_INFO_INTERNAL_URL` | loopback URL used inside that container (default `http://127.0.0.1:8080/admin/latest-information`) |
 | `KF_BALANCE_LATEST_INFO_CMD` / `KF_BALANCE_LATEST_INFO_SET_CMD` | escape hatches for GET and POST commands; stdout is JSON and POST receives JSON on stdin |
+| `KF_BALANCE_OPS_URL` | full base URL of the ops admin API (`.../admin/ops`); when set, the Health tab calls it directly |
+| `KF_BALANCE_OPS_CONTAINER` | container the default Health `docker exec` command targets (defaults to `KF_BALANCE_ADMIN_CONTAINER`) |
+| `KF_BALANCE_OPS_INTERNAL_URL` | loopback base URL used inside that container (default `http://127.0.0.1:8080/admin/ops`) |
+| `KF_BALANCE_OPS_CMD` | escape hatch: a shell command template with `{url}` replaced by the shell-quoted ops URL; stdout is JSON |
 | `KF_BALANCE_ALLOWED_HOSTS` | extra comma-separated `Host` values accepted alongside `127.0.0.1:<port>`, `localhost:<port>` and `[::1]:<port>` (needed when binding to a LAN address or sitting behind a proxy) |
 
 In the systemd deployment, configure `KF_BALANCE_AUTH_DB` and any override for
@@ -123,7 +127,7 @@ rebinding.
 
 ## What it edits
 
-Left sidebar: **Kickers** (14), **Discs**, **Text**, **Latest information** and **Maintenance**. A text filter and, for discs,
+Left sidebar: **Kickers** (14), **Discs**, **Text**, **Latest information**, **Health** and **Maintenance**. A text filter and, for discs,
 rarity/type dropdowns. Every entry shows its icon from `tools/balance/icons/`.
 
 **Latest information** edits the page opened by the game at Notices → Latest information. Choose one of three modes;
@@ -218,6 +222,40 @@ docker exec -i deploy-api-1 curl -sS -X POST \
 For a native/dev API on the same host set `KF_BALANCE_ADMIN_URL` instead. If the container has no
 HTTP client, point `KF_BALANCE_ADMIN_CMD` / `KF_BALANCE_ADMIN_SET_CMD` at another loopback path.
 
+## Health tab
+
+Selecting **Health** reads the game server's ops telemetry (the `server_runs` / `battles` /
+`battle_participants` / `client_events` PostgreSQL tables written by `OpsTelemetryService`, or its
+NDJSON fallback) through the loopback-only `GET /admin/ops/*` endpoints (see
+`docs/OPS_TELEMETRY.md`). The window selector offers **This release** (`window=deploy`, the default:
+since the first server run with the current `KF_RELEASE_SHA`), **Last 24 h** and **Last 7 days**. The
+panel shows:
+
+* **Match outcomes** — `clean` / `partial` / `abandoned` / `never started`, plus how many are still
+  `running` or `matching`.
+* **Player statuses** — `completed` (and `reconnected`), `reconnect failed`, `dropped silent`
+  (and `relaunched`), `matching failures`, `matching timeouts`, `cancelled` and client `exceptions`.
+* **Client exceptions by fingerprint** — the `client_exception` / `client_anomaly` reports grouped by
+  `OpsFingerprint` (exception type + first three stack frames), with report count, users, app versions
+  and the last time seen.
+* **Problem matches** — the partial/abandoned/never-started matches and any match with a reconnect,
+  exception, disconnect, leave or matching failure; each row has a **drill down** button and any battle
+  id can also be opened directly to show its participants and full event timeline.
+* **Telemetry writer** — the store kind, queue depth, written/dropped/error counters and tracked
+  battles.
+
+The API only answers `/admin/ops/*` on its own loopback and its HTTP port is never published, so by
+default the tool runs curl **inside the API container**:
+
+```
+docker exec deploy-api-1 curl -sS -w '\n%{http_code}' \
+    'http://127.0.0.1:8080/admin/ops/summary?window=24h'
+```
+
+Set `KF_BALANCE_OPS_URL` to call a native/dev API directly, or `KF_BALANCE_OPS_CMD` to a command
+template containing `{url}`. The API's own 400 (`unknown window`) and 404 (`unknown battle`) status
+and JSON body are passed through to the browser.
+
 ## API
 
 | route | result |
@@ -237,11 +275,24 @@ HTTP client, point `KF_BALANCE_ADMIN_CMD` / `KF_BALANCE_ADMIN_SET_CMD` at anothe
 | `POST /api/maintenance` | body `{"mode": "off"\|"warning"\|"hard", "title"?, "message"?}` (proxied) |
 | `GET /api/latest-information` | current `{mode, content, htmlContent, externalUrl, defaultContent, changedAtUtc}` (proxied) |
 | `POST /api/latest-information` | legacy body `{"content": "..."}` or `{mode:"text",content:"..."}`, `{mode:"html",htmlContent:"..."}` (UTF-8 max 1 MiB), `{mode:"url",externalUrl:"https://..."}` (proxied) |
+| `GET /api/ops/summary?window=` | proxied `/admin/ops/summary`: totals, statuses, breakdowns, problem matches and writer stats |
+| `GET /api/ops/exceptions?window=` | proxied `/admin/ops/exceptions`: client error reports grouped by fingerprint |
+| `GET /api/ops/battle/<id>` | proxied `/admin/ops/battle/{id}`: one battle's row, participants and event timeline |
 | `GET /icons/<file>.png` | the extracted kicker/disc icons |
 | `GET /` | `tools/balance/index.html` |
 
 Every route (including static files), exports and state-changing actions require an authenticated
 session. `GET /login` and `POST /api/login` are the only public UI/API routes.
+
+## Tests
+
+```
+python3 tools/balance/test_auth.py     # auth/store unit tests (unittest)
+python3 tools/balance/test_balance.py  # end-to-end: override flow, apply, admin and ops proxies
+```
+
+`test_balance.py` starts the real server plus a mock API (`MockAdmin`) and needs no Docker; the ops
+checks assert the `window` query, the battle-id validation and the pass-through of the API's 400 body.
 
 ## Deploy on the VPS
 

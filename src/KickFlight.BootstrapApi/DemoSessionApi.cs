@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using KickFlight.BootstrapApi.Ops;
 using KickFlight.BootstrapApi.PlayerStore;
 using Microsoft.Extensions.Configuration;
 
@@ -63,6 +64,7 @@ public sealed partial class DemoSessionApi
     private readonly Dictionary<string, byte[]> _encryptedMasters = new(StringComparer.Ordinal);
     private readonly Dictionary<int, int> _battleRuleTypeById = [];
     private readonly Dictionary<int, int> _battleMatchTypeById = [];
+    private readonly Dictionary<int, int> _battleTimeSecondsById = [];
     private long _customBattleSequence;
     private readonly List<KickerInfo> _kickerList = [];
     // kickerId -> KickerCostume master ROW ids. The client keys everything by row id (KickerCostumeMaster is a plain
@@ -78,13 +80,15 @@ public sealed partial class DemoSessionApi
     private readonly MaintenanceState _maintenance;
     private readonly ClientUpdateState _clientUpdate;
     private readonly TimeProvider _timeProvider;
+    private readonly OpsTelemetryService _ops;
 
     public DemoSessionApi(ILogger<DemoSessionApi> logger, IWebHostEnvironment environment,
         BattleMatchmakingService matchmaking, BattleReplayService replays, IPlayerStore playerStore,
         IConfiguration configuration, MaintenanceState maintenance, ClientUpdateState clientUpdate,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider, OpsTelemetryService ops)
     {
         _logger = logger;
+        _ops = ops;
         _matchmaking = matchmaking;
         _replays = replays;
         _maintenance = maintenance;
@@ -215,6 +219,9 @@ public sealed partial class DemoSessionApi
                     _battleRuleTypeById[idProp.GetInt32()] = typeProp.GetInt32();
                     if (el.TryGetProperty("matchType", out var matchTypeProp))
                         _battleMatchTypeById[idProp.GetInt32()] = matchTypeProp.GetInt32();
+                    // Only the ops telemetry reads it: the silent-drop deadline is battle time + 120 s.
+                    if (el.TryGetProperty("battleTimeSecond", out var timeProp) && timeProp.ValueKind == JsonValueKind.Number)
+                        _battleTimeSecondsById[idProp.GetInt32()] = timeProp.GetInt32();
                 }
             }
         }
@@ -970,6 +977,10 @@ public sealed partial class DemoSessionApi
 
         if (!HttpMethods.IsPost(context.Request.Method)) return null;
 
+        // /boot/index is the first call of every app launch and carries no session: the ops telemetry matches it
+        // to a running match by client address + device, to flag a silent drop as a probable crash + relaunch.
+        if (path == "/boot/index") _ops.RecordBoot(OpsClientInfo.FromRequest(context));
+
         // An out-of-date client is stopped here, before auth and before any other handler: /boot/index is served
         // from a fixture, so a gate inside this method is what catches it. The admin and health routes are mapped
         // outside this catch-all, so they never reach here.
@@ -1006,6 +1017,8 @@ public sealed partial class DemoSessionApi
         var key = cached.Key;
         var state = cached.State;
         _onlineActivityByPlayer[state.PlayerId] = _timeProvider.GetUtcNow();
+        // The x-app-* device headers of the player's latest request, for the telemetry of its matches.
+        _ops.TouchClient(state.UserId, OpsClientInfo.FromRequest(context));
 
         if (path == "/training/index")
         {
@@ -1208,6 +1221,13 @@ public sealed partial class DemoSessionApi
         {
             context.Response.Headers["x-app-status-code"] = "0";
             return BinaryJson("{}", key);
+        }
+
+        // Real client calls that used to vanish into the catch-all below: still answered {} with status 0, but
+        // recorded by the ops telemetry (DemoSessionApi.Ops.cs).
+        if (path is "/battle/disconnect" or "/battle/timeout" or "/battle/leaving")
+        {
+            return await HandleBattleSignalAsync(path, context, state, key);
         }
 
         if (path.StartsWith("/battle/", StringComparison.Ordinal) || path.StartsWith("/customBattle/", StringComparison.Ordinal) || path.StartsWith("/matching/", StringComparison.Ordinal))
@@ -1776,6 +1796,7 @@ public sealed partial class DemoSessionApi
             context.Response.Headers["x-app-datetime"] = DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
             _logger.LogInformation("Created session for player {PlayerId} (name {UserName:l}) with token {Token}",
                 playerId, state.HasName ? state.UserName : "<unset>", sessionToken);
+            _ops.RecordAuth(state.UserId, OpsClientInfo.FromRequest(context));
             return BinaryJson("{}", key);
         }
         catch (Exception exception) when (exception is CryptographicException or JsonException or ArgumentException)
@@ -1898,6 +1919,8 @@ public sealed partial class DemoSessionApi
 
         context.Response.Headers["x-app-status-code"] = "0";
         context.Response.Headers["x-kickflight-fixture"] = "dynamic-battle-team-create";
+        _ops.RecordEntry(state.UserId, entry.BattleEntryId, entry.TicketId, battleRuleId, ruleMetadata.MatchType,
+            state.KickerId, state.KickerCostumeId, IsDiagClient(context), OpsClientInfo.FromRequest(context));
         _logger.LogInformation("Created team {TeamId} for {UserId}, code={Code}, rule={RuleId}",
             entry.MatchmakingTeamId, state.UserId, code, battleRuleId);
         return BinaryJson(JsonSerializer.Serialize(response), key);
@@ -1930,6 +1953,9 @@ public sealed partial class DemoSessionApi
 
         context.Response.Headers["x-app-status-code"] = "0";
         context.Response.Headers["x-kickflight-fixture"] = "dynamic-battle-team-join";
+        var joinedRule = _matchmaking.GetBattleResultEntry(entry.BattleEntryId);
+        _ops.RecordEntry(state.UserId, entry.BattleEntryId, entry.TicketId, joinedRule?.BattleRuleId ?? 0, joinedRule?.MatchType,
+            state.KickerId, state.KickerCostumeId, IsDiagClient(context), OpsClientInfo.FromRequest(context));
         _logger.LogInformation("User {UserId} joined team {TeamId}", state.UserId, teamId);
         return BinaryJson(JsonSerializer.Serialize(response), key);
     }
@@ -2125,6 +2151,8 @@ public sealed partial class DemoSessionApi
 
         context.Response.Headers["x-app-status-code"] = "0";
         context.Response.Headers["x-kickflight-fixture"] = "dynamic-battle-entry";
+        _ops.RecordEntry(state.UserId, battleEntryId, ticketId, battleRuleId, ruleMetadata.MatchType,
+            state.KickerId, state.KickerCostumeId, IsDiagClient(context), OpsClientInfo.FromRequest(context));
         _logger.LogInformation("Handled /battle/entry for {UserId}: ticket={TicketId}", state.UserId, ticketId);
         return BinaryJson(JsonSerializer.Serialize(resp), key);
     }
@@ -2148,6 +2176,7 @@ public sealed partial class DemoSessionApi
         }
 
         var cancelled = _matchmaking.CancelEntry(battleEntryId);
+        _ops.RecordCancel(state.UserId, battleEntryId, cancelled, OpsClientInfo.FromRequest(context));
         if (!cancelled)
         {
             _logger.LogInformation("Ignored /battle/cancel for {UserId}: entry '{BattleEntryId}' is unknown or already started",
@@ -2216,6 +2245,8 @@ public sealed partial class DemoSessionApi
 
         context.Response.Headers["x-app-status-code"] = "0";
         context.Response.Headers["x-kickflight-fixture"] = "dynamic-battle-start";
+        _ops.RecordBattleStart(state.UserId, battleId, battleRuleId, BattleRuleMetadata(battleRuleId).MatchType, fieldId,
+            _battleTimeSecondsById.GetValueOrDefault(battleRuleId), OpsClientInfo.FromRequest(context));
         _logger.LogInformation("Handled /battle/start for {UserId}: rule={RuleId} type={RuleType} guardianParameter={GuardianId} field={FieldId}",
             state.UserId, battleRuleId, battleRuleType, guardianId, fieldId);
         return BinaryJson(JsonSerializer.Serialize(resp), key);
@@ -2270,6 +2301,7 @@ public sealed partial class DemoSessionApi
 
         context.Response.Headers["x-app-status-code"] = "0";
         context.Response.Headers["x-kickflight-fixture"] = "dynamic-custom-battle-start";
+        _ops.RecordCustomBattleStart(state.UserId, customBattleId, battleRuleType, fieldId, OpsClientInfo.FromRequest(context));
         _logger.LogInformation(
             "Started custom battle {CustomBattleId} for {UserId}: ruleType={RuleType} field={FieldId}",
             customBattleId, state.UserId, battleRuleType, fieldId);
@@ -2361,6 +2393,7 @@ public sealed partial class DemoSessionApi
 
         context.Response.Headers["x-app-status-code"] = "0";
         context.Response.Headers["x-kickflight-fixture"] = "dynamic-battle-result";
+        _ops.RecordBattleResult(state.UserId, battleEntryId, OpsClientInfo.FromRequest(context));
         _logger.LogInformation("Handled /battle/result for {UserId}: entry={BattleEntryId} rule={RuleId} type={RuleType} matchType={MatchType} ranked={Applied}",
             state.UserId, battleEntryId, entry?.BattleRuleId, battleRuleType, entry?.MatchType, applyProgression);
         return BinaryJson(JsonSerializer.Serialize(resp), key);
@@ -2374,7 +2407,8 @@ public sealed partial class DemoSessionApi
 
         // Snapshot the match while the matchmaking room is still in memory: /battle/upload arrives seconds later
         // with the replay and its own battle/result JSON, but that JSON has no kickerCostumeId field.
-        await RecordMatchEndAsync(context, state, key, custom: false);
+        var endedBattleId = await RecordMatchEndAsync(context, state, key, custom: false);
+        _ops.RecordBattleEnd(state.UserId, endedBattleId, OpsClientInfo.FromRequest(context));
 
         var resp = new
         {
@@ -2398,24 +2432,27 @@ public sealed partial class DemoSessionApi
     // sets ArchiveData.IsUploadReplayData itself, so this only records the match and answers the empty DTO.
     private async Task<IResult?> HandleCustomBattleEndAsync(HttpContext context, SessionState state, byte[] key)
     {
-        await RecordMatchEndAsync(context, state, key, custom: true);
+        var endedBattleId = await RecordMatchEndAsync(context, state, key, custom: true);
+        _ops.RecordBattleEnd(state.UserId, endedBattleId, OpsClientInfo.FromRequest(context));
         context.Response.Headers["x-app-status-code"] = "0";
         context.Response.Headers["x-kickflight-fixture"] = "dynamic-custom-battle-end";
         return BinaryJson("{}", key);
     }
 
-    private async Task RecordMatchEndAsync(HttpContext context, SessionState state, byte[] key, bool custom)
+    /// <returns>The battle (or custom battle) id of the end request, "" when it has none.</returns>
+    private async Task<string> RecordMatchEndAsync(HttpContext context, SessionState state, byte[] key, bool custom)
     {
+        var battleId = "";
         try
         {
             var body = await ReadBodyAsync(context.Request);
-            if (body.Length <= D2CCodec.VectorSizeBytes) return;
+            if (body.Length <= D2CCodec.VectorSizeBytes) return battleId;
             using var document = JsonDocument.Parse(D2CCodec.Decode(body, key));
             var root = document.RootElement;
-            var battleId = custom
+            battleId = custom
                 ? (TryGetString(root, "customBattleId", out var customId) ? customId : "")
                 : (TryGetString(root, "battleId", out var normalId) ? normalId : "");
-            if (string.IsNullOrEmpty(battleId)) return;
+            if (string.IsNullOrEmpty(battleId)) return battleId;
 
             IReadOnlyList<BattleMatchmakingService.MatchingPlayerBattleInfo> roster =
                 custom ? [] : _matchmaking.GetRoomRoster(battleId);
@@ -2436,6 +2473,7 @@ public sealed partial class DemoSessionApi
         {
             _logger.LogWarning("Could not record match end for {UserId}: {Error}", state.UserId, ex.Message);
         }
+        return battleId;
     }
 
     private static List<BattleReplayService.PendingPlayer> BuildPendingPlayers(JsonElement root,

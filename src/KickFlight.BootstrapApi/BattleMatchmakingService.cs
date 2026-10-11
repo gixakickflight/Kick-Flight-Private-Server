@@ -31,6 +31,32 @@ public sealed class BattleMatchmakingService
         _maintenance = maintenance;
     }
 
+    // Room lifecycle hooks for the ops telemetry (Ops/OpsTelemetryService). Some are raised while _matchLock is
+    // held, so a handler must be quick, must not call back into this service, and only takes leaf locks; Notify
+    // swallows whatever it throws, so telemetry can never break matchmaking.
+    /// <summary>A human's stream created or joined the room (raised again, harmlessly, when a retried stream re-attaches).</summary>
+    public event Action<ActiveBattleRoom, BattleEntrySession>? HumanJoinedRoom;
+    /// <summary>A waiting human's stream ended before the window closed without a /battle/cancel (reason "stream_closed").</summary>
+    public event Action<ActiveBattleRoom, BattleEntrySession, string>? HumanLeftRoom;
+    /// <summary>The window closed: MatchingInfo holds the final roster and AssignedTicketIds who is in it.</summary>
+    public event Action<ActiveBattleRoom>? RoomFinalized;
+    /// <summary>Every waiting human left before the window closed.</summary>
+    public event Action<ActiveBattleRoom>? RoomDropped;
+    /// <summary>A ticket was not matched at all (cause "maintenance").</summary>
+    public event Action<BattleEntrySession, string>? TicketRefused;
+
+    private void Notify(Action raise)
+    {
+        try
+        {
+            raise();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("Matchmaking telemetry hook failed: {Error}", ex.Message);
+        }
+    }
+
     public sealed class BattleEntrySession
     {
         public string TicketId { get; set; } = "";
@@ -463,6 +489,7 @@ public sealed class BattleMatchmakingService
             "Matchmaking window of room {BattleId} closed with {Humans} human(s); filling empty slots with bots",
             room.BattleId, room.AssignedTicketIds.Count);
 
+        Notify(() => RoomFinalized?.Invoke(room));
         room.Finalized.TrySetResult(roster);
     }
 
@@ -559,6 +586,7 @@ public sealed class BattleMatchmakingService
         _roomsByBattleId.TryRemove(room.BattleId, out _);
         if (ReferenceEquals(_pendingRoom, room)) _pendingRoom = null;
         _logger.LogInformation("Room {BattleId} dropped: every waiting human left", room.BattleId);
+        Notify(() => RoomDropped?.Invoke(room));
     }
 
     // ResolveAssignment/ResolveAssignmentAsync used to live here: the pre-stream matching path, unreachable since
@@ -679,6 +707,7 @@ public sealed class BattleMatchmakingService
                 if (!playerSession.IsDiag && !isDiag)
                 {
                     _logger.LogInformation("Maintenance: ticket {TicketId} not matched", ticketId);
+                    Notify(() => TicketRefused?.Invoke(playerSession, "maintenance"));
                     return;
                 }
                 _logger.LogDebug("Maintenance: DIAG ticket {TicketId} allowed to match", ticketId);
@@ -740,6 +769,8 @@ public sealed class BattleMatchmakingService
             interimRoster = BuildHumanRoster(room);
             roomIsFull = room.HumanPlayers.Count >= MaxPerTeam * 2;
         }
+
+        Notify(() => HumanJoinedRoom?.Invoke(room, playerSession));
 
         if (!joinedExistingRoom)
         {
@@ -821,11 +852,10 @@ public sealed class BattleMatchmakingService
             {
                 room.Subscribers.Remove(subscriber);
 
-                if (!room.IsFinalized
-                    && room.HumanPlayers.RemoveAll(player => player.TicketId == ticketId) > 0
-                    && room.HumanPlayers.Count == 0)
+                if (!room.IsFinalized && room.HumanPlayers.RemoveAll(player => player.TicketId == ticketId) > 0)
                 {
-                    DropRoom(room);
+                    Notify(() => HumanLeftRoom?.Invoke(room, playerSession, "stream_closed"));
+                    if (room.HumanPlayers.Count == 0) DropRoom(room);
                 }
             }
         }

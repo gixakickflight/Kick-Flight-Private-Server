@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using KickFlight.BootstrapApi.Ops;
 
 namespace KickFlight.BootstrapApi;
 
@@ -14,11 +15,13 @@ namespace KickFlight.BootstrapApi;
 // whatever happens, the client gets the empty success object the stub answered with today.
 //
 // Where the entries go:
-//   Analysis:Directory is empty by default. The VPS compose (deploy/docker-compose.vps.external-db.yml) mounts
-//   config/, content/ and .local/ read-only and mounts no data volume, so with the default every entry becomes
-//   one structured Information line ("AnalysisTelemetry {Entry}") and `docker logs` keeps it. Set
-//   Analysis:Directory to a mounted writable path to append daily NDJSON files
-//   (analysis-YYYYMMDD.ndjson) instead; if that path cannot be written the sink falls back to the log lines.
+//   Every accepted entry is a client_events row of the ops telemetry (Ops/OpsTelemetryService): PostgreSQL in the
+//   deployment, NDJSON under Ops:Directory otherwise, enriched with the device headers, the client address and the
+//   battle context. That is the durable record.
+//   Analysis:Directory (empty by default) additionally appends the raw entries to daily NDJSON files
+//   (analysis-YYYYMMDD.ndjson). The old fallback - one structured Information line per entry
+//   ("AnalysisTelemetry {Entry}"), lost with the container's log - is only used when the ops telemetry is
+//   disabled (Ops:Enabled=false) and no directory is set or it cannot be written.
 public sealed partial class DemoSessionApi
 {
     private const int DefaultAnalysisEntriesPerMinute = 30;
@@ -75,6 +78,7 @@ public sealed partial class DemoSessionApi
             }
 
             var appVersion = context.Request.Headers["x-app-application-version"].ToString();
+            var client = OpsClientInfo.FromRequest(context);
             var userName = state.HasName ? state.UserName : "";
             var utc = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
             var accepted = 0;
@@ -93,7 +97,9 @@ public sealed partial class DemoSessionApi
                     dropped++;
                     continue;
                 }
-                sink.Write(BuildAnalysisLine(utc, state.UserId, userName, appVersion, entryKey, entryValue, sink.ValueMaxBytes));
+                sink.Write(BuildAnalysisLine(utc, state.UserId, userName, appVersion, entryKey, entryValue, sink.ValueMaxBytes),
+                    logFallback: !_ops.Enabled);
+                _ops.RecordAnalysis(state.UserId, entryKey, TruncateUtf8(entryValue, sink.ValueMaxBytes), client);
                 accepted++;
             }
 
@@ -240,10 +246,10 @@ public sealed partial class DemoSessionApi
             }
         }
 
-        public void Write(string line)
+        public void Write(string line, bool logFallback)
         {
             if (!string.IsNullOrEmpty(_directory) && !_fileModeUnavailable && TryAppendToFile(line)) return;
-            _logger.LogInformation("AnalysisTelemetry {Entry}", line);
+            if (logFallback) _logger.LogInformation("AnalysisTelemetry {Entry}", line);
         }
 
         private bool TryAppendToFile(string line)

@@ -200,6 +200,8 @@ jobs:
           scp "${scp_opts[@]}" "$RUNNER_TEMP/kf-vps-release.tar.gz" "$remote:$remote_archive"
           printf -v q_app '%q' "$VPS_APP_DIR"
           printf -v q_archive '%q' "$remote_archive"
+          # The SHA argument is also the release tag: deploy-vps-ci.sh exports it as KF_RELEASE_SHA into the
+          # compose environment, and the API records it in the ops telemetry's server_runs on every start.
           printf -v q_sha '%q' "$GITHUB_SHA"
           ssh "${ssh_opts[@]}" "$remote" \
             "bash -s -- $q_app $q_sha $q_archive '$DEPLOY_API' '$DEPLOY_PHOTON' '$DEPLOY_CDN' '$REBUILD_FARM' '$SYNC_SITE' '$DEPLOY_CADDY' '$FULL_DEPLOY' '$DEPLOY_BALANCE'" \

@@ -13,6 +13,8 @@ apply command can be exercised without Docker), then drives the WebUI HTTP API:
 * pending overrides are detected against the API container start time;
 * effect-row add/delete and the core-table validation still work;
 * maintenance is proxied to the mock admin endpoint;
+* the Health tab's /admin/ops/* proxy forwards the window query, validates battle ids and passes the
+  API's 400 body through;
 * manually provisioned session authentication is enforced.
 
     python3 tools/balance/test_balance.py
@@ -93,6 +95,9 @@ class MockAdmin(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
+        if self.path.startswith("/admin/ops/"):
+            self.handle_ops()
+            return
         if self.path != "/admin/maintenance":
             if self.path != "/admin/latest-information":
                 self.send_json(404, {})
@@ -100,6 +105,29 @@ class MockAdmin(BaseHTTPRequestHandler):
             self.send_json(200, dict(MockAdmin.latest_information))
             return
         self.send_json(200, dict(MockAdmin.state))
+
+    def handle_ops(self):
+        from urllib.parse import parse_qs, urlsplit
+        parsed = urlsplit(self.path)
+        window = (parse_qs(parsed.query).get("window") or [None])[-1]
+        MockAdmin.ops_calls.append((parsed.path, window))
+        if parsed.path == "/admin/ops/summary":
+            if window not in (None, "deploy", "restart", "24h", "7d"):
+                self.send_json(400, {"error": "unknown window '%s'" % window,
+                                     "windows": ["deploy", "restart", "24h", "7d"]})
+                return
+            payload = dict(MockAdmin.ops_summary)
+            payload["window"] = {"name": window or "deploy", "since": "2026-10-10T00:00:00Z",
+                                 "releaseSha": "test-sha", "runId": "run-test", "runs": []}
+            self.send_json(200, payload)
+            return
+        if parsed.path == "/admin/ops/exceptions":
+            self.send_json(200, dict(MockAdmin.ops_exceptions))
+            return
+        if parsed.path.startswith("/admin/ops/battle/"):
+            self.send_json(200, dict(MockAdmin.ops_battle))
+            return
+        self.send_json(404, {"error": "unknown ops path"})
 
     def do_POST(self):
         length = int(self.headers.get("Content-Length", "0"))
@@ -121,6 +149,39 @@ class MockAdmin(BaseHTTPRequestHandler):
 MockAdmin.latest_information = {"content": "Default news", "defaultContent": "Default news",
                                "mode": "text", "htmlContent": "", "externalUrl": "",
                                "changedAtUtc": "2026-10-05T00:00:00Z"}
+
+# Canned /admin/ops/* telemetry; MockAdmin.ops_calls records (path, window) so the proxy can be checked.
+MockAdmin.ops_calls = []
+MockAdmin.ops_summary = {
+    "totals": {"matches": 4, "running": 0, "matching": 1, "clean": 3, "partial": 1, "abandoned": 0,
+               "neverStarted": 2, "custom": 0, "entries": 9, "players": 6, "completedPlayers": 5,
+               "reconnectedCompleted": 0, "disconnectedPlayers": 2, "droppedSilent": 1, "relaunched": 1,
+               "reconnectFailed": 1, "left": 0, "matchingFailures": 2, "matchingTimeouts": 1, "cancelled": 1,
+               "exceptions": 4, "anomalies": 0, "reconnectBegins": 1},
+    "statuses": {"completed": 5, "dropped_silent": 1},
+    "eventKinds": {"client_exception": 4},
+    "breakdowns": {"appVersion": [], "device": [], "os": [], "rule": [], "field": []},
+    "problemMatches": [{"battleId": "battle-123", "outcome": "partial", "humans": 2, "bots": 2, "custom": False,
+                        "participants": [{"userId": "1000001", "status": "dropped_silent"}]}],
+    "telemetry": {"store": "postgres", "enabled": True, "queueDepth": 0, "written": 10, "dropped": 0,
+                  "writeErrors": 0, "lastWriteError": None, "lastWriteAt": None, "trackedBattles": 3},
+}
+MockAdmin.ops_exceptions = {
+    "window": {"name": "deploy"}, "total": 4,
+    "groups": [{"fingerprint": "0123456789abcdef", "kind": "client_exception",
+                "signature": "NullReferenceException\nat Foo ()", "count": 4, "userCount": 2,
+                "users": ["1000001", "1000002"], "devices": [], "os": [],
+                "appVersions": [{"key": "2.11.2", "count": 4}], "battles": ["battle-123"],
+                "firstAt": "2026-10-10T00:00:00Z", "lastAt": "2026-10-10T01:00:00Z", "sample": "boom"}],
+}
+MockAdmin.ops_battle = {
+    "battle": {"battleId": "battle-123", "outcome": "partial", "ruleId": 7, "fieldId": 801, "humans": 2, "bots": 2,
+               "custom": False, "createdAt": "2026-10-10T00:00:00Z"},
+    "participants": [{"userId": "1000001", "status": "dropped_silent", "kickerId": 3010001, "costumeId": 64,
+                      "team": 0, "appVersion": "2.11.2", "deviceName": "Pixel", "reconnectBegins": 1,
+                      "exceptionCount": 2}],
+    "timeline": [{"at": "2026-10-10T00:00:00Z", "kind": "start", "userId": "1000001", "payload": {"rule_id": 7}}],
+}
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -223,6 +284,7 @@ def main():
         "KF_BALANCE_ALLOWED_ORIGINS": "https://balance.test",
         "KF_BALANCE_ADMIN_URL": "http://127.0.0.1:%d/admin/maintenance" % ADMIN_PORT,
         "KF_BALANCE_LATEST_INFO_URL": "http://127.0.0.1:%d/admin/latest-information" % ADMIN_PORT,
+        "KF_BALANCE_OPS_URL": "http://127.0.0.1:%d/admin/ops" % ADMIN_PORT,
         "KF_BALANCE_ALLOWED_HOSTS": "balance.test",
         "KF_BALANCE_API_CONTAINER": "fake-api",
         # A real restart changes the container start time; the fake one moves it forward too.
@@ -558,6 +620,43 @@ def main():
         check("Latest Information rejects non-HTTP URL schemes", status == 400, "status %s" % status)
         status, _ = request("/api/latest-information", "POST", {"mode": "url", "externalUrl": "https://user:pass@example.com/"})
         check("Latest Information rejects credentialed URLs", status == 400, "status %s" % status)
+
+        # -- Health tab (/admin/ops/* proxy) --------------------------------------
+        status, _ = request("/api/ops/summary", auth=False)
+        check("ops summary requires the dashboard session", status == 401, "got %s" % status)
+        status, _ = request("/api/ops/summary", headers={"Host": "evil.example"})
+        check("ops routes keep the DNS-rebinding Host check", status == 403, "got %s" % status)
+
+        MockAdmin.ops_calls = []
+        status, summary = request("/api/ops/summary?window=24h")
+        check("GET /api/ops/summary proxies the API and forwards the window",
+              status == 200 and summary.get("totals", {}).get("clean") == 3 and
+              MockAdmin.ops_calls[-1] == ("/admin/ops/summary", "24h"),
+              "status %s calls %s" % (status, MockAdmin.ops_calls))
+        status, _ = request("/api/ops/summary")
+        check("GET /api/ops/summary without a window lets the API default",
+              status == 200 and MockAdmin.ops_calls[-1] == ("/admin/ops/summary", None),
+              "status %s calls %s" % (status, MockAdmin.ops_calls))
+
+        status, exceptions = request("/api/ops/exceptions?window=7d")
+        check("GET /api/ops/exceptions proxies the fingerprint groups",
+              status == 200 and exceptions.get("groups", [{}])[0].get("fingerprint") == "0123456789abcdef" and
+              MockAdmin.ops_calls[-1] == ("/admin/ops/exceptions", "7d"),
+              "status %s calls %s" % (status, MockAdmin.ops_calls))
+
+        status, battle = request("/api/ops/battle/battle-123")
+        check("GET /api/ops/battle/<id> proxies the drill-down",
+              status == 200 and battle.get("battle", {}).get("battleId") == "battle-123" and
+              MockAdmin.ops_calls[-1] == ("/admin/ops/battle/battle-123", None),
+              "status %s calls %s" % (status, MockAdmin.ops_calls))
+        status, _ = request("/api/ops/battle/")
+        check("an empty battle id is rejected", status == 400, "got %s" % status)
+        status, _ = request("/api/ops/battle/bad%2Fid")
+        check("a battle id with a slash is rejected", status == 400, "got %s" % status)
+
+        status, unknown = request("/api/ops/summary?window=this-release")
+        check("an unknown window keeps the API's 400 body",
+              status == 400 and "windows" in (unknown or {}), "status %s body %s" % (status, unknown))
 
         # -- logout ---------------------------------------------------------------
         status, _ = request("/api/logout", "POST", {})

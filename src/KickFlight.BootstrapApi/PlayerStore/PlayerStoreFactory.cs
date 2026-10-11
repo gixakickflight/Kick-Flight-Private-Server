@@ -13,12 +13,21 @@ public static class PlayerStoreFactory
     public const string ConnectionStringKey = "PlayerStore:ConnectionString";
     public const string DatabaseUrlKey = "PlayerStore:DatabaseUrl";
 
-    public static IPlayerStore Create(IServiceProvider services, IConfiguration configuration)
+    /// <summary>
+    /// The PostgreSQL connection string the deployment configured, or null/empty for the JSON fallback. The ops
+    /// telemetry store (Ops/OpsStores.cs) uses the same database, so both stores always agree on the mode.
+    /// </summary>
+    public static string? ResolveConnectionString(IConfiguration configuration)
     {
         var databaseUrl = configuration[DatabaseUrlKey];
-        var connectionString = !string.IsNullOrWhiteSpace(databaseUrl)
+        return !string.IsNullOrWhiteSpace(databaseUrl)
             ? ConvertDatabaseUrl(databaseUrl)
             : configuration[ConnectionStringKey] ?? configuration.GetConnectionString("KickFlight");
+    }
+
+    public static IPlayerStore Create(IServiceProvider services, IConfiguration configuration)
+    {
+        var connectionString = ResolveConnectionString(configuration);
 
         if (string.IsNullOrWhiteSpace(connectionString))
         {

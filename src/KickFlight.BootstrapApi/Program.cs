@@ -1,5 +1,6 @@
 using System.Security.Cryptography.X509Certificates;
 using KickFlight.BootstrapApi;
+using KickFlight.BootstrapApi.Ops;
 using KickFlight.BootstrapApi.PlayerStore;
 using Microsoft.Extensions.Options;
 
@@ -28,6 +29,10 @@ builder.Services.AddSingleton<BattleReplayService>();
 builder.Services.AddSingleton<OpenMatchFrontendService>();
 // Player state: PostgreSQL when a connection string is configured, the per-user JSON files otherwise.
 builder.Services.AddSingleton<IPlayerStore>(services => PlayerStoreFactory.Create(services, builder.Configuration));
+// Ops telemetry (Ops/OpsTelemetryService): the Record* calls are made by DemoSessionApi and the matchmaking room
+// events; the same singleton is the background batch writer and 60 s status sweep.
+builder.Services.AddSingleton<OpsTelemetryService>();
+builder.Services.AddHostedService(services => services.GetRequiredService<OpsTelemetryService>());
 builder.Services.AddSingleton<DemoSessionApi>();
 builder.Services.AddGrpc();
 
@@ -63,7 +68,11 @@ app.Services.GetRequiredService<ClientUpdateState>();
 app.Services.GetRequiredService<LatestInformationState>();
 // Loads every master now (rather than on the first player request) so the one-line "master overrides"
 // startup summary - and any missing config - is reported while the server boots.
-app.Services.GetRequiredService<DemoSessionApi>();
+var demoSessionApi = app.Services.GetRequiredService<DemoSessionApi>();
+// One server_runs row per start, tagged with the release (KF_RELEASE_SHA from the deploy workflow): the Health
+// dashboard's default window starts at the first run of the current release.
+app.Services.GetRequiredService<OpsTelemetryService>().RecordServerStart(
+    demoSessionApi.MasterVersion, app.Services.GetRequiredService<ClientUpdateState>().Current.MinimumVersion);
 
 app.UseMiddleware<RequestCaptureMiddleware>();
 app.MapGrpcService<OpenMatchFrontendService>();
@@ -83,6 +92,13 @@ app.MapGet("/admin/client-update", ClientUpdateAdmin.Get);
 app.MapPost("/admin/client-update", ClientUpdateAdmin.PostAsync);
 app.MapGet("/admin/latest-information", LatestInformationAdmin.Get);
 app.MapPost("/admin/latest-information", LatestInformationAdmin.PostAsync);
+// Ops telemetry for the balance tool's Health tab (OpsAdmin): read-only, same loopback-only rule.
+app.MapGet("/admin/ops/summary", (HttpContext context, OpsTelemetryService ops, TimeProvider time, string? window) =>
+    OpsAdmin.SummaryAsync(context, ops, time, window));
+app.MapGet("/admin/ops/exceptions", (HttpContext context, OpsTelemetryService ops, TimeProvider time, string? window) =>
+    OpsAdmin.ExceptionsAsync(context, ops, time, window));
+app.MapGet("/admin/ops/battle/{battleId}", (HttpContext context, OpsTelemetryService ops, TimeProvider time, string battleId) =>
+    OpsAdmin.BattleAsync(context, ops, time, battleId));
 app.Map("/admin/{**rest}", () => Results.NotFound());
 // The client's noticeboard opens a WebView and paints its network-error page for any non-200 answer, so every
 // /webview/ URL has to return HTML: the real one below, and the catch-all for every other page it may link to.
