@@ -45,7 +45,7 @@ class StageIosResourceSnapshotTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
-    def write_archive(self, *, manifest=None, payload=None, extra=None, traversal=None, symlink=False, duplicate=False, dirs=False):
+    def write_archive(self, *, manifest=None, payload=None, extra=None, traversal=None, symlink=False, duplicate=False, dirs=False, catalog_last=False, omit_payload=False):
         catalog = self.manifest.read_bytes() if manifest is None else manifest
         payload_bytes = self.payload if payload is None else payload
         with tarfile.open(self.archive, "w:gz") as tf:
@@ -58,8 +58,13 @@ class StageIosResourceSnapshotTests(unittest.TestCase):
                 info = tarfile.TarInfo(name)
                 info.size = len(data)
                 tf.addfile(info, io.BytesIO(data))
-            add_file("catalog.json", catalog)
-            add_file(self.payload_rel, payload_bytes)
+            ordered_files = [("catalog.json", catalog), (self.payload_rel, payload_bytes)]
+            if catalog_last:
+                ordered_files.reverse()
+            for name, data in ordered_files:
+                if omit_payload and name == self.payload_rel:
+                    continue
+                add_file(name, data)
             if extra:
                 add_file(extra[0], extra[1])
             if traversal:
@@ -99,6 +104,19 @@ class StageIosResourceSnapshotTests(unittest.TestCase):
         self.write_archive(dirs=True)
         target = self.stage()
         self.assertEqual((target / "payload/fixture/example.octo").read_bytes(), self.payload)
+
+    def test_members_are_streamed_in_archive_order_with_catalog_last(self):
+        self.write_archive(catalog_last=True)
+        target = self.stage()
+        self.assertEqual((target / "catalog.json").read_bytes(), self.manifest.read_bytes())
+        self.assertEqual((target / "payload/fixture/example.octo").read_bytes(), self.payload)
+
+    def test_missing_member_never_publishes_partial_snapshot(self):
+        self.write_archive(omit_payload=True)
+        with self.assertRaises(stager.SnapshotError):
+            self.stage()
+        self.assertFalse((self.stage_root / "12346-r5").exists())
+        self.assertFalse(list(self.stage_root.glob(".12346-r5.tmp-*")) if self.stage_root.exists() else [])
 
     def test_untrusted_archive_hash_fails_without_creating_target(self):
         with self.assertRaises(stager.SnapshotError):

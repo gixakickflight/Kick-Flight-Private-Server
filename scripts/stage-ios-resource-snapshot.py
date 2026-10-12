@@ -154,7 +154,7 @@ def _verify_payload(stream: Any, row: dict[str, Any], destination: Path | None) 
             out.close()
 
 
-def _archive_rows(archive: Path, expected_sha: str, manifest: Path, snapshot: str) -> tuple[bytes, dict[str, Any], dict[str, str]]:
+def _trusted_inputs(archive: Path, expected_sha: str, manifest: Path, snapshot: str) -> tuple[bytes, dict[str, Any], dict[str, str]]:
     if not SHA_RE.fullmatch(expected_sha):
         raise SnapshotError("archive SHA-256 must be 64 lowercase hex characters")
     if not SNAPSHOT_RE.fullmatch(snapshot):
@@ -166,19 +166,37 @@ def _archive_rows(archive: Path, expected_sha: str, manifest: Path, snapshot: st
     if actual_sha != expected_sha:
         raise SnapshotError("archive SHA-256 does not match trusted expected value")
     manifest_bytes, doc, expected = _load_manifest(manifest, snapshot)
-    with tarfile.open(archive, mode="r:gz") as tf:
-        members = tf.getmembers()
-        if len(members) > MAX_FILES + 2:
-            raise SnapshotError("archive contains too many entries")
-        seen: set[str] = set()
-        files: dict[str, tarfile.TarInfo] = {}
-        expected_dirs = {"payload"}
-        for filename in expected:
-            parent = PurePosixPath(filename).parent
-            while parent != PurePosixPath("."):
-                expected_dirs.add(parent.as_posix())
-                parent = parent.parent
-        for member in members:
+    return manifest_bytes, doc, expected
+
+
+def _scan_archive(
+    archive: Path,
+    manifest_bytes: bytes,
+    doc: dict[str, Any],
+    expected: dict[str, str],
+    destination_root: Path | None = None,
+) -> None:
+    """Validate and optionally write a tar.gz in one forward-only decompression pass."""
+    rows_by_member = {
+        f"payload/{row['sourcePath'].split('/payload/', 1)[1]}": row
+        for row in doc["resources"]
+    }
+    expected_files = {"catalog.json", *expected.keys()}
+    expected_dirs = {"payload"}
+    for filename in expected:
+        parent = PurePosixPath(filename).parent
+        while parent != PurePosixPath("."):
+            expected_dirs.add(parent.as_posix())
+            parent = parent.parent
+
+    seen: set[str] = set()
+    files: set[str] = set()
+    member_count = 0
+    with tarfile.open(archive, mode="r|gz") as tf:
+        for member in tf:
+            member_count += 1
+            if member_count > MAX_FILES + 2:
+                raise SnapshotError("archive contains too many entries")
             member_name = member.name[:-1] if member.isdir() and member.name.endswith("/") else member.name
             name = _safe_relpath(member_name, "archive member")
             if name in seen:
@@ -194,39 +212,41 @@ def _archive_rows(archive: Path, expected_sha: str, manifest: Path, snapshot: st
                 raise SnapshotError(f"sparse archive member is not allowed: {name}")
             if member.size < 0 or member.size > MAX_ARCHIVE_BYTES:
                 raise SnapshotError(f"archive member size is outside bounds: {name}")
-            files[name] = member
-        if set(files) != {"catalog.json", *expected.keys()}:
-            missing = sorted({"catalog.json", *expected.keys()} - set(files))
-            extra = sorted(set(files) - {"catalog.json", *expected.keys()})
-            raise SnapshotError(f"archive members differ from manifest (missing={missing[:3]}, extra={extra[:3]})")
-        catalog_member = files["catalog.json"]
-        if catalog_member.size != len(manifest_bytes):
-            raise SnapshotError("archive catalog size differs from release manifest")
-        catalog_stream = tf.extractfile(catalog_member)
-        if catalog_stream is None or catalog_stream.read() != manifest_bytes:
-            raise SnapshotError("archive catalog is not byte-identical to release manifest")
-        rows_by_id = {row["id"]: row for row in doc["resources"]}
-        for name, rid in expected.items():
-            member = files[name]
-            row = rows_by_id[rid]
+            if name not in expected_files:
+                raise SnapshotError(f"unexpected archive file: {name}")
+            files.add(name)
+            stream = tf.extractfile(member)
+            if stream is None:
+                raise SnapshotError(f"cannot read archive member: {name}")
+
+            if name == "catalog.json":
+                if member.size != len(manifest_bytes):
+                    raise SnapshotError("archive catalog size differs from release manifest")
+                if stream.read(len(manifest_bytes) + 1) != manifest_bytes:
+                    raise SnapshotError("archive catalog is not byte-identical to release manifest")
+                if destination_root is not None:
+                    (destination_root / "catalog.json").write_bytes(manifest_bytes)
+                continue
+
+            row = rows_by_member[name]
             if member.size != row["bytes"]:
                 raise SnapshotError(f"archive member size differs from manifest: {name}")
-        return manifest_bytes, doc, expected
+            destination = None
+            if destination_root is not None:
+                relative = PurePosixPath(name).relative_to("payload")
+                destination = destination_root / "payload" / Path(*relative.parts)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+            _verify_payload(stream, row, destination)
+
+    if files != expected_files:
+        missing = sorted(expected_files - files)
+        extra = sorted(files - expected_files)
+        raise SnapshotError(f"archive members differ from manifest (missing={missing[:3]}, extra={extra[:3]})")
 
 
 def validate_archive(archive: Path, expected_sha: str, manifest: Path, snapshot: str) -> None:
-    manifest_bytes, doc, expected = _archive_rows(archive, expected_sha, manifest, snapshot)
-    row_by_source = {f"payload/{row['sourcePath'].split('/payload/', 1)[1]}": row for row in doc["resources"]}
-    with tarfile.open(archive, mode="r:gz") as tf:
-        files = {member.name: member for member in tf.getmembers() if member.isfile()}
-        catalog = tf.extractfile(files["catalog.json"])
-        if catalog is None or catalog.read() != manifest_bytes:
-            raise SnapshotError("archive catalog changed during validation")
-        for name in expected:
-            stream = tf.extractfile(files[name])
-            if stream is None:
-                raise SnapshotError(f"cannot read archive payload: {name}")
-            _verify_payload(stream, row_by_source[name], None)
+    manifest_bytes, doc, expected = _trusted_inputs(archive, expected_sha, manifest, snapshot)
+    _scan_archive(archive, manifest_bytes, doc, expected)
 
 
 def _existing_matches(target: Path, manifest_bytes: bytes, doc: dict[str, Any]) -> bool:
@@ -256,9 +276,8 @@ def _existing_matches(target: Path, manifest_bytes: bytes, doc: dict[str, Any]) 
 
 
 def stage_archive(archive: Path, expected_sha: str, manifest: Path, stage_root: Path, snapshot: str) -> Path:
-    # Hash and validate the archive structure before creating the temporary destination.
-    # Payloads are verified while streaming into that temp tree below, avoiding a second full pass.
-    manifest_bytes, doc, expected = _archive_rows(archive, expected_sha, manifest, snapshot)
+    # Authenticate the compressed artifact first; decompress it once while validating and writing.
+    manifest_bytes, doc, expected = _trusted_inputs(archive, expected_sha, manifest, snapshot)
     root = stage_root
     root.mkdir(parents=True, exist_ok=True)
     if root.is_symlink() or not root.is_dir():
@@ -266,26 +285,14 @@ def stage_archive(archive: Path, expected_sha: str, manifest: Path, stage_root: 
     root = root.resolve(strict=True)
     target = root / snapshot
     if target.exists() or target.is_symlink():
-        validate_archive(archive, expected_sha, manifest, snapshot)
+        _scan_archive(archive, manifest_bytes, doc, expected)
         if _existing_matches(target, manifest_bytes, doc):
             return target
         raise SnapshotError("target snapshot already exists with different or incomplete contents")
     temporary = Path(tempfile.mkdtemp(prefix=f".{snapshot}.tmp-", dir=root))
     try:
         (temporary / "payload").mkdir()
-        (temporary / "catalog.json").write_bytes(manifest_bytes)
-        row_by_source = {f"payload/{row['sourcePath'].split('/payload/', 1)[1]}": row for row in doc["resources"]}
-        with tarfile.open(archive, mode="r:gz") as tf:
-            members = {member.name: member for member in tf.getmembers() if member.isfile()}
-            for name in expected:
-                row = row_by_source[name]
-                relative = PurePosixPath(name).relative_to("payload")
-                destination = temporary / "payload" / Path(*relative.parts)
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                stream = tf.extractfile(members[name])
-                if stream is None:
-                    raise SnapshotError(f"cannot read archive payload: {name}")
-                _verify_payload(stream, row, destination)
+        _scan_archive(archive, manifest_bytes, doc, expected, temporary)
         # Flush file data before publishing the directory entry.
         for base, _, files in os.walk(temporary):
             for filename in files:
