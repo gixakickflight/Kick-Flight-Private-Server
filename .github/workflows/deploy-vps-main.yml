@@ -140,6 +140,35 @@ jobs:
           tar -czf "$RUNNER_TEMP/kf-vps-release.tar.gz" -C "$payload/tree" .
           rm -rf "$payload"
 
+      - name: Download and verify the optional iOS snapshot release asset
+        id: ios_snapshot
+        if: steps.main_tip.outputs.deployable == 'true' && steps.changes.outputs.deploy == 'true'
+        shell: bash
+        env:
+          IOS_SNAPSHOT_RELEASE_TAG: ${{ vars.IOS_SNAPSHOT_RELEASE_TAG }}
+          IOS_SNAPSHOT_ARCHIVE_SHA256: ${{ vars.IOS_SNAPSHOT_ARCHIVE_SHA256 }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$IOS_SNAPSHOT_RELEASE_TAG" && -z "$IOS_SNAPSHOT_ARCHIVE_SHA256" ]]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          [[ "$IOS_SNAPSHOT_RELEASE_TAG" =~ ^[A-Za-z0-9._-]+$ ]] || {
+            echo "IOS_SNAPSHOT_RELEASE_TAG must be a tag in this repository's GitHub Releases" >&2; exit 1;
+          }
+          [[ "$IOS_SNAPSHOT_ARCHIVE_SHA256" =~ ^[0-9a-f]{64}$ ]] || {
+            echo "IOS_SNAPSHOT_ARCHIVE_SHA256 must be 64 lowercase hex characters" >&2; exit 1;
+          }
+          gh release download "$IOS_SNAPSHOT_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern ios-resource-snapshot.tar.gz --dir "$RUNNER_TEMP"
+          archive="$RUNNER_TEMP/ios-resource-snapshot.tar.gz"
+          echo "$IOS_SNAPSHOT_ARCHIVE_SHA256  $archive" | sha256sum --check --status || {
+            echo "iOS snapshot archive SHA-256 does not match trusted repository variable" >&2; exit 1;
+          }
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+
       - name: Configure pinned SSH host verification
         if: steps.main_tip.outputs.deployable == 'true' && steps.changes.outputs.deploy == 'true'
         shell: bash
@@ -181,6 +210,9 @@ jobs:
           DEPLOY_CADDY: ${{ steps.changes.outputs.caddy }}
           DEPLOY_BALANCE: ${{ steps.changes.outputs.balance }}
           FULL_DEPLOY: ${{ steps.changes.outputs.full }}
+          IOS_SNAPSHOT_ENABLED: ${{ steps.ios_snapshot.outputs.enabled }}
+          IOS_SNAPSHOT_ARCHIVE: ${{ steps.ios_snapshot.outputs.archive }}
+          IOS_SNAPSHOT_ARCHIVE_SHA256: ${{ vars.IOS_SNAPSHOT_ARCHIVE_SHA256 }}
         run: |
           set -euo pipefail
           [[ -n "$VPS_HOST" && -n "$VPS_USER" && -n "$VPS_APP_DIR" ]] || {
@@ -199,12 +231,24 @@ jobs:
           scp_opts=(-i "$RUNNER_TEMP/kf-vps-deploy-key" -P "$port" -o BatchMode=yes -o IdentitiesOnly=yes
             -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/kf-vps-known-hosts")
           scp "${scp_opts[@]}" "$RUNNER_TEMP/kf-vps-release.tar.gz" "$remote:$remote_archive"
+          remote_ios_archive=""
+          ios_archive_arg=""
+          ios_sha_arg=""
+          if [[ "$IOS_SNAPSHOT_ENABLED" == true ]]; then
+            remote_ios_archive="/tmp/kf-ios-snapshot-${GITHUB_SHA}.tar.gz"
+            scp "${scp_opts[@]}" "$IOS_SNAPSHOT_ARCHIVE" "$remote:$remote_ios_archive"
+            printf -v ios_archive_arg '%q' "$remote_ios_archive"
+            printf -v ios_sha_arg '%q' "$IOS_SNAPSHOT_ARCHIVE_SHA256"
+          fi
           printf -v q_app '%q' "$VPS_APP_DIR"
           printf -v q_archive '%q' "$remote_archive"
           # The SHA argument is also the release tag: deploy-vps-ci.sh exports it as KF_RELEASE_SHA into the
           # compose environment, and the API records it in the ops telemetry's server_runs on every start.
           printf -v q_sha '%q' "$GITHUB_SHA"
           ssh "${ssh_opts[@]}" "$remote" \
-            "bash -s -- $q_app $q_sha $q_archive '$DEPLOY_API' '$DEPLOY_PHOTON' '$DEPLOY_CDN' '$REBUILD_FARM' '$SYNC_SITE' '$DEPLOY_CADDY' '$FULL_DEPLOY' '$DEPLOY_BALANCE'" \
+            "bash -s -- $q_app $q_sha $q_archive '$DEPLOY_API' '$DEPLOY_PHOTON' '$DEPLOY_CDN' '$REBUILD_FARM' '$SYNC_SITE' '$DEPLOY_CADDY' '$FULL_DEPLOY' '$DEPLOY_BALANCE' $ios_archive_arg $ios_sha_arg" \
             < scripts/deploy-vps-ci.sh
           ssh "${ssh_opts[@]}" "$remote" "rm -f -- '$remote_archive'"
+          if [[ -n "$remote_ios_archive" ]]; then
+            ssh "${ssh_opts[@]}" "$remote" "rm -f -- '$remote_ios_archive'"
+          fi

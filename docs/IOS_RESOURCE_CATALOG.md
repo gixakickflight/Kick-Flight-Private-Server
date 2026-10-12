@@ -34,3 +34,20 @@ in PlayCover or on iOS hardware.
 
 This is a static payload and routing validation. It does not establish iOS runtime compatibility or that all game assets
 needed by every scene exist in the source IPA.
+
+## Preparing a later immutable snapshot
+
+`scripts/stage-ios-resource-snapshot.py` validates and stages a future snapshot without selecting it. Its archive has
+exactly `catalog.json` and the payload files under `payload/`, with payload paths derived from each manifest
+`sourcePath` after `.local/ios-resources/<snapshot>/payload/`. The release archive SHA-256 must come from a trusted
+repository variable. The stager requires the archive catalog bytes to equal the API release's tracked iOS manifest,
+the exact payload member set, safe regular-file paths, and matching size, SHA-256, MD5, and CRC32 for every row. It
+rejects links, traversal, duplicate members, and partial snapshots. It writes to a temporary sibling and atomically
+renames only after validation; an existing immutable snapshot is accepted only when it already matches exactly.
+
+The VPS deploy workflow can stage an optional GitHub Release asset named `ios-resource-snapshot.tar.gz` from the same
+repository. Configure both repository variables `IOS_SNAPSHOT_RELEASE_TAG` and `IOS_SNAPSHOT_ARCHIVE_SHA256`; leave
+both empty to skip staging. The workflow downloads only that named asset from the configured repository's release,
+checks the pinned SHA-256, transfers it through the existing pinned-host SSH channel, then validates and stages it
+before source sync and any API restart. Staging never rewrites r4 or changes the active catalog path. A source change
+must separately point the API at the new versioned path; only that later source release selects it.
