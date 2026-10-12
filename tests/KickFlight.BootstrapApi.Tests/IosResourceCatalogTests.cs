@@ -22,6 +22,23 @@ public sealed class IosResourceCatalogTests : IClassFixture<ServerTestHostFixtur
             })));
 
     [Fact]
+    public void Ios_boot_and_catalog_manifests_are_published_beside_the_api_binary()
+    {
+        var options = new HarnessOptions();
+        var catalogPath = Path.Combine(AppContext.BaseDirectory, "catalog-ios-12346.json");
+        var bootPath = Path.Combine(AppContext.BaseDirectory, "boot-index-ios-platform-2.json");
+
+        Assert.Equal(catalogPath, options.IosResourceManifestPath);
+        Assert.Equal(bootPath, options.IosBootFixturePath);
+        Assert.Equal(catalogPath, RepositoryPaths.Resolve(options.IosResourceManifestPath, "/srv/repo"));
+        Assert.Equal(bootPath, RepositoryPaths.Resolve(options.IosBootFixturePath, "/srv/repo"));
+        Assert.Equal("002375C82AB288B2CFAD515FD41D57B1AE501033E41DDAC01E8CBABCB7863E8D",
+            Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(catalogPath))));
+        Assert.Equal("765D997973BF3EAF8582292A3377FED0641DEBE8B15376AB96DCF10C1AEFC9C3",
+            Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(bootPath))));
+    }
+
+    [Fact]
     public async Task Ios_profile_selects_native_boot_and_complete_revisioned_catalog_without_changing_android()
     {
         using var boot = new HttpRequestMessage(HttpMethod.Post, "/boot/index")

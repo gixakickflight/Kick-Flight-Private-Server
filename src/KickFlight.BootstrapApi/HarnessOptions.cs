@@ -11,8 +11,8 @@ public sealed class HarnessOptions
     /// </summary>
     public string IosResourceCatalogPath { get; set; } = ".local/ios-resources/12346-r2/catalog.json";
     /// <summary>Tracked, versioned manifest whose bytes must match the staged immutable iOS catalog.</summary>
-    public string IosResourceManifestPath { get; set; } = "src/KickFlight.BootstrapApi/catalog-ios-12346.json";
-    public string IosBootFixturePath { get; set; } = "src/KickFlight.BootstrapApi/boot-index-ios-platform-2.json";
+    public string IosResourceManifestPath { get; set; } = Path.Combine(AppContext.BaseDirectory, "catalog-ios-12346.json");
+    public string IosBootFixturePath { get; set; } = Path.Combine(AppContext.BaseDirectory, "boot-index-ios-platform-2.json");
     public string CaptureDirectory { get; set; } = "captures";
     public bool PersistCaptures { get; set; }
     public int MaxCapturedBodyBytes { get; set; } = 65_536;
