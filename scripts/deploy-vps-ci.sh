@@ -3,8 +3,8 @@
 # must be available without sudo. Arguments are supplied by the workflow and are not secrets.
 set -Eeuo pipefail
 
-if [[ $# -ne 11 ]]; then
-  echo "usage: deploy-vps-ci.sh APP_DIR SHA ARCHIVE API PHOTON CDN FARM SITE CADDY FULL BALANCE" >&2
+if [[ $# -ne 11 && $# -ne 13 ]]; then
+  echo "usage: deploy-vps-ci.sh APP_DIR SHA ARCHIVE API PHOTON CDN FARM SITE CADDY FULL BALANCE [IOS_SNAPSHOT_ARCHIVE IOS_SNAPSHOT_SHA256]" >&2
   exit 2
 fi
 
@@ -19,15 +19,27 @@ sync_site=$8
 deploy_caddy=$9
 full_deploy=${10}
 deploy_balance=${11}
+ios_snapshot_archive=${12:-}
+ios_snapshot_sha256=${13:-}
 
 [[ "$app_dir" == /* ]] || { echo "VPS_APP_DIR must be an absolute path" >&2; exit 2; }
 [[ "$app_dir" != "/" && -d "$app_dir" ]] || { echo "VPS_APP_DIR must be an existing application directory" >&2; exit 2; }
 [[ "$release_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "invalid commit SHA" >&2; exit 2; }
 [[ "$archive" == "/tmp/kf-vps-$release_sha.tar.gz" && -f "$archive" ]] || { echo "release archive path is invalid or missing" >&2; exit 2; }
+if [[ -n "$ios_snapshot_archive" || -n "$ios_snapshot_sha256" ]]; then
+  [[ $# -eq 13 ]] || { echo "iOS snapshot archive and SHA-256 must be supplied together" >&2; exit 2; }
+  [[ "$ios_snapshot_archive" == "/tmp/kf-ios-snapshot-$release_sha.tar.gz" && -f "$ios_snapshot_archive" ]] || {
+    echo "iOS snapshot archive path is invalid or missing" >&2; exit 2;
+  }
+  [[ "$ios_snapshot_sha256" =~ ^[0-9a-f]{64}$ ]] || { echo "invalid iOS snapshot SHA-256" >&2; exit 2; }
+fi
 for flag in "$deploy_api" "$deploy_photon" "$deploy_cdn" "$rebuild_farm" "$sync_site" "$deploy_caddy" "$full_deploy" "$deploy_balance"; do
   [[ "$flag" == true || "$flag" == false ]] || { echo "invalid component flag" >&2; exit 2; }
 done
-cleanup_upload() { rm -f -- "$archive"; }
+cleanup_upload() {
+  rm -f -- "$archive"
+  [[ -z "$ios_snapshot_archive" ]] || rm -f -- "$ios_snapshot_archive"
+}
 trap cleanup_upload EXIT
 
 command -v docker >/dev/null || { echo "Docker is required on the VPS" >&2; exit 1; }
@@ -49,7 +61,7 @@ previous_sha=""
 if [[ -f "$state_file" ]]; then
   IFS= read -r previous_sha < "$state_file" || true
 fi
-if [[ "$previous_sha" == "$release_sha" ]]; then
+if [[ "$previous_sha" == "$release_sha" && -z "$ios_snapshot_archive" ]]; then
   echo "commit $release_sha is already deployed"
   exit 0
 fi
@@ -85,6 +97,61 @@ mkdir -p "$release_dir"
 tar -xzf "$archive" --no-same-owner --no-same-permissions -C "$release_dir"
 [[ -f "$release_dir/.kf-managed-files" ]] || { echo "release archive is missing its file manifest" >&2; exit 1; }
 ln -s "$app_dir/.local" "$release_dir/.local"
+
+# Verify and stage the optional immutable iOS snapshot before syncing or restarting the API.
+# Staging publishes only a new versioned directory; it never replaces or activates the prior r4 tree.
+if [[ -z "$ios_snapshot_archive" ]]; then
+  python3 - "$release_dir/src/KickFlight.BootstrapApi/catalog-ios-12346.json" <<'PY'
+import json
+import pathlib
+import sys
+
+doc = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+rows = doc.get("resources")
+if not isinstance(rows, list) or not rows:
+    raise SystemExit("iOS catalog has no resource rows")
+snapshots = {
+    row["sourcePath"].split("/", 3)[2]
+    for row in rows
+    if isinstance(row, dict)
+    and isinstance(row.get("sourcePath"), str)
+    and row["sourcePath"].startswith(".local/ios-resources/")
+}
+if snapshots == {"12346-r5"}:
+    raise SystemExit("r5 iOS catalog requires a verified snapshot archive; refusing deployment before sync/restart")
+PY
+fi
+if [[ -n "$ios_snapshot_archive" ]]; then
+  snapshot_name=$(python3 - "$release_dir/src/KickFlight.BootstrapApi/catalog-ios-12346.json" <<'PY'
+import json
+import pathlib
+import re
+import sys
+
+doc = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+rows = doc.get("resources")
+if not isinstance(rows, list) or not rows:
+    raise SystemExit("iOS catalog has no resource rows")
+prefix = ".local/ios-resources/"
+names = set()
+for row in rows:
+    source = row.get("sourcePath") if isinstance(row, dict) else None
+    if not isinstance(source, str) or not source.startswith(prefix):
+        raise SystemExit("iOS catalog sourcePath is outside the managed snapshot root")
+    name = source[len(prefix):].split("/", 1)[0]
+    if not re.fullmatch(r"12346-r[1-9][0-9]*", name):
+        raise SystemExit("iOS catalog contains an invalid snapshot name")
+    names.add(name)
+if len(names) != 1:
+    raise SystemExit("iOS catalog rows do not share one immutable snapshot")
+print(names.pop())
+PY
+)
+  python3 "$release_dir/scripts/stage-ios-resource-snapshot.py" stage \
+    --archive "$ios_snapshot_archive" --archive-sha256 "$ios_snapshot_sha256" \
+    --manifest "$release_dir/src/KickFlight.BootstrapApi/catalog-ios-12346.json" \
+    --snapshot "$snapshot_name" --stage-root "$app_dir/.local/ios-resources"
+fi
 
 assets_root=$(python3 - "$app_dir/.env" "$app_dir" <<'PY'
 import pathlib

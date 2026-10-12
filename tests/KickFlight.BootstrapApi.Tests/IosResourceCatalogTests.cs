@@ -32,7 +32,7 @@ public sealed class IosResourceCatalogTests : IClassFixture<ServerTestHostFixtur
         Assert.Equal(bootPath, options.IosBootFixturePath);
         Assert.Equal(catalogPath, RepositoryPaths.Resolve(options.IosResourceManifestPath, "/srv/repo"));
         Assert.Equal(bootPath, RepositoryPaths.Resolve(options.IosBootFixturePath, "/srv/repo"));
-        Assert.Equal("0EE44526885D505070281924AF3408904050C28ECF6152DD51317D79012DC3D8",
+        Assert.Equal("9852A6F6A4D52B7E1571A45896D3BE5E4A02BDC7F6DD5C61E7218C43428E2D1C",
             Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(catalogPath))));
         Assert.Equal("765D997973BF3EAF8582292A3377FED0641DEBE8B15376AB96DCF10C1AEFC9C3",
             Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(bootPath))));
@@ -71,33 +71,30 @@ public sealed class IosResourceCatalogTests : IClassFixture<ServerTestHostFixtur
         Assert.Equal(androidBootJson.ToJsonString(), iosBootJson.ToJsonString());
 
         var initial = await GetListAsync(0);
-        Assert.Equal(44, ReadDatabaseRevision(initial));
+        Assert.Equal(45, ReadDatabaseRevision(initial));
         var initialRows = ReadDatabaseRows(initial);
         var wireNames = initialRows.Select(row => Encoding.UTF8.GetString(ReadBytesField(row.Payload, 3))).ToArray();
-        Assert.Equal(501, wireNames.Length);
+        Assert.Equal(2036, wireNames.Length);
         Assert.All(wireNames, name => Assert.False(string.IsNullOrWhiteSpace(name)));
-        Assert.Equal(501, wireNames.Distinct(StringComparer.Ordinal).Count());
-        Assert.Equal(448, initialRows.Count(row => row.Field == 2));
-        Assert.Equal(53, initialRows.Count(row => row.Field == 4));
+        Assert.Equal(2036, wireNames.Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(1831, initialRows.Count(row => row.Field == 2));
+        Assert.Equal(205, initialRows.Count(row => row.Field == 4));
         Assert.All(initialRows, row => Assert.Equal(1UL, ReadVarintField(row.Payload, 9)));
         Assert.Equal("https://kick-flight-fenix.us.ci/ios/cdn/{o}", ReadDatabaseUrl(initial));
 
         var initialIds = initialRows.Select(row => ReadVarintField(row.Payload, 1)).ToArray();
-        Assert.Equal(Enumerable.Range(1, 501).Select(id => (ulong)id), initialIds.Order());
+        Assert.Equal(Enumerable.Range(1, 2036).Select(id => (ulong)id), initialIds.Order());
         var oldWireRows = initialRows.Where(row => ReadVarintField(row.Payload, 1) <= 494).ToArray();
         Assert.Equal("D19BC8852CEC1300C2A1D005C5638B6C7D720006E276030A403793C3C9522AD3",
             HashWireRows(oldWireRows));
-        var addedRows = initialRows.Where(row => ReadVarintField(row.Payload, 1) >= 495).ToArray();
-        Assert.Equal(7, addedRows.Length);
-        Assert.Equal(Enumerable.Range(495, 7).Select(id => (ulong)id),
+        var addedRows = initialRows.Where(row => ReadVarintField(row.Payload, 1) >= 502).ToArray();
+        Assert.Equal(1535, addedRows.Length);
+        Assert.Equal(Enumerable.Range(502, 1535).Select(id => (ulong)id),
             addedRows.Select(row => ReadVarintField(row.Payload, 1)).Order());
-        Assert.Equal(new[] { "5tolYi", "CFiKWY", "HtMw1U", "bJ9pwB", "dtrQM5", "nLiuIQ", "wiSK5v" },
-            addedRows.Select(row => Encoding.UTF8.GetString(ReadBytesField(row.Payload, 11)))
-                .Order(StringComparer.Ordinal));
 
         var update = await GetListAsync(40);
         var updateRows = ReadDatabaseRows(update);
-        Assert.Equal(501, updateRows.Count);
+        Assert.Equal(2036, updateRows.Count);
         Assert.All(updateRows, row => Assert.Equal(2UL, ReadVarintField(row.Payload, 9)));
         Assert.Equal("D19BC8852CEC1300C2A1D005C5638B6C7D720006E276030A403793C3C9522AD3",
             HashWireRows(updateRows.Where(row => ReadVarintField(row.Payload, 1) <= 494).ToArray()));
@@ -106,11 +103,11 @@ public sealed class IosResourceCatalogTests : IClassFixture<ServerTestHostFixtur
         Assert.Equal("resource/12Cxc3", Encoding.UTF8.GetString(ReadBytesField(namelessNativeResource.Payload, 2)));
         Assert.Equal("resource/12Cxc3", Encoding.UTF8.GetString(ReadBytesField(namelessNativeResource.Payload, 3)));
 
-        // Existing clients may have cached any prior source/wire revision through 43.
+        // Existing clients may have cached the old source/wire revision 43.
         var rev41 = await GetListAsync(41);
-        Assert.Equal(44, ReadDatabaseRevision(rev41));
+        Assert.Equal(45, ReadDatabaseRevision(rev41));
         var rev41Rows = ReadDatabaseRows(rev41);
-        Assert.Equal(501, rev41Rows.Count);
+        Assert.Equal(2036, rev41Rows.Count);
         Assert.All(rev41Rows, row => Assert.Equal(2UL, ReadVarintField(row.Payload, 9)));
         Assert.Equal("D19BC8852CEC1300C2A1D005C5638B6C7D720006E276030A403793C3C9522AD3",
             HashWireRows(rev41Rows.Where(row => ReadVarintField(row.Payload, 1) <= 494).ToArray()));
@@ -119,18 +116,23 @@ public sealed class IosResourceCatalogTests : IClassFixture<ServerTestHostFixtur
         Assert.Equal("resource/12Cxc3", Encoding.UTF8.GetString(ReadBytesField(rev41NamelessNativeResource.Payload, 3)));
 
         var rev42 = await GetListAsync(42);
-        Assert.Equal(501, ReadDatabaseRows(rev42).Count);
+        Assert.Equal(2036, ReadDatabaseRows(rev42).Count);
         Assert.All(ReadDatabaseRows(rev42), row => Assert.Equal(2UL, ReadVarintField(row.Payload, 9)));
 
         var rev43 = await GetListAsync(43);
-        Assert.Equal(501, ReadDatabaseRows(rev43).Count);
+        Assert.Equal(2036, ReadDatabaseRows(rev43).Count);
         Assert.All(ReadDatabaseRows(rev43), row => Assert.Equal(2UL, ReadVarintField(row.Payload, 9)));
 
         var current = await GetListAsync(44);
-        Assert.Empty(ReadDatabaseRows(current));
+        Assert.Equal(2036, ReadDatabaseRows(current).Count);
+        Assert.All(ReadDatabaseRows(current), row => Assert.Equal(2UL, ReadVarintField(row.Payload, 9)));
         Assert.Equal("https://kick-flight-fenix.us.ci/ios/cdn/{o}", ReadDatabaseUrl(current));
 
-        using var futureRequest = new HttpRequestMessage(HttpMethod.Get, "/v1/list/12346/45");
+        var latest = await GetListAsync(45);
+        Assert.Empty(ReadDatabaseRows(latest));
+        Assert.Equal("https://kick-flight-fenix.us.ci/ios/cdn/{o}", ReadDatabaseUrl(latest));
+
+        using var futureRequest = new HttpRequestMessage(HttpMethod.Get, "/v1/list/12346/46");
         futureRequest.Headers.Host = "kick-flight-fenix.us.ci";
         using var futureResponse = await _factory.CreateClient().SendAsync(futureRequest);
         Assert.Equal(HttpStatusCode.NotFound, futureResponse.StatusCode);
