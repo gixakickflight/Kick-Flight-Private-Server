@@ -15,6 +15,11 @@ revisions 0 through 40 receive all 493 rows (ADD from 0, UPDATE otherwise), whil
 the CDN URL only. The original nullable Octo name remains absent on the wire; `logicalName` is only a server-side
 diagnostic label. The database points to `https://kick-flight-fenix.us.ci/ios/cdn/{o}`.
 
+The API image publishes the small iOS catalog manifest and platform-2 boot fixture beside its binaries. Runtime defaults
+resolve those files from `AppContext.BaseDirectory`; the VPS container mounts `.local`, `config`, and `content` under
+`/srv/repo`, but does not mount the source checkout at `/srv/repo/src`. This keeps readiness validation independent of
+the host checkout layout. The focused test pins both published-file hashes.
+
 `GET /ios/cdn/{objectName}` reads only the iOS resource snapshot. A missing, partial, checksum-mismatched, or wrong-version
 snapshot fails closed; the server does not fall back to Android `/cdn` resources. Android asset version 12345 and its
 fixtures and routes remain separate. `/health/ready` reports `iosCatalogReady`; stage the complete r2 tree before selecting

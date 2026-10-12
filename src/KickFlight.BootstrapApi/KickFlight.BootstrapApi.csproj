@@ -14,4 +14,9 @@
   <ItemGroup>
     <Protobuf Include="Protos/openmatch.proto" GrpcServices="Server" />
   </ItemGroup>
+  <ItemGroup>
+    <None Update="catalog-ios-12346.json;boot-index-ios-platform-2.json"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>
