@@ -100,6 +100,27 @@ ln -s "$app_dir/.local" "$release_dir/.local"
 
 # Verify and stage the optional immutable iOS snapshot before syncing or restarting the API.
 # Staging publishes only a new versioned directory; it never replaces or activates the prior r4 tree.
+if [[ -z "$ios_snapshot_archive" ]]; then
+  python3 - "$release_dir/src/KickFlight.BootstrapApi/catalog-ios-12346.json" <<'PY'
+import json
+import pathlib
+import sys
+
+doc = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+rows = doc.get("resources")
+if not isinstance(rows, list) or not rows:
+    raise SystemExit("iOS catalog has no resource rows")
+snapshots = {
+    row["sourcePath"].split("/", 3)[2]
+    for row in rows
+    if isinstance(row, dict)
+    and isinstance(row.get("sourcePath"), str)
+    and row["sourcePath"].startswith(".local/ios-resources/")
+}
+if snapshots == {"12346-r5"}:
+    raise SystemExit("r5 iOS catalog requires a verified snapshot archive; refusing deployment before sync/restart")
+PY
+fi
 if [[ -n "$ios_snapshot_archive" ]]; then
   snapshot_name=$(python3 - "$release_dir/src/KickFlight.BootstrapApi/catalog-ios-12346.json" <<'PY'
 import json

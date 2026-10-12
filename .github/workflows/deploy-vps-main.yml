@@ -151,6 +151,25 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -z "$IOS_SNAPSHOT_RELEASE_TAG" && -z "$IOS_SNAPSHOT_ARCHIVE_SHA256" ]]; then
+            python3 - src/KickFlight.BootstrapApi/catalog-ios-12346.json <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          catalog = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+          rows = catalog.get("resources")
+          if not isinstance(rows, list) or not rows:
+              raise SystemExit("iOS catalog has no resource rows")
+          snapshots = {
+              row["sourcePath"].split("/", 3)[2]
+              for row in rows
+              if isinstance(row, dict)
+              and isinstance(row.get("sourcePath"), str)
+              and row["sourcePath"].startswith(".local/ios-resources/")
+          }
+          if snapshots == {"12346-r5"}:
+              raise SystemExit("r5 iOS catalog requires IOS_SNAPSHOT_RELEASE_TAG and IOS_SNAPSHOT_ARCHIVE_SHA256")
+          PY
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
