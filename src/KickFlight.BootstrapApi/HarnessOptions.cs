@@ -9,7 +9,7 @@ public sealed class HarnessOptions
     /// Optional, isolated iOS Octo resources. The immutable catalog and payload tree are staged below the existing
     /// read-only .local mount; absence keeps the iOS profile disabled rather than falling back to Android assets.
     /// </summary>
-    public string IosResourceCatalogPath { get; set; } = ".local/ios-resources/12346-r5/catalog.json";
+    public string IosResourceCatalogPath { get; set; } = ".local/ios-resources/12346-r6/catalog.json";
     /// <summary>Tracked, versioned manifest whose bytes must match the staged immutable iOS catalog.</summary>
     public string IosResourceManifestPath { get; set; } = Path.Combine(AppContext.BaseDirectory, "catalog-ios-12346.json");
     public string IosBootFixturePath { get; set; } = Path.Combine(AppContext.BaseDirectory, "boot-index-ios-platform-2.json");
