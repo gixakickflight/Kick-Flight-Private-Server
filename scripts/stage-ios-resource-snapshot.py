@@ -77,6 +77,12 @@ def _load_manifest(path: Path, snapshot: str) -> tuple[bytes, dict[str, Any], di
     revision = doc.get("revision")
     if type(revision) is not int or revision < 0:
         raise SnapshotError("manifest revision must be a non-negative integer")
+    if snapshot == "12346-r7":
+        rows = doc["resources"]
+        kinds = {kind: sum(isinstance(row, dict) and row.get("kind") == kind for row in rows)
+                 for kind in ("assetBundle", "resource")}
+        if revision != 46 or len(rows) != 2563 or kinds != {"assetBundle": 2358, "resource": 205}:
+            raise SnapshotError("12346-r7 must be revision 46 with 2,563 rows (2,358 assetBundles / 205 resources)")
 
     source_prefix = f".local/ios-resources/{snapshot}/payload/"
     expected: dict[str, str] = {}

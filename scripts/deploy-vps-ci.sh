@@ -117,7 +117,7 @@ snapshots = {
     and isinstance(row.get("sourcePath"), str)
     and row["sourcePath"].startswith(".local/ios-resources/")
 }
-if snapshots in ({"12346-r5"}, {"12346-r6"}):
+if snapshots in ({"12346-r5"}, {"12346-r6"}, {"12346-r7"}):
     raise SystemExit("iOS catalog requires a verified snapshot archive; refusing deployment before sync/restart")
 PY
 fi

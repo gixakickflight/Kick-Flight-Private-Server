@@ -26,6 +26,9 @@ BASE64 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 MODEL_SNAPSHOT = "12346-r6"
 MODEL_SOURCE_REVISION = 45
 MODEL_WIRE_REVISION = 46
+WEAPON_SNAPSHOT = "12346-r7"
+WEAPON_SOURCE_REVISION = 46
+WEAPON_WIRE_REVISION = 47
 
 
 def file_hashes(path: Path) -> tuple[int, str, str, int]:
@@ -340,6 +343,116 @@ def build_model_catalog(base: dict, report: dict, *, android_coverage: dict,
     return catalog, payload_paths
 
 
+def build_weapon_catalog(base: dict, report: dict, postflight: dict, *, android_coverage: dict,
+                         source_root: Path) -> tuple[dict, dict[str, Path]]:
+    """Append only verified weapon conversions to the immutable r6 catalog."""
+    if (base.get("assetVersion"), base.get("platform"), base.get("revision")) != (12346, 9, 45):
+        raise ValueError("weapon base must be the pinned iOS 12346/platform-9/revision-45 r6 catalog")
+    if len(base.get("resources", [])) != 2252:
+        raise ValueError("weapon base must contain exactly the 2,252-row r6 catalog")
+    counts = {kind: sum(row.get("kind") == kind for row in base["resources"])
+              for kind in ("assetBundle", "resource")}
+    if counts != {"assetBundle": 2047, "resource": 205}:
+        raise ValueError(f"r6 catalog kind counts changed: {counts}")
+    items = report.get("converted", [])
+    if (report.get("scope") != "weapon" or report.get("expected_count") != 311 or
+            len(items) != 311 or report.get("rejected") or
+            report.get("summary", {}).get("converted") != 311 or
+            report.get("summary", {}).get("rejected") != 0 or
+            report.get("summary", {}).get("source_bytes") != 33_714_065):
+        raise ValueError("weapon report must contain the fully validated 311-bundle batch")
+    post_summary = postflight.get("summary", {})
+    if (post_summary.get("routes") != 311 or post_summary.get("source_bytes") != 33_714_065 or
+            post_summary.get("weapon_key_included") is not True or
+            post_summary.get("all_platforms_13_to_9") is not True or
+            post_summary.get("all_full_typetree_matches") is not True or
+            post_summary.get("all_raw_object_payloads_preserved") is not True or
+            post_summary.get("all_reference_graphs_preserved") is not True or
+            post_summary.get("all_output_shader_dependencies_checked") is not True or
+            post_summary.get("local_shader_count") != 0):
+        raise ValueError("weapon postflight report does not prove every required conversion invariant")
+    report_rows = {row.get("logical_name"): row for row in report.get("converted", [])}
+    post_rows = {row.get("logical_name"): row for row in postflight.get("routes", [])}
+    if len(post_rows) != 311 or set(report_rows) != set(post_rows):
+        raise ValueError("weapon postflight routes do not exactly match the conversion report")
+    for name, item in report_rows.items():
+        proof = post_rows[name]
+        if (proof.get("source_sha256") != item.get("source_sha256") or
+                proof.get("output_sha256") != item.get("output_sha256") or
+                proof.get("typetree_schema_equal") is not True or
+                proof.get("object_payloads_preserved") is not True or
+                proof.get("reference_graph_equal") is not True or
+                proof.get("metal_shaders") != 15 or
+                proof.get("external_shader_paths") != item.get("shader", {}).get("external_paths")):
+            raise ValueError(f"weapon postflight evidence mismatch: {name}")
+
+    sources = {row["name"]: row for row in android_coverage.get("androidEntries", [])
+               if re.fullmatch(r"weapon/wp_\d+/wp_.*\.unity3d", row.get("name", ""))
+               and not row.get("iosPresentInManifest")}
+    if len(sources) != 311:
+        raise ValueError(f"Android coverage must contain exactly 311 missing weapon routes, found {len(sources)}")
+
+    rows: list[dict] = []
+    payload_paths: dict[str, Path] = {}
+    occupied_ids: set[str] = set()
+    occupied_names: set[str] = set()
+    for base_row in base["resources"]:
+        row = dict(base_row)
+        source = source_root / row["sourcePath"]
+        size, sha, md5, crc = file_hashes(source)
+        if (size, sha, md5, crc) != (row["bytes"], row["sha256"], row["md5"], row["crc32"]):
+            raise ValueError(f"r6 payload checksum mismatch: {row['logicalName']}")
+        rel = payload_relpath(sha, int(row["octoId"]))
+        row["sourcePath"] = f".local/ios-resources/{WEAPON_SNAPSHOT}/payload/{rel}"
+        if rel in payload_paths:
+            raise ValueError(f"duplicate r6 payload path: {rel}")
+        payload_paths[rel] = source
+        rows.append(row)
+        occupied_ids.add(row["requestPath"].rsplit("/", 1)[-1])
+        occupied_names.add(row["logicalName"])
+
+    for item in sorted(items, key=lambda row: row["logical_name"]):
+        name = item["logical_name"]
+        evidence = sources.get(name)
+        if not evidence or name in occupied_names:
+            raise ValueError(f"weapon output absent from audited coverage or duplicate: {name}")
+        if (item.get("profile") != "weapon" or item.get("source_sha256") != evidence.get("androidExpectedSha256") or
+                item.get("source_target_platform") != 13 or item.get("output_target_platform") != 9 or
+                item.get("unity_version") != "2018.4.11f1" or
+                item.get("shader", {}).get("ios_shader_cab") != "CAB-96ae749bf375168094b083c67a3f9536" or
+                item.get("shader", {}).get("metal_shader_count") != 15):
+            raise ValueError(f"weapon conversion evidence mismatch: {name}")
+        source = Path(item["output_path"])
+        size, sha, md5, crc = file_hashes(source)
+        if (size, sha) != (item["output_bytes"], item["output_sha256"]):
+            raise ValueError(f"converted weapon checksum mismatch: {name}")
+        candidate = evidence.get("androidObjectName", "")
+        if not re.fullmatch(r"[0-9A-Za-z]{6}", candidate) or candidate in occupied_ids:
+            candidate = id_from_digest(name, occupied_ids)
+        occupied_ids.add(candidate)
+        octo_id = len(rows) + 1
+        rel = payload_relpath(sha, octo_id)
+        rows.append({
+            "bytes": size, "contentType": "application/octet-stream", "crc32": crc,
+            "description": "Target-9 iOS weapon model reconstructed from verified Android source",
+            "enabled": True, "host": "kick-flight-fenix.us.ci", "id": f"ios-octo-A-{candidate}",
+            "kind": "assetBundle", "logicalName": name, "md5": md5, "octoId": octo_id,
+            "octoName": name, "requestPath": f"/ios/cdn/{candidate}", "sha256": sha,
+            "sourcePath": f".local/ios-resources/{WEAPON_SNAPSHOT}/payload/{rel}",
+        })
+        payload_paths[rel] = source
+        occupied_names.add(name)
+
+    final_counts = {kind: sum(row.get("kind") == kind for row in rows)
+                    for kind in ("assetBundle", "resource")}
+    if len(rows) != 2563 or final_counts != {"assetBundle": 2358, "resource": 205}:
+        raise ValueError(f"r7 expected 2,563 rows (2,358 assetBundles / 205 resources); got {len(rows)} / {final_counts}")
+    catalog = {key: value for key, value in base.items() if key != "resources"}
+    catalog["revision"] = WEAPON_SOURCE_REVISION
+    catalog["resources"] = rows
+    return catalog, payload_paths
+
+
 def write_archive(catalog_bytes: bytes, payload_paths: dict[str, Path], archive_path: Path) -> None:
     archive_path.parent.mkdir(parents=True, exist_ok=True)
     with archive_path.open("wb") as raw:
@@ -370,6 +483,10 @@ def main() -> int:
     parser.add_argument("--conversion-report", type=Path)
     parser.add_argument("--model-conversion-report", type=Path,
                         help="validated 216-model conversion report; builds additive 12346-r6")
+    parser.add_argument("--weapon-conversion-report", type=Path,
+                        help="validated 311-weapon conversion report; builds additive 12346-r7")
+    parser.add_argument("--weapon-postflight-report", type=Path,
+                        help="independent 311-route readback proving schema, payload and shader invariants")
     parser.add_argument("--android-catalog", type=Path)
     parser.add_argument("--android-coverage", type=Path, required=True)
     parser.add_argument("--source-root", type=Path, required=True)
@@ -380,7 +497,18 @@ def main() -> int:
     args = parser.parse_args()
     base = json.loads(args.base_catalog.read_text(encoding="utf-8"))
     android_coverage = json.loads(args.android_coverage.read_text(encoding="utf-8"))
-    if args.model_conversion_report:
+    if args.model_conversion_report and args.weapon_conversion_report:
+        parser.error("choose only one model conversion report")
+    if args.weapon_conversion_report:
+        if not args.weapon_postflight_report:
+            parser.error("--weapon-conversion-report requires --weapon-postflight-report")
+        weapon_report = json.loads(args.weapon_conversion_report.read_text(encoding="utf-8"))
+        postflight_report = json.loads(args.weapon_postflight_report.read_text(encoding="utf-8"))
+        catalog, payloads = build_weapon_catalog(
+            base, weapon_report, postflight_report,
+            android_coverage=android_coverage, source_root=args.source_root)
+        snapshot, wire_revision = WEAPON_SNAPSHOT, WEAPON_WIRE_REVISION
+    elif args.model_conversion_report:
         model_report = json.loads(args.model_conversion_report.read_text(encoding="utf-8"))
         catalog, payloads = build_model_catalog(
             base, model_report, android_coverage=android_coverage, source_root=args.source_root)
@@ -400,7 +528,8 @@ def main() -> int:
             source_root=args.source_root, assets_root=args.assets_root, android_audit=args.android_audit)
         snapshot, wire_revision = SNAPSHOT, WIRE_REVISION
     rows = catalog["resources"]
-    expected_kinds = (2047, 205) if args.model_conversion_report else (1831, 205)
+    expected_kinds = ((2358, 205) if args.weapon_conversion_report else
+                      (2047, 205) if args.model_conversion_report else (1831, 205))
     if (sum(row["kind"] == "assetBundle" for row in rows),
             sum(row["kind"] == "resource" for row in rows)) != expected_kinds:
         raise ValueError(f"candidate kind counts must be {expected_kinds[0]} assetBundles / {expected_kinds[1]} resources")
