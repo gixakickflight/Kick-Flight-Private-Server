@@ -23,6 +23,9 @@ SNAPSHOT = "12346-r5"
 SOURCE_REVISION = 44
 WIRE_REVISION = 45
 BASE64 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+MODEL_SNAPSHOT = "12346-r6"
+MODEL_SOURCE_REVISION = 45
+MODEL_WIRE_REVISION = 46
 
 
 def file_hashes(path: Path) -> tuple[int, str, str, int]:
@@ -235,6 +238,108 @@ def build_catalog(base: dict, audit: dict, report: dict, *, android_manifest: di
     return catalog, payload_paths
 
 
+def build_model_catalog(base: dict, report: dict, *, android_coverage: dict,
+                        source_root: Path) -> tuple[dict, dict[str, Path]]:
+    """Append verified Android player-model conversions to the immutable r5 catalog."""
+    if (base.get("assetVersion"), base.get("platform"), base.get("revision")) != (12346, 9, 44):
+        raise ValueError("model base must be the pinned iOS 12346/platform-9/revision-44 catalog")
+    if len(base.get("resources", [])) != 2036:
+        raise ValueError("model base must contain exactly the 2,036-row r5 catalog")
+    kind_counts = {kind: sum(row.get("kind") == kind for row in base["resources"])
+                   for kind in ("assetBundle", "resource")}
+    if kind_counts != {"assetBundle": 1831, "resource": 205}:
+        raise ValueError(f"r5 catalog kind counts changed: {kind_counts}")
+    if (report.get("expected_count") != 216 or len(report.get("converted", [])) != 216 or
+            report.get("rejected") or report.get("summary", {}).get("converted") != 216 or
+            report.get("summary", {}).get("rejected") != 0):
+        raise ValueError("model report must contain the fully validated 216-bundle batch")
+
+    sources = {row["name"]: row for row in android_coverage.get("androidEntries", [])
+               if re.fullmatch(r"player/pc_\d+/pc_\d+_\d+\.unity3d", row.get("name", ""))
+               and not row.get("iosPresentInManifest")}
+    if len(sources) != 216:
+        raise ValueError(f"Android coverage must contain exactly 216 missing player routes, found {len(sources)}")
+
+    rows: list[dict] = []
+    payload_paths: dict[str, Path] = {}
+    occupied_ids: set[str] = set()
+    occupied_names: set[str] = set()
+    occupied_paths: set[str] = set()
+    for base_row in base["resources"]:
+        row = dict(base_row)
+        logical_name = row["logicalName"]
+        source_path = source_root / row["sourcePath"]
+        size, sha, md5, crc = file_hashes(source_path)
+        if (size, sha, md5, crc) != (row["bytes"], row["sha256"], row["md5"], row["crc32"]):
+            raise ValueError(f"r5 payload checksum mismatch: {logical_name}")
+        relative = payload_relpath(sha, int(row["octoId"]))
+        row["sourcePath"] = f".local/ios-resources/{MODEL_SNAPSHOT}/payload/{relative}"
+        if relative in payload_paths:
+            raise ValueError(f"duplicate r5 payload path: {relative}")
+        payload_paths[relative] = source_path
+        rows.append(row)
+        occupied_ids.add(row["requestPath"].rsplit("/", 1)[-1])
+        occupied_names.add(logical_name)
+        occupied_paths.add(row["sourcePath"])
+
+    added_names: set[str] = set()
+    for item in sorted(report["converted"], key=lambda row: row["logical_name"]):
+        logical_name = item["logical_name"]
+        if not re.fullmatch(r"player/pc_\d+/pc_\d+_\d+\.unity3d", logical_name):
+            raise ValueError(f"refusing non-player model output: {logical_name}")
+        if logical_name not in sources:
+            raise ValueError(f"converted model is absent from the audited Android coverage: {logical_name}")
+        if logical_name in occupied_names or logical_name in added_names:
+            raise ValueError(f"duplicate logical name: {logical_name}")
+        evidence = sources[logical_name]
+        if (item.get("source_sha256") != evidence.get("androidExpectedSha256") or
+                item.get("source_target_platform") != 13 or item.get("output_target_platform") != 9 or
+                item.get("unity_version") != "2018.4.11f1"):
+            raise ValueError(f"model conversion evidence mismatch: {logical_name}")
+        source = Path(item["output_path"])
+        size, sha, md5, crc = file_hashes(source)
+        if (size, sha) != (item["output_bytes"], item["output_sha256"]):
+            raise ValueError(f"converted output checksum mismatch: {logical_name}")
+        candidate = evidence.get("androidObjectName", "")
+        if not re.fullmatch(r"[0-9A-Za-z]{6}", candidate) or candidate in occupied_ids:
+            candidate = id_from_digest(logical_name, occupied_ids)
+        occupied_ids.add(candidate)
+        octo_id = len(rows) + 1
+        relative = payload_relpath(sha, octo_id)
+        source_path = f".local/ios-resources/{MODEL_SNAPSHOT}/payload/{relative}"
+        if relative in payload_paths or source_path in occupied_paths:
+            raise ValueError(f"duplicate model payload path: {relative}")
+        rows.append({
+            "bytes": size,
+            "contentType": "application/octet-stream",
+            "crc32": crc,
+            "description": "Target-9 iOS model bundle reconstructed from verified Android source",
+            "enabled": True,
+            "host": "kick-flight-fenix.us.ci",
+            "id": f"ios-octo-A-{candidate}",
+            "kind": "assetBundle",
+            "logicalName": logical_name,
+            "md5": md5,
+            "octoId": octo_id,
+            "octoName": logical_name,
+            "requestPath": f"/ios/cdn/{candidate}",
+            "sha256": sha,
+            "sourcePath": source_path,
+        })
+        payload_paths[relative] = source
+        occupied_names.add(logical_name)
+        occupied_paths.add(source_path)
+        added_names.add(logical_name)
+
+    counts = {kind: sum(row.get("kind") == kind for row in rows) for kind in ("assetBundle", "resource")}
+    if len(rows) != 2252 or len(payload_paths) != 2252 or counts != {"assetBundle": 2047, "resource": 205}:
+        raise ValueError(f"r6 expected 2,252 rows (2,047 assetBundles / 205 resources); got {len(rows)} / {counts}")
+    catalog = {key: value for key, value in base.items() if key != "resources"}
+    catalog["revision"] = MODEL_SOURCE_REVISION
+    catalog["resources"] = rows
+    return catalog, payload_paths
+
+
 def write_archive(catalog_bytes: bytes, payload_paths: dict[str, Path], archive_path: Path) -> None:
     archive_path.parent.mkdir(parents=True, exist_ok=True)
     with archive_path.open("wb") as raw:
@@ -261,40 +366,56 @@ def write_archive(catalog_bytes: bytes, payload_paths: dict[str, Path], archive_
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-catalog", type=Path, required=True)
-    parser.add_argument("--ios-audit", type=Path, required=True)
-    parser.add_argument("--conversion-report", type=Path, required=True)
-    parser.add_argument("--android-catalog", type=Path, required=True)
+    parser.add_argument("--ios-audit", type=Path)
+    parser.add_argument("--conversion-report", type=Path)
+    parser.add_argument("--model-conversion-report", type=Path,
+                        help="validated 216-model conversion report; builds additive 12346-r6")
+    parser.add_argument("--android-catalog", type=Path)
     parser.add_argument("--android-coverage", type=Path, required=True)
     parser.add_argument("--source-root", type=Path, required=True)
     parser.add_argument("--assets-root", type=Path)
-    parser.add_argument("--android-audit", type=Path, required=True)
+    parser.add_argument("--android-audit", type=Path)
     parser.add_argument("--manifest-out", type=Path, required=True)
     parser.add_argument("--archive-out", type=Path, required=True)
     args = parser.parse_args()
     base = json.loads(args.base_catalog.read_text(encoding="utf-8"))
-    audit = json.loads(args.ios_audit.read_text(encoding="utf-8"))
-    report = json.loads(args.conversion_report.read_text(encoding="utf-8"))
-    android_manifest = json.loads(args.android_catalog.read_text(encoding="utf-8-sig"))
     android_coverage = json.loads(args.android_coverage.read_text(encoding="utf-8"))
-    catalog, payloads = build_catalog(
-        base, audit, report, android_manifest=android_manifest, android_coverage=android_coverage,
-        source_root=args.source_root, assets_root=args.assets_root, android_audit=args.android_audit)
+    if args.model_conversion_report:
+        model_report = json.loads(args.model_conversion_report.read_text(encoding="utf-8"))
+        catalog, payloads = build_model_catalog(
+            base, model_report, android_coverage=android_coverage, source_root=args.source_root)
+        snapshot, wire_revision = MODEL_SNAPSHOT, MODEL_WIRE_REVISION
+    else:
+        missing = [name for name, value in (("--ios-audit", args.ios_audit),
+                    ("--conversion-report", args.conversion_report),
+                    ("--android-catalog", args.android_catalog),
+                    ("--android-audit", args.android_audit)) if value is None]
+        if missing:
+            parser.error("UI snapshot mode requires " + ", ".join(missing))
+        audit = json.loads(args.ios_audit.read_text(encoding="utf-8"))
+        report = json.loads(args.conversion_report.read_text(encoding="utf-8"))
+        android_manifest = json.loads(args.android_catalog.read_text(encoding="utf-8-sig"))
+        catalog, payloads = build_catalog(
+            base, audit, report, android_manifest=android_manifest, android_coverage=android_coverage,
+            source_root=args.source_root, assets_root=args.assets_root, android_audit=args.android_audit)
+        snapshot, wire_revision = SNAPSHOT, WIRE_REVISION
     rows = catalog["resources"]
+    expected_kinds = (2047, 205) if args.model_conversion_report else (1831, 205)
     if (sum(row["kind"] == "assetBundle" for row in rows),
-            sum(row["kind"] == "resource" for row in rows)) != (1831, 205):
-        raise ValueError("candidate kind counts must be 1,831 assetBundles / 205 resources")
+            sum(row["kind"] == "resource" for row in rows)) != expected_kinds:
+        raise ValueError(f"candidate kind counts must be {expected_kinds[0]} assetBundles / {expected_kinds[1]} resources")
     manifest_bytes = (json.dumps(catalog, indent=2, ensure_ascii=False) + "\n").encode()
     args.manifest_out.parent.mkdir(parents=True, exist_ok=True)
     args.manifest_out.write_bytes(manifest_bytes)
     write_archive(manifest_bytes, payloads, args.archive_out)
     digest = hashlib.sha256(args.archive_out.read_bytes()).hexdigest()
     print(json.dumps({
-        "snapshot": SNAPSHOT,
-        "source_revision": SOURCE_REVISION,
-        "wire_revision": WIRE_REVISION,
+        "snapshot": snapshot,
+        "source_revision": catalog["revision"],
+        "wire_revision": wire_revision,
         "rows": len(rows),
-        "assetBundles": 1831,
-        "resources": 205,
+        "assetBundles": expected_kinds[0],
+        "resources": expected_kinds[1],
         "payload_bytes": sum(row["bytes"] for row in rows),
         "archive_bytes": args.archive_out.stat().st_size,
         "archive_sha256": digest,
