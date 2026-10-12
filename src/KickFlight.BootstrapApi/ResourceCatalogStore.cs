@@ -46,7 +46,10 @@ public sealed class ResourceCatalogStore
 {
     public const int IosAssetPlatform = 9;
     public const int IosAssetVersion = 12346;
+    // The immutable source catalog remains revision 41. Wire revision 42 forces
+    // clients that cached the incomplete rev-41 database to fetch the corrected list.
     public const int IosCatalogRevision = 41;
+    public const int IosWireRevision = 42;
     public const int IosExpectedResourceCount = 493;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
