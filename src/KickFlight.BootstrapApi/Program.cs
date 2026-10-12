@@ -264,7 +264,7 @@ app.MapMethods("/{**path}", new[] { "GET", "POST", "PUT", "PATCH", "DELETE", "HE
             {
                 var fromRevisionText = requestPath[(requestPath.LastIndexOf('/') + 1)..];
                 if (!int.TryParse(fromRevisionText, out var fromRevision) ||
-                    fromRevision is < 0 or > ResourceCatalogStore.IosCatalogRevision)
+                    fromRevision is < 0 or > ResourceCatalogStore.IosWireRevision)
                     return Results.Json(new { error = "unsupported-ios-catalog-revision" }, statusCode: StatusCodes.Status404NotFound);
                 var database = IosOctoDatabase.Build(resourceStore.GetIosSnapshot(), fromRevision);
                 return new LocalFixtureResult(database, "application/x-protobuf", StatusCodes.Status200OK);

@@ -1,6 +1,7 @@
 # Isolated iOS resource catalog
 
-The iOS profile uses asset version **12346**, platform **9**, and Octo revision **41**. Its immutable payload tree is
+The iOS profile uses asset version **12346**, platform **9**, source-catalog revision **41**, and wire database revision
+**42**. Its immutable payload tree is
 `/opt/kickflight/.local/ios-resources/12346-r2` on the VPS; the tracked manifest is
 `src/KickFlight.BootstrapApi/catalog-ios-12346.json`. The staged `catalog.json` must be byte-identical to that
 manifest (`SHA-256 002375c82ab288b2cfad515fd41d57b1ae501033e41ddac01e8cbabcb7863e8d`). The catalog enumerates 493
@@ -10,10 +11,13 @@ archive is `12346-r2.tar.gz` (`SHA-256 951e6e7419ccae575d4aa03c234a5064a0b7e826c
 
 An iOS boot request is selected only for a direct-client `POST /boot/index` carrying
 `x-app-asset-platform: 2`; its D2C body changes the existing boot response's `assetVersion` to 12346. The forced-update
-gate remains earlier in the request path. Requests to `/v1/list/12346/{fromRevision}` are built from the pinned catalog:
-revisions 0 through 40 receive all 493 rows (ADD from 0, UPDATE otherwise), while revision 41 receives the revision and
-the CDN URL only. The original nullable Octo name remains absent on the wire; `logicalName` is only a server-side
-diagnostic label. The database points to `https://kick-flight-fenix.us.ci/ios/cdn/{o}`.
+gate remains earlier in the request path. Requests to `/v1/list/12346/{fromRevision}` are built from the pinned catalog.
+Revisions 0 through 41 receive all 493 rows (ADD from 0, UPDATE otherwise); revision 42 receives only the revision and
+CDN URL. The catalog still records the original nullable Octo name for `12Cxc3` as null. Its explicitly reviewed
+server fallback `resource/12Cxc3` is placed in the Octo wire `filepath` and `name` fields so the client can safely key
+its database update; all other rows use their original Octo names. Wire revision 42 forces clients that may have cached
+the earlier incomplete revision 41 to request the corrected full list. The database points to
+`https://kick-flight-fenix.us.ci/ios/cdn/{o}`.
 
 The API image publishes the small iOS catalog manifest and platform-2 boot fixture beside its binaries. Runtime defaults
 resolve those files from `AppContext.BaseDirectory`; the VPS container mounts `.local`, `config`, and `content` under

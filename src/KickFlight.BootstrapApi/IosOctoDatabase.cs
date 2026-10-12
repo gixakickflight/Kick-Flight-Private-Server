@@ -12,12 +12,12 @@ public static class IosOctoDatabase
             snapshot.Revision != ResourceCatalogStore.IosCatalogRevision ||
             snapshot.Resources.Count != ResourceCatalogStore.IosExpectedResourceCount || snapshot.Errors.Count != 0)
             throw new InvalidDataException("The iOS Octo database requires the complete pinned native catalog.");
-        if (fromRevision is < 0 or > ResourceCatalogStore.IosCatalogRevision)
+        if (fromRevision is < 0 or > ResourceCatalogStore.IosWireRevision)
             throw new ArgumentOutOfRangeException(nameof(fromRevision));
 
         var output = new List<byte>();
-        WriteVarintField(output, 1, ResourceCatalogStore.IosCatalogRevision);
-        if (fromRevision < ResourceCatalogStore.IosCatalogRevision)
+        WriteVarintField(output, 1, ResourceCatalogStore.IosWireRevision);
+        if (fromRevision < ResourceCatalogStore.IosWireRevision)
         {
             var state = fromRevision == 0 ? 1 : 2;
             var rows = snapshot.Resources.OrderBy(resource => resource.Definition.RequestPath, StringComparer.Ordinal).ToArray();
@@ -35,17 +35,18 @@ public static class IosOctoDatabase
     private static byte[] EncodeData(ResourceDefinition resource, int id, int state)
     {
         var name = resource.OctoName;
+        if (name is null && resource.Id == "ios-octo-R-12Cxc3" &&
+            resource.Kind == "resource" && resource.LogicalName == "resource/12Cxc3")
+            name = resource.LogicalName;
         var objectName = resource.RequestPath[(resource.RequestPath.LastIndexOf('/') + 1)..];
-        if (string.IsNullOrWhiteSpace(objectName) || resource.Bytes is null || resource.Md5 is null || resource.Crc32 is null)
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(objectName) ||
+            resource.Bytes is null || resource.Md5 is null || resource.Crc32 is null)
             throw new InvalidDataException($"iOS catalog row {resource.Id} is missing Octo wire metadata.");
 
         var data = new List<byte>();
         WriteVarintField(data, 1, checked((ulong)id));
-        if (name is not null)
-        {
-            WriteStringField(data, 2, name);
-            WriteStringField(data, 3, name);
-        }
+        WriteStringField(data, 2, name);
+        WriteStringField(data, 3, name);
         WriteVarintField(data, 4, checked((ulong)resource.Bytes.Value));
         WriteVarintField(data, 5, resource.Crc32.Value);
         WriteVarintField(data, 7, 1);

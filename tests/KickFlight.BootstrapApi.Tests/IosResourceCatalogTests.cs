@@ -71,8 +71,12 @@ public sealed class IosResourceCatalogTests : IClassFixture<ServerTestHostFixtur
         Assert.Equal(androidBootJson.ToJsonString(), iosBootJson.ToJsonString());
 
         var initial = await GetListAsync(0);
-        Assert.Equal(41, ReadDatabaseRevision(initial));
+        Assert.Equal(42, ReadDatabaseRevision(initial));
         var initialRows = ReadDatabaseRows(initial);
+        var wireNames = initialRows.Select(row => Encoding.UTF8.GetString(ReadBytesField(row.Payload, 3))).ToArray();
+        Assert.Equal(493, wireNames.Length);
+        Assert.All(wireNames, name => Assert.False(string.IsNullOrWhiteSpace(name)));
+        Assert.Equal(493, wireNames.Distinct(StringComparer.Ordinal).Count());
         Assert.Equal(440, initialRows.Count(row => row.Field == 2));
         Assert.Equal(53, initialRows.Count(row => row.Field == 4));
         Assert.All(initialRows, row => Assert.Equal(1UL, ReadVarintField(row.Payload, 9)));
@@ -84,10 +88,20 @@ public sealed class IosResourceCatalogTests : IClassFixture<ServerTestHostFixtur
         Assert.All(updateRows, row => Assert.Equal(2UL, ReadVarintField(row.Payload, 9)));
         var namelessNativeResource = updateRows.Single(row => row.Field == 4 &&
             Encoding.UTF8.GetString(ReadBytesField(row.Payload, 11)) == "12Cxc3");
-        Assert.DoesNotContain(2, ReadFields(namelessNativeResource.Payload).Select(field => field.Number));
-        Assert.DoesNotContain(3, ReadFields(namelessNativeResource.Payload).Select(field => field.Number));
+        Assert.Equal("resource/12Cxc3", Encoding.UTF8.GetString(ReadBytesField(namelessNativeResource.Payload, 2)));
+        Assert.Equal("resource/12Cxc3", Encoding.UTF8.GetString(ReadBytesField(namelessNativeResource.Payload, 3)));
 
-        var current = await GetListAsync(41);
+        // Revision 41 may already be cached by a client that applied the old list incompletely.
+        var rev41 = await GetListAsync(41);
+        Assert.Equal(42, ReadDatabaseRevision(rev41));
+        var rev41Rows = ReadDatabaseRows(rev41);
+        Assert.Equal(493, rev41Rows.Count);
+        Assert.All(rev41Rows, row => Assert.Equal(2UL, ReadVarintField(row.Payload, 9)));
+        var rev41NamelessNativeResource = rev41Rows.Single(row => row.Field == 4 &&
+            Encoding.UTF8.GetString(ReadBytesField(row.Payload, 11)) == "12Cxc3");
+        Assert.Equal("resource/12Cxc3", Encoding.UTF8.GetString(ReadBytesField(rev41NamelessNativeResource.Payload, 3)));
+
+        var current = await GetListAsync(42);
         Assert.Empty(ReadDatabaseRows(current));
         Assert.Equal("https://kick-flight-fenix.us.ci/ios/cdn/{o}", ReadDatabaseUrl(current));
 
