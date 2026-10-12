@@ -1,22 +1,22 @@
 # Isolated iOS resource catalog
 
-The iOS profile uses asset version **12346**, platform **9**, source-catalog revision **41**, and wire database revision
-**42**. Its immutable payload tree is
-`/opt/kickflight/.local/ios-resources/12346-r2` on the VPS; the tracked manifest is
+The iOS profile uses asset version **12346**, platform **9**, source-catalog revision **43**, and wire database revision
+**44**. Its immutable payload tree is `/opt/kickflight/.local/ios-resources/12346-r4` on the VPS; the tracked manifest is
 `src/KickFlight.BootstrapApi/catalog-ios-12346.json`. The staged `catalog.json` must be byte-identical to that
-manifest (`SHA-256 002375c82ab288b2cfad515fd41d57b1ae501033e41ddac01e8cbabcb7863e8d`). The catalog enumerates 493
-raw objects from the pinned 2.11.0 iOS IPA: 440 AssetBundles and 53 resources, totaling 238,014,682 payload bytes.
-Bundle inventory reports Unity 2018.4.11f1, target platform 9, and all direct dependencies present. The content-addressed
-archive is `12346-r2.tar.gz` (`SHA-256 951e6e7419ccae575d4aa03c234a5064a0b7e826c6c06b58cf774b40677171a3`).
+manifest (see the pinned SHA in `IosResourceCatalogTests`). The catalog preserves the 494 previously served rows and
+adds seven FLD00301 scene/fielddata/itemdata bundles as IDs 495–501. The scene candidate is a static target-9 conversion
+with two Unity-built dual-API shader objects. Its six companion data bundles retain their serialized objects and
+typetrees. This addition does not imply that every scene or asset in the game is iOS-compatible.
 
 An iOS boot request is selected only for a direct-client `POST /boot/index` carrying
 `x-app-asset-platform: 2`; its D2C body changes the existing boot response's `assetVersion` to 12346. The forced-update
 gate remains earlier in the request path. Requests to `/v1/list/12346/{fromRevision}` are built from the pinned catalog.
-Revisions 0 through 41 receive all 493 rows (ADD from 0, UPDATE otherwise); revision 42 receives only the revision and
-CDN URL. The catalog still records the original nullable Octo name for `12Cxc3` as null. Its explicitly reviewed
+Revisions 0 through 43 receive all 501 rows (ADD from 0, UPDATE otherwise); revision 44 receives only the revision and
+CDN URL. Rows 1–494 keep their previously served IDs and wire data; the new field bundles use IDs 495–501. The catalog
+still records the original nullable Octo name for `12Cxc3` as null. Its explicitly reviewed
 server fallback `resource/12Cxc3` is placed in the Octo wire `filepath` and `name` fields so the client can safely key
-its database update; all other rows use their original Octo names. Wire revision 42 forces clients that may have cached
-the earlier incomplete revision 41 to request the corrected full list. The database points to
+its database update; all other rows use their original Octo names. Wire revision 44 forces clients that may have cached
+an earlier catalog revision to request the complete additive field set. The database points to
 `https://kick-flight-fenix.us.ci/ios/cdn/{o}`.
 
 The API image publishes the small iOS catalog manifest and platform-2 boot fixture beside its binaries. Runtime defaults
@@ -26,9 +26,11 @@ the host checkout layout. The focused test pins both published-file hashes.
 
 `GET /ios/cdn/{objectName}` reads only the iOS resource snapshot. A missing, partial, checksum-mismatched, or wrong-version
 snapshot fails closed; the server does not fall back to Android `/cdn` resources. Android asset version 12345 and its
-fixtures and routes remain separate. `/health/ready` reports `iosCatalogReady`; stage the complete r2 tree before selecting
-the iOS boot profile. The API validates the manifest identity, 493-row 440/53 kind counts, each payload SHA-256/MD5/CRC32
-and size before enabling the profile.
+fixtures and routes remain separate. `/health/ready` reports `iosCatalogReady`; stage the complete r4 tree before selecting
+the iOS boot profile. The API validates the manifest identity, 501-row 448/53 kind counts, each payload SHA-256/MD5/CRC32
+and size before enabling the profile. The seven new source assets are static candidates: target-9 serialization and
+shader compilation were checked, but loading FLD00301, visible rendering, gameplay, and pixel parity were not validated
+in PlayCover or on iOS hardware.
 
 This is a static payload and routing validation. It does not establish iOS runtime compatibility or that all game assets
 needed by every scene exist in the source IPA.
