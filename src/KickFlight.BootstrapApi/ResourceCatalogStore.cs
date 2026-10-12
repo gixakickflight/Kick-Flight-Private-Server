@@ -31,6 +31,8 @@ public sealed class ResourceDefinition
     public long? Bytes { get; init; }
     public string? Md5 { get; init; }
     public uint? Crc32 { get; init; }
+    /// <summary>Stable server-assigned Octo row ID; it is not an original native catalog identifier.</summary>
+    public int? OctoId { get; init; }
 }
 
 public sealed record ResolvedResource(ResourceDefinition Definition, string SourceFile);
@@ -46,11 +48,11 @@ public sealed class ResourceCatalogStore
 {
     public const int IosAssetPlatform = 9;
     public const int IosAssetVersion = 12346;
-    // The immutable source catalog remains revision 41. Wire revision 42 forces
-    // clients that cached the incomplete rev-41 database to fetch the corrected list.
-    public const int IosCatalogRevision = 41;
-    public const int IosWireRevision = 42;
-    public const int IosExpectedResourceCount = 493;
+    // Source catalog revision 42 adds the Ability master. Wire revision 43 forces
+    // clients to fetch the additive row while preserving the deployed IDs 1..493.
+    public const int IosCatalogRevision = 42;
+    public const int IosWireRevision = 43;
+    public const int IosExpectedResourceCount = 494;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -164,7 +166,7 @@ public sealed class ResourceCatalogStore
             if (document.SchemaVersion != 1) throw new InvalidDataException($"Unsupported resource catalog schema {document.SchemaVersion}.");
             if (expectIosMetadata && (document.Platform != IosAssetPlatform || document.AssetVersion != IosAssetVersion ||
                                       document.Revision != IosCatalogRevision || document.Resources.Count != IosExpectedResourceCount))
-                throw new InvalidDataException("iOS catalog identity or row count does not match the pinned 12346/revision-41/493-resource profile.");
+                throw new InvalidDataException("iOS catalog identity or row count does not match the pinned 12346/revision-42/494-resource profile.");
             foreach (var definition in document.Resources)
             {
                 try
@@ -210,9 +212,13 @@ public sealed class ResourceCatalogStore
                 .GroupBy(resource => resource.Definition.OctoName, StringComparer.Ordinal)
                 .Where(group => group.Count() > 1).Select(group => group.Key);
             errors.AddRange(octoNames.Select(name => $"Duplicate iOS Octo name: {name}"));
-            if (resources.Count(resource => resource.Definition.Kind == "assetBundle") != 440 ||
+            if (resources.Count(resource => resource.Definition.Kind == "assetBundle") != 441 ||
                 resources.Count(resource => resource.Definition.Kind == "resource") != 53)
-                errors.Add("iOS catalog kind counts do not match the pinned 440 A / 53 R corpus.");
+                errors.Add("iOS catalog kind counts do not match the pinned 441 A / 53 R corpus.");
+            var wireIds = resources.Select(resource => resource.Definition.OctoId).ToArray();
+            if (wireIds.Any(id => id is null || id < 1 || id > IosExpectedResourceCount) ||
+                wireIds.Select(id => id!.Value).Distinct().Count() != IosExpectedResourceCount)
+                errors.Add("iOS catalog wire IDs must be a unique, complete 1..494 sequence.");
         }
         return new ResourceCatalogSnapshot(resources, errors, document?.Platform, document?.AssetVersion, document?.Revision, present);
     }
