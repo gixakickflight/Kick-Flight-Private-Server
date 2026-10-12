@@ -20,20 +20,20 @@ public static class IosOctoDatabase
         if (fromRevision < ResourceCatalogStore.IosWireRevision)
         {
             var state = fromRevision == 0 ? 1 : 2;
-            var rows = snapshot.Resources.OrderBy(resource => resource.Definition.RequestPath, StringComparer.Ordinal).ToArray();
-            var id = 1;
+            var rows = snapshot.Resources.OrderBy(resource => resource.Definition.OctoId).ToArray();
             foreach (var resource in rows.Where(resource => resource.Definition.Kind == "assetBundle"))
-                WriteBytesField(output, 2, EncodeData(resource.Definition, id++, state));
+                WriteBytesField(output, 2, EncodeData(resource.Definition, state));
             WriteStringField(output, 3, "common");
             foreach (var resource in rows.Where(resource => resource.Definition.Kind == "resource"))
-                WriteBytesField(output, 4, EncodeData(resource.Definition, id++, state));
+                WriteBytesField(output, 4, EncodeData(resource.Definition, state));
         }
         WriteStringField(output, 5, "https://kick-flight-fenix.us.ci/ios/cdn/{o}");
         return output.ToArray();
     }
 
-    private static byte[] EncodeData(ResourceDefinition resource, int id, int state)
+    private static byte[] EncodeData(ResourceDefinition resource, int state)
     {
+        var id = resource.OctoId ?? throw new InvalidDataException($"iOS catalog row {resource.Id} has no stable Octo wire ID.");
         var name = resource.OctoName;
         if (name is null && resource.Id == "ios-octo-R-12Cxc3" &&
             resource.Kind == "resource" && resource.LogicalName == "resource/12Cxc3")
