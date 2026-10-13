@@ -111,6 +111,34 @@
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px 10px; }
   label.field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   label.field > .k { font-size: 11px; color: var(--fg2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .field-guided { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .field-guided > .k { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; min-height: 18px; font-size: 11px; color: var(--fg2); }
+  .field-guided > label { font-size: 10px; color: var(--fg2); }
+  .field-guided .friendly-name { min-width: 0; }
+  .field-guided .raw-name { color: #70798b; font: 10px ui-monospace, Consolas, monospace; }
+  .field-guided details { flex: 0 0 auto; }
+  .field-guided .field-help[open] { flex: 1 0 100%; }
+  .field-guided summary { list-style: none; display: inline-flex; align-items: center; justify-content: center;
+    width: 19px; height: 19px; border: 1px solid #67748a; border-radius: 50%; color: var(--fg);
+    background: var(--bg3); cursor: pointer; font: 600 12px/1 system-ui, sans-serif; }
+  .field-guided summary::-webkit-details-marker { display: none; }
+  .field-guided summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .field-guided .help-copy { position: static; width: 100%; max-width: 100%; margin-top: 4px;
+    padding: 9px 10px; border: 1px solid #59657a; border-radius: 6px; background: #10131a; color: var(--fg);
+    font-size: 12px; font-weight: 400; white-space: normal; }
+  .field-guided .help-copy p { margin: 0 0 7px; }
+  .field-guided .help-copy p:last-child { margin-bottom: 0; }
+  .field-guided .help-copy b { color: #c8d8ef; }
+  .field-guided > input[type=number], .field-guided > select { width: 100%; padding: 4px 6px; background: var(--bg); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 4px; font: 12px/1.4 ui-monospace, Consolas, monospace; }
+  .field-guided > input[type=number]:focus, .field-guided > select:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+  .field-guided > input[type=number].dirty, .field-guided > select.dirty { border-color: var(--dirty); background: #2b2415; color: #ffd79a; }
+  .field-guided > input[type=number].invalid { border-color: var(--err); }
+  .field-guided > input[type=checkbox] { width: 15px; height: 15px; margin: 2px 0; accent-color: var(--accent); }
+  .field-guided > input[type=checkbox].dirty { outline: 2px solid var(--dirty); }
+  .field-guided .ro { font: 12px/1.4 ui-monospace, Consolas, monospace; color: var(--fg2); padding: 4px 6px;
+    background: #191c23; border: 1px dashed var(--line); border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .disc-guide { margin: -4px 0 12px; padding: 9px 11px; border-left: 3px solid var(--accent); background: var(--bg2); color: var(--fg2); }
   label.field input[type=number] {
     width: 100%; padding: 4px 6px; background: var(--bg); color: var(--fg);
     border: 1px solid var(--line); border-radius: 4px; font: 12px/1.4 ui-monospace, Consolas, monospace;
@@ -331,6 +359,71 @@ const READONLY_FIELDS = {
     "attackGrowGroupId", "coefficientGrowGroupId", "coolTimeGrowGroupId",
     "releaseDatetime"
   ])
+};
+
+/* Human labels and help for the fields people can edit from a disc detail panel.
+   Raw master keys remain the form/API keys; unknown future fields get an explicit
+   limited explanation instead of a guessed game effect. */
+const DISC_FIELD_GUIDANCE = {
+  "disc.rarityType": ["Rarity", "Rareza", "Selects the disc's rarity category. This is a display/classification value; it does not directly change HP, attack, cooldown, or skill damage.", "Elige la categoría de rareza del disco. Es un dato de clasificación y presentación; no cambia directamente los HP, el ataque, el enfriamiento ni el daño de la habilidad."],
+  "disc.minHp": ["HP · lower growth endpoint", "HP · extremo inferior de crecimiento", "Disc HP value at the lower endpoint of its growth range. The disc's growth group and upgrade level determine the value used in play. Increasing it raises the disc's HP contribution at this endpoint.", "HP del disco en el extremo inferior de su rango de crecimiento. El grupo de crecimiento y el nivel de mejora determinan el valor aplicado en partida. Al aumentarlo, sube la contribución de HP del disco en este extremo."],
+  "disc.maxHp": ["HP · upper growth endpoint", "HP · extremo superior de crecimiento", "Disc HP value at the upper endpoint of its growth range. The disc's growth group and upgrade level determine the value used in play. Increasing it raises the disc's HP contribution at this endpoint.", "HP del disco en el extremo superior de su rango de crecimiento. El grupo de crecimiento y el nivel de mejora determinan el valor aplicado en partida. Al aumentarlo, sube la contribución de HP del disco en este extremo."],
+  "disc.minAttack": ["Attack · lower growth endpoint", "Ataque · extremo inferior de crecimiento", "Disc attack value at the lower endpoint of its growth range. It contributes to the equipped kicker's attack. The growth group and upgrade level determine the value used in play.", "Ataque del disco en el extremo inferior de su rango de crecimiento. Contribuye al ataque del kicker equipado. El grupo de crecimiento y el nivel de mejora determinan el valor aplicado en partida."],
+  "disc.maxAttack": ["Attack · upper growth endpoint", "Ataque · extremo superior de crecimiento", "Disc attack value at the upper endpoint of its growth range. It contributes to the equipped kicker's attack. The growth group and upgrade level determine the value used in play.", "Ataque del disco en el extremo superior de su rango de crecimiento. Contribuye al ataque del kicker equipado. El grupo de crecimiento y el nivel de mejora determinan el valor aplicado en partida."],
+  "disc.minCoefficient": ["Disc skill multiplier · lower endpoint", "Multiplicador de habilidad del disco · extremo inferior", "The game interpolates between the disc coefficient endpoints for its growth rate, then rounds the result down to a whole number. Fractional values can disappear or jump as the disc grows. For fractional per-hit damage multipliers, keep both disc endpoints at 1 and edit Skill → Damage multiplier. Do not include the number of hits here.", "El juego interpola los extremos del coeficiente según el crecimiento del disco y después redondea el resultado hacia abajo a un entero. Los decimales pueden desaparecer o cambiar de golpe al mejorar el disco. Para usar multiplicadores de daño fraccionarios por impacto, deja ambos extremos del disco en 1 y edita Habilidad → Multiplicador de daño. No incluyas aquí la cantidad de impactos."],
+  "disc.maxCoefficient": ["Disc skill multiplier · upper endpoint", "Multiplicador de habilidad del disco · extremo superior", "The game interpolates between the disc coefficient endpoints for its growth rate, then rounds the result down to a whole number. Fractional values can disappear or jump as the disc grows. For fractional per-hit damage multipliers, keep both disc endpoints at 1 and edit Skill → Damage multiplier. Do not include the number of hits here.", "El juego interpola los extremos del coeficiente según el crecimiento del disco y después redondea el resultado hacia abajo a un entero. Los decimales pueden desaparecer o cambiar de golpe al mejorar el disco. Para usar multiplicadores de daño fraccionarios por impacto, deja ambos extremos del disco en 1 y edita Habilidad → Multiplicador de daño. No incluyas aquí la cantidad de impactos."],
+  "disc.minCoolTime": ["Cooldown · lower growth endpoint (seconds)", "Enfriamiento · extremo inferior de crecimiento (segundos)", "Skill recharge time in seconds at the lower endpoint of the disc's growth range. A smaller value lets the player use the disc skill more often. The growth group and upgrade level determine the value used in play.", "Tiempo de recarga de la habilidad en segundos en el extremo inferior del rango de crecimiento del disco. Un valor menor permite usar la habilidad con más frecuencia. El grupo de crecimiento y el nivel de mejora determinan el valor aplicado."],
+  "disc.maxCoolTime": ["Cooldown · upper growth endpoint (seconds)", "Enfriamiento · extremo superior de crecimiento (segundos)", "Skill recharge time in seconds at the upper endpoint of the disc's growth range. A smaller value lets the player use the disc skill more often. The growth group and upgrade level determine the value used in play.", "Tiempo de recarga de la habilidad en segundos en el extremo superior del rango de crecimiento del disco. Un valor menor permite usar la habilidad con más frecuencia. El grupo de crecimiento y el nivel de mejora determinan el valor aplicado."],
+  "skill.skillType": ["Skill owner/type", "Tipo de habilidad", "Classifies the skill as a disc skill, kicker skill, or guardian skill. Changing the class can make the client look for different data and behavior; keep the value appropriate for this disc.", "Clasifica la habilidad como habilidad de disco, de kicker o de guardián. Si cambias la categoría, el cliente puede buscar datos y comportamientos distintos; conserva el valor que corresponde a este disco."],
+  "skill.skillActionType": ["Action behavior", "Comportamiento de la acción", "Chooses the game's action handler, such as shot, dash, trap, or warp. Changing it can alter how the skill behaves; unsupported actions or actions without the required game animation data can leave the skill unusable. Use only a verified compatible action.", "Elige el controlador de acción del juego, por ejemplo disparo, embestida, trampa o teletransporte. Cambiarlo puede alterar el comportamiento; una acción no compatible o sin los datos de animación requeridos puede dejar la habilidad inutilizable. Usa solo una acción cuya compatibilidad esté verificada."],
+  "skill.skillCategoryType": ["Skill category", "Categoría de habilidad", "Classifies the skill as attack, heal, buff, trap, warp, or move. This category can affect how the client presents or handles the skill; it does not by itself define damage or add an effect.", "Clasifica la habilidad como ataque, curación, mejora, trampa, teletransporte o movimiento. Esta categoría puede afectar cómo el cliente presenta o procesa la habilidad; por sí sola no define el daño ni añade un efecto."],
+  "skill.targetAreaType": ["Target preview shape", "Forma de la zona de objetivo", "Chooses the shape shown by the aiming/target preview. It does not create or resize the skill's actual hitboxes, which come from the game's action data.", "Elige la forma que muestra la vista previa de objetivo. No crea ni cambia el tamaño de las zonas de impacto reales, que provienen de los datos de acción del juego."],
+  "skill.attributeType": ["Element/attribute", "Elemento/atributo", "Sets the skill's attribute classification (none, fire, water, or wind). The exact combat consequences depend on the client systems that read this field; this setting alone does not guarantee a damage bonus.", "Establece la clasificación de atributo de la habilidad (ninguno, fuego, agua o viento). Sus consecuencias exactas dependen de los sistemas del cliente que consultan este dato; cambiarlo por sí solo no garantiza una bonificación de daño."],
+  "skill.coolTime": ["Skill cooldown (seconds)", "Enfriamiento de la habilidad (segundos)", "Time in seconds before this disc skill can be used again. Lowering it allows more frequent uses, subject to the in-game action and other restrictions.", "Tiempo en segundos antes de poder volver a usar esta habilidad de disco. Reducirlo permite usarla con más frecuencia, sujeto a la acción del juego y otras restricciones."],
+  "skill.range": ["Skill range (game units)", "Alcance de la habilidad (unidades del juego)", "Distance used by the skill action where that action reads range. Increasing it can extend reach or an area, but not every action uses this value and it does not resize timeline hitboxes.", "Distancia que usa la acción de habilidad cuando consulta el alcance. Aumentarla puede extender el alcance o un área, pero algunas acciones no usan este valor y no cambia las zonas de impacto de la animación."],
+  "skill.speed": ["Skill speed (game units/second)", "Velocidad de habilidad (unidades del juego/segundo)", "Speed used by projectile or movement actions that read this field. Increasing it makes those projectiles or movements faster; actions that do not read speed are unaffected.", "Velocidad usada por acciones de proyectil o movimiento que consultan este dato. Al aumentarla, esos proyectiles o movimientos son más rápidos; las acciones que no lo consultan no cambian."],
+  "skill.coefficient": ["Damage multiplier", "Multiplicador de daño", "For damage actions, this multiplies the kicker's attack for each hit or damage tick. For example, 0.5 means half of attack per hit before other modifiers. The animation timeline controls how many hits occur: do not multiply this value by the hit count. This is the place to keep fractional per-hit values; the disc coefficient is rounded down to an integer.", "En acciones de daño, multiplica el ataque del kicker en cada impacto o tick de daño. Por ejemplo, 0.5 equivale a la mitad del ataque por impacto antes de otros modificadores. La animación determina cuántos impactos ocurren: no multipliques este valor por esa cantidad. Aquí se conservan decimales por impacto; el coeficiente del disco se redondea hacia abajo a un entero."],
+  "skill_condition.conditionType": ["Condition effect", "Efecto de condición", "Selects the status effect to apply, such as an attack/speed change, poison, damage over time, stun, or healing over time. The meaning of Effect value depends on this choice; some conditions ignore that value.", "Elige el estado que se aplica, como cambio de ataque/velocidad, veneno, daño periódico, aturdimiento o curación periódica. El significado de Valor del efecto depende de esta opción; algunos estados ignoran ese valor."],
+  "skill_condition.duration": ["Effect duration (seconds)", "Duración del efecto (segundos)", "How long the status effect remains active. A shorter duration reduces its window; the client may end some effects early when a character is interrupted or another action removes them.", "Cuánto tiempo permanece activo el estado. Una duración menor reduce ese periodo; el cliente puede terminar algunos efectos antes si un personaje recibe una interrupción o si otra acción los elimina."],
+  "skill_condition.interval": ["Tick interval (seconds)", "Intervalo entre ticks (segundos)", "Time between repeated damage or healing ticks. Zero means a one-time application for supported effects. The number of ticks also depends on duration and the effect's client behavior.", "Tiempo entre ticks repetidos de daño o curación. Cero significa una sola aplicación en los efectos compatibles. La cantidad de ticks también depende de la duración y del comportamiento del efecto en el cliente."],
+  "skill_condition.effectValue": ["Effect value", "Valor del efecto", "The amount or multiplier used by the selected condition. Its meaning varies: attack/speed/damage-rate conditions use a multiplier; poison uses a fraction of the target's maximum HP per tick; damage-over-time uses a fraction of the setter's attack per tick; regeneration uses a fraction of maximum HP per tick. Stun, paralysis, and silence ignore this number.", "Cantidad o multiplicador que usa la condición elegida. Su significado cambia: condiciones de ataque/velocidad/daño usan un multiplicador; veneno usa una fracción del HP máximo del objetivo por tick; daño periódico usa una fracción del ataque del aplicador por tick; regeneración usa una fracción del HP máximo por tick. Aturdimiento, parálisis y silencio ignoran este número."],
+  "skill_condition.triggerType": ["When and to whom it applies", "Cuándo y a quién se aplica", "Controls when the condition is applied: on a hit, when the caster executes the skill, or when a team enters a trap. Execute conditions are only applied by supported action types; attack discs do not apply Execute rows. A trigger that the action never sends has no effect.", "Controla cuándo se aplica la condición: al impactar, cuando el usuario ejecuta la habilidad o cuando un equipo entra en una trampa. Solo ciertos tipos de acción aplican condiciones Execute; los discos de ataque no las aplican. Un disparador que la acción nunca envía no produce efecto."],
+  "skill_heal.skillHealType": ["Healing/resource effect", "Efecto de curación/recurso", "Selects what the row does: restore HP, add boost gauge, heal from damage dealt, drain special-skill gauge, or cleanse conditions. The coefficient's unit depends on this choice.", "Elige qué hace la fila: restaurar HP, añadir medidor de impulso, curar según el daño causado, drenar el medidor de habilidad especial o eliminar condiciones. La unidad del coeficiente depende de esta opción."],
+  "skill_heal.coefficient": ["Healing/resource amount", "Cantidad de curación/recurso", "Meaning depends on Healing/resource effect: HP and damage-drain types use a fraction (0.5 = 50%); Boost Gauge uses coefficient × 120 points; SP Drain steals up to coefficient × 100 points, capped by the target's SP. Condition cleansing uses the selected type and does not use this as a percentage.", "El significado depende del Efecto de curación/recurso: HP y drenaje de daño usan una fracción (0.5 = 50%); Medidor de impulso usa coeficiente × 120 puntos; Drenaje de SP roba hasta coeficiente × 100 puntos, limitado por el SP del objetivo. La limpieza de condiciones depende del tipo elegido y no usa este valor como porcentaje."],
+  "skill_blow_off.directionType": ["Knockback direction", "Dirección del empuje", "Chooses how a target is displaced: up launches, down slams, and attack direction pushes from the attacker toward the target. The action's animation and blow-off support determine the visible result.", "Elige cómo se desplaza el objetivo: arriba lo lanza, abajo lo azota contra el suelo y dirección del ataque lo empuja del atacante hacia el objetivo. La animación y el soporte de empuje de la acción determinan el resultado visible."],
+  "skill_blow_off.distance": ["Knockback distance", "Distancia del empuje", "Controls how far the target is pushed or launched. The client/generator applies action-specific scaling, and rush-pursuit skills have a special interpretation; changing it may also change a Move Attack from piercing to pursuit behavior.", "Controla cuánto se empuja o lanza al objetivo. El cliente/generador aplica escalas según la acción y las embestidas de persecución tienen una interpretación especial; cambiarlo también puede cambiar un Ataque de embestida de perforación a persecución."],
+  "skill_blow_off.speed": ["Knockback speed", "Velocidad del empuje", "Speed of the target's displacement, in game movement units per second where supported. Higher values make the push happen faster; the action may apply its own limits.", "Velocidad del desplazamiento del objetivo, en unidades de movimiento del juego por segundo cuando se admite. Un valor mayor hace que el empuje ocurra más rápido; la acción puede aplicar sus propios límites."],
+  "skill_blow_off.rigorTime": ["Stagger after landing (seconds)", "Aturdimiento tras caer (segundos)", "Stagger time after the target lands from the knockback. The game applies action-specific scaling, so the entered value may not equal the final on-screen duration exactly.", "Tiempo de aturdimiento cuando el objetivo cae tras el empuje. El juego aplica escalas según la acción, así que el valor escrito puede no coincidir exactamente con la duración visible final."],
+  "skill_pull_in.distance": ["Pull distance", "Distancia de atracción", "How far the target is pulled toward the skill user. This is ignored when the same skill also has a blow-off row.", "Hasta dónde se atrae al objetivo hacia quien usa la habilidad. Se ignora si la misma habilidad también tiene una fila de empuje."],
+  "skill_pull_in.speed": ["Pull speed", "Velocidad de atracción", "How quickly the target moves toward the skill user. The action's movement and interruption rules still apply.", "Qué tan rápido se mueve el objetivo hacia quien usa la habilidad. Siguen aplicándose las reglas de movimiento e interrupción de la acción."],
+  "skill_trap.trapType": ["Trap behavior", "Comportamiento de la trampa", "Selects the trap behavior (for example slow, turret, decoy, bomb, or condition trap). The action must support the chosen behavior and have the related effect rows/assets.", "Elige el comportamiento de la trampa (por ejemplo ralentización, torreta, señuelo, bomba o condición). La acción debe admitir ese comportamiento y tener las filas/recursos relacionados."],
+  "skill_trap.duration": ["Trap duration / fuse (seconds)", "Duración/mecha de trampa (segundos)", "Usually the trap lifetime or time until it activates. Many disc traps rebuild this data from the APK animation timeline, so this server value can be only a fallback. Jay's bomb uses the served duration as its fuse.", "Normalmente es la duración de la trampa o el tiempo hasta que se activa. Muchas trampas de disco reconstruyen estos datos desde la animación del APK, así que este valor del servidor puede ser solo un respaldo. La bomba de Jay usa la duración servida como mecha."],
+  "skill_trap.radius": ["Trap radius (game units)", "Radio de la trampa (unidades del juego)", "Radius used by trap behaviors that read this field. Many disc traps take their radius from the APK animation timeline; Jay's bomb uses this served value for its blast radius.", "Radio usado por los comportamientos de trampa que consultan este dato. Muchas trampas de disco toman el radio de la animación del APK; la bomba de Jay usa este valor servido como radio de explosión."],
+  "skill_trap.effectValue": ["Trap effect strength", "Intensidad del efecto de trampa", "Meaning depends on trap type and effect. For a Slow trap, 0.5 means movement at half speed. Other traps may interpret it differently or ignore it.", "El significado depende del tipo de trampa y del efecto. En una trampa de ralentización, 0.5 significa movimiento a la mitad de velocidad. Otras trampas pueden interpretarlo de otra forma o ignorarlo."],
+  "skill_trap.interval": ["Trap tick/expansion interval (seconds)", "Intervalo de ticks/expansión de trampa (segundos)", "Time spacing used by trap behaviors that repeat, tick, or expand. The exact meaning depends on the trap; Jay's bomb uses it for blast expansion time.", "Intervalo de tiempo usado por trampas que repiten, aplican ticks o se expanden. El significado depende de la trampa; la bomba de Jay lo usa para el tiempo de expansión de la explosión."],
+  "skill_trap.executeSeId": ["Activation sound cue ID", "ID del sonido de activación", "CRI ADX sound cue played on trap activation. Zero is silent; an unknown cue ID may play no sound. This does not change the trap's combat effect.", "Identificador de sonido CRI ADX que se reproduce al activar la trampa. Cero es silencio; un identificador desconocido puede no reproducir sonido. No cambia el efecto de combate de la trampa."],
+  "skill_trap.effectPath": ["Trap visual effect resource", "Recurso visual de la trampa", "Resource bundle path for the trap's visual effect, without a file extension. The bundle must already be loaded during the battle or the effect may not appear. Jay's bomb reads this path for its explosion effect.", "Ruta del paquete de recursos del efecto visual de la trampa, sin extensión de archivo. El paquete debe estar cargado durante la batalla o el efecto podría no aparecer. La bomba de Jay consulta esta ruta para la explosión."],
+  "skill_trap.screenEffectPath": ["Screen effect resource", "Recurso de efecto de pantalla", "Resource bundle path for a screen-wide effect shown to a player who enters the trap, without a file extension. The bundle must be loaded by the battle; an unavailable path may show nothing.", "Ruta del recurso de un efecto de pantalla completa que ve quien entra en la trampa, sin extensión. El paquete debe estar cargado en la batalla; una ruta no disponible puede no mostrar nada."],
+  "skill_collision.collisionType": ["Hit shape", "Forma de impacto", "Selects the collision volume shape: box, sphere, capsule, or cylinder. This table is read by guardian turret beams only (Skill type Guardian); disc and kicker hitboxes come from the APK action data, so changing this row does not change a disc's hit shape.", "Elige la forma del volumen de impacto: caja, esfera, cápsula o cilindro. Esta tabla solo la usan los rayos de torretas guardianas (tipo de habilidad Guardián); las zonas de impacto de discos y kickers vienen de los datos de acción del APK, así que esta fila no cambia la forma de impacto de un disco."],
+  "skill_collision.collisionHitType": ["Who can be hit / repeat hits", "Objetivos e impactos repetidos", "Controls whether the collision hits one target, all targets, or can hit again/count hits according to the selected mode. This table is guardian-beam-only; disc hit behavior comes from the APK action data.", "Controla si la colisión golpea a un objetivo, a todos o puede volver a golpear/contar impactos según el modo. Esta tabla solo se usa en rayos guardianes; el comportamiento de impacto de discos viene de los datos de acción del APK."],
+  "skill_collision.hitLayer": ["Target layer mask", "Máscara de capas objetivo", "Unity layer mask that filters which kinds of objects the collision can hit. The shipped value 4864 (0x1300) includes players and guardians. This table is only read for guardian turret beams; it does not filter disc hitboxes.", "Máscara de capas de Unity que filtra qué tipos de objetos puede golpear la colisión. El valor usado por el juego, 4864 (0x1300), incluye jugadores y guardianes. Esta tabla solo se consulta para rayos de torretas guardianas; no filtra los impactos de discos."],
+  "skill_collision.radius": ["Collision radius (game units)", "Radio de colisión (unidades del juego)", "Base radius of the guardian beam's collision volume where the selected shape uses a radius. Larger values widen the volume. Disc collision sizes are defined in the APK action data, so this value does not resize a disc hitbox.", "Radio base del volumen de colisión del rayo guardián cuando la forma elegida usa radio. Un valor mayor ensancha el volumen. El tamaño de colisión de los discos se define en los datos de acción del APK, así que este valor no cambia una zona de impacto de disco."],
+  "skill_collision.length": ["Collision length (game units)", "Longitud de colisión (unidades del juego)", "Length used by capsule and cylinder collision shapes. Increasing it lengthens the guardian beam's collision volume. Disc collision shapes come from the APK action data.", "Longitud usada por las formas de colisión cápsula y cilindro. Al aumentarla, se alarga el volumen de colisión del rayo guardián. Las formas de colisión de discos vienen de los datos de acción del APK."],
+  "skill_collision.originCenterFlag": ["Center collision at origin", "Centrar colisión en el origen", "Controls placement of the collision relative to its origin. For Box and Sphere, false starts the volume at the kicker's front. This table is guardian-beam-only; disc placement is in the APK action data.", "Controla la posición de la colisión con respecto a su origen. En Caja y Esfera, false hace que el volumen comience delante del kicker. Esta tabla solo se usa en rayos guardianes; la posición de los discos está en los datos de acción del APK."],
+  "skill_collision.scaleX": ["Collision width scale (X)", "Escala de ancho de colisión (X)", "Dimensionless scale applied to the collision volume on its X axis: 1 keeps the base size, larger values expand it, and smaller values shrink it. Only affects guardian beam collision data; disc sizes come from the APK.", "Escala sin unidad aplicada al volumen de colisión en el eje X: 1 conserva el tamaño base, valores mayores lo amplían y menores lo reducen. Solo afecta los datos de colisión del rayo guardián; el tamaño de los discos viene del APK."],
+  "skill_collision.scaleY": ["Collision height scale (Y)", "Escala de altura de colisión (Y)", "Dimensionless scale applied to the collision volume on its Y axis: 1 keeps the base size, larger values expand it, and smaller values shrink it. Only affects guardian beam collision data; disc sizes come from the APK.", "Escala sin unidad aplicada al volumen de colisión en el eje Y: 1 conserva el tamaño base, valores mayores lo amplían y menores lo reducen. Solo afecta los datos de colisión del rayo guardián; el tamaño de los discos viene del APK."],
+  "skill_collision.scaleZ": ["Collision depth scale (Z)", "Escala de profundidad de colisión (Z)", "Dimensionless scale applied to the collision volume on its Z axis: 1 keeps the base size, larger values expand it, and smaller values shrink it. Only affects guardian beam collision data; disc sizes come from the APK.", "Escala sin unidad aplicada al volumen de colisión en el eje Z: 1 conserva el tamaño base, valores mayores lo amplían y menores lo reducen. Solo afecta los datos de colisión del rayo guardián; el tamaño de los discos viene del APK."],
+  "skill_hit.commonHitEffectType": ["Common impact visual", "Efecto visual común de impacto", "Selects the built-in impact effect size/style (none, common, slash, blow, or gun). An explicit Effect resource path can supply a separate visual. SkillHit rows are used for guardian beams only; disc impact effects come from the APK action data.", "Elige el estilo/tamaño del efecto de impacto integrado (ninguno, común, corte, golpe o disparo). Una ruta de recurso de efecto explícita puede aportar otro efecto visual. Las filas SkillHit solo se usan en rayos guardianes; los efectos de impacto de discos vienen de los datos de acción del APK."],
+  "skill_hit.hitSeId": ["Impact sound cue ID", "ID del sonido de impacto", "CRI ADX sound cue played when the hit connects. Zero is silent; an unknown cue may play no sound. This value is for guardian skill hits; disc sounds are in the APK action data.", "Identificador de sonido CRI ADX que se reproduce al conectar el impacto. Cero es silencio; un identificador desconocido puede no reproducir sonido. Este valor es para impactos de habilidades guardianas; los sonidos de disco están en los datos de acción del APK."],
+  "skill_hit.effectPath": ["Impact effect resource", "Recurso de efecto de impacto", "Optional resource bundle path for a custom impact effect, without a file extension. Leave empty to use the common hit effect/default. The resource must be loaded in battle. This table is only used for guardian beams, not disc hit effects.", "Ruta opcional del paquete de recursos para un efecto de impacto personalizado, sin extensión de archivo. Déjala vacía para usar el efecto común/predeterminado. El recurso debe estar cargado en batalla. Esta tabla solo se usa en rayos guardianes, no en los efectos de impacto de discos."],
+  "skill_hit.parentBone": ["Effect attachment point", "Punto de unión del efecto", "Selects the character bone/anchor to attach the hit effect to (for example head, hand, or common origin). The visible placement can also depend on the effect transform and offsets. SkillHit is guardian-beam-only; disc effects use APK action data.", "Elige el hueso/ancla del personaje al que se une el efecto de impacto (por ejemplo cabeza, mano u origen común). La posición visible también depende de la transformación y los desplazamientos. SkillHit solo se usa en rayos guardianes; los efectos de disco usan datos de acción del APK."],
+  "skill_hit.offsetX": ["Effect offset (X)", "Desplazamiento del efecto (X)", "Moves the hit effect along the X axis from its selected attachment/transform origin. It changes visual placement, not damage or hitbox size. This table is only read for guardian beams.", "Desplaza el efecto de impacto en el eje X desde el origen de unión/transformación seleccionado. Cambia la posición visual, no el daño ni el tamaño de impacto. Esta tabla solo se consulta para rayos guardianes."],
+  "skill_hit.offsetY": ["Effect offset (Y)", "Desplazamiento del efecto (Y)", "Moves the hit effect along the Y axis from its selected attachment/transform origin. It changes visual placement, not damage or hitbox size. This table is only read for guardian beams.", "Desplaza el efecto de impacto en el eje Y desde el origen de unión/transformación seleccionado. Cambia la posición visual, no el daño ni el tamaño de impacto. Esta tabla solo se consulta para rayos guardianes."],
+  "skill_hit.offsetZ": ["Effect offset (Z)", "Desplazamiento del efecto (Z)", "Moves the hit effect along the Z axis from its selected attachment/transform origin. It changes visual placement, not damage or hitbox size. This table is only read for guardian beams.", "Desplaza el efecto de impacto en el eje Z desde el origen de unión/transformación seleccionado. Cambia la posición visual, no el daño ni el tamaño de impacto. Esta tabla solo se consulta para rayos guardianes."],
+  "skill_hit.transformType": ["Effect coordinate space", "Espacio de coordenadas del efecto", "Chooses the coordinate space used to place the effect. The documented value 0 is World. Other values should only be used when their meaning has been verified. SkillHit is guardian-beam-only.", "Elige el espacio de coordenadas para colocar el efecto. El valor documentado 0 es Mundo. Usa otros valores solo cuando su significado esté verificado. SkillHit solo se usa en rayos guardianes."],
+  "skill_hit.shakeVolume": ["Camera shake strength (0–1)", "Intensidad de vibración de cámara (0–1)", "Controls camera-shake strength for the impact; the documented scale is 0 to 1. It changes feedback, not damage. This table only affects guardian skill hits.", "Controla la intensidad de la vibración de cámara al impactar; la escala documentada va de 0 a 1. Cambia la respuesta visual, no el daño. Esta tabla solo afecta impactos de habilidades guardianas."],
+  "skill_hit.knockBackFlag": ["Apply hit knockback", "Aplicar empuje al impactar", "Enables or disables the hit's ordinary knockback response. It does not set the knockback distance; the action's hit data controls that. SkillHit rows are used for guardian beams only, not disc skills.", "Activa o desactiva la respuesta normal de empuje del impacto. No define la distancia del empuje; eso depende de los datos de impacto de la acción. SkillHit solo se usa en rayos guardianes, no en habilidades de disco."],
+  "skill_hit.fixedDamage": ["Fixed damage override", "Daño fijo", "0 uses the skill's attack × coefficient damage. Values of 1 or more are documented as fixed damage for player hits. This field's behavior against guardian targets is not verified; leave it at 0 unless you have confirmed a specific guardian use. This table is not used by disc skills.", "0 usa daño de ataque de la habilidad × coeficiente. Los valores de 1 o más están documentados como daño fijo contra jugadores. No está verificado cómo se comporta este campo contra guardianes; déjalo en 0 salvo que hayas confirmado un uso específico. Esta tabla no se usa en habilidades de disco."]
 };
 
 const RARITY_LABELS = { "0": "N", "1": "R", "2": "SR", "3": "UR" };
@@ -748,7 +841,10 @@ function makeSection(title, table, rows, options) {
     return section;
   }
   for (const row of rows) {
-    section.appendChild(renderRow(table, row, opts.deletable ? { deletable: true } : null));
+    section.appendChild(renderRow(table, row, {
+      deletable: !!opts.deletable,
+      fieldGuidance: !!opts.fieldGuidance
+    }));
   }
   return section;
 }
@@ -779,25 +875,54 @@ function renderRow(table, row, options) {
   const grid = el("div", { class: "grid" });
   for (const key of Object.keys(row)) {
     if (LINK_FIELDS.has(key)) continue;
-    grid.appendChild(renderField(table, row, key, row[key]));
+    grid.appendChild(renderField(table, row, key, row[key], opts.fieldGuidance));
   }
   wrap.appendChild(grid);
   return wrap;
 }
 
-function renderField(table, row, key, value) {
+function renderField(table, row, key, value, fieldGuidance) {
   const mode = fieldMode(table, key, value);
-  const label = el("label", { class: "field " + mode });
-  label.appendChild(el("span", { class: "k" }, key));
+  const verifiedGuidance = fieldGuidance ? DISC_FIELD_GUIDANCE[table + "." + key] : null;
+  const useGuidance = !!verifiedGuidance || (!!fieldGuidance && mode !== "readonly");
+  const guidance = verifiedGuidance || (useGuidance ? [
+    key, key,
+    "No verified field-specific explanation is available for this value. The panel preserves the raw master key and value; check the source master documentation before changing it.",
+    "No hay una explicación verificada para este campo. El panel conserva la clave y el valor originales; consulta la documentación de los maestros antes de cambiarlo."
+  ] : null);
+  const label = el(useGuidance ? "div" : "label", {
+    class: (useGuidance ? "field-guided " : "field ") + mode
+  });
+  let inputId = "";
+  if (useGuidance) {
+    inputId = "disc-field-" + table + "-" + row.id + "-" + key;
+    const heading = el("div", { class: "k" });
+    heading.appendChild(el("span", { class: "friendly-name" }, guidance[0] + " / " + guidance[1]));
+    heading.appendChild(el("code", { class: "raw-name" }, key));
+    const details = el("details", { class: "field-help" });
+    const summary = el("summary", { "aria-label": "Help / Ayuda: " + guidance[0] + " / " + guidance[1] }, "?");
+    const copy = el("div", { class: "help-copy" });
+    copy.appendChild(el("p", null, guidance[2]));
+    copy.appendChild(el("p", null, guidance[3]));
+    details.append(summary, copy);
+    heading.appendChild(details);
+    label.appendChild(heading);
+  } else {
+    label.appendChild(el("span", { class: "k" }, key));
+  }
 
   if (mode === "number") {
-    const input = el("input", { type: "number", step: "any", value: formatValue(value) });
+    const inputAttrs = { type: "number", step: "any", value: formatValue(value) };
+    if (useGuidance) inputAttrs.id = inputId;
+    const input = el("input", inputAttrs);
+    if (useGuidance) input.setAttribute("aria-label", guidance[0] + " / " + guidance[1] + " — Value / Valor");
     input.dataset.table = table;
     input.dataset.rowId = String(row.id);
     input.dataset.field = key;
     if (typeof value === "number" && Number.isInteger(value)) input.dataset.int = "1";
     input.addEventListener("input", onFieldInput);
     state.inputs.set(fieldKey(table, row.id, key), input);
+    if (useGuidance) label.appendChild(el("label", { for: inputId }, "Value / Valor"));
     label.appendChild(input);
     return label;
   }
@@ -806,7 +931,8 @@ function renderField(table, row, key, value) {
        integer. A current value the registry does not know keeps its own option, so it is
        shown and preserved (never silently changed to a known value). */
     const values = enumValues(enumNameFor(table, key)) || {};
-    const select = el("select");
+    const select = el("select", useGuidance ? { id: inputId } : null);
+    if (useGuidance) select.setAttribute("aria-label", guidance[0] + " / " + guidance[1] + " — Value / Valor");
     const current = Number(value);
     const ids = Object.keys(values).map(Number).filter(function (id) {
       return Number.isFinite(id);
@@ -824,17 +950,22 @@ function renderField(table, row, key, value) {
     select.dataset.int = "1";
     select.addEventListener("change", onFieldInput);
     state.inputs.set(fieldKey(table, row.id, key), select);
+    if (useGuidance) label.appendChild(el("label", { for: inputId }, "Value / Valor"));
     label.appendChild(select);
     return label;
   }
   if (mode === "bool") {
-    const input = el("input", { type: "checkbox" });
+    const inputAttrs = { type: "checkbox" };
+    if (useGuidance) inputAttrs.id = inputId;
+    const input = el("input", inputAttrs);
+    if (useGuidance) input.setAttribute("aria-label", guidance[0] + " / " + guidance[1] + " — Enabled / Activado");
     input.checked = value === true;
     input.dataset.table = table;
     input.dataset.rowId = String(row.id);
     input.dataset.field = key;
     input.addEventListener("change", onFieldInput);
     state.inputs.set(fieldKey(table, row.id, key), input);
+    if (useGuidance) label.appendChild(el("label", { for: inputId }, "Enabled / Activado"));
     label.appendChild(input);
     return label;
   }
@@ -1076,6 +1207,9 @@ function renderDiscPanel(panel, disc) {
     " · " + (disc.type || "type ?") + " · " + (disc.attribute || "attribute ?") +
     " · skillId " + disc.skillId));
 
+  panel.appendChild(el("p", { class: "disc-guide" },
+    "Field names are shown in English and Spanish; raw master keys remain unchanged. Open ? with a click, tap, or keyboard to read what the value affects. / Los nombres aparecen en inglés y español; las claves originales se conservan. Abre ? con clic, toque o teclado para ver qué cambia el valor. Damage multipliers are per hit; the animation sets the number of hits. / Los multiplicadores de daño son por impacto; la animación define cuántos impactos hay. Note: Collision and Hit rows below are read only by guardian turret skills; they do not change a disc's hitboxes or impact effects, which come from the APK action data. / Nota: las filas Collision y Hit de abajo solo se usan en habilidades de torreta guardiana; no cambian las zonas ni los efectos de impacto de un disco, que vienen de los datos de acción del APK."));
+
   const effect = el("section", { class: "sec" });
   const effectHead = el("h2");
   effectHead.appendChild(el("span", { class: "t" }, "Card text"));
@@ -1086,15 +1220,16 @@ function renderDiscPanel(panel, disc) {
 
   panel.appendChild(makeSection("Disc", "disc",
     rowsOf("disc").filter(function (r) { return r.id === disc.id; }),
-    { empty: "no masters_disc row for this disc" }));
+    { empty: "no masters_disc row for this disc", fieldGuidance: true }));
 
   const skillRows = rowsOf("skill").filter(function (r) { return r.id === disc.skillId; });
   panel.appendChild(makeSection("Skill", "skill", skillRows,
-    { empty: "no masters_skill row for skillId " + disc.skillId }));
+    { empty: "no masters_skill row for skillId " + disc.skillId, fieldGuidance: true }));
   for (const table of KS_EXTRA_TABLES) {
     const rows = rowsOf(table).filter(function (r) { return r.skillId === disc.skillId; });
     panel.appendChild(makeSection("Skill extra · " + table, table, rows, {
       addable: true, deletable: true, linkField: "skillId", linkValue: disc.skillId,
+      fieldGuidance: true,
       empty: "no " + table + " rows for skillId " + disc.skillId
     }));
   }
