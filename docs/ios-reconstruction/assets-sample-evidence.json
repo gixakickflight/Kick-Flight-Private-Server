@@ -1,0 +1,334 @@
+{
+  "schema_version": 1,
+  "purpose": "Metadata-only evidence from bounded UnityPy loads; converted assets are excluded from this tracked report.",
+  "unitypy_version": "1.25.4",
+  "samples": [
+    {
+      "role": "player_model",
+      "logical_asset": "player/pc_001/pc_001_001.unity3d",
+      "source_bundle": "41613732347465_adae1f0320b9466e949548c5bb0e9412.bundle",
+      "source_sha256": "c6adf4560e548aa18433b146ddec3c92c11a573fff1350052a7628eb8559b153",
+      "reconstructed_sha256": "8b51f1e9b50281e4a486bb0e5e699cc5ea5c787cf374b9c5d99c4ee6dd8f0237",
+      "repair_operations": [
+        "block_count.byte[3]"
+      ],
+      "bundle": {
+        "signature": "UnityFS",
+        "format_version": 6,
+        "unity_engine_version": "2018.4.11f1",
+        "unity_player_version": "5.x.x"
+      },
+      "type_counts": {
+        "AimConstraint": 4,
+        "Animator": 1,
+        "AssetBundle": 1,
+        "Avatar": 1,
+        "GameObject": 82,
+        "Material": 3,
+        "Mesh": 1,
+        "MonoBehaviour": 37,
+        "MonoScript": 6,
+        "RotationConstraint": 1,
+        "SkinnedMeshRenderer": 1,
+        "Texture2D": 2,
+        "Transform": 82
+      },
+      "assetbundle_entries": [
+        {
+          "container_key": "assets/colorful/assetbundleresources/player/pc_001/pc_001_001.prefab",
+          "asset_path_id": -3175402012603940997,
+          "asset_file_id": 0,
+          "preload_index": 0,
+          "preload_size": 222
+        }
+      ],
+      "selected_objects": [
+        {
+          "type": "GameObject",
+          "name": "pc_001_001",
+          "path_id": -3175402012603940997
+        },
+        {
+          "type": "Mesh",
+          "name": "Body",
+          "path_id": -8532162523508074706
+        },
+        {
+          "type": "Avatar",
+          "name": "pc_md_001_001Avatar",
+          "path_id": -8036704766835381610
+        },
+        {
+          "type": "Texture2D",
+          "name": "pc_tx_001_001",
+          "path_id": -4139148273349630068
+        },
+        {
+          "type": "Texture2D",
+          "name": "pc_tx_001_001_ma",
+          "path_id": -3118687714725277169
+        }
+      ]
+    },
+    {
+      "role": "player_animation",
+      "logical_asset": "player/pc_001/animator/pc_001_101.unity3d",
+      "source_bundle": "41574836485435_a02304a0d54c0630f1e32eaceefe78e7.bundle",
+      "source_sha256": "73ff940d08d80969367956dbbd69de6c00caafd467e7b4141a6f8d38252591d1",
+      "reconstructed_sha256": "2b1ee8b8a85e31df874e58c7dec796c37fab0f4ee93c4446c43839cb4eb55e9b",
+      "repair_operations": [
+        "block_count.byte[3]"
+      ],
+      "bundle": {
+        "signature": "UnityFS",
+        "format_version": 6,
+        "unity_engine_version": "2018.4.11f1",
+        "unity_player_version": "5.x.x"
+      },
+      "type_counts": {
+        "AnimationClip": 53,
+        "AnimatorController": 1,
+        "AssetBundle": 1
+      },
+      "assetbundle_entries": [
+        {
+          "container_key": "assets/colorful/assetbundleresources/player/pc_001/animator/pc_001_101.controller",
+          "asset_path_id": 1356045599687751025,
+          "asset_file_id": 0,
+          "preload_index": 0,
+          "preload_size": 54
+        }
+      ],
+      "selected_objects": [
+        {
+          "type": "AnimatorController",
+          "name": "pc_001_101",
+          "path_id": 1356045599687751025
+        },
+        {
+          "type": "AnimationClip",
+          "name": "pc_ma_001_01_000",
+          "path_id": 425403394359121847
+        },
+        {
+          "type": "AnimationClip",
+          "name": "pc_ma_001_01_001",
+          "path_id": -5292871199606751999
+        },
+        {
+          "type": "AnimationClip",
+          "name": "pc_ba_001_01_000",
+          "path_id": 7357771863800664482
+        }
+      ]
+    },
+    {
+      "role": "field_scene",
+      "logical_asset": "field/fld00101.unity3d",
+      "source_bundle": "41334B61587037_93e6ac410f852bf8271b5e1323537a37.bundle",
+      "source_sha256": "563113cc4168fbc3ae4826f2aeae36ca879a2eb3fc3d4afc971d9ee45cf68fb6",
+      "reconstructed_sha256": "197db7eaf355ecd85051dc0e9d88772acd2da26720891f4bdfd486729aa496ff",
+      "repair_operations": [
+        "block_count.byte[2]"
+      ],
+      "bundle": {
+        "signature": "UnityFS",
+        "format_version": 6,
+        "unity_engine_version": "2018.4.11f1",
+        "unity_player_version": "5.x.x"
+      },
+      "type_counts": {
+        "AssetBundle": 1,
+        "Cubemap": 2,
+        "GameObject": 105,
+        "Light": 1,
+        "LightProbes": 1,
+        "LightmapSettings": 1,
+        "Material": 9,
+        "Mesh": 5,
+        "MeshCollider": 4,
+        "MeshFilter": 10,
+        "MeshRenderer": 8,
+        "MonoBehaviour": 29,
+        "MonoScript": 4,
+        "PreloadData": 1,
+        "RenderSettings": 1,
+        "Shader": 3,
+        "TextAsset": 28,
+        "Texture2D": 16,
+        "Transform": 105
+      },
+      "assetbundle_entries": [
+        {
+          "container_key": "Assets/Colorful/AssetBundleResources/Field/FLD00101.unity",
+          "asset_path_id": 0,
+          "asset_file_id": 0,
+          "preload_index": 0,
+          "preload_size": 0
+        }
+      ],
+      "selected_objects": [
+        {
+          "type": "GameObject",
+          "name": "FLD00101",
+          "path_id": 22
+        },
+        {
+          "type": "GameObject",
+          "name": "PlayerPositions",
+          "path_id": 61
+        },
+        {
+          "type": "GameObject",
+          "name": "TeamA",
+          "path_id": 36
+        },
+        {
+          "type": "GameObject",
+          "name": "TeamB",
+          "path_id": 60
+        },
+        {
+          "type": "GameObject",
+          "name": "RouteManager",
+          "path_id": 94
+        },
+        {
+          "type": "Mesh",
+          "name": "base",
+          "path_id": 30
+        },
+        {
+          "type": "Mesh",
+          "name": "barrier",
+          "path_id": 29
+        }
+      ]
+    },
+    {
+      "role": "field_data",
+      "logical_asset": "field/fielddata/fld00101_1.unity3d",
+      "source_bundle": "41573863326957_625c4fde8d5c68383138fbfba0f257a9.bundle",
+      "source_sha256": "5d9d7baf334b9e59f240ac1c3dace1a8ca17252425817a46e2687d1b012feb46",
+      "reconstructed_sha256": "919b119619173b46c6d9326f45194bb17bbb9b58b5432f5aded58068eb9826c0",
+      "repair_operations": [
+        "block_count.byte[3]",
+        "node_count.byte[3]"
+      ],
+      "bundle": {
+        "signature": "UnityFS",
+        "format_version": 6,
+        "unity_engine_version": "2018.4.11f1",
+        "unity_player_version": "5.x.x"
+      },
+      "type_counts": {
+        "AssetBundle": 1,
+        "MonoBehaviour": 1,
+        "MonoScript": 1
+      },
+      "assetbundle_entries": [
+        {
+          "container_key": "assets/colorful/assetbundleresources/field/fielddata/fld00101_1.asset",
+          "asset_path_id": 1178985482387323329,
+          "asset_file_id": 0,
+          "preload_index": 0,
+          "preload_size": 2
+        }
+      ],
+      "selected_objects": [
+        {
+          "type": "MonoBehaviour",
+          "name": "FLD00101_1",
+          "path_id": 1178985482387323329
+        }
+      ]
+    },
+    {
+      "role": "minimap",
+      "logical_asset": "ui/minimap/mim00101_0.unity3d",
+      "source_bundle": "416656616A4778_18e42e8c6c57fa40d261ab0d6b057202.bundle",
+      "source_sha256": "134bd03a966b0f9723b435252d68927f3a4f63e72ad65e1721906af726ad9a58",
+      "reconstructed_sha256": "be097546804e7588e1b86d284543f79c8d82bcc188b8fb802bd78d494e3cce34",
+      "repair_operations": [
+        "compressed_blocks_info.byte[5]"
+      ],
+      "bundle": {
+        "signature": "UnityFS",
+        "format_version": 6,
+        "unity_engine_version": "2018.4.11f1",
+        "unity_player_version": "5.x.x"
+      },
+      "type_counts": {
+        "AssetBundle": 1,
+        "Sprite": 1,
+        "Texture2D": 1
+      },
+      "assetbundle_entries": [
+        {
+          "container_key": "assets/colorful/assetbundleresources/ui/minimap/mim00101_0.png",
+          "asset_path_id": 7701104790705455973,
+          "asset_file_id": 0,
+          "preload_index": 0,
+          "preload_size": 2
+        },
+        {
+          "container_key": "assets/colorful/assetbundleresources/ui/minimap/mim00101_0.png",
+          "asset_path_id": -6643719785748625495,
+          "asset_file_id": 0,
+          "preload_index": 0,
+          "preload_size": 2
+        }
+      ],
+      "selected_objects": [
+        {
+          "type": "Texture2D",
+          "name": "mim00101_0",
+          "path_id": 7701104790705455973
+        },
+        {
+          "type": "Sprite",
+          "name": "mim00101_0",
+          "path_id": -6643719785748625495
+        }
+      ]
+    }
+  ],
+  "pc001_view_export": {
+    "source_bundle": "41613732347465_adae1f0320b9466e949548c5bb0e9412.bundle",
+    "source_sha256": "c6adf4560e548aa18433b146ddec3c92c11a573fff1350052a7628eb8559b153",
+    "reconstructed_sha256": "8b51f1e9b50281e4a486bb0e5e699cc5ea5c787cf374b9c5d99c4ee6dd8f0237",
+    "exports": [
+      {
+        "unity_type": "Mesh",
+        "name": "Body",
+        "path_id": -8532162523508074706,
+        "output_format": "Wavefront OBJ",
+        "output_size": 589021,
+        "output_sha256": "d93395ddab9afa0438507329f4cb11a011fa226e0550e3b59df45bea9327e1d3",
+        "width": null,
+        "height": null
+      },
+      {
+        "unity_type": "Texture2D",
+        "name": "pc_tx_001_001",
+        "path_id": -4139148273349630068,
+        "output_format": "PNG",
+        "output_size": 466996,
+        "output_sha256": "ff766195ebb41dbcd94caa69f14e4e02309c672ef3d3a3e18c2257e693204b1f",
+        "width": 1024,
+        "height": 1024
+      },
+      {
+        "unity_type": "Texture2D",
+        "name": "pc_tx_001_001_ma",
+        "path_id": -3118687714725277169,
+        "output_format": "PNG",
+        "output_size": 5314,
+        "output_sha256": "12484dc6f6e376c2a528b1790f0270b84b1c98afd486b1dfb5cae217dc26197a",
+        "width": 512,
+        "height": 512
+      }
+    ],
+    "output_files_are_local_ignored_artifacts": true
+  }
+}

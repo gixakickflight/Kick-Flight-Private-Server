@@ -1,0 +1,63 @@
+; Colorful.DiscParameterUtil$$CalcCoefficient @ 0x1638520
+0x1638520  eb2bbb6d  stp     d11, d10, [sp, #-0x50]!
+0x1638524  e923016d  stp     d9, d8, [sp, #0x10]
+0x1638528  f51300f9  str     x21, [sp, #0x20]
+0x163852C  f44f03a9  stp     x20, x19, [sp, #0x30]
+0x1638530  fd7b04a9  stp     x29, x30, [sp, #0x40]
+0x1638534  fd030191  add     x29, sp, #0x40
+0x1638538  958401d0  adrp    x21, #0x46ca000
+0x163853C  a8567039  ldrb    w8, [x21, #0xc15]
+0x1638540  f30301aa  mov     x19, x1
+0x1638544  f40300aa  mov     x20, x0
+0x1638548  e8000037  tbnz    w8, #0, #0x1638564
+0x163854C  687101b0  adrp    x8, #0x4465000
+0x1638550  085546f9  ldr     x8, [x8, #0xca8]    ; -> 0x4465CA8
+0x1638554  000140b9  ldr     w0, [x8]
+0x1638558  2ec6ee97  bl      #0x11e9e10
+0x163855C  e8030032  mov     w8, #1
+0x1638560  a8563039  strb    w8, [x21, #0xc15]
+0x1638564  b30000b4  cbz     x19, #0x1638578
+0x1638568  740100b4  cbz     x20, #0x1638594
+0x163856C  8aa6492d  ldp     s10, s9, [x20, #0x4c]
+0x1638570  481daa4e  mov     v8.16b, v10.16b
+0x1638574  13000014  b       #0x16385c0
+0x1638578  fd7b44a9  ldp     x29, x30, [sp, #0x40]
+0x163857C  f44f43a9  ldp     x20, x19, [sp, #0x30]
+0x1638580  f51340f9  ldr     x21, [sp, #0x20]
+0x1638584  e923416d  ldp     d9, d8, [sp, #0x10]
+0x1638588  e0031f2a  mov     w0, wzr
+0x163858C  eb2bc56c  ldp     d11, d10, [sp], #0x50
+0x1638590  c0035fd6  ret
+0x1638594  e0031faa  mov     x0, xzr
+0x1638598  156fef97  bl      #0x12141ec
+0x163859C  94098052  mov     w20, #0x4c
+0x16385A0  880240bd  ldr     s8, [x20]
+0x16385A4  e0031faa  mov     x0, xzr
+0x16385A8  116fef97  bl      #0x12141ec
+0x16385AC  080a8052  mov     w8, #0x50
+0x16385B0  090140bd  ldr     s9, [x8]
+0x16385B4  e0031faa  mov     x0, xzr
+0x16385B8  0d6fef97  bl      #0x12141ec
+0x16385BC  8a0240bd  ldr     s10, [x20]
+0x16385C0  686e01d0  adrp    x8, #0x4406000
+0x16385C4  08c545f9  ldr     x8, [x8, #0xb88]    ; -> 0x4406B88
+0x16385C8  6b1e40bd  ldr     s11, [x19, #0x1c]
+0x16385CC  000140f9  ldr     x0, [x8]
+0x16385D0  089c4439  ldrb    w8, [x0, #0x127]
+0x16385D4  88000836  tbz     w8, #1, #0x16385e4
+0x16385D8  08d840b9  ldr     w8, [x0, #0xd8]
+0x16385DC  48000035  cbnz    w8, #0x16385e4
+0x16385E0  e0faee97  bl      #0x11f7160
+0x16385E4  68df00d0  adrp    x8, #0x3226000
+0x16385E8  00414ebd  ldr     s0, [x8, #0xe40]    ; -> 0x3226E40
+0x16385EC  21392a1e  fsub    s1, s9, s10
+0x16385F0  21082b1e  fmul    s1, s1, s11
+0x16385F4  fd7b44a9  ldp     x29, x30, [sp, #0x40]
+0x16385F8  2018201e  fdiv    s0, s1, s0
+0x16385FC  0029201e  fadd    s0, s8, s0
+0x1638600  f44f43a9  ldp     x20, x19, [sp, #0x30]
+0x1638604  f51340f9  ldr     x21, [sp, #0x20]
+0x1638608  e923416d  ldp     d9, d8, [sp, #0x10]
+0x163860C  e0031faa  mov     x0, xzr
+0x1638610  eb2bc56c  ldp     d11, d10, [sp], #0x50
+0x1638614  c3bd3614  b       #0x23e7d20    ; UnityEngine.Mathf$$FloorToInt

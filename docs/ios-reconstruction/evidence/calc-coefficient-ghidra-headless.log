@@ -1,0 +1,196 @@
+openjdk version "25.0.4.1" 2026-08-18
+OpenJDK Runtime Environment (Red_Hat-25.0.4.1.1-1) (build 25.0.4.1+1)
+OpenJDK 64-Bit Server VM (Red_Hat-25.0.4.1.1-1) (build 25.0.4.1+1, mixed mode)
+INFO  Using log config file: jar:file:/home/gixarde3/.local/share/ghidra/ghidra_12.1.4_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml (LoggingInitialization)
+INFO  Using log file: /home/gixarde3/.config/ghidra/ghidra_12.1.4_PUBLIC/application.log (LoggingInitialization)
+INFO  Loading user preferences: /home/gixarde3/.config/ghidra/ghidra_12.1.4_PUBLIC/preferences (Preferences)
+INFO  Searching for classes... (ClassSearcher)
+INFO  Class search complete (791 ms) (ClassSearcher)
+INFO  Initializing SSL Context (DefaultSSLContextInitializer)
+INFO  Initializing Random Number Generator... (SecureRandomFactory)
+INFO  Random Number Generator initialization complete: NativePRNGNonBlocking (SecureRandomFactory)
+INFO  Trust manager disabled, cacerts have not been set (DefaultTrustManagerFactory)
+INFO  Headless startup complete (1730 ms) (AnalyzeHeadless)
+INFO  Class searcher loaded 59 extension points (20 false positives) (ClassSearcher)
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::staticFieldOffset has been called by org.apache.felix.framework.util.SecureAction (file:/home/gixarde3/.local/share/ghidra/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/lib/org.apache.felix.framework-7.0.5.jar)
+WARNING: Please consider reporting this to the maintainers of class org.apache.felix.framework.util.SecureAction
+WARNING: sun.misc.Unsafe::staticFieldOffset will be removed in a future release
+INFO  HEADLESS Script Paths:
+    /home/gixarde3/.codex/worktrees/ios-reconstruction-inventory/Kick-Flight-Private-Server/scripts/re
+    /home/gixarde3/.local/share/ghidra/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+    /home/gixarde3/.local/share/ghidra/ghidra_12.1.4_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+    /home/gixarde3/.local/share/ghidra/ghidra_12.1.4_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+    /home/gixarde3/.local/share/ghidra/ghidra_12.1.4_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts
+    /home/gixarde3/.local/share/ghidra/ghidra_12.1.4_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+    /home/gixarde3/.local/share/ghidra/ghidra_12.1.4_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+    /home/gixarde3/.local/share/ghidra/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+    /home/gixarde3/.local/share/ghidra/ghidra_12.1.4_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+    /home/gixarde3/.local/share/ghidra/ghidra_12.1.4_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+    /home/gixarde3/.local/share/ghidra/ghidra_12.1.4_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+    /home/gixarde3/.local/share/ghidra/ghidra_12.1.4_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+    /home/gixarde3/.local/share/ghidra/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+    /home/gixarde3/.local/share/ghidra/ghidra_12.1.4_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+    /home/gixarde3/.local/share/ghidra/ghidra_12.1.4_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+    /home/gixarde3/.local/share/ghidra/ghidra_12.1.4_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+    /home/gixarde3/.local/share/ghidra/ghidra_12.1.4_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+    /home/gixarde3/.local/share/ghidra/ghidra_12.1.4_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+    /home/gixarde3/.local/share/ghidra/ghidra_12.1.4_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+    /home/gixarde3/.local/share/ghidra/ghidra_12.1.4_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+    /home/gixarde3/.local/share/ghidra/ghidra_12.1.4_PUBLIC/Ghidra/Features/BSim/ghidra_scripts
+    /home/gixarde3/.local/share/ghidra/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+    /home/gixarde3/.local/share/ghidra/ghidra_12.1.4_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts (HeadlessAnalyzer)
+INFO  HEADLESS: execution starts (HeadlessAnalyzer)
+INFO  Creating project: /tmp/ghidra-calc-coefficient-project/calc-coefficient-final (HeadlessAnalyzer)
+INFO  Creating project: /tmp/ghidra-calc-coefficient-project/calc-coefficient-final (DefaultProject)
+INFO  REPORT: Processing input files:  (HeadlessAnalyzer)
+INFO       project: /tmp/ghidra-calc-coefficient-project/calc-coefficient-final (HeadlessAnalyzer)
+INFO  IMPORTING: file:///home/gixarde3/.codex/worktrees/discs-balance-audit/Kick-Flight-Private-Server/.local/re/lib/arm64-v8a/libil2cpp.so (HeadlessAnalyzer)
+INFO  Using Loader: Executable and Linking Format (ELF) (ProgramLoader)
+INFO  Using Language/Compiler: AARCH64:LE:64:v8A:default (ProgramLoader)
+INFO  Using Library Search Path: [., /bin, /lib, /lib64, /lib/x86_64-linux-gnu, /lib/aarch64-linux-gnu, /usr/bin, /usr/lib, /usr/X11R6/bin, /usr/X11R6/lib, /usr/java/packages/lib, /usr/lib64] (ProgramLoader)
+INFO  Additional info:
+Loading file:///home/gixarde3/.codex/worktrees/discs-balance-audit/Kick-Flight-Private-Server/.local/re/lib/arm64-v8a/libil2cpp.so?MD5=896cb80fdf3e828a7e0d85d650d429fa...
+------------------------------------------------
+
+Linking the External Programs of 'libil2cpp.so' to imported libraries...
+  [liblog.so] -> not found in project
+  [libstdc++.so] -> not found in project
+  [libm.so] -> not found in project
+  [libdl.so] -> not found in project
+  [libc.so] -> not found in project
+------------------------------------------------
+
+Resolving External Symbols of [/libil2cpp.so] - 227 unresolved symbols, no external libraries configured - skipping
+ (ProgramLoader)
+INFO  IMPORTING: Loaded 0 additional files (HeadlessAnalyzer)
+INFO  REPORT: Execute script: InspectCalcCoefficient.java  (HeadlessAnalyzer)
+INFO  SCRIPT: /home/gixarde3/.codex/worktrees/ios-reconstruction-inventory/Kick-Flight-Private-Server/scripts/re/InspectCalcCoefficient.java (HeadlessAnalyzer)
+INFO  InspectCalcCoefficient.java> PROGRAM=libil2cpp.so (GhidraScript)
+INFO  InspectCalcCoefficient.java> LANGUAGE=AARCH64:LE:64:v8A (GhidraScript)
+INFO  InspectCalcCoefficient.java> IMAGE_BASE=00100000 (GhidraScript)
+INFO  InspectCalcCoefficient.java> ENTRY=01738520 (GhidraScript)
+INFO  InspectCalcCoefficient.java> RVA=1638520 (GhidraScript)
+INFO  InspectCalcCoefficient.java> GHIDRA_ADDRESS=01738520 (GhidraScript)
+INFO  InspectCalcCoefficient.java> FILE_OFFSET_EXPECTED=1638520 (GhidraScript)
+INFO  InspectCalcCoefficient.java> FUNCTION=Colorful_DiscParameterUtil_CalcCoefficient (GhidraScript)
+INFO  InspectCalcCoefficient.java> FUNCTION_ENTRY=01738520 (GhidraScript)
+INFO  InspectCalcCoefficient.java> FUNCTION_BODY=[[01738520, 01738617]] (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738520 stp d11 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738524 stp d9 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738528 str x21 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 0173852c stp x20 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738530 stp x29 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738534 add x29 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738538 adrp x21 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 0173853c ldrb w8 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738540 mov x19 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738544 mov x20 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738548 tbnz w8 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 0173854c adrp x8 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738550 ldr x8 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738554 ldr w0 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738558 bl 0x012e9e10 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 0173855c mov w8 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738560 strb w8 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738564 cbz x19 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738568 cbz x20 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 0173856c ldp s10 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738570 mov v8.16B (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738574 b 0x017385c0 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738578 ldp x29 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 0173857c ldp x20 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738580 ldr x21 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738584 ldp d9 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738588 mov w0 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 0173858c ldp d11 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738590 ret <UNSUPPORTED> (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738594 mov x0 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738598 bl 0x013141ec (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 0173859c mov w20 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 017385a0 ldr s8 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 017385a4 mov x0 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 017385a8 bl 0x013141ec (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 017385ac mov w8 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 017385b0 ldr s9 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 017385b4 mov x0 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 017385b8 bl 0x013141ec (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 017385bc ldr s10 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 017385c0 adrp x8 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 017385c4 ldr x8 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 017385c8 ldr s11 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 017385cc ldr x0 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 017385d0 ldrb w8 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 017385d4 tbz w8 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 017385d8 ldr w8 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 017385dc cbnz w8 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 017385e0 bl 0x012f7160 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 017385e4 adrp x8 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 017385e8 ldr s0 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 017385ec fsub s1 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 017385f0 fmul s1 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 017385f4 ldp x29 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 017385f8 fdiv s0 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 017385fc fadd s0 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738600 ldp x20 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738604 ldr x21 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738608 ldp d9 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 0173860c mov x0 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738610 ldp d11 (GhidraScript)
+INFO  InspectCalcCoefficient.java> INSN 01738614 b 0x024e7d20 (GhidraScript)
+INFO  InspectCalcCoefficient.java> DIVISOR_ADDRESS=03326e40 BYTES=0000c842 FLOAT=100.0 (GhidraScript)
+INFO  InspectCalcCoefficient.java> DECOMPILE_COMPLETED=true (GhidraScript)
+INFO  InspectCalcCoefficient.java> DECOMPILE_ERROR= (GhidraScript)
+INFO  InspectCalcCoefficient.java> PSEUDOCODE_BEGIN
+
+/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+
+int Colorful_DiscParameterUtil_CalcCoefficient(long param_1,long param_2)
+
+{
+  float fVar1;
+  float fVar2;
+  float fVar3;
+  float fVar4;
+
+  if ((bRam00000000047cac15 & 1) == 0) {
+    func_0x012e9e10(*(undefined4 *)PTR_DAT_04565ca8);
+    bRam00000000047cac15 = 1;
+  }
+  if (param_2 != 0) {
+    if (param_1 == 0) {
+      func_0x013141ec(0);
+      fVar2 = fRam000000000000004c;
+      func_0x013141ec(0);
+      fVar1 = fRam0000000000000050;
+      func_0x013141ec(0);
+      fVar3 = fRam000000000000004c;
+    }
+    else {
+      fVar2 = *(float *)(param_1 + 0x4c);
+      fVar1 = *(float *)(param_1 + 0x50);
+      fVar3 = fVar2;
+    }
+    fVar4 = *(float *)(param_2 + 0x1c);
+    if (((*(byte *)(*(long *)PTR_DAT_04506b88 + 0x127) >> 1 & 1) != 0) &&
+       (*(int *)(*(long *)PTR_DAT_04506b88 + 0xd8) == 0)) {
+      func_0x012f7160();
+    }
+    fVar1 = ((fVar1 - fVar3) * fVar4) / _UNK_03326e40;
+    if ((bRam00000000047d3002 & 1) == 0) {
+      func_0x012e9e10(*(undefined4 *)PTR_DAT_0453d3f0);
+      bRam00000000047d3002 = 1;
+    }
+    if (((*(byte *)(*(long *)PTR_DAT_04566ff8 + 0x127) >> 1 & 1) != 0) &&
+       (*(int *)(*(long *)PTR_DAT_04566ff8 + 0xd8) == 0)) {
+      func_0x012f7160();
+    }
+    return (int)(fVar2 + fVar1);
+  }
+  return 0;
+}
+
+PSEUDOCODE_END (GhidraScript)
+INFO  /libil2cpp.so: file created (gixarde3) (LocalFileSystem)
+INFO  REPORT: Save succeeded for: /libil2cpp.so (calc-coefficient-final:/libil2cpp.so) (HeadlessAnalyzer)
+INFO  REPORT: Import succeeded (HeadlessAnalyzer)
