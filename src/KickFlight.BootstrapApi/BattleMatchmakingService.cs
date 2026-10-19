@@ -13,6 +13,7 @@ public sealed class BattleMatchmakingService
     private readonly ILogger<BattleMatchmakingService> _logger;
     private readonly IPhotonServerManager _photonManager;
     private readonly MaintenanceState? _maintenance;
+    private readonly IReadOnlyList<ScrambleBotDeck> _scrambleBotDecks;
     private readonly ConcurrentDictionary<string, BattleEntrySession> _entriesByTicket = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, BattleEntrySession> _entriesByBattleEntryId = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, ActiveBattleRoom> _roomsByBattleId = new(StringComparer.Ordinal);
@@ -24,11 +25,13 @@ public sealed class BattleMatchmakingService
     private int _battleCounter = (int)(DateTimeOffset.UtcNow.ToUnixTimeSeconds() % 1_000_000_000);
 
     public BattleMatchmakingService(ILogger<BattleMatchmakingService> logger, IPhotonServerManager photonManager,
-        MaintenanceState? maintenance = null)
+        MaintenanceState? maintenance = null, IWebHostEnvironment? environment = null)
     {
         _logger = logger;
         _photonManager = photonManager;
         _maintenance = maintenance;
+        _scrambleBotDecks = ScrambleBotDeckCatalog.Load(
+            environment?.ContentRootPath ?? Directory.GetCurrentDirectory(), logger);
     }
 
     // Room lifecycle hooks for the ops telemetry (Ops/OpsTelemetryService). Some are raised while _matchLock is
@@ -476,7 +479,7 @@ public sealed class BattleMatchmakingService
             // finalized by the join that filled it.
             if (room.IsFinalized || room.HumanPlayers.Count == 0) return;
 
-            var allocation = SelectBattleParties(room.HumanPlayers);
+            var allocation = SelectBattleParties(room.HumanPlayers, room.BattleId);
             if (allocation.Assignments.Count == 0) return;
             room.IsFinalized = true;
             foreach (var player in allocation.Assignments.Keys) room.AssignedTicketIds.Add(player.TicketId);
@@ -986,7 +989,7 @@ public sealed class BattleMatchmakingService
         }
     }
 
-    public sealed record BotProfile(int KickerId, string Name, int CostumeRowId);
+    public sealed record BotProfile(int KickerId, string Name, int CostumeRowId, int RoleType, string Archetype);
 
     // Gym mode (toggled at runtime with GET /gym/on | /gym/off | /gym): the next match is the human(s) on Blue against
     // exactly GymBotCount mannequin bots on Red, and /battle/start hands out the harmless guardian row. Mannequin =
@@ -1008,20 +1011,20 @@ public sealed class BattleMatchmakingService
     // barrier, Yuyan nunchaku + panda, Sid wrist lasers) come first and show up in every solo match for testing.
     private static readonly BotProfile[] BotProfiles =
     [
-        new(5, "Owlbert Bot", 2050101),
-        new(12, "Buzzy Big Bot", 2120101),
-        new(10, "Yuyan Bot", 2100101),
-        new(14, "Sid Bot", 2140101),
-        new(1, "Tsubame Bot", 2010101),
-        new(2, "Ruriha Bot", 2020101),
-        new(3, "Coco Bot", 2030101),
-        new(4, "Kite Bot", 2040101),
-        new(6, "Pitophy Bot", 2060101),
-        new(7, "Grenhawk Bot", 2070101),
-        new(8, "Anna Bot", 2080101),
-        new(9, "Jay Bot", 2090101),
-        new(11, "Diatrius Bot", 2110101),
-        new(13, "Hitagi Bot", 2130101)
+        new(5, "Owlbert Bot", 2050101, 1, "owlbert_support"),
+        new(12, "Buzzy Big Bot", 2120101, 3, "anchor"),
+        new(10, "Yuyan Bot", 2100101, 2, "hunter"),
+        new(14, "Sid Bot", 2140101, 1, "hunter"),
+        new(1, "Tsubame Bot", 2010101, 0, "carrier"),
+        new(2, "Ruriha Bot", 2020101, 1, "support"),
+        new(3, "Coco Bot", 2030101, 3, "anchor"),
+        new(4, "Kite Bot", 2040101, 2, "damage"),
+        new(6, "Pitophy Bot", 2060101, 2, "damage"),
+        new(7, "Grenhawk Bot", 2070101, 1, "mobile_pressure"),
+        new(8, "Anna Bot", 2080101, 0, "carrier"),
+        new(9, "Jay Bot", 2090101, 0, "carrier"),
+        new(11, "Diatrius Bot", 2110101, 3, "anchor"),
+        new(13, "Hitagi Bot", 2130101, 2, "damage")
     ];
 
     /// <summary>
@@ -1035,20 +1038,16 @@ public sealed class BattleMatchmakingService
             // (BroadcastInterimRosterAsync), so they pick up the extended deadline.
             matchmakingExpirationDatetime = MatchmakingExpiry(room),
             photonCloudRegionId = 1,
-            battlePlayerList = BuildHumanEntries(room)
+            battlePlayerList = BuildHumanEntries(room.HumanPlayers, AssignHumanTeamsForInterim(room.HumanPlayers))
         };
     }
-
-    /// <summary>One entry per human waiting in the room; the order is what the client reads as Blue/Red slots.</summary>
-    private static List<MatchingPlayerBattleInfo> BuildHumanEntries(ActiveBattleRoom room) =>
-        BuildHumanEntries(room.HumanPlayers, null);
 
     private static List<MatchingPlayerBattleInfo> BuildHumanEntries(
         IReadOnlyList<BattleEntrySession> players,
         IReadOnlyDictionary<BattleEntrySession, int>? fixedTeams)
     {
         var entries = new List<MatchingPlayerBattleInfo>();
-        var teams = fixedTeams ?? SelectBattleParties(players).Assignments;
+        var teams = fixedTeams ?? AssignHumanTeamsForInterim(players);
         if (teams.Count != players.Count) teams = AssignHumanTeamsForInterim(players);
 
         for (int i = 0; i < players.Count; i++)
@@ -1115,7 +1114,7 @@ public sealed class BattleMatchmakingService
     private sealed record PartyAllocation(Dictionary<BattleEntrySession, int> Assignments);
 
     /// <summary>Select the largest whole-party subset that fits two four-player sides.</summary>
-    private static PartyAllocation SelectBattleParties(IReadOnlyList<BattleEntrySession> players)
+    private PartyAllocation SelectBattleParties(IReadOnlyList<BattleEntrySession> players, string battleId)
     {
         var parties = players
             .GroupBy(player => player.PartyId is { Length: > 0 } partyId
@@ -1126,6 +1125,12 @@ public sealed class BattleMatchmakingService
             .OrderBy(group => group[0].CreatedAt)
             .ThenBy(group => group[0].UserId, StringComparer.Ordinal)
             .ToList();
+
+        var useScrambleHumanComposition = players.Count > 0
+            && !GymEnabled && !TestBotDiscDeckEnabled && _scrambleBotDecks.Count > 0
+            && players[0].BattleRuleId is 1 or 5 or 6 or 7;
+        if (useScrambleHumanComposition)
+            return SelectScrambleBattleParties(parties, battleId);
 
         // Each party has three states: queued for this match's Blue side, queued for Red, or left for the
         // next match. A room has at most eight entries, so this checks at most 3^8 combinations.
@@ -1183,6 +1188,79 @@ public sealed class BattleMatchmakingService
         return new PartyAllocation(assignments);
     }
 
+    private PartyAllocation SelectScrambleBattleParties(
+        IReadOnlyList<List<BattleEntrySession>> parties,
+        string battleId)
+    {
+        // Preserve the existing admission policy: maximize humans, then retain the oldest whole-party subset.
+        // Team color and synergy are chosen only after that subset is fixed.
+        var optionCount = (int)Math.Pow(3, parties.Count);
+        var bestPlayers = -1;
+        var bestPriority = -1L;
+        var selectedMask = 0;
+        for (var option = 0; option < optionCount; option++)
+        {
+            var state = option;
+            var selectedPlayers = 0;
+            var priority = 0L;
+            var blueCount = 0;
+            var redCount = 0;
+            var subset = 0;
+            for (var index = 0; index < parties.Count; index++)
+            {
+                var side = state % 3;
+                state /= 3;
+                if (side == 0) continue;
+                subset |= 1 << index;
+                selectedPlayers += parties[index].Count;
+                priority += 1L << (parties.Count - index - 1);
+                if (side == 1) blueCount += parties[index].Count;
+                else redCount += parties[index].Count;
+                if (blueCount > MaxPerTeam || redCount > MaxPerTeam) break;
+            }
+            if (blueCount > MaxPerTeam || redCount > MaxPerTeam) continue;
+            if (selectedPlayers > bestPlayers || selectedPlayers == bestPlayers && priority > bestPriority)
+            {
+                bestPlayers = selectedPlayers;
+                bestPriority = priority;
+                selectedMask = subset;
+            }
+        }
+
+        var selectedParties = parties.Where((_, index) => (selectedMask & (1 << index)) != 0).ToArray();
+        var scrambleParties = selectedParties
+            .Select(party => new ScrambleHumanParty(
+                PartyKey(party[0]),
+                party.Select(player => new ScrambleHuman(0, player.KickerId)).ToArray()))
+            .ToArray();
+        var candidates = BotProfiles.Select(profile =>
+            new ScrambleBotCandidate(profile.KickerId, profile.RoleType, profile.Archetype)).ToArray();
+        var seed = ScrambleBotCompositionSelector.SeedFor(battleId);
+        var selection = ScrambleBotCompositionSelector.SelectHumanTeams(scrambleParties, candidates, seed);
+
+        var assignments = new Dictionary<BattleEntrySession, int>();
+        foreach (var party in selectedParties)
+        {
+            if (!selection.PartyTeams.TryGetValue(PartyKey(party[0]), out var team)) continue;
+            foreach (var player in party) assignments[player] = team;
+        }
+        if (assignments.Count == selectedParties.Sum(party => party.Count))
+            return new PartyAllocation(assignments);
+
+        // Unknown/invalid source data still produces a legal whole-party allocation.
+        var fallbackCounts = new int[2];
+        foreach (var party in selectedParties.OrderBy(party => party[0].UserId, StringComparer.Ordinal))
+        {
+            var team = fallbackCounts[0] <= fallbackCounts[1] ? 0 : 1;
+            foreach (var player in party) assignments[player] = team;
+            fallbackCounts[team] += party.Count;
+        }
+        return new PartyAllocation(assignments);
+    }
+
+    private static string PartyKey(BattleEntrySession player) =>
+        player.PartyId is { Length: > 0 } partyId ? $"party:{partyId}" : $"solo:{player.UserId}";
+
     /// <summary>Final roster, built only when the room's window closes: the humans plus the bots for the free slots.</summary>
     private MatchingBattleInfo BuildRoster(
         ActiveBattleRoom room,
@@ -1201,19 +1279,64 @@ public sealed class BattleMatchmakingService
         int team0Count = humanEntries.Count(entry => entry.teamType == 0);
         int team1Count = humanEntries.Count - team0Count;
 
-        // 2. Fill remaining slots with AI Bots up to 4 on Team 0 (Blue) and 4 on Team 1 (Red) (8 total for 4v4)
+        // Non-gym Crystal Scramble uses a deterministic, catalog-backed near-best team composition. Other modes,
+        // gym matches and the explicit local test-deck override retain the established roster path below.
         var availableBots = BotProfiles.Where(b => !usedKickers.Contains(b.KickerId)).ToList();
         var botIdx = 0;
 
         var gym = GymEnabled;
         var totalPlayers = gym ? selectedPlayers.Count + GymBotCount : MaxPerTeam * 2;
 
+        var useScrambleComposition = !gym && !TestBotDiscDeckEnabled && _scrambleBotDecks.Count > 0
+            && room.BattleRuleId is 1 or 5 or 6 or 7;
+        if (useScrambleComposition)
+        {
+            var humans = humanEntries.Select(entry => new ScrambleHuman(entry.teamType, entry.kickerId)).ToArray();
+            var candidates = BotProfiles.Select(profile =>
+                new ScrambleBotCandidate(profile.KickerId, profile.RoleType, profile.Archetype)).ToArray();
+            var assignments = ScrambleBotCompositionSelector.Select(humans, candidates, _scrambleBotDecks,
+                MaxPerTeam - team0Count, MaxPerTeam - team1Count, ScrambleBotCompositionSelector.SeedFor(room.BattleId));
+
+            if (assignments.Count == (MaxPerTeam - team0Count) + (MaxPerTeam - team1Count))
+            {
+                foreach (var assignment in assignments)
+                {
+                    var bot = BotProfiles.First(profile => profile.KickerId == assignment.KickerId);
+                    info.battlePlayerList.Add(new MatchingPlayerBattleInfo
+                    {
+                        userId = $"bot-{1000 + info.battlePlayerList.Count}",
+                        matchmakingTeamId = $"team-{(assignment.TeamType == 0 ? 1 : 2)}",
+                        battleEntryId = $"be-bot-{info.battlePlayerList.Count}",
+                        name = bot.Name,
+                        rank = 13,
+                        kickerId = bot.KickerId,
+                        kickerCostumeId = bot.CostumeRowId,
+                        honorId = 6010000,
+                        teamType = assignment.TeamType,
+                        kickerAiParameterId = bot.KickerId,
+                        kickerAiDiscDeckId = assignment.DeckId,
+                        languageCode = "es",
+                        frameId = 1,
+                        discId1 = assignment.DiscIds[0], discLevel1 = 10,
+                        discId2 = assignment.DiscIds[1], discLevel2 = 10,
+                        discId3 = assignment.DiscIds[2], discLevel3 = 10,
+                        discId4 = assignment.DiscIds[3], discLevel4 = 10
+                    });
+                }
+                _logger.LogInformation(
+                    "Scramble composition selected for {BattleId}: {Bots} bots; team0=[{Blue}] team1=[{Red}]",
+                    room.BattleId, assignments.Count,
+                    string.Join(',', assignments.Where(a => a.TeamType == 0).Select(a => $"{a.KickerId}:{a.Profile}:{a.DeckId}")),
+                    string.Join(',', assignments.Where(a => a.TeamType == 1).Select(a => $"{a.KickerId}:{a.Profile}:{a.DeckId}")));
+            }
+        }
+
         while (info.battlePlayerList.Count < totalPlayers)
         {
             int team = gym ? 1 : (team0Count < MaxPerTeam) ? 0 : 1;
             if (team == 0) team0Count++; else team1Count++;
 
-            var profile = (botIdx < availableBots.Count) ? availableBots[botIdx++] : new BotProfile(botIdx + 1, $"Bot {botIdx + 1}", 2010101);
+            var profile = (botIdx < availableBots.Count) ? availableBots[botIdx++] : new BotProfile(botIdx + 1, $"Bot {botIdx + 1}", 2010101, -1, "unknown");
             var botDiscs = TestBotDiscDeckEnabled
                 ? TestBotDiscIds
                 : [3010001, 3010002, 3010003, 3010004];

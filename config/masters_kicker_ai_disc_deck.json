@@ -19,5 +19,3141 @@
     "kickerAiDiscId2": 10,
     "kickerAiDiscId3": 11,
     "kickerAiDiscId4": 12
+  },
+  {
+    "id": 1001,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1045,
+    "kickerAiDiscId3": 1048,
+    "kickerAiDiscId4": 1057
+  },
+  {
+    "id": 1002,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1067
+  },
+  {
+    "id": 1003,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1045,
+    "kickerAiDiscId4": 1057
+  },
+  {
+    "id": 1004,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1005,
+    "kickerAiDiscId1": 2,
+    "kickerAiDiscId2": 3,
+    "kickerAiDiscId3": 1016,
+    "kickerAiDiscId4": 1006
+  },
+  {
+    "id": 1006,
+    "kickerAiDiscId1": 3,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1069,
+    "kickerAiDiscId4": 1074
+  },
+  {
+    "id": 1007,
+    "kickerAiDiscId1": 4,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 7,
+    "kickerAiDiscId4": 1065
+  },
+  {
+    "id": 1008,
+    "kickerAiDiscId1": 5,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 3,
+    "kickerAiDiscId4": 1006
+  },
+  {
+    "id": 1009,
+    "kickerAiDiscId1": 1,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1001,
+    "kickerAiDiscId4": 1062
+  },
+  {
+    "id": 1010,
+    "kickerAiDiscId1": 1001,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1076,
+    "kickerAiDiscId4": 1
+  },
+  {
+    "id": 1011,
+    "kickerAiDiscId1": 1002,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1,
+    "kickerAiDiscId4": 1062
+  },
+  {
+    "id": 1012,
+    "kickerAiDiscId1": 1003,
+    "kickerAiDiscId2": 1048,
+    "kickerAiDiscId3": 1076,
+    "kickerAiDiscId4": 1001
+  },
+  {
+    "id": 1013,
+    "kickerAiDiscId1": 1043,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1073
+  },
+  {
+    "id": 1014,
+    "kickerAiDiscId1": 1066,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1073,
+    "kickerAiDiscId4": 1044
+  },
+  {
+    "id": 1015,
+    "kickerAiDiscId1": 1073,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1045
+  },
+  {
+    "id": 1016,
+    "kickerAiDiscId1": 1041,
+    "kickerAiDiscId2": 1073,
+    "kickerAiDiscId3": 1043,
+    "kickerAiDiscId4": 1044
+  },
+  {
+    "id": 1017,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1058,
+    "kickerAiDiscId3": 1040,
+    "kickerAiDiscId4": 1011
+  },
+  {
+    "id": 1018,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1036,
+    "kickerAiDiscId3": 1037,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1019,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1046,
+    "kickerAiDiscId4": 1012
+  },
+  {
+    "id": 1020,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1037,
+    "kickerAiDiscId3": 1038,
+    "kickerAiDiscId4": 1057
+  },
+  {
+    "id": 1021,
+    "kickerAiDiscId1": 1013,
+    "kickerAiDiscId2": 1018,
+    "kickerAiDiscId3": 1020,
+    "kickerAiDiscId4": 1027
+  },
+  {
+    "id": 1022,
+    "kickerAiDiscId1": 1018,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1025,
+    "kickerAiDiscId4": 12
+  },
+  {
+    "id": 1023,
+    "kickerAiDiscId1": 1019,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1021,
+    "kickerAiDiscId4": 1028
+  },
+  {
+    "id": 1024,
+    "kickerAiDiscId1": 1020,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1018,
+    "kickerAiDiscId4": 1026
+  },
+  {
+    "id": 1025,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1037,
+    "kickerAiDiscId4": 1038
+  },
+  {
+    "id": 1026,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1033,
+    "kickerAiDiscId4": 1034
+  },
+  {
+    "id": 1027,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1030,
+    "kickerAiDiscId4": 1064
+  },
+  {
+    "id": 1028,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1035,
+    "kickerAiDiscId4": 1036
+  },
+  {
+    "id": 1029,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1018,
+    "kickerAiDiscId4": 1032
+  },
+  {
+    "id": 1030,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1037,
+    "kickerAiDiscId3": 1023,
+    "kickerAiDiscId4": 1038
+  },
+  {
+    "id": 1031,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1052,
+    "kickerAiDiscId3": 1019,
+    "kickerAiDiscId4": 1033
+  },
+  {
+    "id": 1032,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1038,
+    "kickerAiDiscId3": 1024,
+    "kickerAiDiscId4": 1071
+  },
+  {
+    "id": 1033,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1045,
+    "kickerAiDiscId3": 1048,
+    "kickerAiDiscId4": 1057
+  },
+  {
+    "id": 1034,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1057
+  },
+  {
+    "id": 1035,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1045,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1036,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1011
+  },
+  {
+    "id": 1037,
+    "kickerAiDiscId1": 2,
+    "kickerAiDiscId2": 3,
+    "kickerAiDiscId3": 1063,
+    "kickerAiDiscId4": 1054
+  },
+  {
+    "id": 1038,
+    "kickerAiDiscId1": 3,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 8,
+    "kickerAiDiscId4": 1009
+  },
+  {
+    "id": 1039,
+    "kickerAiDiscId1": 4,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1049,
+    "kickerAiDiscId4": 1006
+  },
+  {
+    "id": 1040,
+    "kickerAiDiscId1": 5,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1061,
+    "kickerAiDiscId4": 1010
+  },
+  {
+    "id": 1041,
+    "kickerAiDiscId1": 1,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1076,
+    "kickerAiDiscId4": 1001
+  },
+  {
+    "id": 1042,
+    "kickerAiDiscId1": 1001,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1003,
+    "kickerAiDiscId4": 1004
+  },
+  {
+    "id": 1043,
+    "kickerAiDiscId1": 1002,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1076,
+    "kickerAiDiscId4": 1001
+  },
+  {
+    "id": 1044,
+    "kickerAiDiscId1": 1003,
+    "kickerAiDiscId2": 1048,
+    "kickerAiDiscId3": 1004,
+    "kickerAiDiscId4": 1055
+  },
+  {
+    "id": 1045,
+    "kickerAiDiscId1": 1041,
+    "kickerAiDiscId2": 1073,
+    "kickerAiDiscId3": 1077,
+    "kickerAiDiscId4": 1043
+  },
+  {
+    "id": 1046,
+    "kickerAiDiscId1": 1043,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1075,
+    "kickerAiDiscId4": 1066
+  },
+  {
+    "id": 1047,
+    "kickerAiDiscId1": 1066,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1053,
+    "kickerAiDiscId4": 1043
+  },
+  {
+    "id": 1048,
+    "kickerAiDiscId1": 1073,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1075,
+    "kickerAiDiscId4": 1066
+  },
+  {
+    "id": 1049,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1037,
+    "kickerAiDiscId3": 1038,
+    "kickerAiDiscId4": 1071
+  },
+  {
+    "id": 1050,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1052,
+    "kickerAiDiscId3": 1033,
+    "kickerAiDiscId4": 1034
+  },
+  {
+    "id": 1051,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1038,
+    "kickerAiDiscId3": 1071,
+    "kickerAiDiscId4": 1064
+  },
+  {
+    "id": 1052,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1034,
+    "kickerAiDiscId3": 1035,
+    "kickerAiDiscId4": 1036
+  },
+  {
+    "id": 1053,
+    "kickerAiDiscId1": 1013,
+    "kickerAiDiscId2": 1018,
+    "kickerAiDiscId3": 1026,
+    "kickerAiDiscId4": 1019
+  },
+  {
+    "id": 1054,
+    "kickerAiDiscId1": 1018,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1022,
+    "kickerAiDiscId4": 1023
+  },
+  {
+    "id": 1055,
+    "kickerAiDiscId1": 1019,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1020,
+    "kickerAiDiscId4": 1027
+  },
+  {
+    "id": 1056,
+    "kickerAiDiscId1": 1020,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1024,
+    "kickerAiDiscId4": 1025
+  },
+  {
+    "id": 1057,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1034,
+    "kickerAiDiscId4": 1035
+  },
+  {
+    "id": 1058,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1058,
+    "kickerAiDiscId4": 1040
+  },
+  {
+    "id": 1059,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1036,
+    "kickerAiDiscId4": 1037
+  },
+  {
+    "id": 1060,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1046,
+    "kickerAiDiscId4": 1060
+  },
+  {
+    "id": 1061,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1024,
+    "kickerAiDiscId3": 1038,
+    "kickerAiDiscId4": 1025
+  },
+  {
+    "id": 1062,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1020,
+    "kickerAiDiscId3": 1035,
+    "kickerAiDiscId4": 1027
+  },
+  {
+    "id": 1063,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1025,
+    "kickerAiDiscId3": 1064,
+    "kickerAiDiscId4": 12
+  },
+  {
+    "id": 1064,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1021,
+    "kickerAiDiscId3": 1035,
+    "kickerAiDiscId4": 1013
+  },
+  {
+    "id": 1065,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1045,
+    "kickerAiDiscId3": 1057,
+    "kickerAiDiscId4": 1039
+  },
+  {
+    "id": 1066,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1067,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1045,
+    "kickerAiDiscId4": 1011
+  },
+  {
+    "id": 1068,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1069,
+    "kickerAiDiscId1": 2,
+    "kickerAiDiscId2": 3,
+    "kickerAiDiscId3": 1000,
+    "kickerAiDiscId4": 1010
+  },
+  {
+    "id": 1070,
+    "kickerAiDiscId1": 3,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 5,
+    "kickerAiDiscId4": 1006
+  },
+  {
+    "id": 1071,
+    "kickerAiDiscId1": 4,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1068,
+    "kickerAiDiscId4": 1074
+  },
+  {
+    "id": 1072,
+    "kickerAiDiscId1": 5,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1017,
+    "kickerAiDiscId4": 1007
+  },
+  {
+    "id": 1073,
+    "kickerAiDiscId1": 1,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1004,
+    "kickerAiDiscId4": 1055
+  },
+  {
+    "id": 1074,
+    "kickerAiDiscId1": 1001,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1076,
+    "kickerAiDiscId4": 1
+  },
+  {
+    "id": 1075,
+    "kickerAiDiscId1": 1002,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1005,
+    "kickerAiDiscId4": 1076
+  },
+  {
+    "id": 1076,
+    "kickerAiDiscId1": 1003,
+    "kickerAiDiscId2": 1048,
+    "kickerAiDiscId3": 1001,
+    "kickerAiDiscId4": 1
+  },
+  {
+    "id": 1077,
+    "kickerAiDiscId1": 1041,
+    "kickerAiDiscId2": 1066,
+    "kickerAiDiscId3": 1073,
+    "kickerAiDiscId4": 1043
+  },
+  {
+    "id": 1078,
+    "kickerAiDiscId1": 1043,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1015
+  },
+  {
+    "id": 1079,
+    "kickerAiDiscId1": 1066,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1073,
+    "kickerAiDiscId4": 1015
+  },
+  {
+    "id": 1080,
+    "kickerAiDiscId1": 1073,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1042
+  },
+  {
+    "id": 1081,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1034,
+    "kickerAiDiscId3": 1035,
+    "kickerAiDiscId4": 1036
+  },
+  {
+    "id": 1082,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1064,
+    "kickerAiDiscId3": 1058,
+    "kickerAiDiscId4": 1040
+  },
+  {
+    "id": 1083,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1035,
+    "kickerAiDiscId3": 1036,
+    "kickerAiDiscId4": 1037
+  },
+  {
+    "id": 1084,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1032,
+    "kickerAiDiscId4": 1046
+  },
+  {
+    "id": 1085,
+    "kickerAiDiscId1": 1013,
+    "kickerAiDiscId2": 1018,
+    "kickerAiDiscId3": 1023,
+    "kickerAiDiscId4": 1024
+  },
+  {
+    "id": 1086,
+    "kickerAiDiscId1": 1018,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1019,
+    "kickerAiDiscId4": 1020
+  },
+  {
+    "id": 1087,
+    "kickerAiDiscId1": 1019,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1025,
+    "kickerAiDiscId4": 12
+  },
+  {
+    "id": 1088,
+    "kickerAiDiscId1": 1020,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1027,
+    "kickerAiDiscId4": 1021
+  },
+  {
+    "id": 1089,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1046,
+    "kickerAiDiscId4": 1060
+  },
+  {
+    "id": 1090,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1037,
+    "kickerAiDiscId4": 1038
+  },
+  {
+    "id": 1091,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1052,
+    "kickerAiDiscId4": 1033
+  },
+  {
+    "id": 1092,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1038,
+    "kickerAiDiscId4": 1071
+  },
+  {
+    "id": 1093,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1027,
+    "kickerAiDiscId3": 1035,
+    "kickerAiDiscId4": 1021
+  },
+  {
+    "id": 1094,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1018,
+    "kickerAiDiscId3": 1040,
+    "kickerAiDiscId4": 1026
+  },
+  {
+    "id": 1095,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1022,
+    "kickerAiDiscId3": 1036,
+    "kickerAiDiscId4": 1023
+  },
+  {
+    "id": 1096,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1019,
+    "kickerAiDiscId3": 1032,
+    "kickerAiDiscId4": 1020
+  },
+  {
+    "id": 1097,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1045,
+    "kickerAiDiscId3": 1048,
+    "kickerAiDiscId4": 1057
+  },
+  {
+    "id": 1098,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1012
+  },
+  {
+    "id": 1099,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1045,
+    "kickerAiDiscId4": 1057
+  },
+  {
+    "id": 1100,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1101,
+    "kickerAiDiscId1": 2,
+    "kickerAiDiscId2": 3,
+    "kickerAiDiscId3": 6,
+    "kickerAiDiscId4": 1007
+  },
+  {
+    "id": 1102,
+    "kickerAiDiscId1": 3,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1069,
+    "kickerAiDiscId4": 1078
+  },
+  {
+    "id": 1103,
+    "kickerAiDiscId1": 4,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1059,
+    "kickerAiDiscId4": 1008
+  },
+  {
+    "id": 1104,
+    "kickerAiDiscId1": 5,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1014,
+    "kickerAiDiscId4": 1006
+  },
+  {
+    "id": 1105,
+    "kickerAiDiscId1": 1,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1001,
+    "kickerAiDiscId4": 1062
+  },
+  {
+    "id": 1106,
+    "kickerAiDiscId1": 1001,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1076,
+    "kickerAiDiscId4": 1
+  },
+  {
+    "id": 1107,
+    "kickerAiDiscId1": 1002,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1003,
+    "kickerAiDiscId4": 1004
+  },
+  {
+    "id": 1108,
+    "kickerAiDiscId1": 1003,
+    "kickerAiDiscId2": 1048,
+    "kickerAiDiscId3": 1076,
+    "kickerAiDiscId4": 1001
+  },
+  {
+    "id": 1109,
+    "kickerAiDiscId1": 1043,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1073
+  },
+  {
+    "id": 1110,
+    "kickerAiDiscId1": 1066,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1073,
+    "kickerAiDiscId4": 1044
+  },
+  {
+    "id": 1111,
+    "kickerAiDiscId1": 1073,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1045
+  },
+  {
+    "id": 1112,
+    "kickerAiDiscId1": 1041,
+    "kickerAiDiscId2": 1043,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1044
+  },
+  {
+    "id": 1113,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1040,
+    "kickerAiDiscId3": 1031,
+    "kickerAiDiscId4": 1032
+  },
+  {
+    "id": 1114,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1036,
+    "kickerAiDiscId3": 1037,
+    "kickerAiDiscId4": 1038
+  },
+  {
+    "id": 1115,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1046,
+    "kickerAiDiscId4": 1060
+  },
+  {
+    "id": 1116,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1038,
+    "kickerAiDiscId3": 1071,
+    "kickerAiDiscId4": 1064
+  },
+  {
+    "id": 1117,
+    "kickerAiDiscId1": 1013,
+    "kickerAiDiscId2": 1018,
+    "kickerAiDiscId3": 1020,
+    "kickerAiDiscId4": 1027
+  },
+  {
+    "id": 1118,
+    "kickerAiDiscId1": 1018,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1026,
+    "kickerAiDiscId4": 1019
+  },
+  {
+    "id": 1119,
+    "kickerAiDiscId1": 1019,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1028,
+    "kickerAiDiscId4": 1022
+  },
+  {
+    "id": 1120,
+    "kickerAiDiscId1": 1020,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1026,
+    "kickerAiDiscId4": 1019
+  },
+  {
+    "id": 1121,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1038,
+    "kickerAiDiscId4": 1071
+  },
+  {
+    "id": 1122,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1034,
+    "kickerAiDiscId4": 1035
+  },
+  {
+    "id": 1123,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1064,
+    "kickerAiDiscId4": 1058
+  },
+  {
+    "id": 1124,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1035,
+    "kickerAiDiscId4": 1036
+  },
+  {
+    "id": 1125,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1026,
+    "kickerAiDiscId3": 1032,
+    "kickerAiDiscId4": 1019
+  },
+  {
+    "id": 1126,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1023,
+    "kickerAiDiscId3": 1037,
+    "kickerAiDiscId4": 1024
+  },
+  {
+    "id": 1127,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1019,
+    "kickerAiDiscId3": 1033,
+    "kickerAiDiscId4": 1020
+  },
+  {
+    "id": 1128,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1025,
+    "kickerAiDiscId3": 1030,
+    "kickerAiDiscId4": 12
+  },
+  {
+    "id": 1129,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1045,
+    "kickerAiDiscId3": 1048,
+    "kickerAiDiscId4": 1057
+  },
+  {
+    "id": 1130,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1057
+  },
+  {
+    "id": 1131,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1045,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1132,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1011
+  },
+  {
+    "id": 1133,
+    "kickerAiDiscId1": 2,
+    "kickerAiDiscId2": 3,
+    "kickerAiDiscId3": 1063,
+    "kickerAiDiscId4": 1006
+  },
+  {
+    "id": 1134,
+    "kickerAiDiscId1": 3,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1000,
+    "kickerAiDiscId4": 1009
+  },
+  {
+    "id": 1135,
+    "kickerAiDiscId1": 4,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1029,
+    "kickerAiDiscId4": 1006
+  },
+  {
+    "id": 1136,
+    "kickerAiDiscId1": 5,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1068,
+    "kickerAiDiscId4": 1074
+  },
+  {
+    "id": 1137,
+    "kickerAiDiscId1": 1,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1076,
+    "kickerAiDiscId4": 1001
+  },
+  {
+    "id": 1138,
+    "kickerAiDiscId1": 1001,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1003,
+    "kickerAiDiscId4": 1004
+  },
+  {
+    "id": 1139,
+    "kickerAiDiscId1": 1002,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1076,
+    "kickerAiDiscId4": 1001
+  },
+  {
+    "id": 1140,
+    "kickerAiDiscId1": 1003,
+    "kickerAiDiscId2": 1048,
+    "kickerAiDiscId3": 1070,
+    "kickerAiDiscId4": 1005
+  },
+  {
+    "id": 1141,
+    "kickerAiDiscId1": 1041,
+    "kickerAiDiscId2": 1073,
+    "kickerAiDiscId3": 1043,
+    "kickerAiDiscId4": 1066
+  },
+  {
+    "id": 1142,
+    "kickerAiDiscId1": 1043,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1015
+  },
+  {
+    "id": 1143,
+    "kickerAiDiscId1": 1066,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1073,
+    "kickerAiDiscId4": 1015
+  },
+  {
+    "id": 1144,
+    "kickerAiDiscId1": 1073,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1042
+  },
+  {
+    "id": 1145,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1037,
+    "kickerAiDiscId3": 1038,
+    "kickerAiDiscId4": 1071
+  },
+  {
+    "id": 1146,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1033,
+    "kickerAiDiscId3": 1034,
+    "kickerAiDiscId4": 1035
+  },
+  {
+    "id": 1147,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1064,
+    "kickerAiDiscId3": 1058,
+    "kickerAiDiscId4": 1040
+  },
+  {
+    "id": 1148,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1035,
+    "kickerAiDiscId3": 1036,
+    "kickerAiDiscId4": 1037
+  },
+  {
+    "id": 1149,
+    "kickerAiDiscId1": 1013,
+    "kickerAiDiscId2": 1018,
+    "kickerAiDiscId3": 1026,
+    "kickerAiDiscId4": 1019
+  },
+  {
+    "id": 1150,
+    "kickerAiDiscId1": 1018,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1023,
+    "kickerAiDiscId4": 1024
+  },
+  {
+    "id": 1151,
+    "kickerAiDiscId1": 1019,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1020,
+    "kickerAiDiscId4": 1027
+  },
+  {
+    "id": 1152,
+    "kickerAiDiscId1": 1020,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1024,
+    "kickerAiDiscId4": 1025
+  },
+  {
+    "id": 1153,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1035,
+    "kickerAiDiscId4": 1036
+  },
+  {
+    "id": 1154,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1040,
+    "kickerAiDiscId4": 1046
+  },
+  {
+    "id": 1155,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1036,
+    "kickerAiDiscId4": 1037
+  },
+  {
+    "id": 1156,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1046,
+    "kickerAiDiscId4": 1060
+  },
+  {
+    "id": 1157,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1024,
+    "kickerAiDiscId3": 1025,
+    "kickerAiDiscId4": 12
+  },
+  {
+    "id": 1158,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1020,
+    "kickerAiDiscId3": 1027,
+    "kickerAiDiscId4": 1021
+  },
+  {
+    "id": 1159,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1018,
+    "kickerAiDiscId3": 1026,
+    "kickerAiDiscId4": 1019
+  },
+  {
+    "id": 1160,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1028,
+    "kickerAiDiscId4": 1022
+  },
+  {
+    "id": 1161,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1045,
+    "kickerAiDiscId3": 1039,
+    "kickerAiDiscId4": 1011
+  },
+  {
+    "id": 1162,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1163,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1045,
+    "kickerAiDiscId4": 1067
+  },
+  {
+    "id": 1164,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1057
+  },
+  {
+    "id": 1165,
+    "kickerAiDiscId1": 2,
+    "kickerAiDiscId2": 3,
+    "kickerAiDiscId3": 1061,
+    "kickerAiDiscId4": 1010
+  },
+  {
+    "id": 1166,
+    "kickerAiDiscId1": 3,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1016,
+    "kickerAiDiscId4": 1006
+  },
+  {
+    "id": 1167,
+    "kickerAiDiscId1": 4,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1069,
+    "kickerAiDiscId4": 1074
+  },
+  {
+    "id": 1168,
+    "kickerAiDiscId1": 5,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 7,
+    "kickerAiDiscId4": 1065
+  },
+  {
+    "id": 1169,
+    "kickerAiDiscId1": 1,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1004,
+    "kickerAiDiscId4": 1055
+  },
+  {
+    "id": 1170,
+    "kickerAiDiscId1": 1001,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1,
+    "kickerAiDiscId4": 1062
+  },
+  {
+    "id": 1171,
+    "kickerAiDiscId1": 1002,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1076,
+    "kickerAiDiscId4": 1001
+  },
+  {
+    "id": 1172,
+    "kickerAiDiscId1": 1003,
+    "kickerAiDiscId2": 1048,
+    "kickerAiDiscId3": 1,
+    "kickerAiDiscId4": 1062
+  },
+  {
+    "id": 1173,
+    "kickerAiDiscId1": 1043,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1073
+  },
+  {
+    "id": 1174,
+    "kickerAiDiscId1": 1066,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1073,
+    "kickerAiDiscId4": 1044
+  },
+  {
+    "id": 1175,
+    "kickerAiDiscId1": 1073,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1045
+  },
+  {
+    "id": 1176,
+    "kickerAiDiscId1": 1041,
+    "kickerAiDiscId2": 1066,
+    "kickerAiDiscId3": 1073,
+    "kickerAiDiscId4": 1047
+  },
+  {
+    "id": 1177,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1034,
+    "kickerAiDiscId3": 1035,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1178,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1058,
+    "kickerAiDiscId3": 1040,
+    "kickerAiDiscId4": 1011
+  },
+  {
+    "id": 1179,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1036,
+    "kickerAiDiscId3": 1037,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1180,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1046,
+    "kickerAiDiscId4": 1012
+  },
+  {
+    "id": 1181,
+    "kickerAiDiscId1": 1013,
+    "kickerAiDiscId2": 1018,
+    "kickerAiDiscId3": 1024,
+    "kickerAiDiscId4": 1025
+  },
+  {
+    "id": 1182,
+    "kickerAiDiscId1": 1018,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1020,
+    "kickerAiDiscId4": 1027
+  },
+  {
+    "id": 1183,
+    "kickerAiDiscId1": 1019,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1025,
+    "kickerAiDiscId4": 12
+  },
+  {
+    "id": 1184,
+    "kickerAiDiscId1": 1020,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1021,
+    "kickerAiDiscId4": 1028
+  },
+  {
+    "id": 1185,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1046,
+    "kickerAiDiscId4": 1060
+  },
+  {
+    "id": 1186,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1037,
+    "kickerAiDiscId4": 1038
+  },
+  {
+    "id": 1187,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1033,
+    "kickerAiDiscId4": 1034
+  },
+  {
+    "id": 1188,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1030,
+    "kickerAiDiscId4": 1064
+  },
+  {
+    "id": 1189,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1021,
+    "kickerAiDiscId3": 1035,
+    "kickerAiDiscId4": 1013
+  },
+  {
+    "id": 1190,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1018,
+    "kickerAiDiscId3": 1031,
+    "kickerAiDiscId4": 1026
+  },
+  {
+    "id": 1191,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1023,
+    "kickerAiDiscId3": 1037,
+    "kickerAiDiscId4": 1024
+  },
+  {
+    "id": 1192,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1019,
+    "kickerAiDiscId3": 1052,
+    "kickerAiDiscId4": 1020
+  },
+  {
+    "id": 1193,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1045,
+    "kickerAiDiscId3": 1048,
+    "kickerAiDiscId4": 1057
+  },
+  {
+    "id": 1194,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1195,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1045,
+    "kickerAiDiscId4": 1057
+  },
+  {
+    "id": 1196,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1197,
+    "kickerAiDiscId1": 2,
+    "kickerAiDiscId2": 3,
+    "kickerAiDiscId3": 1017,
+    "kickerAiDiscId4": 1007
+  },
+  {
+    "id": 1198,
+    "kickerAiDiscId1": 3,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1063,
+    "kickerAiDiscId4": 1054
+  },
+  {
+    "id": 1199,
+    "kickerAiDiscId1": 4,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 8,
+    "kickerAiDiscId4": 1009
+  },
+  {
+    "id": 1200,
+    "kickerAiDiscId1": 5,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 4,
+    "kickerAiDiscId4": 1006
+  },
+  {
+    "id": 1201,
+    "kickerAiDiscId1": 1,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1001,
+    "kickerAiDiscId4": 1062
+  },
+  {
+    "id": 1202,
+    "kickerAiDiscId1": 1001,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1076,
+    "kickerAiDiscId4": 1
+  },
+  {
+    "id": 1203,
+    "kickerAiDiscId1": 1002,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1003,
+    "kickerAiDiscId4": 1004
+  },
+  {
+    "id": 1204,
+    "kickerAiDiscId1": 1003,
+    "kickerAiDiscId2": 1048,
+    "kickerAiDiscId3": 1076,
+    "kickerAiDiscId4": 1001
+  },
+  {
+    "id": 1205,
+    "kickerAiDiscId1": 1041,
+    "kickerAiDiscId2": 1066,
+    "kickerAiDiscId3": 1073,
+    "kickerAiDiscId4": 1043
+  },
+  {
+    "id": 1206,
+    "kickerAiDiscId1": 1043,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1073,
+    "kickerAiDiscId4": 1015
+  },
+  {
+    "id": 1207,
+    "kickerAiDiscId1": 1066,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1073,
+    "kickerAiDiscId4": 1015
+  },
+  {
+    "id": 1208,
+    "kickerAiDiscId1": 1073,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1043,
+    "kickerAiDiscId4": 1042
+  },
+  {
+    "id": 1209,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1032,
+    "kickerAiDiscId4": 1046
+  },
+  {
+    "id": 1210,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1037,
+    "kickerAiDiscId3": 1038,
+    "kickerAiDiscId4": 1071
+  },
+  {
+    "id": 1211,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1052,
+    "kickerAiDiscId3": 1033,
+    "kickerAiDiscId4": 1034
+  },
+  {
+    "id": 1212,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1038,
+    "kickerAiDiscId3": 1071,
+    "kickerAiDiscId4": 1064
+  },
+  {
+    "id": 1213,
+    "kickerAiDiscId1": 1013,
+    "kickerAiDiscId2": 1018,
+    "kickerAiDiscId3": 1027,
+    "kickerAiDiscId4": 1021
+  },
+  {
+    "id": 1214,
+    "kickerAiDiscId1": 1018,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1026,
+    "kickerAiDiscId4": 1019
+  },
+  {
+    "id": 1215,
+    "kickerAiDiscId1": 1019,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1022,
+    "kickerAiDiscId4": 1023
+  },
+  {
+    "id": 1216,
+    "kickerAiDiscId1": 1020,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1019,
+    "kickerAiDiscId4": 1027
+  },
+  {
+    "id": 1217,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1030,
+    "kickerAiDiscId4": 1038
+  },
+  {
+    "id": 1218,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1030,
+    "kickerAiDiscId4": 1034
+  },
+  {
+    "id": 1219,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1030,
+    "kickerAiDiscId4": 1058
+  },
+  {
+    "id": 1220,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1030,
+    "kickerAiDiscId4": 1036
+  },
+  {
+    "id": 1221,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1030,
+    "kickerAiDiscId3": 1019,
+    "kickerAiDiscId4": 1032
+  },
+  {
+    "id": 1222,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1030,
+    "kickerAiDiscId3": 1024,
+    "kickerAiDiscId4": 1038
+  },
+  {
+    "id": 1223,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1030,
+    "kickerAiDiscId3": 1020,
+    "kickerAiDiscId4": 1035
+  },
+  {
+    "id": 1224,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1030,
+    "kickerAiDiscId3": 1025,
+    "kickerAiDiscId4": 1064
+  },
+  {
+    "id": 1225,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1045,
+    "kickerAiDiscId3": 1048,
+    "kickerAiDiscId4": 1057
+  },
+  {
+    "id": 1226,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1057
+  },
+  {
+    "id": 1227,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1045,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1228,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1011
+  },
+  {
+    "id": 1229,
+    "kickerAiDiscId1": 2,
+    "kickerAiDiscId2": 3,
+    "kickerAiDiscId3": 1014,
+    "kickerAiDiscId4": 1006
+  },
+  {
+    "id": 1230,
+    "kickerAiDiscId1": 3,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1000,
+    "kickerAiDiscId4": 1010
+  },
+  {
+    "id": 1231,
+    "kickerAiDiscId1": 4,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 5,
+    "kickerAiDiscId4": 1006
+  },
+  {
+    "id": 1232,
+    "kickerAiDiscId1": 5,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1068,
+    "kickerAiDiscId4": 1074
+  },
+  {
+    "id": 1233,
+    "kickerAiDiscId1": 1,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1076,
+    "kickerAiDiscId4": 1001
+  },
+  {
+    "id": 1234,
+    "kickerAiDiscId1": 1001,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1004,
+    "kickerAiDiscId4": 1055
+  },
+  {
+    "id": 1235,
+    "kickerAiDiscId1": 1002,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1076,
+    "kickerAiDiscId4": 1001
+  },
+  {
+    "id": 1236,
+    "kickerAiDiscId1": 1003,
+    "kickerAiDiscId2": 1048,
+    "kickerAiDiscId3": 1005,
+    "kickerAiDiscId4": 1076
+  },
+  {
+    "id": 1237,
+    "kickerAiDiscId1": 1041,
+    "kickerAiDiscId2": 1043,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1073
+  },
+  {
+    "id": 1238,
+    "kickerAiDiscId1": 1043,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1015
+  },
+  {
+    "id": 1239,
+    "kickerAiDiscId1": 1066,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1073,
+    "kickerAiDiscId4": 1015
+  },
+  {
+    "id": 1240,
+    "kickerAiDiscId1": 1073,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1042
+  },
+  {
+    "id": 1241,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1038,
+    "kickerAiDiscId3": 1071,
+    "kickerAiDiscId4": 1057
+  },
+  {
+    "id": 1242,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1034,
+    "kickerAiDiscId3": 1035,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1243,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1064,
+    "kickerAiDiscId3": 1058,
+    "kickerAiDiscId4": 1039
+  },
+  {
+    "id": 1244,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1035,
+    "kickerAiDiscId3": 1036,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1245,
+    "kickerAiDiscId1": 1013,
+    "kickerAiDiscId2": 1018,
+    "kickerAiDiscId3": 1026,
+    "kickerAiDiscId4": 1019
+  },
+  {
+    "id": 1246,
+    "kickerAiDiscId1": 1018,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1023,
+    "kickerAiDiscId4": 1024
+  },
+  {
+    "id": 1247,
+    "kickerAiDiscId1": 1019,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1020,
+    "kickerAiDiscId4": 1027
+  },
+  {
+    "id": 1248,
+    "kickerAiDiscId1": 1020,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1025,
+    "kickerAiDiscId4": 12
+  },
+  {
+    "id": 1249,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1035,
+    "kickerAiDiscId4": 1036
+  },
+  {
+    "id": 1250,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1046,
+    "kickerAiDiscId4": 1060
+  },
+  {
+    "id": 1251,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1037,
+    "kickerAiDiscId4": 1038
+  },
+  {
+    "id": 1252,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1052,
+    "kickerAiDiscId4": 1033
+  },
+  {
+    "id": 1253,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1025,
+    "kickerAiDiscId3": 1030,
+    "kickerAiDiscId4": 12
+  },
+  {
+    "id": 1254,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1027,
+    "kickerAiDiscId3": 1035,
+    "kickerAiDiscId4": 1021
+  },
+  {
+    "id": 1255,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1018,
+    "kickerAiDiscId3": 1040,
+    "kickerAiDiscId4": 1026
+  },
+  {
+    "id": 1256,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1022,
+    "kickerAiDiscId3": 1036,
+    "kickerAiDiscId4": 1023
+  },
+  {
+    "id": 1257,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1045,
+    "kickerAiDiscId3": 1011,
+    "kickerAiDiscId4": 1051
+  },
+  {
+    "id": 1258,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1259,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1045,
+    "kickerAiDiscId4": 1072
+  },
+  {
+    "id": 1260,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1057
+  },
+  {
+    "id": 1261,
+    "kickerAiDiscId1": 2,
+    "kickerAiDiscId2": 3,
+    "kickerAiDiscId3": 1068,
+    "kickerAiDiscId4": 1074
+  },
+  {
+    "id": 1262,
+    "kickerAiDiscId1": 3,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 6,
+    "kickerAiDiscId4": 1007
+  },
+  {
+    "id": 1263,
+    "kickerAiDiscId1": 4,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1069,
+    "kickerAiDiscId4": 1078
+  },
+  {
+    "id": 1264,
+    "kickerAiDiscId1": 5,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1059,
+    "kickerAiDiscId4": 1008
+  },
+  {
+    "id": 1265,
+    "kickerAiDiscId1": 1,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1070,
+    "kickerAiDiscId4": 1005
+  },
+  {
+    "id": 1266,
+    "kickerAiDiscId1": 1001,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1,
+    "kickerAiDiscId4": 1062
+  },
+  {
+    "id": 1267,
+    "kickerAiDiscId1": 1002,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1076,
+    "kickerAiDiscId4": 1001
+  },
+  {
+    "id": 1268,
+    "kickerAiDiscId1": 1003,
+    "kickerAiDiscId2": 1048,
+    "kickerAiDiscId3": 1002,
+    "kickerAiDiscId4": 1004
+  },
+  {
+    "id": 1269,
+    "kickerAiDiscId1": 1043,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1073
+  },
+  {
+    "id": 1270,
+    "kickerAiDiscId1": 1066,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1073,
+    "kickerAiDiscId4": 1044
+  },
+  {
+    "id": 1271,
+    "kickerAiDiscId1": 1073,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1045
+  },
+  {
+    "id": 1272,
+    "kickerAiDiscId1": 1041,
+    "kickerAiDiscId2": 1066,
+    "kickerAiDiscId3": 1073,
+    "kickerAiDiscId4": 1047
+  },
+  {
+    "id": 1273,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1035,
+    "kickerAiDiscId3": 1036,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1274,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1040,
+    "kickerAiDiscId3": 1031,
+    "kickerAiDiscId4": 1011
+  },
+  {
+    "id": 1275,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1036,
+    "kickerAiDiscId3": 1037,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1276,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1046,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1277,
+    "kickerAiDiscId1": 1013,
+    "kickerAiDiscId2": 1018,
+    "kickerAiDiscId3": 1024,
+    "kickerAiDiscId4": 1025
+  },
+  {
+    "id": 1278,
+    "kickerAiDiscId1": 1018,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1020,
+    "kickerAiDiscId4": 1027
+  },
+  {
+    "id": 1279,
+    "kickerAiDiscId1": 1019,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1018,
+    "kickerAiDiscId4": 1026
+  },
+  {
+    "id": 1280,
+    "kickerAiDiscId1": 1020,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1028,
+    "kickerAiDiscId4": 1022
+  },
+  {
+    "id": 1281,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1046,
+    "kickerAiDiscId4": 1060
+  },
+  {
+    "id": 1282,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1038,
+    "kickerAiDiscId4": 1071
+  },
+  {
+    "id": 1283,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1034,
+    "kickerAiDiscId4": 1035
+  },
+  {
+    "id": 1284,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1064,
+    "kickerAiDiscId4": 1058
+  },
+  {
+    "id": 1285,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1036,
+    "kickerAiDiscId4": 1028
+  },
+  {
+    "id": 1286,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1026,
+    "kickerAiDiscId3": 1032,
+    "kickerAiDiscId4": 1019
+  },
+  {
+    "id": 1287,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1023,
+    "kickerAiDiscId3": 1037,
+    "kickerAiDiscId4": 1024
+  },
+  {
+    "id": 1288,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1019,
+    "kickerAiDiscId3": 1033,
+    "kickerAiDiscId4": 1020
+  },
+  {
+    "id": 1289,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1045,
+    "kickerAiDiscId3": 1057,
+    "kickerAiDiscId4": 1039
+  },
+  {
+    "id": 1290,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1291,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1045,
+    "kickerAiDiscId4": 1057
+  },
+  {
+    "id": 1292,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1293,
+    "kickerAiDiscId1": 2,
+    "kickerAiDiscId2": 3,
+    "kickerAiDiscId3": 7,
+    "kickerAiDiscId4": 1065
+  },
+  {
+    "id": 1294,
+    "kickerAiDiscId1": 3,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1063,
+    "kickerAiDiscId4": 1006
+  },
+  {
+    "id": 1295,
+    "kickerAiDiscId1": 4,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1000,
+    "kickerAiDiscId4": 1009
+  },
+  {
+    "id": 1296,
+    "kickerAiDiscId1": 5,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1029,
+    "kickerAiDiscId4": 1006
+  },
+  {
+    "id": 1297,
+    "kickerAiDiscId1": 1,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1062,
+    "kickerAiDiscId4": 1002
+  },
+  {
+    "id": 1298,
+    "kickerAiDiscId1": 1001,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1076,
+    "kickerAiDiscId4": 1
+  },
+  {
+    "id": 1299,
+    "kickerAiDiscId1": 1002,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1003,
+    "kickerAiDiscId4": 1004
+  },
+  {
+    "id": 1300,
+    "kickerAiDiscId1": 1003,
+    "kickerAiDiscId2": 1048,
+    "kickerAiDiscId3": 1076,
+    "kickerAiDiscId4": 1001
+  },
+  {
+    "id": 1301,
+    "kickerAiDiscId1": 1041,
+    "kickerAiDiscId2": 1066,
+    "kickerAiDiscId3": 1073,
+    "kickerAiDiscId4": 1043
+  },
+  {
+    "id": 1302,
+    "kickerAiDiscId1": 1043,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1073,
+    "kickerAiDiscId4": 1015
+  },
+  {
+    "id": 1303,
+    "kickerAiDiscId1": 1066,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1073,
+    "kickerAiDiscId4": 1015
+  },
+  {
+    "id": 1304,
+    "kickerAiDiscId1": 1073,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1042
+  },
+  {
+    "id": 1305,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1046,
+    "kickerAiDiscId4": 1012
+  },
+  {
+    "id": 1306,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1037,
+    "kickerAiDiscId3": 1038,
+    "kickerAiDiscId4": 1057
+  },
+  {
+    "id": 1307,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1033,
+    "kickerAiDiscId3": 1034,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1308,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1064,
+    "kickerAiDiscId3": 1058,
+    "kickerAiDiscId4": 1057
+  },
+  {
+    "id": 1309,
+    "kickerAiDiscId1": 1013,
+    "kickerAiDiscId2": 1018,
+    "kickerAiDiscId3": 1021,
+    "kickerAiDiscId4": 1028
+  },
+  {
+    "id": 1310,
+    "kickerAiDiscId1": 1018,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1026,
+    "kickerAiDiscId4": 1019
+  },
+  {
+    "id": 1311,
+    "kickerAiDiscId1": 1019,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1023,
+    "kickerAiDiscId4": 1024
+  },
+  {
+    "id": 1312,
+    "kickerAiDiscId1": 1020,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1019,
+    "kickerAiDiscId4": 1027
+  },
+  {
+    "id": 1313,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1030,
+    "kickerAiDiscId4": 1064
+  },
+  {
+    "id": 1314,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1035,
+    "kickerAiDiscId4": 1036
+  },
+  {
+    "id": 1315,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1040,
+    "kickerAiDiscId4": 1046
+  },
+  {
+    "id": 1316,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1036,
+    "kickerAiDiscId4": 1037
+  },
+  {
+    "id": 1317,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1052,
+    "kickerAiDiscId3": 1019,
+    "kickerAiDiscId4": 1033
+  },
+  {
+    "id": 1318,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1038,
+    "kickerAiDiscId3": 1024,
+    "kickerAiDiscId4": 1071
+  },
+  {
+    "id": 1319,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1035,
+    "kickerAiDiscId3": 1020,
+    "kickerAiDiscId4": 1036
+  },
+  {
+    "id": 1320,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1058,
+    "kickerAiDiscId3": 1018,
+    "kickerAiDiscId4": 1040
+  },
+  {
+    "id": 1321,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1045,
+    "kickerAiDiscId3": 1048,
+    "kickerAiDiscId4": 1057
+  },
+  {
+    "id": 1322,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1039
+  },
+  {
+    "id": 1323,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1045,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1324,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1067
+  },
+  {
+    "id": 1325,
+    "kickerAiDiscId1": 2,
+    "kickerAiDiscId2": 3,
+    "kickerAiDiscId3": 4,
+    "kickerAiDiscId4": 1006
+  },
+  {
+    "id": 1326,
+    "kickerAiDiscId1": 3,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1061,
+    "kickerAiDiscId4": 1010
+  },
+  {
+    "id": 1327,
+    "kickerAiDiscId1": 4,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1016,
+    "kickerAiDiscId4": 1006
+  },
+  {
+    "id": 1328,
+    "kickerAiDiscId1": 5,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1069,
+    "kickerAiDiscId4": 1074
+  },
+  {
+    "id": 1329,
+    "kickerAiDiscId1": 1,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1076,
+    "kickerAiDiscId4": 1001
+  },
+  {
+    "id": 1330,
+    "kickerAiDiscId1": 1001,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1004,
+    "kickerAiDiscId4": 1055
+  },
+  {
+    "id": 1331,
+    "kickerAiDiscId1": 1002,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1001,
+    "kickerAiDiscId4": 1
+  },
+  {
+    "id": 1332,
+    "kickerAiDiscId1": 1003,
+    "kickerAiDiscId2": 1048,
+    "kickerAiDiscId3": 1076,
+    "kickerAiDiscId4": 1001
+  },
+  {
+    "id": 1333,
+    "kickerAiDiscId1": 1041,
+    "kickerAiDiscId2": 1043,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1073
+  },
+  {
+    "id": 1334,
+    "kickerAiDiscId1": 1043,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1015
+  },
+  {
+    "id": 1335,
+    "kickerAiDiscId1": 1066,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1073,
+    "kickerAiDiscId4": 1015
+  },
+  {
+    "id": 1336,
+    "kickerAiDiscId1": 1073,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1042
+  },
+  {
+    "id": 1337,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1038,
+    "kickerAiDiscId3": 1071,
+    "kickerAiDiscId4": 1064
+  },
+  {
+    "id": 1338,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1034,
+    "kickerAiDiscId3": 1035,
+    "kickerAiDiscId4": 1036
+  },
+  {
+    "id": 1339,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1058,
+    "kickerAiDiscId3": 1040,
+    "kickerAiDiscId4": 1031
+  },
+  {
+    "id": 1340,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1036,
+    "kickerAiDiscId3": 1037,
+    "kickerAiDiscId4": 1038
+  },
+  {
+    "id": 1341,
+    "kickerAiDiscId1": 1013,
+    "kickerAiDiscId2": 1018,
+    "kickerAiDiscId3": 1019,
+    "kickerAiDiscId4": 1020
+  },
+  {
+    "id": 1342,
+    "kickerAiDiscId1": 1018,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1024,
+    "kickerAiDiscId4": 1025
+  },
+  {
+    "id": 1343,
+    "kickerAiDiscId1": 1019,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1020,
+    "kickerAiDiscId4": 1027
+  },
+  {
+    "id": 1344,
+    "kickerAiDiscId1": 1020,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1025,
+    "kickerAiDiscId4": 12
+  },
+  {
+    "id": 1345,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1036,
+    "kickerAiDiscId4": 1037
+  },
+  {
+    "id": 1346,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1046,
+    "kickerAiDiscId4": 1060
+  },
+  {
+    "id": 1347,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1037,
+    "kickerAiDiscId4": 1038
+  },
+  {
+    "id": 1348,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1033,
+    "kickerAiDiscId4": 1034
+  },
+  {
+    "id": 1349,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1025,
+    "kickerAiDiscId3": 1064,
+    "kickerAiDiscId4": 12
+  },
+  {
+    "id": 1350,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1021,
+    "kickerAiDiscId3": 1035,
+    "kickerAiDiscId4": 1013
+  },
+  {
+    "id": 1351,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1018,
+    "kickerAiDiscId3": 1031,
+    "kickerAiDiscId4": 1026
+  },
+  {
+    "id": 1352,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1023,
+    "kickerAiDiscId3": 1037,
+    "kickerAiDiscId4": 1024
+  },
+  {
+    "id": 1353,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1045,
+    "kickerAiDiscId3": 1011,
+    "kickerAiDiscId4": 1051
+  },
+  {
+    "id": 1354,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1355,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1045,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1356,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1057
+  },
+  {
+    "id": 1357,
+    "kickerAiDiscId1": 2,
+    "kickerAiDiscId2": 3,
+    "kickerAiDiscId3": 1068,
+    "kickerAiDiscId4": 1074
+  },
+  {
+    "id": 1358,
+    "kickerAiDiscId1": 3,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1017,
+    "kickerAiDiscId4": 1007
+  },
+  {
+    "id": 1359,
+    "kickerAiDiscId1": 4,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 3,
+    "kickerAiDiscId4": 1054
+  },
+  {
+    "id": 1360,
+    "kickerAiDiscId1": 5,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 8,
+    "kickerAiDiscId4": 1009
+  },
+  {
+    "id": 1361,
+    "kickerAiDiscId1": 1,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1005,
+    "kickerAiDiscId4": 1076
+  },
+  {
+    "id": 1362,
+    "kickerAiDiscId1": 1001,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1,
+    "kickerAiDiscId4": 1062
+  },
+  {
+    "id": 1363,
+    "kickerAiDiscId1": 1002,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1076,
+    "kickerAiDiscId4": 1001
+  },
+  {
+    "id": 1364,
+    "kickerAiDiscId1": 1003,
+    "kickerAiDiscId2": 1048,
+    "kickerAiDiscId3": 1004,
+    "kickerAiDiscId4": 1055
+  },
+  {
+    "id": 1365,
+    "kickerAiDiscId1": 1041,
+    "kickerAiDiscId2": 1066,
+    "kickerAiDiscId3": 1073,
+    "kickerAiDiscId4": 1043
+  },
+  {
+    "id": 1366,
+    "kickerAiDiscId1": 1043,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1015
+  },
+  {
+    "id": 1367,
+    "kickerAiDiscId1": 1066,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1073,
+    "kickerAiDiscId4": 1015
+  },
+  {
+    "id": 1368,
+    "kickerAiDiscId1": 1073,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1042
+  },
+  {
+    "id": 1369,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1035,
+    "kickerAiDiscId3": 1036,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1370,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1032,
+    "kickerAiDiscId4": 1067
+  },
+  {
+    "id": 1371,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1037,
+    "kickerAiDiscId3": 1038,
+    "kickerAiDiscId4": 1071
+  },
+  {
+    "id": 1372,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1052,
+    "kickerAiDiscId3": 1033,
+    "kickerAiDiscId4": 1034
+  },
+  {
+    "id": 1373,
+    "kickerAiDiscId1": 1013,
+    "kickerAiDiscId2": 1018,
+    "kickerAiDiscId3": 1025,
+    "kickerAiDiscId4": 12
+  },
+  {
+    "id": 1374,
+    "kickerAiDiscId1": 1018,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1027,
+    "kickerAiDiscId4": 1021
+  },
+  {
+    "id": 1375,
+    "kickerAiDiscId1": 1019,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1018,
+    "kickerAiDiscId4": 1026
+  },
+  {
+    "id": 1376,
+    "kickerAiDiscId1": 1020,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1022,
+    "kickerAiDiscId4": 1023
+  },
+  {
+    "id": 1377,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1052,
+    "kickerAiDiscId4": 1033
+  },
+  {
+    "id": 1378,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1038,
+    "kickerAiDiscId4": 1071
+  },
+  {
+    "id": 1379,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1034,
+    "kickerAiDiscId4": 1035
+  },
+  {
+    "id": 1380,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1058,
+    "kickerAiDiscId4": 1040
+  },
+  {
+    "id": 1381,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1036,
+    "kickerAiDiscId3": 1022,
+    "kickerAiDiscId4": 1037
+  },
+  {
+    "id": 1382,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1019,
+    "kickerAiDiscId4": 1046
+  },
+  {
+    "id": 1383,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1038,
+    "kickerAiDiscId3": 1024,
+    "kickerAiDiscId4": 1071
+  },
+  {
+    "id": 1384,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1035,
+    "kickerAiDiscId3": 1020,
+    "kickerAiDiscId4": 1036
+  },
+  {
+    "id": 1385,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1045,
+    "kickerAiDiscId3": 1057,
+    "kickerAiDiscId4": 1039
+  },
+  {
+    "id": 1386,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1387,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1045,
+    "kickerAiDiscId4": 1057
+  },
+  {
+    "id": 1388,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1389,
+    "kickerAiDiscId1": 2,
+    "kickerAiDiscId2": 3,
+    "kickerAiDiscId3": 1059,
+    "kickerAiDiscId4": 1008
+  },
+  {
+    "id": 1390,
+    "kickerAiDiscId1": 3,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1014,
+    "kickerAiDiscId4": 1006
+  },
+  {
+    "id": 1391,
+    "kickerAiDiscId1": 4,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1000,
+    "kickerAiDiscId4": 1010
+  },
+  {
+    "id": 1392,
+    "kickerAiDiscId1": 5,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1050,
+    "kickerAiDiscId4": 1006
+  },
+  {
+    "id": 1393,
+    "kickerAiDiscId1": 1,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1002,
+    "kickerAiDiscId4": 1003
+  },
+  {
+    "id": 1394,
+    "kickerAiDiscId1": 1001,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1076,
+    "kickerAiDiscId4": 1
+  },
+  {
+    "id": 1395,
+    "kickerAiDiscId1": 1002,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1004,
+    "kickerAiDiscId4": 1055
+  },
+  {
+    "id": 1396,
+    "kickerAiDiscId1": 1003,
+    "kickerAiDiscId2": 1048,
+    "kickerAiDiscId3": 1076,
+    "kickerAiDiscId4": 1001
+  },
+  {
+    "id": 1397,
+    "kickerAiDiscId1": 1043,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1073
+  },
+  {
+    "id": 1398,
+    "kickerAiDiscId1": 1066,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1043,
+    "kickerAiDiscId4": 1044
+  },
+  {
+    "id": 1399,
+    "kickerAiDiscId1": 1073,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1044
+  },
+  {
+    "id": 1400,
+    "kickerAiDiscId1": 1041,
+    "kickerAiDiscId2": 1066,
+    "kickerAiDiscId3": 1073,
+    "kickerAiDiscId4": 1045
+  },
+  {
+    "id": 1401,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1046,
+    "kickerAiDiscId4": 1060
+  },
+  {
+    "id": 1402,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1038,
+    "kickerAiDiscId3": 1071,
+    "kickerAiDiscId4": 1064
+  },
+  {
+    "id": 1403,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1034,
+    "kickerAiDiscId3": 1035,
+    "kickerAiDiscId4": 1036
+  },
+  {
+    "id": 1404,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1064,
+    "kickerAiDiscId3": 1058,
+    "kickerAiDiscId4": 1040
+  },
+  {
+    "id": 1405,
+    "kickerAiDiscId1": 1013,
+    "kickerAiDiscId2": 1018,
+    "kickerAiDiscId3": 1028,
+    "kickerAiDiscId4": 1022
+  },
+  {
+    "id": 1406,
+    "kickerAiDiscId1": 1018,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1026,
+    "kickerAiDiscId4": 1019
+  },
+  {
+    "id": 1407,
+    "kickerAiDiscId1": 1019,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1023,
+    "kickerAiDiscId4": 1024
+  },
+  {
+    "id": 1408,
+    "kickerAiDiscId1": 1020,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1019,
+    "kickerAiDiscId4": 1027
+  },
+  {
+    "id": 1409,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1064,
+    "kickerAiDiscId4": 1058
+  },
+  {
+    "id": 1410,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1035,
+    "kickerAiDiscId4": 1036
+  },
+  {
+    "id": 1411,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1046,
+    "kickerAiDiscId4": 1060
+  },
+  {
+    "id": 1412,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1037,
+    "kickerAiDiscId4": 1038
+  },
+  {
+    "id": 1413,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1019,
+    "kickerAiDiscId3": 1033,
+    "kickerAiDiscId4": 1020
+  },
+  {
+    "id": 1414,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1025,
+    "kickerAiDiscId3": 1030,
+    "kickerAiDiscId4": 12
+  },
+  {
+    "id": 1415,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1027,
+    "kickerAiDiscId3": 1035,
+    "kickerAiDiscId4": 1021
+  },
+  {
+    "id": 1416,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1018,
+    "kickerAiDiscId3": 1040,
+    "kickerAiDiscId4": 1026
+  },
+  {
+    "id": 1417,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1045,
+    "kickerAiDiscId3": 1048,
+    "kickerAiDiscId4": 1057
+  },
+  {
+    "id": 1418,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1051
+  },
+  {
+    "id": 1419,
+    "kickerAiDiscId1": 1044,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1045,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1420,
+    "kickerAiDiscId1": 1045,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1044,
+    "kickerAiDiscId4": 1012
+  },
+  {
+    "id": 1421,
+    "kickerAiDiscId1": 2,
+    "kickerAiDiscId2": 3,
+    "kickerAiDiscId3": 1029,
+    "kickerAiDiscId4": 1056
+  },
+  {
+    "id": 1422,
+    "kickerAiDiscId1": 3,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1068,
+    "kickerAiDiscId4": 1074
+  },
+  {
+    "id": 1423,
+    "kickerAiDiscId1": 4,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 6,
+    "kickerAiDiscId4": 1007
+  },
+  {
+    "id": 1424,
+    "kickerAiDiscId1": 5,
+    "kickerAiDiscId2": 2,
+    "kickerAiDiscId3": 1069,
+    "kickerAiDiscId4": 1078
+  },
+  {
+    "id": 1425,
+    "kickerAiDiscId1": 1,
+    "kickerAiDiscId2": 1011,
+    "kickerAiDiscId3": 1076,
+    "kickerAiDiscId4": 1001
+  },
+  {
+    "id": 1426,
+    "kickerAiDiscId1": 1001,
+    "kickerAiDiscId2": 1012,
+    "kickerAiDiscId3": 1070,
+    "kickerAiDiscId4": 1005
+  },
+  {
+    "id": 1427,
+    "kickerAiDiscId1": 1002,
+    "kickerAiDiscId2": 1039,
+    "kickerAiDiscId3": 1001,
+    "kickerAiDiscId4": 1
+  },
+  {
+    "id": 1428,
+    "kickerAiDiscId1": 1003,
+    "kickerAiDiscId2": 1048,
+    "kickerAiDiscId3": 1076,
+    "kickerAiDiscId4": 1001
+  },
+  {
+    "id": 1429,
+    "kickerAiDiscId1": 1041,
+    "kickerAiDiscId2": 1066,
+    "kickerAiDiscId3": 1073,
+    "kickerAiDiscId4": 1043
+  },
+  {
+    "id": 1430,
+    "kickerAiDiscId1": 1043,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1015
+  },
+  {
+    "id": 1431,
+    "kickerAiDiscId1": 1066,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1073,
+    "kickerAiDiscId4": 1015
+  },
+  {
+    "id": 1432,
+    "kickerAiDiscId1": 1073,
+    "kickerAiDiscId2": 1041,
+    "kickerAiDiscId3": 1066,
+    "kickerAiDiscId4": 1042
+  },
+  {
+    "id": 1433,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1032,
+    "kickerAiDiscId4": 1057
+  },
+  {
+    "id": 1434,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1032,
+    "kickerAiDiscId4": 1048
+  },
+  {
+    "id": 1435,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1032,
+    "kickerAiDiscId4": 1011
+  },
+  {
+    "id": 1436,
+    "kickerAiDiscId1": 1030,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1032,
+    "kickerAiDiscId4": 1033
+  },
+  {
+    "id": 1437,
+    "kickerAiDiscId1": 1013,
+    "kickerAiDiscId2": 1018,
+    "kickerAiDiscId3": 1019,
+    "kickerAiDiscId4": 1020
+  },
+  {
+    "id": 1438,
+    "kickerAiDiscId1": 1018,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1024,
+    "kickerAiDiscId4": 1025
+  },
+  {
+    "id": 1439,
+    "kickerAiDiscId1": 1019,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1020,
+    "kickerAiDiscId4": 1027
+  },
+  {
+    "id": 1440,
+    "kickerAiDiscId1": 1020,
+    "kickerAiDiscId2": 1013,
+    "kickerAiDiscId3": 1018,
+    "kickerAiDiscId4": 1026
+  },
+  {
+    "id": 1441,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1036,
+    "kickerAiDiscId4": 1037
+  },
+  {
+    "id": 1442,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1046,
+    "kickerAiDiscId4": 1060
+  },
+  {
+    "id": 1443,
+    "kickerAiDiscId1": 1031,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1038,
+    "kickerAiDiscId4": 1071
+  },
+  {
+    "id": 1444,
+    "kickerAiDiscId1": 1032,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1034,
+    "kickerAiDiscId4": 1035
+  },
+  {
+    "id": 1445,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1032,
+    "kickerAiDiscId4": 1018
+  },
+  {
+    "id": 1446,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1032,
+    "kickerAiDiscId4": 1013
+  },
+  {
+    "id": 1447,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1032,
+    "kickerAiDiscId3": 1031,
+    "kickerAiDiscId4": 1026
+  },
+  {
+    "id": 1448,
+    "kickerAiDiscId1": 1034,
+    "kickerAiDiscId2": 1031,
+    "kickerAiDiscId3": 1032,
+    "kickerAiDiscId4": 1023
   }
 ]

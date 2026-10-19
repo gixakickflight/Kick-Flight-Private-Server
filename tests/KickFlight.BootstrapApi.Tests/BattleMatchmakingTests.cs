@@ -1,7 +1,10 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.Hosting;
 using Grpc.Core;
 using KickFlight.BootstrapApi;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using OpenMatch;
 using Xunit;
@@ -204,6 +207,175 @@ public sealed class BattleMatchmakingTests
                     .Select(slot => bot.GetProperty($"discId{slot}").GetInt32()).ToArray());
             }
         }
+    }
+
+    [Fact]
+    public async Task Scramble_roster_serializes_the_selected_catalog_deck_and_keeps_existing_ai_parameters()
+    {
+        var service = CreateService(withCatalog: true);
+        service.MatchWindow = TimeSpan.FromMilliseconds(30);
+        var (_, ticket) = service.RegisterEntry("1000001", "Scramble human", 1, 2010101, 1,
+            [3010001, 3010002, 3010003, 3010004]);
+        using var cancellation = new CancellationTokenSource();
+        var writer = new CollectingWriter(expectedCount: 3, cancellation);
+        var stream = service.StreamAssignmentsAsync(ticket, writer, cancellation.Token);
+
+        await writer.WaitForExpectedWritesAsync();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => stream);
+
+        var root = RepositoryPaths.FindRoot(AppContext.BaseDirectory);
+        using var catalog = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(root, "config/scramble_bot_disc_decks.json")));
+        using var aiDecks = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(root, "config/masters_kicker_ai_disc_deck.json")));
+        using var aiDiscs = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(root, "config/masters_kicker_ai_disc.json")));
+        var aiDiscById = aiDiscs.RootElement.EnumerateArray()
+            .ToDictionary(row => row.GetProperty("id").GetInt32(), row => row.GetProperty("discId").GetInt32());
+        var deckLinks = aiDecks.RootElement.EnumerateArray()
+            .ToDictionary(row => row.GetProperty("id").GetInt32());
+        var generatedDeckRows = catalog.RootElement.GetProperty("decks").EnumerateArray()
+            .ToDictionary(row => row.GetProperty("deckId").GetInt32());
+        var roster = Roster(writer.Responses[^1].Assignment);
+        Assert.Equal(8, roster.Count);
+        var human = Assert.Single(roster, row => row.GetProperty("kickerAiParameterId").GetInt32() == 0);
+        Assert.Equal("1000001", human.GetProperty("userId").GetString());
+        Assert.Equal(1, human.GetProperty("kickerId").GetInt32());
+        Assert.Equal(2010101, human.GetProperty("kickerCostumeId").GetInt32());
+        Assert.Equal(0, human.GetProperty("kickerAiDiscDeckId").GetInt32());
+        Assert.Equal(new[] { 3010001, 3010002, 3010003, 3010004 }, Enumerable.Range(1, 4)
+            .Select(slot => human.GetProperty($"discId{slot}").GetInt32()).ToArray());
+
+        var bots = roster.Where(row => row.GetProperty("kickerAiParameterId").GetInt32() > 0).ToArray();
+        Assert.Equal(7, bots.Length);
+        foreach (var bot in bots)
+        {
+            var kickerId = bot.GetProperty("kickerId").GetInt32();
+            Assert.Equal(kickerId, bot.GetProperty("kickerAiParameterId").GetInt32());
+            var deckId = bot.GetProperty("kickerAiDiscDeckId").GetInt32();
+            Assert.True(generatedDeckRows.TryGetValue(deckId, out var catalogDeck), $"missing catalog deck {deckId}");
+            Assert.Equal(kickerId, catalogDeck!.GetProperty("kickerId").GetInt32());
+            var selectedDiscIds = Enumerable.Range(1, 4)
+                .Select(slot => bot.GetProperty($"discId{slot}").GetInt32()).ToArray();
+            Assert.Equal(catalogDeck.GetProperty("discIds").EnumerateArray().Select(value => value.GetInt32()), selectedDiscIds);
+            Assert.Equal(selectedDiscIds, Enumerable.Range(1, 4)
+                .Select(slot => aiDiscById[deckLinks[deckId].GetProperty($"kickerAiDiscId{slot}").GetInt32()]).ToArray());
+        }
+    }
+
+    [Fact]
+    public async Task Scramble_rebalances_solo_humans_without_changing_their_account_kicker_costume_or_discs()
+    {
+        var service = CreateService(withCatalog: true);
+        service.MatchWindow = TimeSpan.FromSeconds(2);
+        var expected = new Dictionary<string, (int KickerId, int CostumeId, int[] DiscIds)>(StringComparer.Ordinal);
+        var tickets = new List<string>();
+        for (var index = 0; index < 4; index++)
+        {
+            var userId = $"100000{index + 1}";
+            var kickerId = index + 1;
+            var costumeId = 2010101 + index;
+            var discIds = Enumerable.Range(0, 4).Select(slot => 3010001 + index * 10 + slot).ToArray();
+            expected.Add(userId, (kickerId, costumeId, discIds));
+            var (_, ticket) = service.RegisterEntry(userId, $"Scramble human {index + 1}", index + 1,
+                costumeId, 1, discIds.ToList());
+            tickets.Add(ticket);
+        }
+
+        var cancellations = tickets.Select(_ => new CancellationTokenSource()).ToArray();
+        var writers = cancellations.Select(cancellation => new CollectingWriter(100, cancellation)).ToArray();
+        var streams = new List<Task>();
+        try
+        {
+            for (var index = 0; index < tickets.Count; index++)
+                streams.Add(service.StreamAssignmentsAsync(tickets[index], writers[index], cancellations[index].Token));
+            await Task.WhenAll(writers.Select(writer => writer.FirstWrite));
+
+            var finals = await Task.WhenAll(writers.Select(writer =>
+                writer.FinalAssignment.WaitAsync(TimeSpan.FromSeconds(8))));
+            var roster = Roster(finals[0].Assignment);
+            Assert.Equal(8, roster.Count);
+            var humans = roster.Where(entry => entry.GetProperty("kickerAiParameterId").GetInt32() == 0).ToArray();
+            Assert.Equal(4, humans.Length);
+            Assert.Equal(new[] { 2, 2 }, humans.GroupBy(entry => entry.GetProperty("teamType").GetInt32())
+                .Select(group => group.Count()).Order().ToArray());
+
+            foreach (var human in humans)
+            {
+                var userId = human.GetProperty("userId").GetString()!;
+                var source = expected[userId];
+                Assert.Equal(source.KickerId, human.GetProperty("kickerId").GetInt32());
+                Assert.Equal(source.CostumeId, human.GetProperty("kickerCostumeId").GetInt32());
+                Assert.Equal(0, human.GetProperty("kickerAiParameterId").GetInt32());
+                Assert.Equal(0, human.GetProperty("kickerAiDiscDeckId").GetInt32());
+                Assert.Equal(source.DiscIds, Enumerable.Range(1, 4)
+                    .Select(slot => human.GetProperty($"discId{slot}").GetInt32()).ToArray());
+            }
+        }
+        finally
+        {
+            foreach (var cancellation in cancellations) cancellation.Cancel();
+            try
+            {
+                await Task.WhenAll(streams.Select(async stream =>
+                    await Assert.ThrowsAnyAsync<OperationCanceledException>(() => stream)));
+            }
+            finally
+            {
+                foreach (var cancellation in cancellations) cancellation.Dispose();
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Non_scramble_and_gym_keep_the_legacy_bot_deck_and_gym_ai_ids()
+    {
+        var previousGym = BattleMatchmakingService.GymEnabled;
+        try
+        {
+            BattleMatchmakingService.GymEnabled = false;
+            var service = CreateService(withCatalog: true);
+            service.MatchWindow = TimeSpan.FromMilliseconds(30);
+            var (_, ticket) = service.RegisterEntry("1000001", "Other mode human", 1, 2010101, 2,
+                [3010001, 3010002, 3010003, 3010004]);
+            var roster = await FinalRoster(service, ticket);
+            var ordinaryBots = roster.Where(row => row.GetProperty("kickerAiParameterId").GetInt32() > 0).ToArray();
+            Assert.Equal(7, ordinaryBots.Length);
+            Assert.Equal(5, ordinaryBots[0].GetProperty("kickerId").GetInt32());
+            Assert.All(ordinaryBots, bot =>
+            {
+                Assert.Equal(1, bot.GetProperty("kickerAiDiscDeckId").GetInt32());
+                Assert.Equal(new[] { 3010001, 3010002, 3010003, 3010004 }, Enumerable.Range(1, 4)
+                    .Select(slot => bot.GetProperty($"discId{slot}").GetInt32()).ToArray());
+            });
+
+            BattleMatchmakingService.GymEnabled = true;
+            var gymService = CreateService(withCatalog: true);
+            gymService.MatchWindow = TimeSpan.FromMilliseconds(30);
+            var (_, gymTicket) = gymService.RegisterEntry("1000002", "Gym human", 1, 2010101, 1,
+                [3010001, 3010002, 3010003, 3010004]);
+            var gymRoster = await FinalRoster(gymService, gymTicket);
+            var gymBots = gymRoster.Where(row => row.GetProperty("kickerAiParameterId").GetInt32() > 0).ToArray();
+            Assert.Equal(BattleMatchmakingService.GymBotCount, gymBots.Length);
+            Assert.All(gymBots, bot =>
+            {
+                Assert.True(bot.GetProperty("kickerAiParameterId").GetInt32() >= BattleMatchmakingService.GymAiParameterBase);
+                Assert.Equal(1, bot.GetProperty("kickerAiDiscDeckId").GetInt32());
+                Assert.Equal(new[] { 3010001, 3010002, 3010003, 3010004 }, Enumerable.Range(1, 4)
+                    .Select(slot => bot.GetProperty($"discId{slot}").GetInt32()).ToArray());
+            });
+        }
+        finally
+        {
+            BattleMatchmakingService.GymEnabled = previousGym;
+        }
+    }
+
+    private static async Task<List<JsonElement>> FinalRoster(BattleMatchmakingService service, string ticket)
+    {
+        using var cancellation = new CancellationTokenSource();
+        var writer = new CollectingWriter(expectedCount: 3, cancellation);
+        var stream = service.StreamAssignmentsAsync(ticket, writer, cancellation.Token);
+        await writer.WaitForExpectedWritesAsync();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => stream);
+        return Roster(writer.Responses[^1].Assignment);
     }
 
     [Fact]
@@ -789,12 +961,15 @@ public sealed class BattleMatchmakingTests
         }
     }
 
-    private static BattleMatchmakingService CreateService(bool fastWindow = true)
+    private static BattleMatchmakingService CreateService(bool fastWindow = true, bool withCatalog = false)
     {
         var photon = new PhotonServerManager(
             Options.Create(new PhotonServerOptions { Enabled = false }),
             NullLogger<PhotonServerManager>.Instance);
-        var service = new BattleMatchmakingService(NullLogger<BattleMatchmakingService>.Instance, photon);
+        var environment = withCatalog
+            ? new TestWebHostEnvironment(RepositoryPaths.FindRoot(AppContext.BaseDirectory))
+            : null;
+        var service = new BattleMatchmakingService(NullLogger<BattleMatchmakingService>.Instance, photon, environment: environment);
 
         if (fastWindow)
         {
@@ -804,6 +979,16 @@ public sealed class BattleMatchmakingTests
         }
 
         return service;
+    }
+
+    private sealed class TestWebHostEnvironment(string contentRoot) : IWebHostEnvironment
+    {
+        public string ApplicationName { get; set; } = "KickFlight.BootstrapApi.Tests";
+        public IFileProvider WebRootFileProvider { get; set; } = new NullFileProvider();
+        public string WebRootPath { get; set; } = contentRoot;
+        public string EnvironmentName { get; set; } = Environments.Development;
+        public string ContentRootPath { get; set; } = contentRoot;
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
     }
 
     private static string ReadFirstRosterUser(Assignment assignment)
