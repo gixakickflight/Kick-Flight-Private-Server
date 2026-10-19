@@ -1126,11 +1126,11 @@ public sealed class BattleMatchmakingService
             .ThenBy(group => group[0].UserId, StringComparer.Ordinal)
             .ToList();
 
-        var useScrambleHumanComposition = players.Count > 0
+        var useModeAwareHumanComposition = players.Count > 0
             && !GymEnabled && !TestBotDiscDeckEnabled && _scrambleBotDecks.Count > 0
-            && players[0].BattleRuleId is 1 or 5 or 6 or 7;
-        if (useScrambleHumanComposition)
-            return SelectScrambleBattleParties(parties, battleId);
+            && ScrambleBotCompositionSelector.ModeForBattleRuleId(players[0].BattleRuleId) is not null;
+        if (useModeAwareHumanComposition)
+            return SelectModeAwareBattleParties(parties, battleId, players[0].BattleRuleId);
 
         // Each party has three states: queued for this match's Blue side, queued for Red, or left for the
         // next match. A room has at most eight entries, so this checks at most 3^8 combinations.
@@ -1188,9 +1188,10 @@ public sealed class BattleMatchmakingService
         return new PartyAllocation(assignments);
     }
 
-    private PartyAllocation SelectScrambleBattleParties(
+    private PartyAllocation SelectModeAwareBattleParties(
         IReadOnlyList<List<BattleEntrySession>> parties,
-        string battleId)
+        string battleId,
+        int battleRuleId)
     {
         // Preserve the existing admission policy: maximize humans, then retain the oldest whole-party subset.
         // Team color and synergy are chosen only after that subset is fixed.
@@ -1236,7 +1237,8 @@ public sealed class BattleMatchmakingService
         var candidates = BotProfiles.Select(profile =>
             new ScrambleBotCandidate(profile.KickerId, profile.RoleType, profile.Archetype)).ToArray();
         var seed = ScrambleBotCompositionSelector.SeedFor(battleId);
-        var selection = ScrambleBotCompositionSelector.SelectHumanTeams(scrambleParties, candidates, seed);
+        var mode = ScrambleBotCompositionSelector.ModeForBattleRuleId(battleRuleId)!.Value;
+        var selection = ScrambleBotCompositionSelector.SelectHumanTeams(scrambleParties, candidates, seed, mode);
 
         var assignments = new Dictionary<BattleEntrySession, int>();
         foreach (var party in selectedParties)
@@ -1279,23 +1281,25 @@ public sealed class BattleMatchmakingService
         int team0Count = humanEntries.Count(entry => entry.teamType == 0);
         int team1Count = humanEntries.Count - team0Count;
 
-        // Non-gym Crystal Scramble uses a deterministic, catalog-backed near-best team composition. Other modes,
-        // gym matches and the explicit local test-deck override retain the established roster path below.
+        // Supported non-gym modes use a deterministic, catalog-backed near-best team composition. Gym matches,
+        // unknown battle rules and the explicit local test-deck override retain the established roster path below.
         var availableBots = BotProfiles.Where(b => !usedKickers.Contains(b.KickerId)).ToList();
         var botIdx = 0;
 
         var gym = GymEnabled;
         var totalPlayers = gym ? selectedPlayers.Count + GymBotCount : MaxPerTeam * 2;
 
-        var useScrambleComposition = !gym && !TestBotDiscDeckEnabled && _scrambleBotDecks.Count > 0
-            && room.BattleRuleId is 1 or 5 or 6 or 7;
-        if (useScrambleComposition)
+        var useModeAwareComposition = !gym && !TestBotDiscDeckEnabled && _scrambleBotDecks.Count > 0
+            && ScrambleBotCompositionSelector.ModeForBattleRuleId(room.BattleRuleId) is not null;
+        if (useModeAwareComposition)
         {
+            var mode = ScrambleBotCompositionSelector.ModeForBattleRuleId(room.BattleRuleId)!.Value;
             var humans = humanEntries.Select(entry => new ScrambleHuman(entry.teamType, entry.kickerId)).ToArray();
             var candidates = BotProfiles.Select(profile =>
                 new ScrambleBotCandidate(profile.KickerId, profile.RoleType, profile.Archetype)).ToArray();
             var assignments = ScrambleBotCompositionSelector.Select(humans, candidates, _scrambleBotDecks,
-                MaxPerTeam - team0Count, MaxPerTeam - team1Count, ScrambleBotCompositionSelector.SeedFor(room.BattleId));
+                MaxPerTeam - team0Count, MaxPerTeam - team1Count,
+                ScrambleBotCompositionSelector.SeedFor(room.BattleId), mode);
 
             if (assignments.Count == (MaxPerTeam - team0Count) + (MaxPerTeam - team1Count))
             {
@@ -1324,8 +1328,8 @@ public sealed class BattleMatchmakingService
                     });
                 }
                 _logger.LogInformation(
-                    "Scramble composition selected for {BattleId}: {Bots} bots; team0=[{Blue}] team1=[{Red}]",
-                    room.BattleId, assignments.Count,
+                    "{Mode} composition selected for {BattleId}: {Bots} bots; team0=[{Blue}] team1=[{Red}]",
+                    mode, room.BattleId, assignments.Count,
                     string.Join(',', assignments.Where(a => a.TeamType == 0).Select(a => $"{a.KickerId}:{a.Profile}:{a.DeckId}")),
                     string.Join(',', assignments.Where(a => a.TeamType == 1).Select(a => $"{a.KickerId}:{a.Profile}:{a.DeckId}")));
             }

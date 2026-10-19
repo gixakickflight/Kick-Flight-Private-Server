@@ -11,6 +11,7 @@ using Xunit;
 
 namespace KickFlight.BootstrapApi.Tests;
 
+[Collection("Matchmaking static state")]
 public sealed class BattleMatchmakingTests
 {
     [Fact]
@@ -333,7 +334,7 @@ public sealed class BattleMatchmakingTests
             BattleMatchmakingService.GymEnabled = false;
             var service = CreateService(withCatalog: true);
             service.MatchWindow = TimeSpan.FromMilliseconds(30);
-            var (_, ticket) = service.RegisterEntry("1000001", "Other mode human", 1, 2010101, 2,
+            var (_, ticket) = service.RegisterEntry("1000001", "Unknown mode human", 1, 2010101, 100,
                 [3010001, 3010002, 3010003, 3010004]);
             var roster = await FinalRoster(service, ticket);
             var ordinaryBots = roster.Where(row => row.GetProperty("kickerAiParameterId").GetInt32() > 0).ToArray();
@@ -355,6 +356,61 @@ public sealed class BattleMatchmakingTests
             var gymBots = gymRoster.Where(row => row.GetProperty("kickerAiParameterId").GetInt32() > 0).ToArray();
             Assert.Equal(BattleMatchmakingService.GymBotCount, gymBots.Length);
             Assert.All(gymBots, bot =>
+            {
+                Assert.True(bot.GetProperty("kickerAiParameterId").GetInt32() >= BattleMatchmakingService.GymAiParameterBase);
+                Assert.Equal(1, bot.GetProperty("kickerAiDiscDeckId").GetInt32());
+                Assert.Equal(new[] { 3010001, 3010002, 3010003, 3010004 }, Enumerable.Range(1, 4)
+                    .Select(slot => bot.GetProperty($"discId{slot}").GetInt32()).ToArray());
+            });
+        }
+        finally
+        {
+            BattleMatchmakingService.GymEnabled = previousGym;
+        }
+    }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(8)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public async Task Supported_non_gym_modes_use_registered_composition_decks(int battleRuleId)
+    {
+        var service = CreateService(withCatalog: true);
+        service.MatchWindow = TimeSpan.FromMilliseconds(30);
+        var (_, ticket) = service.RegisterEntry("1000001", "Mode human", 1, 2010101, battleRuleId,
+            [3010001, 3010002, 3010003, 3010004]);
+
+        var roster = await FinalRoster(service, ticket);
+        var bots = roster.Where(row => row.GetProperty("kickerAiParameterId").GetInt32() > 0).ToArray();
+
+        Assert.Equal(7, bots.Length);
+        Assert.Contains(bots, bot => bot.GetProperty("kickerAiDiscDeckId").GetInt32() != 1);
+        Assert.All(bots, bot => Assert.All(Enumerable.Range(1, 4), slot =>
+            Assert.True(bot.GetProperty($"discId{slot}").GetInt32() > 0)));
+    }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(8)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public async Task Supported_modes_keep_the_gym_mannequin_roster(int battleRuleId)
+    {
+        var previousGym = BattleMatchmakingService.GymEnabled;
+        try
+        {
+            BattleMatchmakingService.GymEnabled = true;
+            var service = CreateService(withCatalog: true);
+            service.MatchWindow = TimeSpan.FromMilliseconds(30);
+            var (_, ticket) = service.RegisterEntry("1000001", "Gym mode human", 1, 2010101, battleRuleId,
+                [3010001, 3010002, 3010003, 3010004]);
+
+            var roster = await FinalRoster(service, ticket);
+            var bots = roster.Where(row => row.GetProperty("kickerAiParameterId").GetInt32() > 0).ToArray();
+
+            Assert.Equal(BattleMatchmakingService.GymBotCount, bots.Length);
+            Assert.All(bots, bot =>
             {
                 Assert.True(bot.GetProperty("kickerAiParameterId").GetInt32() >= BattleMatchmakingService.GymAiParameterBase);
                 Assert.Equal(1, bot.GetProperty("kickerAiDiscDeckId").GetInt32());

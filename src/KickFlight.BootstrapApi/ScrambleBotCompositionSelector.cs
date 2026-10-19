@@ -14,7 +14,14 @@ internal sealed record ScrambleBotAssignment(
 internal sealed record ScrambleHumanParty(string Key, IReadOnlyList<ScrambleHuman> Humans);
 internal sealed record ScrambleHumanTeamSelection(IReadOnlyDictionary<string, int> PartyTeams, double Score);
 
-/// <summary>Pure Scramble-only selector. Composition is optimized before selecting one registered deck per bot.</summary>
+internal enum BattleCompositionMode
+{
+    CrystalScramble,
+    FlagFlight,
+    RapidBall
+}
+
+/// <summary>Pure mode-aware selector. Composition is optimized before selecting one registered deck per bot.</summary>
 internal static class ScrambleBotCompositionSelector
 {
     private const int TeamSize = 4;
@@ -27,7 +34,8 @@ internal static class ScrambleBotCompositionSelector
         IReadOnlyList<ScrambleBotDeck> decks,
         int blueBotSlots,
         int redBotSlots,
-        int seed)
+        int seed,
+        BattleCompositionMode mode = BattleCompositionMode.CrystalScramble)
     {
         if (blueBotSlots < 0 || blueBotSlots > TeamSize || redBotSlots < 0 || redBotSlots > TeamSize)
             throw new ArgumentOutOfRangeException(nameof(blueBotSlots), "Bot slot counts must fit 4v4 teams.");
@@ -36,8 +44,8 @@ internal static class ScrambleBotCompositionSelector
         var blueHumans = humans.Where(h => h.TeamType == 0).ToArray();
         var redHumans = humans.Where(h => h.TeamType == 1).ToArray();
         var uniqueCandidates = candidates.GroupBy(c => c.KickerId).Select(g => g.First()).ToArray();
-        var blue = BuildTeamOptions(blueHumans, redHumans, uniqueCandidates, blueBotSlots);
-        var red = BuildTeamOptions(redHumans, blueHumans, uniqueCandidates, redBotSlots);
+        var blue = BuildTeamOptions(blueHumans, redHumans, uniqueCandidates, blueBotSlots, mode);
+        var red = BuildTeamOptions(redHumans, blueHumans, uniqueCandidates, redBotSlots, mode);
         if (blue.Count == 0 || red.Count == 0) return [];
 
         var pairs = new List<CompositionPair>(blue.Count * red.Count);
@@ -63,8 +71,8 @@ internal static class ScrambleBotCompositionSelector
 
         // One deck per selected kicker; never expand deck variants during the team search.
         var assignments = new List<ScrambleBotAssignment>(blueBotSlots + redBotSlots);
-        assignments.AddRange(ChooseDecks(0, blueHumans, redHumans, chosen.Blue, decks, seed));
-        assignments.AddRange(ChooseDecks(1, redHumans, blueHumans, chosen.Red, decks, seed ^ unchecked((int)0x5f3759df)));
+        assignments.AddRange(ChooseDecks(0, blueHumans, redHumans, chosen.Blue, decks, seed, mode));
+        assignments.AddRange(ChooseDecks(1, redHumans, blueHumans, chosen.Red, decks, seed ^ unchecked((int)0x5f3759df), mode));
         return assignments;
     }
 
@@ -72,7 +80,8 @@ internal static class ScrambleBotCompositionSelector
     internal static ScrambleHumanTeamSelection SelectHumanTeams(
         IReadOnlyList<ScrambleHumanParty> parties,
         IReadOnlyList<ScrambleBotCandidate> candidates,
-        int seed)
+        int seed,
+        BattleCompositionMode mode = BattleCompositionMode.CrystalScramble)
     {
         var ordered = parties.OrderBy(party => party.Key, StringComparer.Ordinal).ToArray();
         if (ordered.Length == 0) return new ScrambleHumanTeamSelection(new Dictionary<string, int>(), 0);
@@ -106,7 +115,7 @@ internal static class ScrambleBotCompositionSelector
 
             var difference = Math.Abs(blue.Count - red.Count);
             if (difference > bestDifference) continue;
-            var score = ScoreHumanPartition(blue, red, candidates, seed);
+            var score = ScoreHumanPartition(blue, red, candidates, seed, mode);
             var key = $"{blueKey}||{redKey}";
             if (difference < bestDifference || score > bestScore + 1e-9)
             {
@@ -134,17 +143,18 @@ internal static class ScrambleBotCompositionSelector
         IReadOnlyList<ScrambleHuman> blue,
         IReadOnlyList<ScrambleHuman> red,
         IReadOnlyList<ScrambleBotCandidate> candidates,
-        int seed)
+        int seed,
+        BattleCompositionMode mode)
     {
         var humans = blue.Concat(red).Select((human, index) =>
             new ScrambleHuman(index < blue.Count ? 0 : 1, human.KickerId)).ToArray();
-        var assignments = Select(humans, candidates, [], TeamSize - blue.Count, TeamSize - red.Count, seed);
+        var assignments = Select(humans, candidates, [], TeamSize - blue.Count, TeamSize - red.Count, seed, mode);
         if (assignments.Count != TeamSize * 2 - blue.Count - red.Count) return double.NegativeInfinity;
         var blueBots = assignments.Where(assignment => assignment.TeamType == 0)
             .Select(assignment => new ScrambleBotCandidate(assignment.KickerId, assignment.RoleType, assignment.Archetype)).ToArray();
         var redBots = assignments.Where(assignment => assignment.TeamType == 1)
             .Select(assignment => new ScrambleBotCandidate(assignment.KickerId, assignment.RoleType, assignment.Archetype)).ToArray();
-        var score = TeamScore(blue, blueBots, red) + TeamScore(red, redBots, blue);
+        var score = TeamScore(blue, blueBots, red, mode) + TeamScore(red, redBots, blue, mode);
         var repeatedAcrossSides = blueBots.Select(bot => bot.KickerId).Intersect(redBots.Select(bot => bot.KickerId)).Count();
         var repeatedAgainstHumans = blueBots.Count(bot => red.Any(human => human.KickerId == bot.KickerId))
             + redBots.Count(bot => blue.Any(human => human.KickerId == bot.KickerId));
@@ -165,6 +175,14 @@ internal static class ScrambleBotCompositionSelector
         }
     }
 
+    internal static BattleCompositionMode? ModeForBattleRuleId(int battleRuleId) => battleRuleId switch
+    {
+        1 or 5 or 6 or 7 => BattleCompositionMode.CrystalScramble,
+        2 or 8 => BattleCompositionMode.FlagFlight,
+        3 or 4 => BattleCompositionMode.RapidBall,
+        _ => null
+    };
+
     internal static int RoleForKicker(int kickerId) => kickerId switch
     {
         1 or 8 or 9 => 0,               // Speed
@@ -178,9 +196,10 @@ internal static class ScrambleBotCompositionSelector
         IReadOnlyList<ScrambleHuman> humans,
         IReadOnlyList<ScrambleHuman> opponents,
         IReadOnlyList<ScrambleBotCandidate> candidates,
-        int botSlots)
+        int botSlots,
+        BattleCompositionMode mode)
     {
-        if (botSlots == 0) return [new TeamOption(TeamScore(humans, [], opponents), [])];
+        if (botSlots == 0) return [new TeamOption(TeamScore(humans, [], opponents, mode), [])];
         var ownHumanIds = humans.Select(h => h.KickerId).ToHashSet();
         var eligible = candidates.Where(c => !ownHumanIds.Contains(c.KickerId)).ToArray();
         // If bad/unknown human data exhausts candidates, allow same-kicker bots as a last resort.
@@ -197,7 +216,7 @@ internal static class ScrambleBotCompositionSelector
             if (count == botSlots)
             {
                 var selected = chosen.ToArray();
-                options.Add(new TeamOption(TeamScore(humans, selected, opponents), selected));
+                options.Add(new TeamOption(TeamScore(humans, selected, opponents, mode), selected));
                 return;
             }
             var needed = botSlots - count;
@@ -215,7 +234,8 @@ internal static class ScrambleBotCompositionSelector
         IReadOnlyList<ScrambleHuman> opponents,
         IReadOnlyList<ScrambleBotCandidate> candidates,
         IReadOnlyList<ScrambleBotDeck> decks,
-        int seed)
+        int seed,
+        BattleCompositionMode mode)
     {
         var team = new List<(int KickerId, int RoleType, string Archetype)>();
         team.AddRange(humans.Select(h => (h.KickerId, RoleForKicker(h.KickerId), ArchetypeFor(h.KickerId))));
@@ -229,7 +249,7 @@ internal static class ScrambleBotCompositionSelector
                     && deck.DeckId > 0
                     && deck.DiscIds.Length == 4
                     && deck.DiscIds.All(id => id > 0))
-                .Select(deck => (Deck: deck, Score: ProfileScore(candidate, deck, team, opponents)))
+                .Select(deck => (Deck: deck, Score: ProfileScore(candidate, deck, team, opponents, mode)))
                 .ToArray();
             if (choices.Length == 0)
             {
@@ -254,7 +274,8 @@ internal static class ScrambleBotCompositionSelector
     private static double TeamScore(
         IReadOnlyList<ScrambleHuman> humans,
         IReadOnlyList<ScrambleBotCandidate> bots,
-        IReadOnlyList<ScrambleHuman> opponents)
+        IReadOnlyList<ScrambleHuman> opponents,
+        BattleCompositionMode mode)
     {
         var roles = new List<(int KickerId, int RoleType, string Archetype)>();
         roles.AddRange(humans.Select(h => (h.KickerId, RoleForKicker(h.KickerId), ArchetypeFor(h.KickerId))));
@@ -291,6 +312,47 @@ internal static class ScrambleBotCompositionSelector
         // Owlbert is a defensive support substitute, not an additional tank.
         if (roles.Any(p => p.KickerId == 5) && !hasTank) score += 1.5;
         if (roles.Any(p => p.KickerId == 5) && anchors > 0) score -= 0.7;
+
+        score += mode switch
+        {
+            BattleCompositionMode.FlagFlight => FlagFlightTeamScore(roles, opponents),
+            BattleCompositionMode.RapidBall => RapidBallTeamScore(roles, opponents),
+            _ => 0.0
+        };
+        return score;
+    }
+
+    private static double FlagFlightTeamScore(
+        IReadOnlyList<(int KickerId, int RoleType, string Archetype)> roles,
+        IReadOnlyList<ScrambleHuman> opponents)
+    {
+        // Keep one mobile flag carrier, a defender near the objective, and pressure for enemy carriers.
+        var carriers = roles.Count(role => role.Archetype == "carrier");
+        var defenders = roles.Count(role => role.Archetype == "anchor" || role.RoleType == 3);
+        var hunters = roles.Count(role => role.Archetype is "hunter" or "mobile_pressure" || role.RoleType == 2);
+        var enemyCarriers = opponents.Count(opponent => ArchetypeFor(opponent.KickerId) == "carrier");
+        var score = carriers == 1 ? 2.8 : carriers > 1 ? 1.0 - (carriers - 1) * 1.4 : -0.7;
+        score += defenders == 1 ? 1.6 : defenders > 1 ? 0.4 - (defenders - 1) * 0.7 : -0.4;
+        score += hunters > 0 ? 0.9 + (enemyCarriers > 0 ? 0.8 : 0) : 0;
+        return score;
+    }
+
+    private static double RapidBallTeamScore(
+        IReadOnlyList<(int KickerId, int RoleType, string Archetype)> roles,
+        IReadOnlyList<ScrambleHuman> opponents)
+    {
+        // Carriers collect and score after the enemy guardian falls; hunters pressure it while anchors protect ours.
+        var carriers = roles.Count(role => role.Archetype == "carrier");
+        var defenders = roles.Count(role => role.Archetype == "anchor" || role.RoleType == 3);
+        var guardianPressure = roles.Count(role => role.Archetype == "hunter" || role.RoleType == 2);
+        var mobileSupport = roles.Count(role => role.Archetype == "mobile_pressure");
+        var enemyGuardian = opponents.Any(opponent => RoleForKicker(opponent.KickerId) == 3
+            || ArchetypeFor(opponent.KickerId) == "anchor");
+        var enemyCarrier = opponents.Any(opponent => ArchetypeFor(opponent.KickerId) == "carrier");
+        var score = carriers > 0 ? 1.2 : -0.5;
+        score += defenders == 1 ? 1.8 : defenders > 1 ? 0.5 - (defenders - 1) * 0.8 : -0.5;
+        score += guardianPressure > 0 ? 1.4 + (enemyGuardian ? 1.1 : 0) + (enemyCarrier ? 0.7 : 0) : 0;
+        score += mobileSupport > 0 ? 0.35 + (enemyGuardian || enemyCarrier ? 0.35 : 0) : 0;
         return score;
     }
 
@@ -298,12 +360,14 @@ internal static class ScrambleBotCompositionSelector
         ScrambleBotCandidate bot,
         ScrambleBotDeck deck,
         IReadOnlyList<(int KickerId, int RoleType, string Archetype)> team,
-        IReadOnlyList<ScrambleHuman> opponents)
+        IReadOnlyList<ScrambleHuman> opponents,
+        BattleCompositionMode mode)
     {
         var hasTank = team.Any(p => p.RoleType == 3);
         var hasCarrier = team.Any(p => p.Archetype == "carrier");
         var hasSupport = team.Any(p => p.RoleType == 1);
         var enemyTank = opponents.Any(p => RoleForKicker(p.KickerId) == 3);
+        var enemyCarrier = opponents.Any(p => ArchetypeFor(p.KickerId) == "carrier");
         var baseScore = deck.Profile switch
         {
             "carrier" => bot.Archetype == "carrier" ? 3.2 : bot.RoleType == 0 ? 1.1 : -0.4,
@@ -316,6 +380,41 @@ internal static class ScrambleBotCompositionSelector
             "tank_defender" => bot.Archetype == "anchor" ? 2.8 : bot.RoleType == 3 ? 1.7 : -0.5,
             _ => 0.0
         };
+
+        baseScore += mode switch
+        {
+            BattleCompositionMode.FlagFlight => deck.Profile switch
+            {
+                "carrier" when bot.Archetype == "carrier" => 1.6,
+                "hunter" when enemyCarrier || enemyTank => 1.3,
+                "trap_defender" or "tank_defender" when hasCarrier => 1.2,
+                "objective_attacker" => -0.8,
+                _ => 0.0
+            },
+            BattleCompositionMode.RapidBall => deck.Profile switch
+            {
+                "carrier" when bot.Archetype == "carrier" => 0.8,
+                "hunter" when bot.RoleType != 1 && bot.Archetype != "mobile_pressure" && (enemyTank || enemyCarrier) => 2.0,
+                "hunter" when bot.KickerId == 14 && (enemyTank || enemyCarrier) => 0.4,
+                "hunter" when bot.Archetype == "mobile_pressure" && (enemyTank || enemyCarrier) => 0.2,
+                "objective_attacker" when bot.Archetype == "hunter" => enemyCarrier || enemyTank ? 1.6 : 1.3,
+                "objective_attacker" when bot.Archetype == "mobile_pressure" => enemyCarrier || enemyTank ? 0.4 : 0.2,
+                "trap_defender" or "tank_defender" when hasTank => 1.5,
+                _ => 0.0
+            },
+            _ => 0.0
+        };
+
+        // Preserve support identity when a carrier or tank can use ally-facing discs.
+        var preservesSupportIdentity = bot.KickerId switch
+        {
+            7 => deck.Profile == "speed_support",
+            14 => deck.Profile == "damage_support",
+            _ => false
+        };
+        if ((mode is BattleCompositionMode.FlagFlight or BattleCompositionMode.RapidBall)
+            && preservesSupportIdentity && (hasCarrier || hasTank))
+            baseScore += mode == BattleCompositionMode.FlagFlight ? 2.3 : 1.7;
 
         // Catalog variants are prefiltered by cast-timing fit. Keep the per-kicker master cast profile as a
         // small tie-breaker: faster activation matters most for carrier, movement and hunt profiles.
