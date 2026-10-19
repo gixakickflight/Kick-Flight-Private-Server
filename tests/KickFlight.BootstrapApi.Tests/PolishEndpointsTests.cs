@@ -32,6 +32,7 @@ public sealed class PolishEndpointsFixture : IDisposable
 
 // Covers the polish round: the gear inventory, the retail rank, the schema-complete stub endpoints and the
 // webview HTML routes. Same auth -> access token -> encrypted POST flow as HarnessTests.
+[Collection("Matchmaking static state")]
 public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
 {
     private const string Host = "kickflight-api.grenge.jp";
