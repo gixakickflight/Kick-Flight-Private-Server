@@ -23,6 +23,18 @@ class EndpointPreflightTests(unittest.TestCase):
         self.assertEqual(config["versionName"], "2.11.5")
         self.assertEqual(config["versionCode"], 60)
         self.assertEqual(
+            config["patchFlags"],
+            {
+                "KF_PHOTON": "1",
+                "KF_AI_ROLES": "1",
+                "KF_AI_ROLE_TARGETING": "1",
+                "KF_AI_ROLE_DEPOSIT": "1",
+                "KF_DIAG": "0",
+                "KF_DAMAGE_DIAG": "0",
+                "KF_RESULT_DIAG": "0",
+            },
+        )
+        self.assertEqual(
             config["expectedSourceSha256"].lower(),
             "ffa620d2e2f905e729812606024e02741124951dce908bb2e0587f0a4e16e031".lower(),
         )

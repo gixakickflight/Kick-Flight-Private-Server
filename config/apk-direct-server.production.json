@@ -4,5 +4,14 @@
   "versionName": "2.11.5",
   "versionCode": 60,
   "updateUrl": "https://kick-flight-fenix.us.ci/",
-  "expectedSourceSha256": "ffa620d2e2f905e729812606024e02741124951dce908bb2e0587f0a4e16e031"
+  "expectedSourceSha256": "ffa620d2e2f905e729812606024e02741124951dce908bb2e0587f0a4e16e031",
+  "patchFlags": {
+    "KF_PHOTON": "1",
+    "KF_AI_ROLES": "1",
+    "KF_AI_ROLE_TARGETING": "1",
+    "KF_AI_ROLE_DEPOSIT": "1",
+    "KF_DIAG": "0",
+    "KF_DAMAGE_DIAG": "0",
+    "KF_RESULT_DIAG": "0"
+  }
 }

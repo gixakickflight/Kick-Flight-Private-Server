@@ -16,11 +16,12 @@ elif [[ -d "/opt/homebrew/share/android-commandlinetools/build-tools/35.0.0" ]];
   export PATH="/opt/homebrew/share/android-commandlinetools/build-tools/35.0.0:$PATH"
 fi
 
-# Load tracked reproducible production build config if available and SERVER_BASE_URL is not set
+# Load tracked production defaults even when SERVER_BASE_URL is explicitly overridden.
 config_file="${CONFIG_PATH:-$repo/config/apk-direct-server.production.json}"
-if [[ -z "${SERVER_BASE_URL:-}" && -f "$config_file" ]]; then
+if [[ -f "$config_file" ]]; then
   echo "==> Loading build configuration from $config_file"
-  server_base_url="$("$python" -c "import json, sys; c=json.load(open(sys.argv[1])); print(c.get('serverBaseUrl', ''))" "$config_file")"
+  config_server_base_url="$("$python" -c "import json, sys; c=json.load(open(sys.argv[1])); print(c.get('serverBaseUrl', ''))" "$config_file")"
+  server_base_url="${SERVER_BASE_URL:-$config_server_base_url}"
   if [[ -z "${KF_PHOTON_HOST:-}" ]]; then
     export KF_PHOTON_HOST="$("$python" -c "import json, sys; c=json.load(open(sys.argv[1])); print(c.get('photonHost', ''))" "$config_file")"
   fi
@@ -30,7 +31,13 @@ if [[ -z "${SERVER_BASE_URL:-}" && -f "$config_file" ]]; then
   if [[ -z "${KF_VERSION_CODE:-}" ]]; then
     export KF_VERSION_CODE="$("$python" -c "import json, sys; c=json.load(open(sys.argv[1])); print(c.get('versionCode', ''))" "$config_file")"
   fi
-  expected_source_hash="$("$python" -c "import json, sys; c=json.load(open(sys.argv[1])); print(c.get('expectedSourceSha256', ''))" "$config_file")"
+  while IFS='=' read -r flag_name flag_value; do
+    if [[ -z "${!flag_name+x}" ]]; then
+      export "$flag_name=$flag_value"
+    fi
+  done < <("$python" -c 'import json,sys; c=json.load(open(sys.argv[1])); [print(f"{k}={v}") for k,v in c.get("patchFlags",{}).items()]' "$config_file")
+  configured_source_hash="$("$python" -c "import json, sys; c=json.load(open(sys.argv[1])); print(c.get('expectedSourceSha256', ''))" "$config_file")"
+  expected_source_hash="${EXPECTED_SOURCE_SHA256:-$configured_source_hash}"
 else
   server_base_url="${SERVER_BASE_URL:-}"
   expected_source_hash="${EXPECTED_SOURCE_SHA256:-}"
@@ -71,13 +78,19 @@ artifact_dir="$repo/.local/artifacts"
 work_root="$repo/.local/apk-direct-work"
 output_apk="${OUTPUT_APK:-$artifact_dir/KickFlight-${KF_VERSION_NAME:-2.11.5}-remote.apk}"
 
-# Keystore resolution: prefer tracked/existing production key
-if [[ -f "$repo/.local/signing/kickflight-test-signing.jks" ]]; then
+# Keystore resolution: explicit path, then worktree-local production key
+if [[ -n "${KEYSTORE:-}" ]]; then
+  keystore="$KEYSTORE"
+elif [[ -f "$repo/.local/signing/kickflight-test-signing.jks" ]]; then
   keystore="$repo/.local/signing/kickflight-test-signing.jks"
 elif [[ -f "$repo/.local/kickflight-test-signing.jks" ]]; then
   keystore="$repo/.local/kickflight-test-signing.jks"
 else
   echo "Signing keystore not found in .local/signing/ or .local/" >&2
+  exit 1
+fi
+if [[ ! -f "$keystore" ]]; then
+  echo "Signing keystore not found: $keystore" >&2
   exit 1
 fi
 
