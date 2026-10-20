@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -27,12 +27,19 @@
     font: 13px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif;
   }
   header#top {
-    display: flex; align-items: baseline; gap: 12px;
+    display: flex; align-items: center; gap: 12px;
     padding: 10px 16px; background: var(--bg2); border-bottom: 1px solid var(--line);
   }
-  header#top h1 { margin: 0; font-size: 15px; font-weight: 600; }
-  header#top .hint { color: var(--fg2); font-size: 12px; }
-  header#top #logout { margin-left: auto; padding: 4px 10px; }
+  header#top h1 { margin: 0; font-size: 15px; font-weight: 600; white-space: nowrap; }
+  header#top .hint { color: var(--fg2); font-size: 12px; flex: 1; min-width: 0; }
+  header#top .top-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  header#top .lang-select {
+    background: var(--bg); color: var(--fg); border: 1px solid var(--line);
+    border-radius: 4px; padding: 4px 8px; font: inherit; font-size: 12px; cursor: pointer;
+  }
+  header#top .lang-select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  header#top #logout { padding: 4px 10px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
   #layout {
     display: flex; align-items: stretch;
     height: calc(100vh - 41px - 6.5rem);
@@ -490,6 +497,9 @@
   }
 
   @media (max-width: 768px) {
+    header#top { flex-wrap: wrap; gap: 8px 12px; }
+    header#top .hint { display: none; }
+    header#top .top-actions { width: auto; }
     #layout { flex-direction: column; height: auto; }
     #sidebar { width: 100%; min-width: 0; height: auto; max-height: 320px; border-right: none; border-bottom: 1px solid var(--line); }
     body.tab-bot-ai #sidebar #list { display: none; }
@@ -538,49 +548,59 @@
 </head>
 <body>
 <header id="top">
-  <h1>Kick-Flight Balance</h1>
-  <span id="topHint" class="hint">saves write <code>.local/masters-overrides</code> (never <code>config/</code>) &mdash; restart the API to load them</span>
-  <span id="currentUser" class="hint"></span>
-  <button id="logout" type="button">Log out</button>
+  <h1 data-i18n="header.title">Kick-Flight Balance</h1>
+  <span id="topHint" class="hint">las modificaciones se guardan en <code>.local/masters-overrides</code> (nunca en <code>config/</code>) &mdash; reinicia la API para cargarlas</span>
+  <div class="top-actions">
+    <div class="lang-selector-wrap">
+      <label for="langSelect" class="sr-only" data-i18n="header.langLabel">Idioma</label>
+      <select id="langSelect" class="lang-select" aria-label="Idioma / Language">
+        <option value="es">Español</option>
+        <option value="en">English</option>
+      </select>
+    </div>
+    <span id="currentUser" class="hint"></span>
+    <button id="logout" type="button" data-i18n="header.logout">Cerrar sesión</button>
+  </div>
 </header>
 
 <div id="layout">
   <aside id="sidebar">
     <div id="tabs">
-      <button type="button" data-tab="kickers" class="on">Kickers</button>
-      <button type="button" data-tab="discs">Discs</button>
-      <button type="button" data-tab="text">Text</button>
-      <button type="button" data-tab="bot-ai">IA de bots</button>
-      <button type="button" data-tab="latest-information">Latest information</button>
-      <button type="button" data-tab="health">Health</button>
-      <button type="button" data-tab="maintenance">Maintenance</button>
-      <button type="button" data-tab="client-update">Client update</button>
+      <button type="button" data-tab="kickers" data-i18n="tabs.kickers" class="on">Kickers</button>
+      <button type="button" data-tab="discs" data-i18n="tabs.discs">Discos</button>
+      <button type="button" data-tab="text" data-i18n="tabs.text">Texto</button>
+      <button type="button" data-tab="bot-ai" data-i18n="tabs.botAi">IA de bots</button>
+      <button type="button" data-tab="latest-information" data-i18n="tabs.latestInformation">Última información</button>
+      <button type="button" data-tab="health" data-i18n="tabs.health">Salud</button>
+      <button type="button" data-tab="maintenance" data-i18n="tabs.maintenance">Mantenimiento</button>
+      <button type="button" data-tab="client-update" data-i18n="tabs.clientUpdate">Actualización de cliente</button>
     </div>
     <div id="filters">
-      <input type="text" id="filterText" placeholder="Filter by name or id" autocomplete="off">
+      <input type="text" id="filterText" placeholder="Filtrar por nombre o id" autocomplete="off" data-i18n-placeholder="filters.searchPlaceholder" data-i18n-aria-label="filters.searchAria" aria-label="Filtrar lista por nombre o identificador">
       <div id="discFilters" style="display:none">
-        <select id="filterRarity" style="margin-bottom:6px"></select>
-        <select id="filterType"></select>
+        <select id="filterRarity" style="margin-bottom:6px" aria-label="Filtrar por rareza"></select>
+        <select id="filterType" aria-label="Filtrar por tipo"></select>
       </div>
     </div>
     <ul id="list"></ul>
   </aside>
-  <main id="panel"><p class="empty">Loading&hellip;</p></main>
+  <main id="panel"><p class="empty" data-i18n="common.loading">Cargando&hellip;</p></main>
 </div>
 
 <footer id="foot">
   <div class="bar">
-    <span id="dirtyCount">Unsaved changes: 0</span>
-    <button type="button" id="save" disabled>Save</button>
-    <button type="button" id="revert">Revert</button>
-    <button type="button" id="apply">Restart API to apply</button>
-    <button type="button" id="exportOverrides">Export overrides</button>
-    <span class="note">saves write the override dir; restart the API to load them</span>
+    <span id="dirtyCount">Cambios sin guardar: 0</span>
+    <button type="button" id="save" data-i18n="footer.save" disabled>Guardar</button>
+    <button type="button" id="revert" data-i18n="footer.revert">Revertir</button>
+    <button type="button" id="apply" data-i18n="footer.apply">Reiniciar API para aplicar</button>
+    <button type="button" id="exportOverrides" data-i18n="footer.export">Exportar modificaciones</button>
+    <span class="note" data-i18n="footer.note">los cambios se escriben en el directorio de modificaciones; reinicia la API para cargarlos</span>
   </div>
   <div id="applyStatus"></div>
   <div id="saveStatus"></div>
 </footer>
 
+<script src="__BALANCE_BASE_PATH__/i18n.js"></script>
 <script>
 "use strict";
 
@@ -888,9 +908,14 @@ function renderApplyStatus() {
     return;
   }
   const pending = apply.pending || [];
-  box.appendChild(el("div", { class: "line " + (pending.length ? "info" : "ok") }, pending.length
-    ? "pending changes not yet applied: " + pending.join(", ") + " (override files newer than the API container start)"
-    : "no pending changes: the API has loaded every override"));
+  const isEs = BalanceI18n.getLang() === "es";
+  const pendingText = isEs
+    ? ("cambios pendientes de aplicar: " + pending.join(", ") + " (archivos de modificación más recientes que el inicio de la API)")
+    : ("pending changes not yet applied: " + pending.join(", ") + " (override files newer than the API container start)");
+  const upToDateText = isEs
+    ? "sin cambios pendientes: la API ha cargado todas las modificaciones"
+    : "no pending changes: the API has loaded every override";
+  box.appendChild(el("div", { class: "line " + (pending.length ? "info" : "ok") }, pending.length ? pendingText : upToDateText));
   if (apply.note) box.appendChild(el("div", { class: "line info" }, apply.note));
   const health = apply.health || {};
   box.appendChild(el("div", { class: "line " + (health.ok ? "ok" : "err") },
@@ -924,22 +949,33 @@ async function loadApplyStatus() {
 
 function buildDiscFilters() {
   const rarity = document.getElementById("filterRarity");
+  if (!rarity) return;
+  const prevRarity = rarity.value;
   clear(rarity);
-  rarity.appendChild(el("option", { value: "" }, "All rarities"));
+  rarity.appendChild(el("option", { value: "" }, BalanceI18n.t("filters.allRarities")));
   const rarities = Array.from(new Set(state.discs.map(function (d) { return d.rarityType; })))
     .filter(function (r) { return r !== null && r !== undefined; })
     .sort(function (a, b) { return b - a; });
   for (const value of rarities) {
-    const label = RARITY_LABELS[String(value)] || String(value);
-    rarity.appendChild(el("option", { value: String(value) }, label + " (" + value + ")"));
+    const rawLabel = RARITY_LABELS[String(value)] || String(value);
+    const locLabel = value === 0 ? BalanceI18n.t("filters.rarityNormal")
+      : value === 1 ? BalanceI18n.t("filters.rarityRare")
+      : value === 2 ? BalanceI18n.t("filters.raritySuperRare")
+      : value === 3 ? BalanceI18n.t("filters.rarityUltraRare")
+      : rawLabel;
+    rarity.appendChild(el("option", { value: String(value) }, locLabel + " (" + rawLabel + ")"));
   }
+  if (prevRarity) rarity.value = prevRarity;
 
   const type = document.getElementById("filterType");
+  if (!type) return;
+  const prevType = type.value;
   clear(type);
-  type.appendChild(el("option", { value: "" }, "All types"));
+  type.appendChild(el("option", { value: "" }, BalanceI18n.t("filters.allTypes")));
   const types = Array.from(new Set(state.discs.map(function (d) { return d.type; })))
     .filter(Boolean).sort();
   for (const value of types) type.appendChild(el("option", { value: value }, value));
+  if (prevType) type.value = prevType;
 }
 
 function filteredItems() {
@@ -1069,12 +1105,15 @@ function canEditRows(table) {
 /* Badge + "Revert to base" shown on every section whose table has an override file. */
 function appendOverrideControls(head, table) {
   if (!isOverridden(table)) return;
-  head.appendChild(el("span", { class: "chip ovr" }, "override"));
-  const button = el("button", { type: "button", class: "mini rev" }, "Revert to base");
-  button.title = "Delete the override masters_" + table + ".json (a backup is kept) so the base config/ file applies again";
+  head.appendChild(el("span", { class: "chip ovr" }, BalanceI18n.t("kickerPanel.overridden")));
+  const button = el("button", { type: "button", class: "mini rev" }, BalanceI18n.t("kickerPanel.revertTable"));
+  button.title = "masters_" + table + ".json";
   button.addEventListener("click", function () {
-    if (window.confirm("Revert masters_" + table + ".json to the base config file?\n\n" +
-        "This deletes the override file (a backup is kept). The API keeps serving the tuned values until you restart it.")) {
+    const isEs = BalanceI18n.getLang() === "es";
+    const msg = isEs
+      ? "¿Revertir masters_" + table + ".json al archivo base?\n\nEsto elimina la modificación (se guarda una copia). La API seguirá usando los valores modificados hasta que la reinicies."
+      : "Revert masters_" + table + ".json to the base config file?\n\nThis deletes the override file (a backup is kept). The API keeps serving the tuned values until you restart it.";
+    if (window.confirm(msg)) {
       revertTable(table);
     }
   });
@@ -1117,8 +1156,8 @@ function makeSection(title, table, rows, options) {
   head.appendChild(el("span", { class: "grow" }));
   appendOverrideControls(head, table);
   if (adds) {
-    const button = el("button", { type: "button", class: "mini add" }, "+ Add row");
-    button.title = "Add a row to masters_" + table + ".json for " + opts.linkField + " " + opts.linkValue;
+    const button = el("button", { type: "button", class: "mini add" }, BalanceI18n.t("kickerPanel.addRow"));
+    button.title = BalanceI18n.t("kickerPanel.addRowTitle", { table: table, link: opts.linkField, val: opts.linkValue });
     button.addEventListener("click", function () { addEffectRow(table, opts.linkField, opts.linkValue); });
     head.appendChild(button);
   }
@@ -1154,9 +1193,12 @@ function renderRow(table, row, options) {
   }
   if (opts.deletable) {
     head.appendChild(el("span", { class: "spacer" }));
-    const button = el("button", { type: "button", class: "mini del" }, "Delete row");
+    const button = el("button", { type: "button", class: "mini del" }, "✕ " + BalanceI18n.t("kickerPanel.deleteRow"));
+    button.title = BalanceI18n.t("kickerPanel.deleteRowTitle");
     button.addEventListener("click", function () {
-      if (window.confirm("Delete row id " + row.id + " from masters_" + table + ".json?")) {
+      const isEs = BalanceI18n.getLang() === "es";
+      const msg = isEs ? ("¿Eliminar fila id " + row.id + " de masters_" + table + ".json?") : ("Delete row id " + row.id + " from masters_" + table + ".json?");
+      if (window.confirm(msg)) {
         deleteEffectRow(table, row.id);
       }
     });
@@ -1665,42 +1707,42 @@ async function loadLatestInformation() {
 }
 
 function renderLatestInformationPanel(panel) {
+  const isEs = BalanceI18n.getLang() === "es";
   const wrap = el("div", { class: "mpanel" });
   const head = el("div", { class: "phead" });
   const title = el("div");
-  title.appendChild(el("h1", null, "Latest information"));
-  title.appendChild(el("div", { class: "meta" },
-    "Edit the announcement page opened in Kick-Flight from Notices → Latest information."));
+  title.appendChild(el("h1", null, BalanceI18n.t("latestInformation.title")));
+  title.appendChild(el("div", { class: "meta" }, BalanceI18n.t("latestInformation.meta")));
   head.appendChild(title);
   wrap.appendChild(head);
 
   const section = el("section", { class: "sec" });
-  section.appendChild(el("h2", null, "Announcement page"));
+  section.appendChild(el("h2", null, isEs ? "Página de anuncio" : "Announcement page"));
   const current = state.latestInformation || {};
-  if (current.error) section.appendChild(el("p", { class: "note" }, "could not load current page: " + current.error));
-  else section.appendChild(el("p", { class: "note" }, "Saved " + (current.changedAtUtc || "-") + " · mode: " + (current.mode || "text")));
+  if (current.error) section.appendChild(el("p", { class: "note" }, (isEs ? "no se pudo cargar la página actual: " : "could not load current page: ") + current.error));
+  else section.appendChild(el("p", { class: "note" }, (isEs ? "Guardado " : "Saved ") + (current.changedAtUtc || "-") + " · mode: " + (current.mode || "text")));
 
   const modeField = el("label", { class: "mfield" });
-  modeField.appendChild(el("span", { class: "k" }, "Content source"));
-  const mode = el("select", { "aria-label": "Latest information content source" });
-  mode.append(el("option", { value: "text" }, "Formatted text"),
-              el("option", { value: "html" }, "HTML page"),
-              el("option", { value: "url" }, "External URL"));
+  modeField.appendChild(el("span", { class: "k" }, isEs ? "Origen del contenido" : "Content source"));
+  const mode = el("select", { id: "latestInfoModeSelect", "aria-label": isEs ? "Origen del contenido de última información" : "Latest information content source" });
+  mode.append(el("option", { value: "text" }, isEs ? "Texto con formato" : "Formatted text"),
+              el("option", { value: "html" }, isEs ? "Página HTML" : "HTML page"),
+              el("option", { value: "url" }, isEs ? "URL externa" : "External URL"));
   mode.value = current.mode || "text";
   modeField.appendChild(mode);
   section.appendChild(modeField);
 
-  const textEditor = el("textarea", { class: "latest-editor", maxlength: "12000", "aria-label": "Latest information text" });
+  const textEditor = el("textarea", { id: "latestInfoAnnouncement", class: "latest-editor", maxlength: "12000", "aria-label": isEs ? "Texto de última información" : "Latest information text" });
   textEditor.value = current.content || "";
-  const htmlEditor = el("textarea", { class: "latest-editor", maxlength: "1048576", "aria-label": "Latest information HTML" });
+  const htmlEditor = el("textarea", { id: "latestInfoHtml", class: "latest-editor", maxlength: "1048576", "aria-label": isEs ? "HTML de última información" : "Latest information HTML" });
   htmlEditor.value = current.htmlContent || "";
-  const htmlFile = el("input", { type: "file", accept: ".html,.htm,text/html", "aria-label": "Upload an HTML page" });
+  const htmlFile = el("input", { type: "file", accept: ".html,.htm,text/html", "aria-label": isEs ? "Subir archivo HTML" : "Upload an HTML page" });
   const htmlFileStatus = el("p", { class: "note" });
   htmlFile.addEventListener("change", async function () {
     const file = htmlFile.files && htmlFile.files[0];
     if (!file) return;
     if (file.size > 1048576) {
-      latestInformationStatus([["err", "HTML file exceeds 1 MiB"]]);
+      latestInformationStatus([["err", isEs ? "El archivo HTML supera 1 MiB" : "HTML file exceeds 1 MiB"]]);
       htmlFile.value = "";
       return;
     }
@@ -1708,33 +1750,33 @@ function renderLatestInformationPanel(panel) {
       try {
         htmlEditor.value = new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer());
       } catch (error) {
-        latestInformationStatus([["err", "HTML file is not valid UTF-8"]]);
+        latestInformationStatus([["err", isEs ? "El archivo HTML no es UTF-8 válido" : "HTML file is not valid UTF-8"]]);
         htmlFile.value = "";
         return;
       }
-      htmlFileStatus.textContent = "Loaded " + file.name + " (" + file.size + " bytes); save to apply this page.";
+      htmlFileStatus.textContent = (isEs ? "Cargado " : "Loaded ") + file.name + " (" + file.size + (isEs ? " bytes); guarda para aplicar esta página." : " bytes); save to apply this page.");
       updatePreview();
     } catch (error) {
-      latestInformationStatus([["err", "could not read HTML file: " + error.message]]);
+      latestInformationStatus([["err", (isEs ? "no se pudo leer el archivo HTML: " : "could not read HTML file: ") + error.message]]);
     }
   });
-  const urlEditor = el("input", { type: "url", maxlength: "2048", placeholder: "https://example.com/announcements", "aria-label": "Latest information URL" });
+  const urlEditor = el("input", { id: "latestInfoExternalUrl", type: "url", maxlength: "2048", placeholder: "https://example.com/announcements", "aria-label": isEs ? "URL de última información" : "Latest information URL" });
   urlEditor.value = current.externalUrl || "";
 
   const textField = el("label", { class: "mfield" });
-  textField.appendChild(el("span", { class: "k" }, "Text (plain text with Markdown-like formatting)"));
+  textField.appendChild(el("span", { class: "k" }, isEs ? "Texto (texto plano con formato estilo Markdown)" : "Text (plain text with Markdown-like formatting)"));
   textField.appendChild(textEditor);
   const htmlField = el("div");
   const uploadField = el("label", { class: "mfield" });
-  uploadField.appendChild(el("span", { class: "k" }, "Upload a UTF-8 .html or .htm file (maximum 1 MiB)"));
+  uploadField.appendChild(el("span", { class: "k" }, isEs ? "Subir archivo .html o .htm UTF-8 (máximo 1 MiB)" : "Upload a UTF-8 .html or .htm file (maximum 1 MiB)"));
   uploadField.appendChild(htmlFile);
   htmlField.append(uploadField, htmlFileStatus);
   const htmlTextField = el("label", { class: "mfield" });
-  htmlTextField.appendChild(el("span", { class: "k" }, "HTML source (editable after upload; maximum 1 MiB UTF-8)"));
+  htmlTextField.appendChild(el("span", { class: "k" }, isEs ? "Código fuente HTML (editable tras subir; máximo 1 MiB UTF-8)" : "HTML source (editable after upload; maximum 1 MiB UTF-8)"));
   htmlTextField.appendChild(htmlEditor);
   htmlField.appendChild(htmlTextField);
   const urlField = el("label", { class: "mfield" });
-  urlField.appendChild(el("span", { class: "k" }, "Absolute HTTP(S) URL (the game WebView redirects here; this server does not fetch the page)"));
+  urlField.appendChild(el("span", { class: "k" }, isEs ? "URL absoluta HTTP(S) (el WebView del juego redirige aquí; el servidor no descarga la página)" : "Absolute HTTP(S) URL (the game WebView redirects here; this server does not fetch the page)"));
   urlField.appendChild(urlEditor);
   section.append(textField, htmlField, urlField);
 
@@ -1747,20 +1789,20 @@ function renderLatestInformationPanel(panel) {
     urlField.hidden = mode.value !== "url";
     if (mode.value === "text") {
       renderLatestInformationPreview(preview, textEditor.value);
-      count.textContent = textEditor.value.length + " / 12000 characters";
+      count.textContent = textEditor.value.length + (isEs ? " / 12000 caracteres" : " / 12000 characters");
     } else if (mode.value === "html") {
       const frame = el("iframe", {
-        class: "latest-html-frame", title: "Isolated HTML preview", sandbox: "allow-scripts",
+        class: "latest-html-frame", title: isEs ? "Vista previa HTML aislada" : "Isolated HTML preview", sandbox: "allow-scripts",
         referrerpolicy: "no-referrer"
       });
       frame.srcdoc = latestInformationPreviewDocument(htmlEditor.value, current.htmlResourceCsp || "");
       preview.appendChild(frame);
-      count.textContent = new TextEncoder().encode(htmlEditor.value).length + " / 1048576 UTF-8 bytes";
+      count.textContent = new TextEncoder().encode(htmlEditor.value).length + (isEs ? " / 1048576 bytes UTF-8" : " / 1048576 UTF-8 bytes");
     } else {
       const target = validatedLatestInformationUrl(urlEditor.value);
-      count.textContent = "Enter an absolute HTTP or HTTPS URL. The external site controls its own cache.";
+      count.textContent = isEs ? "Introduce una URL absoluta HTTP o HTTPS. El sitio externo controla su propia caché." : "Enter an absolute HTTP or HTTPS URL. The external site controls its own cache.";
       if (target) preview.appendChild(el("a", { href: target, target: "_blank", rel: "noopener noreferrer" }, target));
-      else preview.appendChild(el("p", { class: "note" }, urlEditor.value || "No URL set."));
+      else preview.appendChild(el("p", { class: "note" }, urlEditor.value || (isEs ? "Sin URL configurada." : "No URL set.")));
     }
   };
   textEditor.addEventListener("input", updatePreview);
@@ -1768,19 +1810,19 @@ function renderLatestInformationPanel(panel) {
   urlEditor.addEventListener("input", updatePreview);
   mode.addEventListener("change", updatePreview);
   updatePreview();
-  section.appendChild(el("h3", null, "Preview"));
+  section.appendChild(el("h3", null, isEs ? "Vista previa" : "Preview"));
   section.appendChild(preview);
   section.appendChild(count);
 
   const buttons = el("div", { class: "mbtns" });
-  const saveButton = el("button", { type: "button", class: "m-warning" }, "Save page");
+  const saveButton = el("button", { type: "button", class: "m-warning" }, isEs ? "Guardar página" : "Save page");
   saveButton.disabled = !!current.error || !!state.savingLatestInformation;
   saveButton.addEventListener("click", function () {
     const payload = latestInformationPayload(mode.value, textEditor.value, htmlEditor.value, urlEditor.value);
     if (payload.error) { latestInformationStatus([["err", payload.error]]); return; }
     saveLatestInformation(payload);
   });
-  const clearButton = el("button", { type: "button" }, "Clear");
+  const clearButton = el("button", { type: "button" }, isEs ? "Limpiar" : "Clear");
   clearButton.disabled = !!state.savingLatestInformation;
   clearButton.addEventListener("click", function () {
     if (mode.value === "text") { textEditor.value = ""; textEditor.focus(); }
@@ -1788,7 +1830,7 @@ function renderLatestInformationPanel(panel) {
     else { urlEditor.value = ""; urlEditor.focus(); }
     updatePreview();
   });
-  const restoreButton = el("button", { type: "button" }, "Restore default notices");
+  const restoreButton = el("button", { type: "button" }, isEs ? "Restaurar avisos por defecto" : "Restore default notices");
   restoreButton.disabled = !!state.savingLatestInformation;
   restoreButton.addEventListener("click", function () {
     mode.value = "text";
@@ -1800,16 +1842,17 @@ function renderLatestInformationPanel(panel) {
   section.appendChild(buttons);
   section.appendChild(el("div", { id: "latestInformationStatus" }));
   section.appendChild(el("p", { class: "note" },
-    "The game reads this page from Notices → Latest information. Saving does not force a popup; the new page appears the next time that page or its existing popup is opened. External URL cache behavior belongs to that website."));
+    isEs ? "El juego lee esta página desde Avisos → Última información. Guardar no fuerza una ventana emergente; la nueva página aparecerá la próxima vez que se abra dicha sección en el cliente."
+         : "The game reads this page from Notices → Latest information. Saving does not force a popup; the new page appears the next time that page or its existing popup is opened. External URL cache behavior belongs to that website."));
   wrap.appendChild(section);
 
   const help = el("section", { class: "sec" });
-  help.appendChild(el("h2", null, "Content modes"));
-  help.appendChild(el("p", { class: "note" }, "Use # Heading, ## Subheading, or ### Small heading on a line by itself."));
-  help.appendChild(el("p", { class: "note" }, "Use a blank line to start a new paragraph; use - text for a bullet; wrap text in **double asterisks** for bold or `backticks` for inline code."));
-  help.appendChild(el("p", { class: "note" }, "HTML mode accepts a UTF-8 .html/.htm upload or editable source up to 1 MiB. It is served with a browser sandbox (scripts may run without same-origin access); embed CSS or use absolute CDN URLs for images, styles, fonts, and scripts. Relative assets from an uploaded file are not uploaded. The dashboard preview blocks forms, popups, and navigation, so those parts can behave differently in game."));
-  help.appendChild(el("p", { class: "note" }, "URL mode redirects the game WebView to an absolute HTTP(S) address. The server validates and stores the URL only; it does not fetch the page."));
-  help.appendChild(el("p", { class: "note" }, "All modes are saved persistently by the API. No APK update or API restart is needed; content is shown when the client next opens Latest information."));
+  help.appendChild(el("h2", null, isEs ? "Modos de contenido" : "Content modes"));
+  help.appendChild(el("p", { class: "note" }, isEs ? "Usa # Encabezado, ## Subencabezado, o ### Encabezado pequeño en una sola línea." : "Use # Heading, ## Subheading, or ### Small heading on a line by itself."));
+  help.appendChild(el("p", { class: "note" }, isEs ? "Usa una línea en blanco para iniciar un nuevo párrafo; usa - texto para viñetas; rodea con **doble asterisco** para negrita o `comillas invertidas` para código." : "Use a blank line to start a new paragraph; use - text for a bullet; wrap text in **double asterisks** for bold or `backticks` for inline code."));
+  help.appendChild(el("p", { class: "note" }, isEs ? "El modo HTML acepta subidas UTF-8 .html/.htm o código editable hasta 1 MiB con sandbox de seguridad." : "HTML mode accepts a UTF-8 .html/.htm upload or editable source up to 1 MiB. It is served with a browser sandbox (scripts may run without same-origin access); embed CSS or use absolute CDN URLs for images, styles, fonts, and scripts. Relative assets from an uploaded file are not uploaded. The dashboard preview blocks forms, popups, and navigation, so those parts can behave differently in game."));
+  help.appendChild(el("p", { class: "note" }, isEs ? "El modo URL redirige el WebView del cliente a una dirección HTTP(S) absoluta. El servidor solo valida y guarda la URL; no descarga la página." : "URL mode redirects the game WebView to an absolute HTTP(S) address. The server validates and stores the URL only; it does not fetch the page."));
+  help.appendChild(el("p", { class: "note" }, isEs ? "Todos los modos son guardados persistentemente por la API sin requerir reinicio." : "All modes are saved persistently by the API. No APK update or API restart is needed; content is shown when the client next opens Latest information."));
   wrap.appendChild(help);
   panel.appendChild(wrap);
 }
@@ -1947,16 +1990,17 @@ function clientUpdateStatus(lines) {
 }
 
 function renderClientUpdatePanel(panel) {
+  const isEs = BalanceI18n.getLang() === "es";
   const wrap = el("div", { class: "mpanel" });
   const head = el("div", { class: "phead" });
   const box = el("div");
-  box.appendChild(el("h1", null, "Client update"));
-  box.appendChild(el("div", { class: "meta" }, "Control the existing forced-update popup independently for Android and iOS."));
+  box.appendChild(el("h1", null, BalanceI18n.t("clientUpdate.title")));
+  box.appendChild(el("div", { class: "meta" }, BalanceI18n.t("clientUpdate.meta")));
   head.appendChild(box); wrap.appendChild(head);
   const current = state.clientUpdate;
   const section = el("section", { class: "sec" });
-  section.appendChild(el("h2", null, "Current server state"));
-  if (current && current.error) section.appendChild(el("p", { class: "note" }, "Could not read state: " + current.error));
+  section.appendChild(el("h2", null, BalanceI18n.t("clientUpdate.currentState")));
+  if (current && current.error) section.appendChild(el("p", { class: "note" }, (isEs ? "No se pudo leer el estado: " : "Could not read state: ") + current.error));
   else if (current) {
     const line = el("p", { class: "note" });
     const effectiveEnabled = current.enabled || current.stateValid === false;
@@ -1964,28 +2008,34 @@ function renderClientUpdatePanel(panel) {
       current.stateValid === false ? "FAIL-CLOSED" : (effectiveEnabled ? "ENABLED" : "DISABLED")));
     line.appendChild(document.createTextNode("  Android " + (current.minimumVersion || "(none)") +
       "  iOS " + (current.iosMinimumVersion || "(follows Android)") +
-      "  " + (current.isManualOverride ? "manual override" : "deployment defaults")));
+      "  " + (current.isManualOverride ? (isEs ? "modificación manual" : "manual override") : (isEs ? "valores por defecto de despliegue" : "deployment defaults"))));
     section.appendChild(line);
     if (current.stateValid === false) section.appendChild(el("p", { class: "note" },
-      "Persisted update settings are malformed. All clients receive the forced-update response until valid settings are saved or deployment defaults are restored."));
+      isEs ? "La configuración persistida es inválida. Todos los clientes reciben respuesta de actualización forzada hasta que se guarden valores válidos o se restablezcan los valores por defecto."
+           : "Persisted update settings are malformed. All clients receive the forced-update response until valid settings are saved or deployment defaults are restored."));
   }
-  const enabled = el("input", { type: "checkbox" }); enabled.checked = !!(current && (current.enabled || current.stateValid === false));
-  const toggle = el("label", { class: "toggle-label" }); toggle.appendChild(enabled); toggle.appendChild(document.createTextNode("Require a minimum client version"));
+  const enabled = el("input", { id: "clientUpdateEnabled", type: "checkbox" }); enabled.checked = !!(current && (current.enabled || current.stateValid === false));
+  const toggle = el("label", { class: "toggle-label" }); toggle.appendChild(enabled); toggle.appendChild(document.createTextNode(isEs ? " Exigir versión mínima de cliente" : " Require a minimum client version"));
   section.appendChild(toggle);
-  const android = el("input", { type: "text", value: (current && current.minimumVersion) || "", placeholder: "2.11.4", inputmode: "decimal" });
-  const ios = el("input", { type: "text", value: (current && current.iosMinimumVersion) || "", placeholder: "blank follows Android" });
-  for (const pair of [["Android minimum version", android], ["iOS minimum version (blank follows Android)", ios]]) {
+  const android = el("input", { id: "clientUpdateAndroid", type: "text", value: (current && current.minimumVersion) || "", placeholder: "2.11.4", inputmode: "decimal" });
+  const ios = el("input", { id: "clientUpdateIos", type: "text", value: (current && current.iosMinimumVersion) || "", placeholder: isEs ? "en blanco sigue a Android" : "blank follows Android" });
+  const fieldPairs = isEs
+    ? [["Versión mínima Android", android], ["Versión mínima iOS (en blanco sigue a Android)", ios]]
+    : [["Android minimum version", android], ["iOS minimum version (blank follows Android)", ios]];
+  for (const pair of fieldPairs) {
     const field = el("label", { class: "mfield" }); field.appendChild(el("span", { class: "k" }, pair[0])); field.appendChild(pair[1]); section.appendChild(field);
   }
   const buttons = el("div", { class: "mbtns" });
-  const save = el("button", { type: "button" }, "Save client update settings"); save.disabled = !!state.savingClientUpdate;
+  const save = el("button", { type: "button" }, isEs ? "Guardar configuración de actualización" : "Save client update settings"); save.disabled = !!state.savingClientUpdate;
   save.addEventListener("click", () => saveClientUpdate({ enabled: enabled.checked, minimumVersion: android.value.trim(), iosMinimumVersion: ios.value.trim() }));
-  const reset = el("button", { type: "button" }, "Restore deployment defaults"); reset.disabled = !!state.savingClientUpdate;
+  const reset = el("button", { type: "button" }, isEs ? "Restaurar valores de despliegue" : "Restore deployment defaults"); reset.disabled = !!state.savingClientUpdate;
   reset.addEventListener("click", () => saveClientUpdate({ resetToDefault: true }));
   buttons.appendChild(save); buttons.appendChild(reset); section.appendChild(buttons); wrap.appendChild(section);
   wrap.appendChild(el("div", { id: "clientUpdateStatus" }));
-  const help = el("section", { class: "sec" }); help.appendChild(el("h2", null, "Release safety"));
-  help.appendChild(el("p", { class: "note" }, "The gate remains at Android 2.11.4 until a signed release passes startup, login, matchmaking, and battle verification. Raising the minimum requires proof for the exact APK: SHA-256, signing certificate, and build flags."));
+  const help = el("section", { class: "sec" }); help.appendChild(el("h2", null, isEs ? "Seguridad de versión" : "Release safety"));
+  help.appendChild(el("p", { class: "note" },
+    isEs ? "La puerta se mantiene en Android 2.11.4 hasta que un release firmado supere las pruebas de inicio, login, emparejamiento y combate. Subir el mínimo requiere prueba del APK exacto: SHA-256, certificado de firma y flags de compilación."
+         : "The gate remains at Android 2.11.4 until a signed release passes startup, login, matchmaking, and battle verification. Raising the minimum requires proof for the exact APK: SHA-256, signing certificate, and build flags."));
   wrap.appendChild(help); panel.appendChild(wrap);
 }
 
@@ -2019,22 +2069,22 @@ async function loadMaintenance() {
 }
 
 function renderMaintenancePanel(panel) {
+  const isEs = BalanceI18n.getLang() === "es";
   const wrap = el("div", { class: "mpanel" });
   const head = el("div", { class: "phead" });
   const box = el("div");
-  box.appendChild(el("h1", null, "Maintenance"));
-  box.appendChild(el("div", { class: "meta" },
-    "the game server's loopback-only /admin/maintenance toggle: off / soft notice / hard 503"));
+  box.appendChild(el("h1", null, BalanceI18n.t("maintenance.title")));
+  box.appendChild(el("div", { class: "meta" }, BalanceI18n.t("maintenance.meta")));
   head.appendChild(box);
   wrap.appendChild(head);
 
   const current = state.maintenance;
   const mode = current && typeof current.mode === "string" ? current.mode : "unknown";
   const section = el("section", { class: "sec" });
-  section.appendChild(el("h2", null, "Current state"));
+  section.appendChild(el("h2", null, BalanceI18n.t("maintenance.currentState")));
 
   if (current && current.error) {
-    section.appendChild(el("p", { class: "note" }, "could not read the state: " + current.error));
+    section.appendChild(el("p", { class: "note" }, (isEs ? "no se pudo leer el estado: " : "could not read the state: ") + current.error));
   } else if (current) {
     const line = el("p", { class: "note" });
     line.appendChild(el("span", { class: "mstate mode-" + mode }, mode));
@@ -2043,23 +2093,26 @@ function renderMaintenancePanel(panel) {
       "  changedAtUtc " + (current.changedAtUtc || "-")));
     section.appendChild(line);
   } else {
-    section.appendChild(el("p", { class: "note" }, "state not loaded"));
+    section.appendChild(el("p", { class: "note" }, isEs ? "estado no cargado" : "state not loaded"));
   }
 
-  const title = el("input", { type: "text", value: (current && current.title) || "" });
-  const message = el("textarea");
+  const title = el("input", { id: "maintTitle", type: "text", value: (current && current.title) || "" });
+  const message = el("textarea", { id: "maintMessage" });
   message.value = (current && current.message) || "";
   const titleField = el("label", { class: "mfield" });
-  titleField.appendChild(el("span", { class: "k" }, "Notice title (blank = server default)"));
+  titleField.appendChild(el("span", { class: "k" }, isEs ? "Título del aviso (vacío = valor por defecto del servidor)" : "Notice title (blank = server default)"));
   titleField.appendChild(title);
   const messageField = el("label", { class: "mfield" });
-  messageField.appendChild(el("span", { class: "k" }, "Notice message (soft mode shows it on the home screen)"));
+  messageField.appendChild(el("span", { class: "k" }, isEs ? "Mensaje del aviso (el modo suave lo muestra en la pantalla principal)" : "Notice message (soft mode shows it on the home screen)"));
   messageField.appendChild(message);
   section.appendChild(titleField);
   section.appendChild(messageField);
 
   const buttons = el("div", { class: "mbtns" });
-  for (const pair of [["off", "Off"], ["warning", "Soft (notice)"], ["hard", "Hard (503)"]]) {
+  const modeOptions = isEs
+    ? [["off", "Inactivo"], ["warning", "Aviso (suave)"], ["hard", "Bloqueo (503)"]]
+    : [["off", "Off"], ["warning", "Soft (notice)"], ["hard", "Hard (503)"]];
+  for (const pair of modeOptions) {
     const button = el("button", { type: "button", class: "m-" + pair[0] }, pair[1]);
     button.disabled = !!state.savingMaintenance;
     button.addEventListener("click", function () {
@@ -2072,15 +2125,13 @@ function renderMaintenancePanel(panel) {
   wrap.appendChild(el("div", { id: "maintStatus" }));
 
   const help = el("section", { class: "sec" });
-  help.appendChild(el("h2", null, "How it reaches the server"));
+  help.appendChild(el("h2", null, isEs ? "Cómo llega al servidor" : "How it reaches the server"));
   help.appendChild(el("p", { class: "note" },
-    "The API only accepts /admin/maintenance from its own loopback, and its HTTP port is not " +
-    "published. This tool runs it inside the container " +
-    "(docker exec deploy-api-1 curl -sS http://127.0.0.1:8080/admin/maintenance); set " +
-    "KF_BALANCE_ADMIN_URL to call the endpoint directly on a dev host."));
+    isEs ? "La API solo acepta /admin/maintenance desde su propio bucle local (loopback) y su puerto HTTP no está expuesto públicamente. Esta herramienta lo ejecuta en el contenedor correspondiente o directamente en KF_BALANCE_ADMIN_URL."
+         : "The API only accepts /admin/maintenance from its own loopback, and its HTTP port is not published. This tool runs it inside the container (docker exec deploy-api-1 curl -sS http://127.0.0.1:8080/admin/maintenance); set KF_BALANCE_ADMIN_URL to call the endpoint directly on a dev host."));
   help.appendChild(el("p", { class: "note" },
-    "Saving a table writes masters_<table>.json under the override dir (KF_BALANCE_OVERRIDE_DIR), " +
-    "never config/. Use \"Restart API to apply\" so the API reloads them; overrides survive the CI deploy."));
+    isEs ? "Guardar una tabla escribe masters_<table>.json en el directorio de modificaciones (KF_BALANCE_OVERRIDE_DIR), nunca en config/. Usa \"Reiniciar API para aplicar\" para que la API los cargue."
+         : "Saving a table writes masters_<table>.json under the override dir (KF_BALANCE_OVERRIDE_DIR), never config/. Use \"Restart API to apply\" so the API reloads them; overrides survive the CI deploy."));
   wrap.appendChild(help);
   panel.appendChild(wrap);
 }
@@ -2148,7 +2199,7 @@ function refreshDirty() {
     input.classList.toggle("invalid", input.dataset.invalid === "1");
   }
   const counter = document.getElementById("dirtyCount");
-  counter.textContent = "Unsaved changes: " + state.dirtyFields.size;
+  if (counter) counter.textContent = BalanceI18n.t("footer.unsavedChanges", { count: state.dirtyFields.size });
   counter.classList.toggle("has", state.dirtyFields.size > 0);
   document.getElementById("save").disabled = state.saving || state.dirtyFields.size === 0;
   document.getElementById("revert").disabled = state.saving;
@@ -2334,14 +2385,14 @@ function healthTable(headers, rows) {
 }
 
 function renderHealthPanel(panel) {
+  const isEs = BalanceI18n.getLang() === "es";
   const wrap = el("div", { class: "mpanel" });
   wrap.style.maxWidth = "1100px";
 
   const head = el("div", { class: "phead" });
   const box = el("div");
-  box.appendChild(el("h1", null, "Health"));
-  box.appendChild(el("div", { class: "meta" },
-    "the game server's loopback-only /admin/ops/* telemetry: match outcomes, client exceptions and a battle drill-down"));
+  box.appendChild(el("h1", null, BalanceI18n.t("health.title")));
+  box.appendChild(el("div", { class: "meta" }, BalanceI18n.t("health.meta")));
   head.appendChild(box);
   wrap.appendChild(head);
 
@@ -3166,8 +3217,9 @@ function showBotAiReviewModal() {
   const backdrop = el("div", { id: "botAiReviewModal", class: "bot-ai-modal-backdrop" });
   const modal = el("div", { class: "bot-ai-modal" });
 
+  const isEs = BalanceI18n.getLang() === "es";
   const head = el("div", { class: "bot-ai-modal-head" });
-  head.appendChild(el("span", null, "📋 Guardar cambios en el servidor"));
+  head.appendChild(el("span", null, isEs ? "📋 Guardar cambios en el servidor" : "📋 Save changes to server"));
   const closeBtn = el("button", { type: "button", class: "mini" }, "✕");
   closeBtn.addEventListener("click", function () { backdrop.remove(); });
   head.appendChild(closeBtn);
@@ -3175,7 +3227,8 @@ function showBotAiReviewModal() {
 
   const body = el("div", { class: "bot-ai-modal-body" });
   body.appendChild(el("p", { class: "bot-ai-notice info" },
-    "Revisa los cambios. Al guardar quedarán en el servidor para las nuevas partidas."));
+    isEs ? "Revisa los cambios. Al guardar quedarán en el servidor para las nuevas partidas."
+         : "Review changes. Once saved, they apply on the server for future matches."));
 
   for (const d of diffs) {
     const card = el("div", { class: "bot-ai-card", style: "margin-bottom:12px; padding:12px;" });
@@ -3210,14 +3263,14 @@ function showBotAiReviewModal() {
 
     // Optional numeric detail disclosure: ALL raw numeric rows ONLY inside here!
     const numDetails = el("details", { class: "bot-ai-modal-diff-details", style: "font-size:11px; margin-top:6px;" });
-    numDetails.appendChild(el("summary", { style: "cursor:pointer; color:var(--fg2); margin-bottom:6px; font-weight:500;" }, "Ver detalle de valores numéricos"));
+    numDetails.appendChild(el("summary", { style: "cursor:pointer; color:var(--fg2); margin-bottom:6px; font-weight:500;" }, isEs ? "Ver detalle de valores numéricos" : "View numeric parameter details"));
 
     const table = el("table", { class: "htable" });
     const thead = el("thead");
     const trh = el("tr");
-    trh.appendChild(el("th", null, "Parámetro"));
-    trh.appendChild(el("th", null, "Valor anterior"));
-    trh.appendChild(el("th", null, "Nuevo valor"));
+    trh.appendChild(el("th", null, isEs ? "Parámetro" : "Parameter"));
+    trh.appendChild(el("th", null, isEs ? "Valor anterior" : "Previous value"));
+    trh.appendChild(el("th", null, isEs ? "Nuevo valor" : "New value"));
     thead.appendChild(trh);
     table.appendChild(thead);
 
@@ -3238,11 +3291,11 @@ function showBotAiReviewModal() {
   modal.appendChild(body);
 
   const foot = el("div", { class: "bot-ai-modal-foot" });
-  const cancelBtn = el("button", { type: "button", class: "bot-ai-btn secondary" }, "Cancelar");
+  const cancelBtn = el("button", { type: "button", class: "bot-ai-btn secondary" }, isEs ? "Cancelar" : "Cancel");
   cancelBtn.addEventListener("click", function () { backdrop.remove(); });
   foot.appendChild(cancelBtn);
 
-  const confirmBtn = el("button", { type: "button", class: "bot-ai-btn primary" }, "Guardar en servidor");
+  const confirmBtn = el("button", { type: "button", class: "bot-ai-btn primary" }, isEs ? "Guardar en servidor" : "Save to server");
   confirmBtn.addEventListener("click", async function () {
     backdrop.remove();
     await saveBotAiProfiles();
@@ -3258,26 +3311,29 @@ function showBotAiConflictModal(errMessage) {
   const existing = document.getElementById("botAiConflictModal");
   if (existing) existing.remove();
 
+  const isEs = BalanceI18n.getLang() === "es";
   const backdrop = el("div", { id: "botAiConflictModal", class: "bot-ai-modal-backdrop" });
   const modal = el("div", { class: "bot-ai-modal" });
 
   const head = el("div", { class: "bot-ai-modal-head", style: "border-color:var(--dirty);" });
-  head.appendChild(el("span", { style: "color:var(--dirty);" }, "⚠️ Conflicto de Concurrencia (409)"));
+  head.appendChild(el("span", { style: "color:var(--dirty);" }, isEs ? "⚠️ Conflicto de Concurrencia (409)" : "⚠️ Concurrency Conflict (409)"));
   modal.appendChild(head);
 
   const body = el("div", { class: "bot-ai-modal-body" });
   body.appendChild(el("p", { class: "bot-ai-notice warn" },
-    errMessage || "El archivo de configuración fue modificado externamente en el disco por otro proceso o usuario. Para evitar sobrescribir cambios ajenos, tu guardado ha sido detenido."));
+    errMessage || (isEs ? "El archivo de configuración fue modificado externamente en el disco por otro proceso o usuario. Para evitar sobrescribir cambios ajenos, tu guardado ha sido detenido."
+                        : "The configuration file was modified externally on disk by another process or user. To prevent overwriting external changes, your save was halted.")));
   body.appendChild(el("p", null,
-    "Tus borradores locales se conservan en memoria. Puedes recargar la versión actual del servidor para actualizar la base manteniendo tus cambios pendientes."));
+    isEs ? "Tus borradores locales se conservan en memoria. Puedes recargar la versión actual del servidor para actualizar la base manteniendo tus cambios pendientes."
+         : "Your local drafts are preserved in memory. You can reload the current server version to update the base while keeping your pending changes."));
   modal.appendChild(body);
 
   const foot = el("div", { class: "bot-ai-modal-foot" });
-  const cancelBtn = el("button", { type: "button", class: "bot-ai-btn secondary" }, "Cerrar y conservar borrador");
+  const cancelBtn = el("button", { type: "button", class: "bot-ai-btn secondary" }, isEs ? "Cerrar y conservar borrador" : "Close & keep draft");
   cancelBtn.addEventListener("click", function () { backdrop.remove(); });
   foot.appendChild(cancelBtn);
 
-  const reloadBtn = el("button", { type: "button", class: "bot-ai-btn primary" }, "Recargar del servidor");
+  const reloadBtn = el("button", { type: "button", class: "bot-ai-btn primary" }, isEs ? "Recargar del servidor" : "Reload from server");
   reloadBtn.addEventListener("click", async function () {
     backdrop.remove();
     await loadBotAiProfiles(true);
@@ -3335,7 +3391,7 @@ async function saveBotAiProfiles() {
     state.botAi.drafts = {};
     state.botAi.saving = false;
 
-    showToast("✓ Configuración de IA de bots guardada exitosamente en el servidor.");
+    showToast(BalanceI18n.getLang() === "es" ? "✓ Configuración de IA de bots guardada exitosamente en el servidor." : "✓ Bot AI configuration saved successfully to server.");
     renderBotAiList();
     renderBotAiPanel(document.getElementById("panel"));
   } catch (err) {
@@ -3419,14 +3475,16 @@ function renderBotAiPanel(panel) {
   const container = el("div", { class: "bot-ai-container" });
 
   // 1. Mode Selector: Compact 3-column segmented control (Cristales / Bandera / Balón)
-  const modeSeg = el("div", { class: "bot-ai-modes-segmented", role: "tablist", "aria-label": "Modo de juego" });
+  const isEs = BalanceI18n.getLang() === "es";
+  const modeSeg = el("div", { class: "bot-ai-modes-segmented", role: "tablist", "aria-label": isEs ? "Modo de juego" : "Game mode" });
   for (const m of BOT_AI_MODES) {
+    const locM = BalanceI18n.getBotAiMode(m.id);
     const isActive = state.botAi.selectedMode === m.id;
     const btn = el("button", {
       type: "button",
       class: "bot-ai-mode-seg" + (isActive ? " active" : ""),
       "aria-selected": isActive ? "true" : "false"
-    }, m.icon + " " + m.name);
+    }, locM.icon + " " + locM.name);
     btn.addEventListener("click", function () {
       if (state.botAi.selectedMode !== m.id) {
         state.botAi.selectedMode = m.id;
@@ -3501,8 +3559,8 @@ function renderBotAiPanel(panel) {
 
   // 3. Heading & Subheading: "¿Qué quieres que haga?"
   const headingBox = el("div", { class: "bot-ai-heading-box" });
-  headingBox.appendChild(el("h2", { class: "bot-ai-heading" }, "🎯 ¿Qué quieres que haga?"));
-  headingBox.appendChild(el("p", { class: "bot-ai-subheading" }, "Selecciona una intención para aplicar una recomendación rápida y editable:"));
+  headingBox.appendChild(el("h2", { class: "bot-ai-heading" }, "🎯 " + (isEs ? "¿Qué quieres que haga?" : "What do you want it to do?")));
+  headingBox.appendChild(el("p", { class: "bot-ai-subheading" }, isEs ? "Selecciona una intención para aplicar una recomendación rápida y editable:" : "Select an intent preset to apply a quick, editable recommendation:"));
   container.appendChild(headingBox);
 
   // 4. Intent Choices: 5 Compact, Colorful Intent Cards
@@ -3510,6 +3568,7 @@ function renderBotAiPanel(panel) {
   const activePresetId = detectActivePreset(profile, curMode, curProfKey);
 
   for (const pr of BOT_AI_INTENT_PRESETS) {
+    const locPr = BalanceI18n.getBotAiPreset(pr.id) || pr;
     const isSelected = activePresetId === pr.id;
     const card = el("button", {
       type: "button",
@@ -3520,19 +3579,19 @@ function renderBotAiPanel(panel) {
     const topRow = el("div", { class: "bot-ai-intent-top" });
     const iconTitle = el("div", { class: "bot-ai-intent-icon-title" });
     iconTitle.appendChild(el("span", { class: "bot-ai-intent-icon" }, pr.icon));
-    iconTitle.appendChild(el("span", { class: "bot-ai-intent-title" }, pr.title));
+    iconTitle.appendChild(el("span", { class: "bot-ai-intent-title" }, locPr.title));
     topRow.appendChild(iconTitle);
 
     if (isSelected) {
-      topRow.appendChild(el("span", { class: "bot-ai-intent-badge" }, "✓ Activo"));
+      topRow.appendChild(el("span", { class: "bot-ai-intent-badge" }, isEs ? "✓ Activo" : "✓ Active"));
     }
     card.appendChild(topRow);
 
-    const summaryText = getPresetSummary(pr, curMode);
+    const summaryText = getPresetSummary(locPr, curMode);
     card.appendChild(el("div", { class: "bot-ai-intent-summary" }, summaryText));
 
-    if (pr.nativeLimit) {
-      card.appendChild(el("div", { class: "bot-ai-intent-subnote" }, pr.nativeLimit));
+    if (locPr.nativeLimit) {
+      card.appendChild(el("div", { class: "bot-ai-intent-subnote" }, locPr.nativeLimit));
     }
 
     card.addEventListener("click", function () {
@@ -3543,10 +3602,11 @@ function renderBotAiPanel(panel) {
   container.appendChild(intentGrid);
 
   // Plain language behavior summary
-  const activeObj = BOT_AI_INTENT_PRESETS.find(p => p.id === activePresetId);
+  const activeRawObj = BOT_AI_INTENT_PRESETS.find(p => p.id === activePresetId);
+  const activeObj = activeRawObj ? (BalanceI18n.getBotAiPreset(activeRawObj.id) || activeRawObj) : null;
   if (activeObj) {
     const feedback = el("div", { class: "bot-ai-preset-feedback" });
-    feedback.innerHTML = "Comportamiento seleccionado: <strong>" + activeObj.title + "</strong> — " + activeObj.behaviorDesc;
+    feedback.innerHTML = (isEs ? "Comportamiento seleccionado: <strong>" : "Selected behavior: <strong>") + activeObj.title + "</strong> — " + activeObj.behaviorDesc;
     container.appendChild(feedback);
   }
 
@@ -3694,7 +3754,7 @@ function renderBotAiPanel(panel) {
     type: "button",
     id: "botAiDiscardBtn",
     class: "bot-ai-btn danger"
-  }, "Descartar cambios");
+  }, isEs ? "Descartar cambios" : "Discard changes");
   discardBtn.disabled = !isDirty;
   discardBtn.addEventListener("click", function () {
     discardBotAiDraft(curMode, curProfKey);
@@ -3705,13 +3765,15 @@ function renderBotAiPanel(panel) {
   const rightActions = el("div", { style: "display:flex; align-items:center; gap:12px;" });
   if (dirtyCount > 0) {
     rightActions.appendChild(el("span", { style: "font-size:12px; color:var(--dirty); font-weight:600;" },
-      dirtyCount + " perfil(es) modificado(s)"));
+      isEs ? (dirtyCount + " perfil(es) modificado(s)") : (dirtyCount + " modified profile(s)")));
   }
+  const saveLabel = state.botAi.saving ? (isEs ? "Guardando..." : "Saving...")
+    : (isEs ? "Guardar cambios" : "Save changes") + (dirtyCount > 0 ? " (" + dirtyCount + ")" : "");
   const saveBtn = el("button", {
     type: "button",
     id: "botAiSaveBtn",
     class: "bot-ai-btn primary"
-  }, state.botAi.saving ? "Guardando..." : "Guardar cambios" + (dirtyCount > 0 ? " (" + dirtyCount + ")" : ""));
+  }, saveLabel);
   saveBtn.disabled = dirtyCount === 0 || state.botAi.saving;
   saveBtn.addEventListener("click", function () {
     showBotAiReviewModal();
@@ -3726,7 +3788,128 @@ function renderBotAiPanel(panel) {
 
 /* -------------------------------------------------------------------- boot */
 
+function syncLanguage() {
+  const lang = BalanceI18n.getLang();
+  document.documentElement.lang = lang;
+  document.title = BalanceI18n.t("header.title");
+  const select = document.getElementById("langSelect");
+  if (select) select.value = lang;
+
+  BalanceI18n.applyTranslations(document);
+
+  const topHint = document.getElementById("topHint");
+  if (topHint) {
+    if (state.tab === "bot-ai") {
+      topHint.textContent = BalanceI18n.t("header.topHintBotAi");
+    } else {
+      topHint.innerHTML = BalanceI18n.t("header.topHintMasters");
+    }
+  }
+
+  if (state.currentUser) {
+    const userEl = document.getElementById("currentUser");
+    if (userEl) userEl.textContent = BalanceI18n.t("header.currentUser", { user: state.currentUser });
+  }
+
+  refreshDirty();
+  buildDiscFilters();
+  renderList();
+
+  if (state.tab === "bot-ai") {
+    if (state.botAi.loaded) {
+      const panel = document.getElementById("panel");
+      if (panel) renderBotAiPanel(panel);
+      if (document.getElementById("botAiReviewModal")) {
+        showBotAiReviewModal();
+      }
+      const conflictModal = document.getElementById("botAiConflictModal");
+      if (conflictModal) {
+        const isEs = BalanceI18n.getLang() === "es";
+        const head = conflictModal.querySelector(".bot-ai-modal-head span");
+        if (head) head.textContent = isEs ? "⚠️ Conflicto de Concurrencia (409)" : "⚠️ Concurrency Conflict (409)";
+        const cancelBtn = conflictModal.querySelector(".bot-ai-modal-foot button.secondary");
+        if (cancelBtn) cancelBtn.textContent = isEs ? "Cerrar y conservar borrador" : "Close & keep draft";
+        const reloadBtn = conflictModal.querySelector(".bot-ai-modal-foot button.primary");
+        if (reloadBtn) reloadBtn.textContent = isEs ? "Recargar del servidor" : "Reload from server";
+      }
+    }
+  } else if (state.tab === "maintenance") {
+    const startsAt = document.getElementById("maintStartsAt");
+    const endsAt = document.getElementById("maintEndsAt");
+    const notice = document.getElementById("maintNotice");
+    const selectedMode = document.querySelector("input[name='maintMode']:checked");
+    const saved = {
+      startsAt: startsAt ? startsAt.value : null,
+      endsAt: endsAt ? endsAt.value : null,
+      notice: notice ? notice.value : null,
+      mode: selectedMode ? selectedMode.value : null
+    };
+    renderPanel();
+    if (saved.startsAt !== null && document.getElementById("maintStartsAt")) document.getElementById("maintStartsAt").value = saved.startsAt;
+    if (saved.endsAt !== null && document.getElementById("maintEndsAt")) document.getElementById("maintEndsAt").value = saved.endsAt;
+    if (saved.notice !== null && document.getElementById("maintNotice")) document.getElementById("maintNotice").value = saved.notice;
+    if (saved.mode !== null) {
+      const r = document.querySelector("input[name='maintMode'][value='" + saved.mode + "']");
+      if (r) r.checked = true;
+    }
+  } else if (state.tab === "client-update") {
+    const androidMin = document.getElementById("updateAndroidMin");
+    const androidStore = document.getElementById("updateAndroidStore");
+    const androidForce = document.getElementById("updateAndroidForce");
+    const iosMin = document.getElementById("updateIosMin");
+    const iosStore = document.getElementById("updateIosStore");
+    const iosForce = document.getElementById("updateIosForce");
+    const saved = {
+      androidMin: androidMin ? androidMin.value : null,
+      androidStore: androidStore ? androidStore.value : null,
+      androidForce: androidForce ? androidForce.checked : null,
+      iosMin: iosMin ? iosMin.value : null,
+      iosStore: iosStore ? iosStore.value : null,
+      iosForce: iosForce ? iosForce.checked : null
+    };
+    renderPanel();
+    if (saved.androidMin !== null && document.getElementById("updateAndroidMin")) document.getElementById("updateAndroidMin").value = saved.androidMin;
+    if (saved.androidStore !== null && document.getElementById("updateAndroidStore")) document.getElementById("updateAndroidStore").value = saved.androidStore;
+    if (saved.androidForce !== null && document.getElementById("updateAndroidForce")) document.getElementById("updateAndroidForce").checked = saved.androidForce;
+    if (saved.iosMin !== null && document.getElementById("updateIosMin")) document.getElementById("updateIosMin").value = saved.iosMin;
+    if (saved.iosStore !== null && document.getElementById("updateIosStore")) document.getElementById("updateIosStore").value = saved.iosStore;
+    if (saved.iosForce !== null && document.getElementById("updateIosForce")) document.getElementById("updateIosForce").checked = saved.iosForce;
+  } else if (state.tab === "latest-information") {
+    const titleIn = document.getElementById("latestInfoTitle");
+    const textIn = document.getElementById("latestInfoAnnouncement");
+    const urlIn = document.getElementById("latestInfoExternalUrl");
+    const modeIn = document.querySelector("input[name='latestInfoMode']:checked");
+    const saved = {
+      title: titleIn ? titleIn.value : null,
+      text: textIn ? textIn.value : null,
+      url: urlIn ? urlIn.value : null,
+      mode: modeIn ? modeIn.value : null
+    };
+    renderPanel();
+    if (saved.title !== null && document.getElementById("latestInfoTitle")) document.getElementById("latestInfoTitle").value = saved.title;
+    if (saved.text !== null && document.getElementById("latestInfoAnnouncement")) document.getElementById("latestInfoAnnouncement").value = saved.text;
+    if (saved.url !== null && document.getElementById("latestInfoExternalUrl")) document.getElementById("latestInfoExternalUrl").value = saved.url;
+    if (saved.mode !== null) {
+      const r = document.querySelector("input[name='latestInfoMode'][value='" + saved.mode + "']");
+      if (r) r.checked = true;
+    }
+  } else {
+    renderPanel();
+  }
+}
+
 function wireEvents() {
+  const langSelect = document.getElementById("langSelect");
+  if (langSelect) {
+    langSelect.addEventListener("change", function (e) {
+      BalanceI18n.setLang(e.target.value);
+      syncLanguage();
+    });
+  }
+  BalanceI18n.onLangChange(function () {
+    syncLanguage();
+  });
+
   const tabs = document.querySelectorAll("#tabs button");
   for (const button of tabs) {
     button.addEventListener("click", function () {
@@ -3745,9 +3928,9 @@ function wireEvents() {
       const topHint = document.getElementById("topHint");
       if (topHint) {
         if (state.tab === "bot-ai") {
-          topHint.textContent = "Se guardan en el servidor para nuevas partidas.";
+          topHint.textContent = BalanceI18n.t("header.topHintBotAi");
         } else {
-          topHint.innerHTML = "saves write <code>.local/masters-overrides</code> (never <code>config/</code>) &mdash; restart the API to load them";
+          topHint.innerHTML = BalanceI18n.t("header.topHintMasters");
         }
       }
       if (state.tab === "bot-ai" && !state.botAi.loaded && !state.botAi.loading) {
@@ -3784,9 +3967,11 @@ function wireEvents() {
 
 async function boot() {
   wireEvents();
+  syncLanguage();
   try {
     const session = await fetchJSON("/api/session", { cache: "no-store" });
-    document.getElementById("currentUser").textContent = session.username;
+    state.currentUser = session.username;
+    document.getElementById("currentUser").textContent = BalanceI18n.t("header.currentUser", { user: session.username });
     const loaded = await Promise.all([
       fetchJSON("/api/kickers", { cache: "no-store" }),
       fetchJSON("/api/discs", { cache: "no-store" })

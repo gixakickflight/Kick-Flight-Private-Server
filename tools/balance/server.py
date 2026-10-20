@@ -51,6 +51,7 @@ DOCS_DIR = REPO_ROOT / "docs"
 ICON_DIR = BALANCE_DIR / "icons"
 INDEX_FILE = BALANCE_DIR / "index.html"
 LOGIN_FILE = BALANCE_DIR / "login.html"
+I18N_FILE = BALANCE_DIR / "i18n.js"
 DISC_CARDS_FILE = DOCS_DIR / "disc_cards.json"
 # Named client enums (value -> member name) and the {table.field: enum} mapping the UI turns into
 # dropdowns; the file itself documents each enum's source.  See tools/balance/README.md.
@@ -1662,6 +1663,8 @@ class BalanceHandler(BaseHTTPRequestHandler):
             if path == BASE_PATH:
                 return ""
             if not path.startswith(BASE_PATH + "/"):
+                if path == "/i18n.js":
+                    return "/i18n.js"
                 return None
             path = path[len(BASE_PATH):]
         return path or "/"
@@ -1780,6 +1783,14 @@ class BalanceHandler(BaseHTTPRequestHandler):
                 return
             html = html.replace("__BALANCE_BASE_PATH__", BASE_PATH)
             self.send_body(200, html.encode("utf-8"), "text/html; charset=utf-8")
+            return
+        if path == "/i18n.js":
+            try:
+                js = I18N_FILE.read_text(encoding="utf-8")
+            except OSError as error:
+                self.send_error_json(500, "could not read i18n module: %s" % error)
+                return
+            self.send_body(200, js.encode("utf-8"), "application/javascript; charset=utf-8")
             return
         if path == "/api/login":
             self.send_error_json(405, "method not allowed")
@@ -2643,8 +2654,8 @@ def main(argv=None):
     if args.backup_dir:
         BACKUP_DIR = Path(args.backup_dir).expanduser()
 
-    if not INDEX_FILE.is_file() or not LOGIN_FILE.is_file():
-        print("missing %s" % INDEX_FILE, file=sys.stderr)
+    if not INDEX_FILE.is_file() or not LOGIN_FILE.is_file() or not I18N_FILE.is_file():
+        print("missing %s or required UI files" % INDEX_FILE, file=sys.stderr)
         return 1
     if not MASTERS_DIR.is_dir():
         print("base masters directory does not exist: %s" % MASTERS_DIR, file=sys.stderr)
