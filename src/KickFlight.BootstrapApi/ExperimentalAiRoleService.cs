@@ -187,6 +187,11 @@ public static class ExperimentalAiRoleService
         return CurrentProvider.GetAllPolicies();
     }
 
+    public static AiRolePolicy? GetPolicyByKicker(int modeIndex, int kickerId)
+    {
+        return CurrentProvider.GetPolicyByKicker(modeIndex, kickerId);
+    }
+
     public static AiRolePolicy? GetPolicy(string profile, int kickerId = 0, int modeIndex = 0)
     {
         return CurrentProvider.GetPolicy(profile, kickerId, modeIndex);
@@ -269,6 +274,66 @@ public static class ExperimentalAiRoleService
 
                 extra.Add(copy);
                 existingIds.Add(policy.ParameterId);
+            }
+
+            // Legacy Master Aliases: Preserve rows for legacy base IDs 18..22, 31..35, 44..48
+            // so any legacy client/hook lookups (e.g. native hook 18 for Objective Attacker) continue to succeed.
+            var legacyAliases = new (int ParamId, int ModeIndex, int SourceKickerId)[]
+            {
+                (18, 0, 10), // objective_attacker -> Yuyan (native hook 18)
+                (19, 0, 2),  // healer -> Ruriha
+                (20, 0, 7),  // speed_support -> Grenhawk
+                (21, 0, 14), // damage_support -> Sid
+                (22, 0, 5),  // trap_defender -> Owlbert
+
+                (31, 1, 10),
+                (32, 1, 2),
+                (33, 1, 7),
+                (34, 1, 14),
+                (35, 1, 5),
+
+                (44, 2, 10),
+                (45, 2, 2),
+                (46, 2, 7),
+                (47, 2, 14),
+                (48, 2, 5)
+            };
+
+            foreach (var alias in legacyAliases)
+            {
+                if (existingIds.Contains(alias.ParamId)) continue;
+                var sourcePolicy = effectiveSnapshot.GetPolicyByKicker(alias.ModeIndex, alias.SourceKickerId)
+                    ?? effectiveSnapshot.GetPolicy(alias.ParamId);
+                if (sourcePolicy is null) continue;
+
+                if (!baseRowsByKicker.TryGetValue(sourcePolicy.KickerId, out var template) && baseRowsByKicker.Count > 0)
+                {
+                    template = baseRowsByKicker.Values.First();
+                }
+                if (template is null) continue;
+
+                var copy = (JsonObject)template.DeepClone();
+                copy["id"] = alias.ParamId;
+                copy["kickerId"] = sourcePolicy.KickerId;
+                copy["kickerCostumeId"] = sourcePolicy.KickerCostumeId;
+                copy["rank"] = 13;
+                copy["attackMotivation"] = sourcePolicy.AttackMotivation;
+                copy["defenseMotivation"] = sourcePolicy.DefenseMotivation;
+                copy["scoreMotivation"] = sourcePolicy.ScoreMotivation;
+                copy["scoreToDeposit"] = sourcePolicy.ScoreToDeposit;
+                copy["canLockon"] = sourcePolicy.CanLockon;
+                copy["healDamageRate"] = sourcePolicy.HealDamageRate;
+                copy["attackDashInterval"] = sourcePolicy.AttackDashInterval;
+                copy["defenseDashInterval"] = sourcePolicy.DefenseDashInterval;
+                copy["scoreDashInterval"] = sourcePolicy.ScoreDashInterval;
+                copy["attackSkillInterval"] = sourcePolicy.AttackSkillInterval;
+                copy["healSkillInterval"] = sourcePolicy.HealSkillInterval;
+                copy["buffSkillInterval"] = sourcePolicy.BuffSkillInterval;
+                copy["trapSkillInterval"] = sourcePolicy.TrapSkillInterval;
+                copy["warpSkillInterval"] = sourcePolicy.WarpSkillInterval;
+
+                extra.Add(copy);
+                existingIds.Add(alias.ParamId);
             }
 
             foreach (var e in extra)

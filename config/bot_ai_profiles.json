@@ -3,7 +3,7 @@
   "version": 1,
   "profiles": [
     {
-      "profile": "carrier",
+      "profile": "Anna",
       "mode": "CrystalScramble",
       "parameterId": 15,
       "kickerId": 8,
@@ -32,7 +32,7 @@
       "canLockon": true
     },
     {
-      "profile": "tank_defender",
+      "profile": "Coco",
       "mode": "CrystalScramble",
       "parameterId": 16,
       "kickerId": 3,
@@ -61,7 +61,7 @@
       "canLockon": true
     },
     {
-      "profile": "hunter",
+      "profile": "Kite",
       "mode": "CrystalScramble",
       "parameterId": 17,
       "kickerId": 4,
@@ -84,151 +84,6 @@
         "heal": 5.0,
         "buff": 5.0,
         "trap": 4.0,
-        "warp": 4.0
-      },
-      "healDamageRate": 0.5,
-      "canLockon": true
-    },
-    {
-      "profile": "objective_attacker",
-      "mode": "CrystalScramble",
-      "parameterId": 18,
-      "kickerId": 10,
-      "kickerCostumeId": 2100101,
-      "rank": 13,
-      "motivations": {
-        "attack": 85,
-        "defense": 20,
-        "score": 75
-      },
-      "scoreToDeposit": 10,
-      "lowHpDepositThreshold": 0.35,
-      "dashIntervals": {
-        "attack": 0.9,
-        "defense": 1.2,
-        "score": 0.9
-      },
-      "skillIntervals": {
-        "attack": 2.5,
-        "heal": 5.0,
-        "buff": 4.0,
-        "trap": 5.0,
-        "warp": 4.0
-      },
-      "healDamageRate": 0.5,
-      "canLockon": true
-    },
-    {
-      "profile": "healer",
-      "mode": "CrystalScramble",
-      "parameterId": 19,
-      "kickerId": 2,
-      "kickerCostumeId": 2020101,
-      "rank": 13,
-      "motivations": {
-        "attack": 30,
-        "defense": 60,
-        "score": 50
-      },
-      "scoreToDeposit": 10,
-      "lowHpDepositThreshold": 0.35,
-      "dashIntervals": {
-        "attack": 1.2,
-        "defense": 0.9,
-        "score": 1.0
-      },
-      "skillIntervals": {
-        "attack": 4.0,
-        "heal": 2.0,
-        "buff": 3.5,
-        "trap": 5.0,
-        "warp": 4.0
-      },
-      "healDamageRate": 0.7,
-      "canLockon": true
-    },
-    {
-      "profile": "speed_support",
-      "mode": "CrystalScramble",
-      "parameterId": 20,
-      "kickerId": 7,
-      "kickerCostumeId": 2070101,
-      "rank": 13,
-      "motivations": {
-        "attack": 60,
-        "defense": 40,
-        "score": 60
-      },
-      "scoreToDeposit": 10,
-      "lowHpDepositThreshold": 0.35,
-      "dashIntervals": {
-        "attack": 0.8,
-        "defense": 0.8,
-        "score": 0.8
-      },
-      "skillIntervals": {
-        "attack": 3.0,
-        "heal": 4.0,
-        "buff": 3.0,
-        "trap": 5.0,
-        "warp": 4.0
-      },
-      "healDamageRate": 0.5,
-      "canLockon": true
-    },
-    {
-      "profile": "damage_support",
-      "mode": "CrystalScramble",
-      "parameterId": 21,
-      "kickerId": 14,
-      "kickerCostumeId": 2140101,
-      "rank": 13,
-      "motivations": {
-        "attack": 75,
-        "defense": 35,
-        "score": 45
-      },
-      "scoreToDeposit": 10,
-      "lowHpDepositThreshold": 0.35,
-      "dashIntervals": {
-        "attack": 0.9,
-        "defense": 1.0,
-        "score": 1.0
-      },
-      "skillIntervals": {
-        "attack": 2.8,
-        "heal": 4.5,
-        "buff": 3.0,
-        "trap": 5.0,
-        "warp": 4.0
-      },
-      "healDamageRate": 0.5,
-      "canLockon": true
-    },
-    {
-      "profile": "trap_defender",
-      "mode": "CrystalScramble",
-      "parameterId": 22,
-      "kickerId": 5,
-      "kickerCostumeId": 2050101,
-      "rank": 13,
-      "motivations": {
-        "attack": 40,
-        "defense": 85,
-        "score": 30
-      },
-      "scoreToDeposit": 15,
-      "lowHpDepositThreshold": 0.35,
-      "dashIntervals": {
-        "attack": 1.1,
-        "defense": 0.8,
-        "score": 1.2
-      },
-      "skillIntervals": {
-        "attack": 3.5,
-        "heal": 4.5,
-        "buff": 4.0,
-        "trap": 2.5,
         "warp": 4.0
       },
       "healDamageRate": 0.5,
@@ -380,7 +235,181 @@
       "canLockon": true
     },
     {
-      "profile": "carrier",
+      "profile": "Tsubame",
+      "mode": "CrystalScramble",
+      "parameterId": 54,
+      "kickerId": 1,
+      "kickerCostumeId": 2010101,
+      "rank": 13,
+      "motivations": {
+        "attack": 30,
+        "defense": 30,
+        "score": 90
+      },
+      "scoreToDeposit": 5,
+      "lowHpDepositThreshold": 0.35,
+      "dashIntervals": {
+        "attack": 1.0,
+        "defense": 0.8,
+        "score": 0.8
+      },
+      "skillIntervals": {
+        "attack": 4.0,
+        "heal": 3.0,
+        "buff": 4.0,
+        "trap": 5.0,
+        "warp": 4.0
+      },
+      "healDamageRate": 0.5,
+      "canLockon": true
+    },
+    {
+      "profile": "Pitophy",
+      "mode": "CrystalScramble",
+      "parameterId": 55,
+      "kickerId": 6,
+      "kickerCostumeId": 2060101,
+      "rank": 13,
+      "motivations": {
+        "attack": 90,
+        "defense": 20,
+        "score": 40
+      },
+      "scoreToDeposit": 10,
+      "lowHpDepositThreshold": 0.35,
+      "dashIntervals": {
+        "attack": 0.8,
+        "defense": 1.2,
+        "score": 1.2
+      },
+      "skillIntervals": {
+        "attack": 2.5,
+        "heal": 5.0,
+        "buff": 5.0,
+        "trap": 4.0,
+        "warp": 4.0
+      },
+      "healDamageRate": 0.5,
+      "canLockon": true
+    },
+    {
+      "profile": "Jay",
+      "mode": "CrystalScramble",
+      "parameterId": 56,
+      "kickerId": 9,
+      "kickerCostumeId": 2090101,
+      "rank": 13,
+      "motivations": {
+        "attack": 30,
+        "defense": 30,
+        "score": 90
+      },
+      "scoreToDeposit": 5,
+      "lowHpDepositThreshold": 0.35,
+      "dashIntervals": {
+        "attack": 1.0,
+        "defense": 0.8,
+        "score": 0.8
+      },
+      "skillIntervals": {
+        "attack": 4.0,
+        "heal": 3.0,
+        "buff": 4.0,
+        "trap": 5.0,
+        "warp": 4.0
+      },
+      "healDamageRate": 0.5,
+      "canLockon": true
+    },
+    {
+      "profile": "Diatrius",
+      "mode": "CrystalScramble",
+      "parameterId": 57,
+      "kickerId": 11,
+      "kickerCostumeId": 2110101,
+      "rank": 13,
+      "motivations": {
+        "attack": 50,
+        "defense": 90,
+        "score": 20
+      },
+      "scoreToDeposit": 15,
+      "lowHpDepositThreshold": 0.35,
+      "dashIntervals": {
+        "attack": 1.2,
+        "defense": 0.8,
+        "score": 1.5
+      },
+      "skillIntervals": {
+        "attack": 3.0,
+        "heal": 4.0,
+        "buff": 4.0,
+        "trap": 4.0,
+        "warp": 5.0
+      },
+      "healDamageRate": 0.4,
+      "canLockon": true
+    },
+    {
+      "profile": "Buzzy Big",
+      "mode": "CrystalScramble",
+      "parameterId": 58,
+      "kickerId": 12,
+      "kickerCostumeId": 2120101,
+      "rank": 13,
+      "motivations": {
+        "attack": 50,
+        "defense": 90,
+        "score": 20
+      },
+      "scoreToDeposit": 15,
+      "lowHpDepositThreshold": 0.35,
+      "dashIntervals": {
+        "attack": 1.2,
+        "defense": 0.8,
+        "score": 1.5
+      },
+      "skillIntervals": {
+        "attack": 3.0,
+        "heal": 4.0,
+        "buff": 4.0,
+        "trap": 4.0,
+        "warp": 5.0
+      },
+      "healDamageRate": 0.4,
+      "canLockon": true
+    },
+    {
+      "profile": "Hitagi",
+      "mode": "CrystalScramble",
+      "parameterId": 59,
+      "kickerId": 13,
+      "kickerCostumeId": 2130101,
+      "rank": 13,
+      "motivations": {
+        "attack": 90,
+        "defense": 20,
+        "score": 40
+      },
+      "scoreToDeposit": 10,
+      "lowHpDepositThreshold": 0.35,
+      "dashIntervals": {
+        "attack": 0.8,
+        "defense": 1.2,
+        "score": 1.2
+      },
+      "skillIntervals": {
+        "attack": 2.5,
+        "heal": 5.0,
+        "buff": 5.0,
+        "trap": 4.0,
+        "warp": 4.0
+      },
+      "healDamageRate": 0.5,
+      "canLockon": true
+    },
+    {
+      "profile": "Anna",
       "mode": "FlagFlight",
       "parameterId": 28,
       "kickerId": 8,
@@ -409,7 +438,7 @@
       "canLockon": true
     },
     {
-      "profile": "tank_defender",
+      "profile": "Coco",
       "mode": "FlagFlight",
       "parameterId": 29,
       "kickerId": 3,
@@ -438,7 +467,7 @@
       "canLockon": true
     },
     {
-      "profile": "hunter",
+      "profile": "Kite",
       "mode": "FlagFlight",
       "parameterId": 30,
       "kickerId": 4,
@@ -461,151 +490,6 @@
         "heal": 5.0,
         "buff": 5.0,
         "trap": 4.0,
-        "warp": 4.0
-      },
-      "healDamageRate": 0.5,
-      "canLockon": true
-    },
-    {
-      "profile": "objective_attacker",
-      "mode": "FlagFlight",
-      "parameterId": 31,
-      "kickerId": 10,
-      "kickerCostumeId": 2100101,
-      "rank": 13,
-      "motivations": {
-        "attack": 90,
-        "defense": 20,
-        "score": 70
-      },
-      "scoreToDeposit": 1,
-      "lowHpDepositThreshold": 0.35,
-      "dashIntervals": {
-        "attack": 0.9,
-        "defense": 1.2,
-        "score": 0.9
-      },
-      "skillIntervals": {
-        "attack": 2.5,
-        "heal": 5.0,
-        "buff": 4.0,
-        "trap": 5.0,
-        "warp": 4.0
-      },
-      "healDamageRate": 0.5,
-      "canLockon": true
-    },
-    {
-      "profile": "healer",
-      "mode": "FlagFlight",
-      "parameterId": 32,
-      "kickerId": 2,
-      "kickerCostumeId": 2020101,
-      "rank": 13,
-      "motivations": {
-        "attack": 30,
-        "defense": 60,
-        "score": 50
-      },
-      "scoreToDeposit": 1,
-      "lowHpDepositThreshold": 0.35,
-      "dashIntervals": {
-        "attack": 1.2,
-        "defense": 0.9,
-        "score": 1.0
-      },
-      "skillIntervals": {
-        "attack": 4.0,
-        "heal": 2.0,
-        "buff": 3.5,
-        "trap": 5.0,
-        "warp": 4.0
-      },
-      "healDamageRate": 0.7,
-      "canLockon": true
-    },
-    {
-      "profile": "speed_support",
-      "mode": "FlagFlight",
-      "parameterId": 33,
-      "kickerId": 7,
-      "kickerCostumeId": 2070101,
-      "rank": 13,
-      "motivations": {
-        "attack": 60,
-        "defense": 40,
-        "score": 60
-      },
-      "scoreToDeposit": 1,
-      "lowHpDepositThreshold": 0.35,
-      "dashIntervals": {
-        "attack": 0.8,
-        "defense": 0.8,
-        "score": 0.8
-      },
-      "skillIntervals": {
-        "attack": 3.0,
-        "heal": 4.0,
-        "buff": 3.0,
-        "trap": 5.0,
-        "warp": 4.0
-      },
-      "healDamageRate": 0.5,
-      "canLockon": true
-    },
-    {
-      "profile": "damage_support",
-      "mode": "FlagFlight",
-      "parameterId": 34,
-      "kickerId": 14,
-      "kickerCostumeId": 2140101,
-      "rank": 13,
-      "motivations": {
-        "attack": 75,
-        "defense": 35,
-        "score": 45
-      },
-      "scoreToDeposit": 1,
-      "lowHpDepositThreshold": 0.35,
-      "dashIntervals": {
-        "attack": 0.9,
-        "defense": 1.0,
-        "score": 1.0
-      },
-      "skillIntervals": {
-        "attack": 2.8,
-        "heal": 4.5,
-        "buff": 3.0,
-        "trap": 5.0,
-        "warp": 4.0
-      },
-      "healDamageRate": 0.5,
-      "canLockon": true
-    },
-    {
-      "profile": "trap_defender",
-      "mode": "FlagFlight",
-      "parameterId": 35,
-      "kickerId": 5,
-      "kickerCostumeId": 2050101,
-      "rank": 13,
-      "motivations": {
-        "attack": 40,
-        "defense": 85,
-        "score": 30
-      },
-      "scoreToDeposit": 1,
-      "lowHpDepositThreshold": 0.35,
-      "dashIntervals": {
-        "attack": 1.1,
-        "defense": 0.8,
-        "score": 1.2
-      },
-      "skillIntervals": {
-        "attack": 3.5,
-        "heal": 4.5,
-        "buff": 4.0,
-        "trap": 2.5,
         "warp": 4.0
       },
       "healDamageRate": 0.5,
@@ -757,7 +641,181 @@
       "canLockon": true
     },
     {
-      "profile": "carrier",
+      "profile": "Tsubame",
+      "mode": "FlagFlight",
+      "parameterId": 60,
+      "kickerId": 1,
+      "kickerCostumeId": 2010101,
+      "rank": 13,
+      "motivations": {
+        "attack": 25,
+        "defense": 20,
+        "score": 95
+      },
+      "scoreToDeposit": 1,
+      "lowHpDepositThreshold": 0.35,
+      "dashIntervals": {
+        "attack": 1.0,
+        "defense": 0.8,
+        "score": 0.7
+      },
+      "skillIntervals": {
+        "attack": 4.0,
+        "heal": 3.0,
+        "buff": 4.0,
+        "trap": 5.0,
+        "warp": 4.0
+      },
+      "healDamageRate": 0.5,
+      "canLockon": true
+    },
+    {
+      "profile": "Pitophy",
+      "mode": "FlagFlight",
+      "parameterId": 61,
+      "kickerId": 6,
+      "kickerCostumeId": 2060101,
+      "rank": 13,
+      "motivations": {
+        "attack": 90,
+        "defense": 30,
+        "score": 40
+      },
+      "scoreToDeposit": 1,
+      "lowHpDepositThreshold": 0.35,
+      "dashIntervals": {
+        "attack": 0.8,
+        "defense": 1.2,
+        "score": 1.2
+      },
+      "skillIntervals": {
+        "attack": 2.5,
+        "heal": 5.0,
+        "buff": 5.0,
+        "trap": 4.0,
+        "warp": 4.0
+      },
+      "healDamageRate": 0.5,
+      "canLockon": true
+    },
+    {
+      "profile": "Jay",
+      "mode": "FlagFlight",
+      "parameterId": 62,
+      "kickerId": 9,
+      "kickerCostumeId": 2090101,
+      "rank": 13,
+      "motivations": {
+        "attack": 25,
+        "defense": 20,
+        "score": 95
+      },
+      "scoreToDeposit": 1,
+      "lowHpDepositThreshold": 0.35,
+      "dashIntervals": {
+        "attack": 1.0,
+        "defense": 0.8,
+        "score": 0.7
+      },
+      "skillIntervals": {
+        "attack": 4.0,
+        "heal": 3.0,
+        "buff": 4.0,
+        "trap": 5.0,
+        "warp": 4.0
+      },
+      "healDamageRate": 0.5,
+      "canLockon": true
+    },
+    {
+      "profile": "Diatrius",
+      "mode": "FlagFlight",
+      "parameterId": 63,
+      "kickerId": 11,
+      "kickerCostumeId": 2110101,
+      "rank": 13,
+      "motivations": {
+        "attack": 60,
+        "defense": 85,
+        "score": 20
+      },
+      "scoreToDeposit": 1,
+      "lowHpDepositThreshold": 0.35,
+      "dashIntervals": {
+        "attack": 1.2,
+        "defense": 0.8,
+        "score": 1.5
+      },
+      "skillIntervals": {
+        "attack": 3.0,
+        "heal": 4.0,
+        "buff": 4.0,
+        "trap": 4.0,
+        "warp": 5.0
+      },
+      "healDamageRate": 0.4,
+      "canLockon": true
+    },
+    {
+      "profile": "Buzzy Big",
+      "mode": "FlagFlight",
+      "parameterId": 64,
+      "kickerId": 12,
+      "kickerCostumeId": 2120101,
+      "rank": 13,
+      "motivations": {
+        "attack": 60,
+        "defense": 85,
+        "score": 20
+      },
+      "scoreToDeposit": 1,
+      "lowHpDepositThreshold": 0.35,
+      "dashIntervals": {
+        "attack": 1.2,
+        "defense": 0.8,
+        "score": 1.5
+      },
+      "skillIntervals": {
+        "attack": 3.0,
+        "heal": 4.0,
+        "buff": 4.0,
+        "trap": 4.0,
+        "warp": 5.0
+      },
+      "healDamageRate": 0.4,
+      "canLockon": true
+    },
+    {
+      "profile": "Hitagi",
+      "mode": "FlagFlight",
+      "parameterId": 65,
+      "kickerId": 13,
+      "kickerCostumeId": 2130101,
+      "rank": 13,
+      "motivations": {
+        "attack": 90,
+        "defense": 30,
+        "score": 40
+      },
+      "scoreToDeposit": 1,
+      "lowHpDepositThreshold": 0.35,
+      "dashIntervals": {
+        "attack": 0.8,
+        "defense": 1.2,
+        "score": 1.2
+      },
+      "skillIntervals": {
+        "attack": 2.5,
+        "heal": 5.0,
+        "buff": 5.0,
+        "trap": 4.0,
+        "warp": 4.0
+      },
+      "healDamageRate": 0.5,
+      "canLockon": true
+    },
+    {
+      "profile": "Anna",
       "mode": "RapidBall",
       "parameterId": 41,
       "kickerId": 8,
@@ -786,7 +844,7 @@
       "canLockon": true
     },
     {
-      "profile": "tank_defender",
+      "profile": "Coco",
       "mode": "RapidBall",
       "parameterId": 42,
       "kickerId": 3,
@@ -815,7 +873,7 @@
       "canLockon": true
     },
     {
-      "profile": "hunter",
+      "profile": "Kite",
       "mode": "RapidBall",
       "parameterId": 43,
       "kickerId": 4,
@@ -838,151 +896,6 @@
         "heal": 5.0,
         "buff": 5.0,
         "trap": 4.0,
-        "warp": 4.0
-      },
-      "healDamageRate": 0.5,
-      "canLockon": true
-    },
-    {
-      "profile": "objective_attacker",
-      "mode": "RapidBall",
-      "parameterId": 44,
-      "kickerId": 10,
-      "kickerCostumeId": 2100101,
-      "rank": 13,
-      "motivations": {
-        "attack": 90,
-        "defense": 20,
-        "score": 80
-      },
-      "scoreToDeposit": 5,
-      "lowHpDepositThreshold": 0.35,
-      "dashIntervals": {
-        "attack": 0.9,
-        "defense": 1.2,
-        "score": 0.9
-      },
-      "skillIntervals": {
-        "attack": 2.5,
-        "heal": 5.0,
-        "buff": 4.0,
-        "trap": 5.0,
-        "warp": 4.0
-      },
-      "healDamageRate": 0.5,
-      "canLockon": true
-    },
-    {
-      "profile": "healer",
-      "mode": "RapidBall",
-      "parameterId": 45,
-      "kickerId": 2,
-      "kickerCostumeId": 2020101,
-      "rank": 13,
-      "motivations": {
-        "attack": 30,
-        "defense": 60,
-        "score": 50
-      },
-      "scoreToDeposit": 5,
-      "lowHpDepositThreshold": 0.35,
-      "dashIntervals": {
-        "attack": 1.2,
-        "defense": 0.9,
-        "score": 1.0
-      },
-      "skillIntervals": {
-        "attack": 4.0,
-        "heal": 2.0,
-        "buff": 3.5,
-        "trap": 5.0,
-        "warp": 4.0
-      },
-      "healDamageRate": 0.7,
-      "canLockon": true
-    },
-    {
-      "profile": "speed_support",
-      "mode": "RapidBall",
-      "parameterId": 46,
-      "kickerId": 7,
-      "kickerCostumeId": 2070101,
-      "rank": 13,
-      "motivations": {
-        "attack": 60,
-        "defense": 40,
-        "score": 60
-      },
-      "scoreToDeposit": 5,
-      "lowHpDepositThreshold": 0.35,
-      "dashIntervals": {
-        "attack": 0.8,
-        "defense": 0.8,
-        "score": 0.8
-      },
-      "skillIntervals": {
-        "attack": 3.0,
-        "heal": 4.0,
-        "buff": 3.0,
-        "trap": 5.0,
-        "warp": 4.0
-      },
-      "healDamageRate": 0.5,
-      "canLockon": true
-    },
-    {
-      "profile": "damage_support",
-      "mode": "RapidBall",
-      "parameterId": 47,
-      "kickerId": 14,
-      "kickerCostumeId": 2140101,
-      "rank": 13,
-      "motivations": {
-        "attack": 75,
-        "defense": 35,
-        "score": 45
-      },
-      "scoreToDeposit": 5,
-      "lowHpDepositThreshold": 0.35,
-      "dashIntervals": {
-        "attack": 0.9,
-        "defense": 1.0,
-        "score": 1.0
-      },
-      "skillIntervals": {
-        "attack": 2.8,
-        "heal": 4.5,
-        "buff": 3.0,
-        "trap": 5.0,
-        "warp": 4.0
-      },
-      "healDamageRate": 0.5,
-      "canLockon": true
-    },
-    {
-      "profile": "trap_defender",
-      "mode": "RapidBall",
-      "parameterId": 48,
-      "kickerId": 5,
-      "kickerCostumeId": 2050101,
-      "rank": 13,
-      "motivations": {
-        "attack": 40,
-        "defense": 85,
-        "score": 30
-      },
-      "scoreToDeposit": 10,
-      "lowHpDepositThreshold": 0.35,
-      "dashIntervals": {
-        "attack": 1.1,
-        "defense": 0.8,
-        "score": 1.2
-      },
-      "skillIntervals": {
-        "attack": 3.5,
-        "heal": 4.5,
-        "buff": 4.0,
-        "trap": 2.5,
         "warp": 4.0
       },
       "healDamageRate": 0.5,
@@ -1128,6 +1041,180 @@
         "heal": 4.5,
         "buff": 2.5,
         "trap": 5.0,
+        "warp": 4.0
+      },
+      "healDamageRate": 0.5,
+      "canLockon": true
+    },
+    {
+      "profile": "Tsubame",
+      "mode": "RapidBall",
+      "parameterId": 66,
+      "kickerId": 1,
+      "kickerCostumeId": 2010101,
+      "rank": 13,
+      "motivations": {
+        "attack": 35,
+        "defense": 25,
+        "score": 90
+      },
+      "scoreToDeposit": 3,
+      "lowHpDepositThreshold": 0.35,
+      "dashIntervals": {
+        "attack": 1.0,
+        "defense": 0.8,
+        "score": 0.8
+      },
+      "skillIntervals": {
+        "attack": 4.0,
+        "heal": 3.0,
+        "buff": 4.0,
+        "trap": 5.0,
+        "warp": 4.0
+      },
+      "healDamageRate": 0.5,
+      "canLockon": true
+    },
+    {
+      "profile": "Pitophy",
+      "mode": "RapidBall",
+      "parameterId": 67,
+      "kickerId": 6,
+      "kickerCostumeId": 2060101,
+      "rank": 13,
+      "motivations": {
+        "attack": 90,
+        "defense": 25,
+        "score": 40
+      },
+      "scoreToDeposit": 5,
+      "lowHpDepositThreshold": 0.35,
+      "dashIntervals": {
+        "attack": 0.8,
+        "defense": 1.2,
+        "score": 1.2
+      },
+      "skillIntervals": {
+        "attack": 2.5,
+        "heal": 5.0,
+        "buff": 5.0,
+        "trap": 4.0,
+        "warp": 4.0
+      },
+      "healDamageRate": 0.5,
+      "canLockon": true
+    },
+    {
+      "profile": "Jay",
+      "mode": "RapidBall",
+      "parameterId": 68,
+      "kickerId": 9,
+      "kickerCostumeId": 2090101,
+      "rank": 13,
+      "motivations": {
+        "attack": 35,
+        "defense": 25,
+        "score": 90
+      },
+      "scoreToDeposit": 3,
+      "lowHpDepositThreshold": 0.35,
+      "dashIntervals": {
+        "attack": 1.0,
+        "defense": 0.8,
+        "score": 0.8
+      },
+      "skillIntervals": {
+        "attack": 4.0,
+        "heal": 3.0,
+        "buff": 4.0,
+        "trap": 5.0,
+        "warp": 4.0
+      },
+      "healDamageRate": 0.5,
+      "canLockon": true
+    },
+    {
+      "profile": "Diatrius",
+      "mode": "RapidBall",
+      "parameterId": 69,
+      "kickerId": 11,
+      "kickerCostumeId": 2110101,
+      "rank": 13,
+      "motivations": {
+        "attack": 55,
+        "defense": 90,
+        "score": 25
+      },
+      "scoreToDeposit": 10,
+      "lowHpDepositThreshold": 0.35,
+      "dashIntervals": {
+        "attack": 1.2,
+        "defense": 0.8,
+        "score": 1.5
+      },
+      "skillIntervals": {
+        "attack": 3.0,
+        "heal": 4.0,
+        "buff": 4.0,
+        "trap": 4.0,
+        "warp": 5.0
+      },
+      "healDamageRate": 0.4,
+      "canLockon": true
+    },
+    {
+      "profile": "Buzzy Big",
+      "mode": "RapidBall",
+      "parameterId": 70,
+      "kickerId": 12,
+      "kickerCostumeId": 2120101,
+      "rank": 13,
+      "motivations": {
+        "attack": 55,
+        "defense": 90,
+        "score": 25
+      },
+      "scoreToDeposit": 10,
+      "lowHpDepositThreshold": 0.35,
+      "dashIntervals": {
+        "attack": 1.2,
+        "defense": 0.8,
+        "score": 1.5
+      },
+      "skillIntervals": {
+        "attack": 3.0,
+        "heal": 4.0,
+        "buff": 4.0,
+        "trap": 4.0,
+        "warp": 5.0
+      },
+      "healDamageRate": 0.4,
+      "canLockon": true
+    },
+    {
+      "profile": "Hitagi",
+      "mode": "RapidBall",
+      "parameterId": 71,
+      "kickerId": 13,
+      "kickerCostumeId": 2130101,
+      "rank": 13,
+      "motivations": {
+        "attack": 90,
+        "defense": 25,
+        "score": 40
+      },
+      "scoreToDeposit": 5,
+      "lowHpDepositThreshold": 0.35,
+      "dashIntervals": {
+        "attack": 0.8,
+        "defense": 1.2,
+        "score": 1.2
+      },
+      "skillIntervals": {
+        "attack": 2.5,
+        "heal": 5.0,
+        "buff": 5.0,
+        "trap": 4.0,
         "warp": 4.0
       },
       "healDamageRate": 0.5,

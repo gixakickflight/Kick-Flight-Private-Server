@@ -1,41 +1,85 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <base href="__BALANCE_BASE_PATH__/">
-<title>Sign in · Kick-Flight Balance</title>
+<title>Iniciar sesión · Kick-Flight Balance</title>
 <style>
   :root { color-scheme: dark; font: 15px/1.5 system-ui, sans-serif; }
   body { min-height: 100vh; margin: 0; display: grid; place-items: center; background: #14161c; color: #e6e8ee; }
-  main { width: min(360px, calc(100vw - 40px)); padding: 28px; border: 1px solid #2e3340; border-radius: 12px; background: #1b1e26; }
-  h1 { margin: 0 0 20px; font-size: 20px; }
-  label { display: block; margin: 14px 0 5px; color: #c6ccda; }
+  main { width: min(360px, calc(100vw - 40px)); padding: 28px; border: 1px solid #2e3340; border-radius: 12px; background: #1b1e26; position: relative; }
+  .login-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; gap: 12px; }
+  h1 { margin: 0; font-size: 20px; font-weight: 650; }
+  .lang-select { background: #14161c; color: #e6e8ee; border: 1px solid #3a4050; border-radius: 6px; padding: 4px 8px; font: inherit; font-size: 13px; cursor: pointer; }
+  .lang-select:focus { outline: 2px solid #4da3ff; outline-offset: 1px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
+  label { display: block; margin: 14px 0 5px; color: #c6ccda; font-size: 14px; }
   input { box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid #3a4050; border-radius: 6px; background: #14161c; color: inherit; font: inherit; }
+  input:focus { border-color: #4da3ff; outline: none; }
   button { width: 100%; margin-top: 20px; padding: 10px; border: 0; border-radius: 6px; background: #4da3ff; color: #06131f; font: inherit; font-weight: 650; cursor: pointer; }
-  #error { min-height: 1.5em; margin: 12px 0 0; color: #ff8585; }
+  button:disabled { opacity: 0.6; cursor: not-allowed; }
+  #error { min-height: 1.5em; margin: 12px 0 0; color: #ff8585; font-size: 13px; }
 </style>
 </head>
 <body>
 <main>
-  <h1>Kick-Flight Balance</h1>
+  <div class="login-top">
+    <h1 data-i18n="login.heading">Kick-Flight Balance</h1>
+    <div class="lang-selector-wrap">
+      <label for="langSelect" class="sr-only" data-i18n="login.langLabel">Idioma</label>
+      <select id="langSelect" class="lang-select" aria-label="Idioma / Language">
+        <option value="es">Español</option>
+        <option value="en">English</option>
+      </select>
+    </div>
+  </div>
   <form id="loginForm">
-    <label for="username">Username</label>
-    <input id="username" name="username" autocomplete="username" required maxlength="128">
-    <label for="password">Password</label>
-    <input id="password" name="password" type="password" autocomplete="current-password" required>
-    <button type="submit">Sign in</button>
+    <label for="username" data-i18n="login.usernameLabel">Usuario</label>
+    <input id="username" name="username" autocomplete="username" required maxlength="128" data-i18n-placeholder="login.usernamePlaceholder">
+    <label for="password" data-i18n="login.passwordLabel">Contraseña</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required data-i18n-placeholder="login.passwordPlaceholder">
+    <button type="submit" data-i18n="login.submit">Iniciar sesión</button>
     <p id="error" role="alert" aria-live="polite"></p>
   </form>
 </main>
+<script src="__BALANCE_BASE_PATH__/i18n.js"></script>
 <script>
 const BASE_PATH = "__BALANCE_BASE_PATH__";
+let activeError = "";
+
+function syncLanguage() {
+  const lang = BalanceI18n.getLang();
+  document.documentElement.lang = lang;
+  document.title = BalanceI18n.t("login.title");
+  const select = document.getElementById("langSelect");
+  if (select) select.value = lang;
+  BalanceI18n.applyTranslations(document);
+  const errorEl = document.getElementById("error");
+  if (errorEl && activeError) {
+    errorEl.textContent = BalanceI18n.translateApiError(activeError);
+  }
+}
+
+document.getElementById("langSelect").addEventListener("change", function (e) {
+  BalanceI18n.setLang(e.target.value);
+  syncLanguage();
+});
+
+BalanceI18n.onLangChange(function () {
+  syncLanguage();
+});
+
+syncLanguage();
+
 document.getElementById("loginForm").addEventListener("submit", async function (event) {
   event.preventDefault();
   const button = event.currentTarget.querySelector("button");
   const error = document.getElementById("error");
   button.disabled = true;
+  button.textContent = BalanceI18n.t("login.submitting");
   error.textContent = "";
+  activeError = "";
   try {
     const response = await fetch(BASE_PATH + "/api/login", {
       method: "POST", credentials: "same-origin",
@@ -46,12 +90,14 @@ document.getElementById("loginForm").addEventListener("submit", async function (
       })
     });
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error || "Sign in failed");
+    if (!response.ok) throw new Error(result.error || BalanceI18n.t("login.failed"));
     window.location.replace(BASE_PATH + "/");
   } catch (failure) {
-    error.textContent = failure.message || "Sign in failed";
+    activeError = failure.message || BalanceI18n.t("login.failed");
+    error.textContent = BalanceI18n.translateApiError(activeError);
   } finally {
     button.disabled = false;
+    button.textContent = BalanceI18n.t("login.submit");
   }
 });
 </script>

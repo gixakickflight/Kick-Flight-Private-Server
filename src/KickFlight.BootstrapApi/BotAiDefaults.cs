@@ -4,13 +4,32 @@ using System;
 using System.Collections.Generic;
 
 /// <summary>
-/// Hardcoded default AI policies matching the canonical 39-profile contract.
+/// Hardcoded default AI policies matching the independent 42-policy contract (14 kickers x 3 modes).
 /// Used for initial fallback when config file is missing or invalid.
 /// </summary>
 public static class BotAiDefaults
 {
     public static readonly string[] Modes = ["CrystalScramble", "FlagFlight", "RapidBall"];
 
+    public static readonly (int KickerId, string Name, int CostumeId)[] Kickers =
+    [
+        (1, "Tsubame", 2010101),
+        (2, "Ruriha", 2020101),
+        (3, "Coco", 2030101),
+        (4, "Kite", 2040101),
+        (5, "Owlbert", 2050101),
+        (6, "Pitophy", 2060101),
+        (7, "Grenhawk", 2070101),
+        (8, "Anna", 2080101),
+        (9, "Jay", 2090101),
+        (10, "Yuyan", 2100101),
+        (11, "Diatrius", 2110101),
+        (12, "Buzzy Big", 2120101),
+        (13, "Hitagi", 2130101),
+        (14, "Sid", 2140101)
+    ];
+
+    // Legacy 13-profile contract maintained for backwards compatibility
     public static readonly (string Profile, int KickerId, int CostumeId)[] Profiles =
     [
         (ExperimentalAiRoleService.ProfileCarrier, 8, 2080101),
@@ -27,6 +46,67 @@ public static class BotAiDefaults
         (ExperimentalAiRoleService.ProfileGrenhawk, 7, 2070101),
         (ExperimentalAiRoleService.ProfileSid, 14, 2140101)
     ];
+
+    public static int GetInheritedProfileIndex(int kickerId) => kickerId switch
+    {
+        1 => 0,   // Tsubame -> carrier
+        2 => 10,  // Ruriha -> Ruriha
+        3 => 1,   // Coco -> tank_defender
+        4 => 2,   // Kite -> hunter
+        5 => 9,   // Owlbert -> Owlbert
+        6 => 2,   // Pitophy -> hunter
+        7 => 11,  // Grenhawk -> Grenhawk
+        8 => 0,   // Anna -> carrier
+        9 => 0,   // Jay -> carrier
+        10 => 8,  // Yuyan -> Yuyan
+        11 => 1,  // Diatrius -> tank_defender
+        12 => 1,  // Buzzy Big -> tank_defender
+        13 => 2,  // Hitagi -> hunter
+        14 => 12, // Sid -> Sid
+        _ => throw new ArgumentOutOfRangeException(nameof(kickerId), $"Unknown kicker ID {kickerId}")
+    };
+
+    public static string GetInheritedProfileKey(int kickerId) => kickerId switch
+    {
+        1 => ExperimentalAiRoleService.ProfileCarrier,
+        2 => ExperimentalAiRoleService.ProfileRuriha,
+        3 => ExperimentalAiRoleService.ProfileTankDefender,
+        4 => ExperimentalAiRoleService.ProfileHunter,
+        5 => ExperimentalAiRoleService.ProfileOwlbert,
+        6 => ExperimentalAiRoleService.ProfileHunter,
+        7 => ExperimentalAiRoleService.ProfileGrenhawk,
+        8 => ExperimentalAiRoleService.ProfileCarrier,
+        9 => ExperimentalAiRoleService.ProfileCarrier,
+        10 => ExperimentalAiRoleService.ProfileYuyan,
+        11 => ExperimentalAiRoleService.ProfileTankDefender,
+        12 => ExperimentalAiRoleService.ProfileTankDefender,
+        13 => ExperimentalAiRoleService.ProfileHunter,
+        14 => ExperimentalAiRoleService.ProfileSid,
+        _ => throw new ArgumentOutOfRangeException(nameof(kickerId), $"Unknown kicker ID {kickerId}")
+    };
+
+    public static int GetStableParameterId(int modeIndex, int kickerId) => (modeIndex, kickerId) switch
+    {
+        // 0: CrystalScramble
+        (0, 1) => 54, (0, 2) => 25, (0, 3) => 16, (0, 4) => 17,
+        (0, 5) => 24, (0, 6) => 55, (0, 7) => 26, (0, 8) => 15,
+        (0, 9) => 56, (0, 10) => 23, (0, 11) => 57, (0, 12) => 58,
+        (0, 13) => 59, (0, 14) => 27,
+
+        // 1: FlagFlight
+        (1, 1) => 60, (1, 2) => 38, (1, 3) => 29, (1, 4) => 30,
+        (1, 5) => 37, (1, 6) => 61, (1, 7) => 39, (1, 8) => 28,
+        (1, 9) => 62, (1, 10) => 36, (1, 11) => 63, (1, 12) => 64,
+        (1, 13) => 65, (1, 14) => 40,
+
+        // 2: RapidBall
+        (2, 1) => 66, (2, 2) => 51, (2, 3) => 42, (2, 4) => 43,
+        (2, 5) => 50, (2, 6) => 67, (2, 7) => 52, (2, 8) => 41,
+        (2, 9) => 68, (2, 10) => 49, (2, 11) => 69, (2, 12) => 70,
+        (2, 13) => 71, (2, 14) => 53,
+
+        _ => throw new ArgumentOutOfRangeException($"Invalid modeIndex {modeIndex} or kickerId {kickerId}")
+    };
 
     public static (string Scramble, string FlagFlight, string RapidBall) GetDescriptions(int prof) => prof switch
     {
@@ -71,6 +151,93 @@ public static class BotAiDefaults
                "Sid guardian assault escort: amplify damage dealt to enemy guardian."),
         _ => ("", "", "")
     };
+
+    public static (string Scramble, string FlagFlight, string RapidBall) GetKickerDescriptions(int kickerId) => kickerId switch
+    {
+        1 => ("Tsubame aerial mobility: swift crystal collection and agile evasion while carrying score.",
+              "Tsubame flag runner: dash between aerial lanes to retrieve and deposit flag swiftly.",
+              "Tsubame ball runner: intercept loose balls and maneuver toward open goal."),
+        2 => ("Ruriha prioritized healing: maintain high personal sustain to contest crystals longer.",
+              "Ruriha dedicated runner support: heal flag carrier on transit.",
+              "Ruriha dedicated objective sustain: keep guardian attackers or defenders alive."),
+        3 => ("Engage approaching enemy attackers in combat zone using threat-based self-defense.",
+              "Guard friendly flag pedestal and escort allied flag carrier.",
+              "Guard friendly guardian to prevent goal from opening."),
+        4 => ("Hunt and eliminate enemy crystal carriers and collectors.",
+              "Intercept and eliminate opposing runners carrying the flag.",
+              "Eliminate enemy defenders and ball collectors."),
+        5 => ("Owlbert area denial: maintain continuous trap and smog coverage along key routes.",
+              "Owlbert trap lockdown along flag path and pedestal.",
+              "Owlbert perimeter lockdown defending friendly revivalable guardian."),
+        6 => ("Pitophy aggressive hunt: pursue enemy crystal collectors with ranged burst.",
+              "Pitophy pursuit: intercept enemy flag carriers in open flight.",
+              "Pitophy strike: eliminate enemy ball runners and guardian defenders."),
+        7 => ("Grenhawk ranged pressure and allied speed buffing.",
+              "Grenhawk escort: accelerate allied flag runners and apply ranged cover.",
+              "Grenhawk mobility support: accelerate ball transport and harass defenders."),
+        8 => ("Collect crystals; deposit at friendly guardian when crystals >= scoreToDeposit; Ana escapes evasively.",
+              "Retrieve designated flag from pedestal or carrier; fly evasively to own team base stand.",
+              "Gather scattered balls; deposit into open goal once enemy guardian is downed."),
+        9 => ("Jay high-speed collection: rapid crystal collection and trap-assisted evasion.",
+              "Jay evasive runner: fast flag retrieval with defensive burst.",
+              "Jay mobile transport: gather balls at speed and deliver into enemy goal."),
+        10 => ("Target enemy guardian aggressively with pull-in and high offensive pressure; user requires Yuyan objective_attacker targeting enemy guardian.",
+               "Aggressively assault defenders at enemy flag stand.",
+               "Prioritize damaging enemy guardian with high burst to down it and open goal."),
+        11 => ("Diatrius bastion: hold disputed crystal zones with sustained defense.",
+               "Diatrius flag guard: anchor friendly pedestal and block hostile runners.",
+               "Diatrius goal anchor: shield friendly guardian against hostile assault."),
+        12 => ("Buzzy Big barrier: deploy front shields to deny enemy crystal access and protect allies.",
+               "Buzzy Big escort: front barrier cover for allied flag carriers.",
+               "Buzzy Big defender: absorb fire around friendly guardian and goal mouth."),
+        13 => ("Hitagi combat assassin: eliminate high-value carriers with sudden warp and melee burst.",
+               "Hitagi interceptor: ambushes enemy flag runners from unexpected angles.",
+               "Hitagi defense breaker: strike enemy defenders around the goal perimeter."),
+        14 => ("Sid offensive escort: maximize allied burst damage on crystal disputes and guardian pressure.",
+               "Sid flag escort: escort friendly runner and eliminate interceptors.",
+               "Sid guardian assault escort: amplify damage dealt to enemy guardian."),
+        _ => ("", "", "")
+    };
+
+    public static AiRolePolicy BuildKickerPolicy(int mode, int kickerId, int? paramId = null)
+    {
+        if (kickerId < 1 || kickerId > 14)
+        {
+            throw new ArgumentOutOfRangeException(nameof(kickerId), $"Unknown kicker ID {kickerId}");
+        }
+
+        var (kid, name, costumeId) = Kickers[kickerId - 1];
+        var pid = paramId ?? GetStableParameterId(mode, kickerId);
+        var (scramble, flag, rapid) = GetKickerDescriptions(kickerId);
+
+        var prof = GetInheritedProfileIndex(kickerId);
+        var basePolicy = BuildDefaultPolicy(mode, prof, pid);
+
+        return new AiRolePolicy(
+            Profile: name,
+            ModeIndex: mode,
+            ParameterId: pid,
+            KickerId: kid,
+            KickerCostumeId: costumeId,
+            AttackMotivation: basePolicy.AttackMotivation,
+            DefenseMotivation: basePolicy.DefenseMotivation,
+            ScoreMotivation: basePolicy.ScoreMotivation,
+            ScoreToDeposit: basePolicy.ScoreToDeposit,
+            AttackDashInterval: basePolicy.AttackDashInterval,
+            DefenseDashInterval: basePolicy.DefenseDashInterval,
+            ScoreDashInterval: basePolicy.ScoreDashInterval,
+            AttackSkillInterval: basePolicy.AttackSkillInterval,
+            HealSkillInterval: basePolicy.HealSkillInterval,
+            BuffSkillInterval: basePolicy.BuffSkillInterval,
+            TrapSkillInterval: basePolicy.TrapSkillInterval,
+            WarpSkillInterval: basePolicy.WarpSkillInterval,
+            HealDamageRate: basePolicy.HealDamageRate,
+            CanLockon: basePolicy.CanLockon,
+            ScramblePolicy: scramble,
+            FlagFlightPolicy: flag,
+            RapidBallPolicy: rapid,
+            LowHpDepositThreshold: 0.35);
+    }
 
     public static AiRolePolicy BuildDefaultPolicy(int mode, int prof, int paramId)
     {
@@ -423,13 +590,12 @@ public static class BotAiDefaults
 
     public static List<AiRolePolicy> CreateDefaultPolicies()
     {
-        var policies = new List<AiRolePolicy>(39);
+        var policies = new List<AiRolePolicy>(42);
         for (int mode = 0; mode <= 2; mode++)
         {
-            for (int prof = 0; prof <= 12; prof++)
+            for (int kid = 1; kid <= 14; kid++)
             {
-                var id = ExperimentalAiRoleService.MinRoleParamId + (13 * mode) + prof;
-                policies.Add(BuildDefaultPolicy(mode, prof, id));
+                policies.Add(BuildKickerPolicy(mode, kid));
             }
         }
         return policies;

@@ -51,6 +51,7 @@ DOCS_DIR = REPO_ROOT / "docs"
 ICON_DIR = BALANCE_DIR / "icons"
 INDEX_FILE = BALANCE_DIR / "index.html"
 LOGIN_FILE = BALANCE_DIR / "login.html"
+I18N_FILE = BALANCE_DIR / "i18n.js"
 DISC_CARDS_FILE = DOCS_DIR / "disc_cards.json"
 # Named client enums (value -> member name) and the {table.field: enum} mapping the UI turns into
 # dropdowns; the file itself documents each enum's source.  See tools/balance/README.md.
@@ -784,8 +785,108 @@ BOT_AI_EXPECTED_PROFILES = {
     "Sid": (12, 14)
 }
 
+BOT_AI_KICKER_NAMES = {
+    1: "Tsubame",
+    2: "Ruriha",
+    3: "Coco",
+    4: "Kite",
+    5: "Owlbert",
+    6: "Pitophy",
+    7: "Grenhawk",
+    8: "Anna",
+    9: "Jay",
+    10: "Yuyan",
+    11: "Diatrius",
+    12: "Buzzy Big",
+    13: "Hitagi",
+    14: "Sid"
+}
+
+BOT_AI_NAME_TO_KICKER_ID = {name: kid for kid, name in BOT_AI_KICKER_NAMES.items()}
+
+BOT_AI_KICKER_COSTUMES = {
+    1: 2010101,
+    2: 2020101,
+    3: 2030101,
+    4: 2040101,
+    5: 2050101,
+    6: 2060101,
+    7: 2070101,
+    8: 2080101,
+    9: 2090101,
+    10: 2100101,
+    11: 2110101,
+    12: 2120101,
+    13: 2130101,
+    14: 2140101
+}
+
+BOT_AI_STABLE_PARAMETER_IDS = {
+    (0, 1): 54,
+    (0, 2): 25,
+    (0, 3): 16,
+    (0, 4): 17,
+    (0, 5): 24,
+    (0, 6): 55,
+    (0, 7): 26,
+    (0, 8): 15,
+    (0, 9): 56,
+    (0, 10): 23,
+    (0, 11): 57,
+    (0, 12): 58,
+    (0, 13): 59,
+    (0, 14): 27,
+
+    (1, 1): 60,
+    (1, 2): 38,
+    (1, 3): 29,
+    (1, 4): 30,
+    (1, 5): 37,
+    (1, 6): 61,
+    (1, 7): 39,
+    (1, 8): 28,
+    (1, 9): 62,
+    (1, 10): 36,
+    (1, 11): 63,
+    (1, 12): 64,
+    (1, 13): 65,
+    (1, 14): 40,
+
+    (2, 1): 66,
+    (2, 2): 51,
+    (2, 3): 42,
+    (2, 4): 43,
+    (2, 5): 50,
+    (2, 6): 67,
+    (2, 7): 52,
+    (2, 8): 41,
+    (2, 9): 68,
+    (2, 10): 49,
+    (2, 11): 69,
+    (2, 12): 70,
+    (2, 13): 71,
+    (2, 14): 53,
+}
+
+BOT_AI_V1_INHERITANCE = {
+    1: "carrier",
+    2: "Ruriha",
+    3: "tank_defender",
+    4: "hunter",
+    5: "Owlbert",
+    6: "hunter",
+    7: "Grenhawk",
+    8: "carrier",
+    9: "carrier",
+    10: "Yuyan",
+    11: "tank_defender",
+    12: "tank_defender",
+    13: "hunter",
+    14: "Sid"
+}
+
 BOT_AI_MIN_PARAM_ID = 15
-BOT_AI_MAX_PARAM_ID = 53
+BOT_AI_MAX_PARAM_ID = 99
 BOT_AI_GYM_PARAM_BASE = 100
 
 
@@ -816,13 +917,18 @@ def validate_bot_ai_profiles(payload):
         errors.append("version must be an integer >= 1")
 
     profiles = payload.get("profiles")
-    if not isinstance(profiles, list) or len(profiles) != 39:
-        errors.append("profiles must be an array of exactly 39 profiles")
+    if not isinstance(profiles, list) or len(profiles) not in (39, 42):
+        count_str = str(len(profiles)) if isinstance(profiles, list) else "non-array"
+        errors.append(f"Expected exactly 42 profiles (3 modes x 14 kickers) or legacy 39 profiles, but found {count_str}.")
         return False, errors, None
 
-    covered = set()
+    is_v2 = len(profiles) == 42
+    is_v1 = len(profiles) == 39
+
+    covered_v2 = set()
+    covered_v1 = set()
     seen_param_ids = set()
-    normalized_profiles = []
+    raw_validated_profiles = []
 
     for i, p in enumerate(profiles):
         prefix = f"Profile [{i}]"
@@ -844,40 +950,64 @@ def validate_bot_ai_profiles(payload):
         else:
             mode_idx = BOT_AI_EXPECTED_MODES[mode]
 
-        prof = p.get("profile")
-        if not isinstance(prof, str) or prof not in BOT_AI_EXPECTED_PROFILES:
-            errors.append(f"{prefix}: invalid profile '{prof}'")
-            prof_idx, exp_kicker = -1, -1
-        else:
-            prof_idx, exp_kicker = BOT_AI_EXPECTED_PROFILES[prof]
-
-        if mode_idx >= 0 and prof_idx >= 0:
-            if (mode, prof) in covered:
-                errors.append(f"{prefix}: duplicate coverage for mode '{mode}' and profile '{prof}'")
-            covered.add((mode, prof))
+        kicker_id = p.get("kickerId")
+        if not isinstance(kicker_id, int) or isinstance(kicker_id, bool):
+            errors.append(f"{prefix}: kickerId must be an integer")
+            kicker_id = -1
 
         param_id = p.get("parameterId")
         if not isinstance(param_id, int) or isinstance(param_id, bool):
             errors.append(f"{prefix}: parameterId must be an integer in range [{BOT_AI_MIN_PARAM_ID}..{BOT_AI_MAX_PARAM_ID}]")
+            param_id = None
         else:
-            if mode_idx >= 0 and prof_idx >= 0:
-                canonical_param = BOT_AI_MIN_PARAM_ID + (13 * mode_idx) + prof_idx
-                if param_id != canonical_param:
-                    errors.append(f"{prefix} ({mode}/{prof}): parameterId {param_id} does not match canonical formula {canonical_param}")
-
             if param_id < BOT_AI_MIN_PARAM_ID or param_id > BOT_AI_MAX_PARAM_ID:
                 errors.append(f"{prefix}: parameterId outside allowed range [{BOT_AI_MIN_PARAM_ID}..{BOT_AI_MAX_PARAM_ID}]")
+            if 1 <= param_id <= 14:
+                errors.append(f"{prefix}: parameterId {param_id} overlaps with pristine kicker ID [1..14] (reserved for feature OFF)")
             if param_id >= BOT_AI_GYM_PARAM_BASE:
                 errors.append(f"{prefix}: parameterId {param_id} violates gym boundary (>={BOT_AI_GYM_PARAM_BASE})")
             if param_id in seen_param_ids:
                 errors.append(f"{prefix}: duplicate parameterId {param_id}")
             seen_param_ids.add(param_id)
 
-        kicker_id = p.get("kickerId")
-        if not isinstance(kicker_id, int) or isinstance(kicker_id, bool):
-            errors.append(f"{prefix}: kickerId must be an integer")
-        elif exp_kicker > 0 and kicker_id != exp_kicker:
-            errors.append(f"{prefix} ({prof}): kickerId {kicker_id} does not match expected kickerId {exp_kicker}")
+        prof = p.get("profile")
+        if not isinstance(prof, str):
+            errors.append(f"{prefix}: invalid profile '{prof}'")
+            prof_idx = -1
+        else:
+            if is_v2:
+                if kicker_id < 1 or kicker_id > 14:
+                    errors.append(f"{prefix}: kickerId {kicker_id} is outside valid range [1..14]")
+                else:
+                    expected_kid = BOT_AI_NAME_TO_KICKER_ID.get(prof)
+                    if expected_kid is not None and kicker_id != expected_kid:
+                        errors.append(f"{prefix} ({prof}): kickerId {kicker_id} does not match expected kickerId {expected_kid}")
+
+                    if mode_idx >= 0:
+                        if (mode, kicker_id) in covered_v2:
+                            errors.append(f"{prefix}: duplicate coverage for mode '{mode}' and kickerId {kicker_id}")
+                        covered_v2.add((mode, kicker_id))
+
+                        expected_canonical_id = BOT_AI_STABLE_PARAMETER_IDS.get((mode_idx, kicker_id))
+                        if param_id is not None and param_id != expected_canonical_id:
+                            errors.append(f"{prefix} ({mode}/kicker {kicker_id}): parameterId {param_id} does not match canonical formula {expected_canonical_id}")
+            else:
+                if prof not in BOT_AI_EXPECTED_PROFILES:
+                    errors.append(f"{prefix}: invalid profile '{prof}'")
+                    prof_idx, exp_kicker = -1, -1
+                else:
+                    prof_idx, exp_kicker = BOT_AI_EXPECTED_PROFILES[prof]
+                    if mode_idx >= 0:
+                        if (mode, prof) in covered_v1:
+                            errors.append(f"{prefix}: duplicate coverage for mode '{mode}' and profile '{prof}'")
+                        covered_v1.add((mode, prof))
+
+                        canonical_param = 15 + (13 * mode_idx) + prof_idx
+                        if param_id is not None and param_id != canonical_param:
+                            errors.append(f"{prefix} ({mode}/{prof}): parameterId {param_id} does not match canonical formula {canonical_param}")
+
+                    if exp_kicker > 0 and kicker_id != exp_kicker:
+                        errors.append(f"{prefix} ({prof}): kickerId {kicker_id} does not match expected kickerId {exp_kicker}")
 
         kicker_costume_id = p.get("kickerCostumeId")
         if not isinstance(kicker_costume_id, int) or isinstance(kicker_costume_id, bool):
@@ -964,7 +1094,7 @@ def validate_bot_ai_profiles(payload):
         if errors:
             continue
 
-        normalized_profiles.append({
+        raw_validated_profiles.append({
             "profile": prof,
             "mode": mode,
             "parameterId": param_id,
@@ -980,13 +1110,61 @@ def validate_bot_ai_profiles(payload):
             "canLockon": can_lockon
         })
 
-    for m in BOT_AI_EXPECTED_MODES:
-        for pr in BOT_AI_EXPECTED_PROFILES:
-            if (m, pr) not in covered:
-                errors.append(f"Missing required profile entry for mode '{m}' and profile '{pr}'")
+    if is_v2:
+        for m in BOT_AI_EXPECTED_MODES:
+            for kid in range(1, 15):
+                if (m, kid) not in covered_v2:
+                    errors.append(f"Missing required profile entry for mode '{m}' and kickerId {kid}")
+    else:
+        for m in BOT_AI_EXPECTED_MODES:
+            for pr in BOT_AI_EXPECTED_PROFILES:
+                if (m, pr) not in covered_v1:
+                    errors.append(f"Missing required profile entry for mode '{m}' and profile '{pr}'")
 
     if errors:
         return False, errors, None
+
+    if is_v2:
+        # Sort by (modeIndex, parameterId)
+        normalized_profiles = sorted(
+            raw_validated_profiles,
+            key=lambda item: (BOT_AI_EXPECTED_MODES[item["mode"]], item["parameterId"])
+        )
+    else:
+        # Transparent migration from 39 V1 profiles into 42 independent V2 profiles
+        v1_dict = {(p["mode"], p["profile"]): p for p in raw_validated_profiles}
+        migrated = []
+        for mode, mode_idx in BOT_AI_EXPECTED_MODES.items():
+            for kid in range(1, 15):
+                src_prof_name = BOT_AI_V1_INHERITANCE[kid]
+                src = v1_dict.get((mode, src_prof_name))
+                if src is None:
+                    errors.append(f"Cannot migrate: missing source profile ({mode}, {src_prof_name})")
+                    continue
+                param_id = BOT_AI_STABLE_PARAMETER_IDS[(mode_idx, kid)]
+                kicker_name = BOT_AI_KICKER_NAMES[kid]
+                costume_id = BOT_AI_KICKER_COSTUMES[kid]
+                migrated.append({
+                    "profile": kicker_name,
+                    "mode": mode,
+                    "parameterId": param_id,
+                    "kickerId": kid,
+                    "kickerCostumeId": costume_id,
+                    "rank": 13,
+                    "motivations": dict(src["motivations"]),
+                    "scoreToDeposit": src["scoreToDeposit"],
+                    "lowHpDepositThreshold": src["lowHpDepositThreshold"],
+                    "dashIntervals": dict(src["dashIntervals"]),
+                    "skillIntervals": dict(src["skillIntervals"]),
+                    "healDamageRate": src["healDamageRate"],
+                    "canLockon": src["canLockon"]
+                })
+        if errors:
+            return False, errors, None
+        normalized_profiles = sorted(
+            migrated,
+            key=lambda item: (BOT_AI_EXPECTED_MODES[item["mode"]], item["parameterId"])
+        )
 
     normalized_payload = {
         "$schema": payload.get("$schema", "./bot_ai_profiles.schema.json"),
@@ -1485,6 +1663,8 @@ class BalanceHandler(BaseHTTPRequestHandler):
             if path == BASE_PATH:
                 return ""
             if not path.startswith(BASE_PATH + "/"):
+                if path == "/i18n.js":
+                    return "/i18n.js"
                 return None
             path = path[len(BASE_PATH):]
         return path or "/"
@@ -1604,6 +1784,14 @@ class BalanceHandler(BaseHTTPRequestHandler):
             html = html.replace("__BALANCE_BASE_PATH__", BASE_PATH)
             self.send_body(200, html.encode("utf-8"), "text/html; charset=utf-8")
             return
+        if path == "/i18n.js":
+            try:
+                js = I18N_FILE.read_text(encoding="utf-8")
+            except OSError as error:
+                self.send_error_json(500, "could not read i18n module: %s" % error)
+                return
+            self.send_body(200, js.encode("utf-8"), "application/javascript; charset=utf-8")
+            return
         if path == "/api/login":
             self.send_error_json(405, "method not allowed")
             return
@@ -1720,6 +1908,9 @@ class BalanceHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/bot-ai/profiles":
             self.handle_post_bot_ai_profiles()
+            return
+        if path == "/api/bot-ai/profiles/revert":
+            self.handle_revert_bot_ai_profiles()
             return
         if path == "/api/apply":
             self.handle_apply()
@@ -2207,11 +2398,17 @@ class BalanceHandler(BaseHTTPRequestHandler):
                 return
 
         file_hash = hashlib.sha256(raw_bytes).hexdigest()
+        profiles_list = data.get("profiles", [])
+        if isinstance(profiles_list, list) and len(profiles_list) == 39:
+            valid, _, norm = validate_bot_ai_profiles(data)
+            if valid and norm:
+                profiles_list = norm["profiles"]
+
         self.send_json_with_headers(200, {
             "ok": True,
             "$schema": data.get("$schema", "./bot_ai_profiles.schema.json"),
             "version": data.get("version", 1),
-            "profiles": data.get("profiles", []),
+            "profiles": profiles_list,
             "hash": file_hash,
             "revision": file_hash,
             "source": "override" if target_path == durable_path and durable_path.is_file() else "seed",
@@ -2344,6 +2541,36 @@ class BalanceHandler(BaseHTTPRequestHandler):
             "source": "override"
         }, {"ETag": f'"{new_hash}"'})
 
+    def handle_revert_bot_ai_profiles(self):
+        durable_path, seed_path = get_bot_ai_files()
+        with WRITE_LOCK:
+            if durable_path.is_symlink():
+                self.send_error_json(409, "Cannot revert symlinked configuration file.")
+                return
+            if not durable_path.is_file():
+                self.send_error_json(404, "bot_ai_profiles.json has no override to revert")
+                return
+            try:
+                original_text = durable_path.read_text(encoding="utf-8")
+            except OSError as read_error:
+                self.send_error_json(500, f"could not read the override: {read_error}")
+                return
+            try:
+                backup_bot_ai_profiles(original_text)
+            except OSError as backup_error:
+                self.send_error_json(500, f"could not write backup: {backup_error}")
+                return
+            try:
+                durable_path.unlink()
+            except OSError as delete_error:
+                self.send_error_json(500, f"could not delete override: {delete_error}")
+                return
+        self.send_json(200, {
+            "ok": True,
+            "reverted": "bot_ai_profiles",
+            "source": "seed" if seed_path.is_file() else None,
+        })
+
     def handle_diff(self, name):
         if table_path(name) is None:
             self.send_error_json(404, "unknown table %r" % name)
@@ -2427,8 +2654,8 @@ def main(argv=None):
     if args.backup_dir:
         BACKUP_DIR = Path(args.backup_dir).expanduser()
 
-    if not INDEX_FILE.is_file() or not LOGIN_FILE.is_file():
-        print("missing %s" % INDEX_FILE, file=sys.stderr)
+    if not INDEX_FILE.is_file() or not LOGIN_FILE.is_file() or not I18N_FILE.is_file():
+        print("missing %s or required UI files" % INDEX_FILE, file=sys.stderr)
         return 1
     if not MASTERS_DIR.is_dir():
         print("base masters directory does not exist: %s" % MASTERS_DIR, file=sys.stderr)

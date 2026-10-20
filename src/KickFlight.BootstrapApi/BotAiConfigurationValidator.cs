@@ -23,53 +23,118 @@ public sealed record BotAiValidationResult(
             throw new InvalidOperationException("Cannot create snapshot from invalid configuration.");
         }
 
-        var policies = new List<AiRolePolicy>(Configuration.Profiles.Count);
-        foreach (var p in Configuration.Profiles)
+        var policies = new List<AiRolePolicy>(42);
+
+        if (Configuration.Profiles.Count == 42)
         {
-            var modeIndex = p.Mode switch
+            foreach (var p in Configuration.Profiles)
             {
-                "CrystalScramble" => 0,
-                "FlagFlight" => 1,
-                "RapidBall" => 2,
-                _ => throw new InvalidOperationException($"Invalid mode '{p.Mode}'")
-            };
+                var modeIndex = p.Mode switch
+                {
+                    "CrystalScramble" => 0,
+                    "FlagFlight" => 1,
+                    "RapidBall" => 2,
+                    _ => throw new InvalidOperationException($"Invalid mode '{p.Mode}'")
+                };
 
-            var profIndex = ExperimentalAiRoleService.GetCanonicalProfileIndex(p.Profile);
-            if (profIndex < 0)
-            {
-                profIndex = (p.ParameterId - ExperimentalAiRoleService.MinRoleParamId) % 13;
+                var (scramble, flag, rapid) = BotAiDefaults.GetKickerDescriptions(p.KickerId);
+
+                var clampedAttack = Math.Clamp(p.Motivations.Attack, 0, 100);
+                var clampedDefense = Math.Clamp(p.Motivations.Defense, 0, 100);
+                var clampedScore = Math.Clamp(p.Motivations.Score, 0, 100);
+
+                policies.Add(new AiRolePolicy(
+                    Profile: p.Profile,
+                    ModeIndex: modeIndex,
+                    ParameterId: p.ParameterId,
+                    KickerId: p.KickerId,
+                    KickerCostumeId: p.KickerCostumeId,
+                    AttackMotivation: clampedAttack,
+                    DefenseMotivation: clampedDefense,
+                    ScoreMotivation: clampedScore,
+                    ScoreToDeposit: p.ScoreToDeposit,
+                    AttackDashInterval: p.DashIntervals.Attack,
+                    DefenseDashInterval: p.DashIntervals.Defense,
+                    ScoreDashInterval: p.DashIntervals.Score,
+                    AttackSkillInterval: p.SkillIntervals.Attack,
+                    HealSkillInterval: p.SkillIntervals.Heal,
+                    BuffSkillInterval: p.SkillIntervals.Buff,
+                    TrapSkillInterval: p.SkillIntervals.Trap,
+                    WarpSkillInterval: p.SkillIntervals.Warp,
+                    HealDamageRate: p.HealDamageRate,
+                    CanLockon: p.CanLockon,
+                    ScramblePolicy: scramble,
+                    FlagFlightPolicy: flag,
+                    RapidBallPolicy: rapid,
+                    LowHpDepositThreshold: p.LowHpDepositThreshold));
             }
-            var (scramble, flag, rapid) = BotAiDefaults.GetDescriptions(profIndex);
+        }
+        else if (Configuration.Profiles.Count == 39)
+        {
+            // Transparent migration of legacy 39 V1 profiles into 42 independent V2 policies
+            var v1Dict = new Dictionary<(string Mode, string Profile), BotAiProfileConfig>();
+            foreach (var p in Configuration.Profiles)
+            {
+                v1Dict[(p.Mode, p.Profile)] = p;
+            }
 
-            // Motivations clamped to [0..100] per request
-            var clampedAttack = Math.Clamp(p.Motivations.Attack, 0, 100);
-            var clampedDefense = Math.Clamp(p.Motivations.Defense, 0, 100);
-            var clampedScore = Math.Clamp(p.Motivations.Score, 0, 100);
+            foreach (var mode in BotAiDefaults.Modes)
+            {
+                var modeIndex = mode switch
+                {
+                    "CrystalScramble" => 0,
+                    "FlagFlight" => 1,
+                    "RapidBall" => 2,
+                    _ => 0
+                };
 
-            policies.Add(new AiRolePolicy(
-                Profile: p.Profile,
-                ModeIndex: modeIndex,
-                ParameterId: p.ParameterId,
-                KickerId: p.KickerId,
-                KickerCostumeId: p.KickerCostumeId,
-                AttackMotivation: clampedAttack,
-                DefenseMotivation: clampedDefense,
-                ScoreMotivation: clampedScore,
-                ScoreToDeposit: p.ScoreToDeposit,
-                AttackDashInterval: p.DashIntervals.Attack,
-                DefenseDashInterval: p.DashIntervals.Defense,
-                ScoreDashInterval: p.DashIntervals.Score,
-                AttackSkillInterval: p.SkillIntervals.Attack,
-                HealSkillInterval: p.SkillIntervals.Heal,
-                BuffSkillInterval: p.SkillIntervals.Buff,
-                TrapSkillInterval: p.SkillIntervals.Trap,
-                WarpSkillInterval: p.SkillIntervals.Warp,
-                HealDamageRate: p.HealDamageRate,
-                CanLockon: p.CanLockon,
-                ScramblePolicy: scramble,
-                FlagFlightPolicy: flag,
-                RapidBallPolicy: rapid,
-                LowHpDepositThreshold: p.LowHpDepositThreshold));
+                for (int kid = 1; kid <= 14; kid++)
+                {
+                    var inheritedKey = BotAiDefaults.GetInheritedProfileKey(kid);
+                    if (!v1Dict.TryGetValue((mode, inheritedKey), out var p))
+                    {
+                        var profSpec = BotAiDefaults.Profiles[BotAiDefaults.GetInheritedProfileIndex(kid)];
+                        v1Dict.TryGetValue((mode, profSpec.Profile), out p);
+                    }
+
+                    if (p is not null)
+                    {
+                        var (scramble, flag, rapid) = BotAiDefaults.GetKickerDescriptions(kid);
+                        var paramId = BotAiDefaults.GetStableParameterId(modeIndex, kid);
+                        var costumeId = BotAiDefaults.Kickers[kid - 1].CostumeId;
+                        var kickerName = BotAiDefaults.Kickers[kid - 1].Name;
+
+                        var clampedAttack = Math.Clamp(p.Motivations.Attack, 0, 100);
+                        var clampedDefense = Math.Clamp(p.Motivations.Defense, 0, 100);
+                        var clampedScore = Math.Clamp(p.Motivations.Score, 0, 100);
+
+                        policies.Add(new AiRolePolicy(
+                            Profile: kickerName,
+                            ModeIndex: modeIndex,
+                            ParameterId: paramId,
+                            KickerId: kid,
+                            KickerCostumeId: costumeId,
+                            AttackMotivation: clampedAttack,
+                            DefenseMotivation: clampedDefense,
+                            ScoreMotivation: clampedScore,
+                            ScoreToDeposit: p.ScoreToDeposit,
+                            AttackDashInterval: p.DashIntervals.Attack,
+                            DefenseDashInterval: p.DashIntervals.Defense,
+                            ScoreDashInterval: p.DashIntervals.Score,
+                            AttackSkillInterval: p.SkillIntervals.Attack,
+                            HealSkillInterval: p.SkillIntervals.Heal,
+                            BuffSkillInterval: p.SkillIntervals.Buff,
+                            TrapSkillInterval: p.SkillIntervals.Trap,
+                            WarpSkillInterval: p.SkillIntervals.Warp,
+                            HealDamageRate: p.HealDamageRate,
+                            CanLockon: p.CanLockon,
+                            ScramblePolicy: scramble,
+                            FlagFlightPolicy: flag,
+                            RapidBallPolicy: rapid,
+                            LowHpDepositThreshold: p.LowHpDepositThreshold));
+                    }
+                }
+            }
         }
 
         return new BotAiProfileSnapshot(Configuration.Version, sourcePath, DateTimeOffset.UtcNow, policies);
@@ -112,7 +177,7 @@ public static class BotAiConfigurationValidator
         ["RapidBall"] = 2
     };
 
-    private static readonly Dictionary<string, (int ProfIndex, int KickerId)> ExpectedProfiles = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, (int ProfIndex, int KickerId)> ExpectedLegacyProfiles = new(StringComparer.Ordinal)
     {
         ["carrier"] = (0, 8),
         ["tank_defender"] = (1, 3),
@@ -236,12 +301,17 @@ public static class BotAiConfigurationValidator
             return BotAiValidationResult.Failure(errors);
         }
 
-        if (root.Profiles.Count != 39)
+        bool isV2 = root.Profiles.Count == 42;
+        bool isV1 = root.Profiles.Count == 39;
+
+        if (!isV2 && !isV1)
         {
-            errors.Add($"Expected exactly 39 profiles (3 modes x 13 profiles), but found {root.Profiles.Count}.");
+            errors.Add($"Expected exactly 42 profiles (3 modes x 14 kickers) or legacy 39 profiles, but found {root.Profiles.Count}.");
+            return BotAiValidationResult.Failure(errors);
         }
 
-        var coveredKeys = new HashSet<(string Mode, string Profile)>();
+        var coveredKickerKeys = new HashSet<(string Mode, int KickerId)>();
+        var coveredLegacyKeys = new HashSet<(string Mode, string Profile)>();
         var seenParamIds = new HashSet<int>();
 
         for (int i = 0; i < root.Profiles.Count; i++)
@@ -262,35 +332,67 @@ public static class BotAiConfigurationValidator
                 modeIndex = -1;
             }
 
-            // Profile key check
-            if (string.IsNullOrWhiteSpace(p.Profile) || !ExpectedProfiles.TryGetValue(p.Profile, out var profSpec))
+            if (isV2)
             {
-                errors.Add($"{prefix}: invalid or missing profile '{p.Profile}'.");
-                profSpec = (-1, -1);
-            }
-
-            var (profIndex, expectedKickerId) = profSpec;
-
-            // 3x13 Coverage check
-            if (modeIndex >= 0 && profIndex >= 0)
-            {
-                if (!coveredKeys.Add((p.Mode, p.Profile)))
+                // V2: Per-kicker validation
+                if (p.KickerId < 1 || p.KickerId > 14)
                 {
-                    errors.Add($"{prefix}: duplicate coverage for mode '{p.Mode}' and profile '{p.Profile}'.");
+                    errors.Add($"{prefix}: kickerId {p.KickerId} is outside valid range [1..14].");
+                }
+                else if (modeIndex >= 0)
+                {
+                    if (!coveredKickerKeys.Add((p.Mode, p.KickerId)))
+                    {
+                        errors.Add($"{prefix}: duplicate coverage for mode '{p.Mode}' and kickerId {p.KickerId}.");
+                    }
+
+                    var canonicalParamId = BotAiDefaults.GetStableParameterId(modeIndex, p.KickerId);
+                    if (p.ParameterId != canonicalParamId)
+                    {
+                        errors.Add($"{prefix} ({p.Mode}/kicker {p.KickerId}): parameterId {p.ParameterId} does not match canonical formula {canonicalParamId}.");
+                    }
+                }
+            }
+            else
+            {
+                // V1: Legacy 39 profile validation
+                if (string.IsNullOrWhiteSpace(p.Profile) || !ExpectedLegacyProfiles.TryGetValue(p.Profile, out var profSpec))
+                {
+                    errors.Add($"{prefix}: invalid or missing profile '{p.Profile}'.");
+                    profSpec = (-1, -1);
                 }
 
-                // Canonical formula: parameterId == 15 + (13 * modeIndex) + profIndex
-                var canonicalParamId = ExperimentalAiRoleService.MinRoleParamId + (13 * modeIndex) + profIndex;
-                if (p.ParameterId != canonicalParamId)
+                var (profIndex, expectedKickerId) = profSpec;
+
+                if (modeIndex >= 0 && profIndex >= 0)
                 {
-                    errors.Add($"{prefix} ({p.Mode}/{p.Profile}): parameterId {p.ParameterId} does not match canonical formula {canonicalParamId} (15 + 13*{modeIndex} + {profIndex}).");
+                    if (!coveredLegacyKeys.Add((p.Mode, p.Profile)))
+                    {
+                        errors.Add($"{prefix}: duplicate coverage for mode '{p.Mode}' and profile '{p.Profile}'.");
+                    }
+
+                    var canonicalParamId = ExperimentalAiRoleService.MinRoleParamId + (13 * modeIndex) + profIndex;
+                    if (p.ParameterId != canonicalParamId)
+                    {
+                        errors.Add($"{prefix} ({p.Mode}/{p.Profile}): parameterId {p.ParameterId} does not match canonical formula {canonicalParamId} (15 + 13*{modeIndex} + {profIndex}).");
+                    }
+                }
+
+                if (expectedKickerId > 0 && p.KickerId != expectedKickerId)
+                {
+                    errors.Add($"{prefix} ({p.Profile}): kickerId {p.KickerId} does not match expected kickerId {expectedKickerId}.");
                 }
             }
 
             // ParameterId range and uniqueness
-            if (p.ParameterId < ExperimentalAiRoleService.MinRoleParamId || p.ParameterId > ExperimentalAiRoleService.MaxRoleParamId)
+            if (p.ParameterId < ExperimentalAiRoleService.MinRoleParamId || p.ParameterId > ExperimentalAiRoleService.MaxAllowedParamId)
             {
-                errors.Add($"{prefix}: parameterId {p.ParameterId} outside allowed range [{ExperimentalAiRoleService.MinRoleParamId}..{ExperimentalAiRoleService.MaxRoleParamId}].");
+                errors.Add($"{prefix}: parameterId {p.ParameterId} outside allowed range [{ExperimentalAiRoleService.MinRoleParamId}..{ExperimentalAiRoleService.MaxAllowedParamId}].");
+            }
+
+            if (p.ParameterId >= 1 && p.ParameterId <= 14)
+            {
+                errors.Add($"{prefix}: parameterId {p.ParameterId} overlaps with pristine kicker ID [1..14] (reserved for feature OFF).");
             }
 
             if (p.ParameterId >= BattleMatchmakingService.GymAiParameterBase)
@@ -301,12 +403,6 @@ public static class BotAiConfigurationValidator
             if (!seenParamIds.Add(p.ParameterId))
             {
                 errors.Add($"{prefix}: duplicate parameterId {p.ParameterId}.");
-            }
-
-            // Kicker identity
-            if (expectedKickerId > 0 && p.KickerId != expectedKickerId)
-            {
-                errors.Add($"{prefix} ({p.Profile}): kickerId {p.KickerId} does not match expected kickerId {expectedKickerId}.");
             }
 
             // Rank == 13
@@ -374,14 +470,30 @@ public static class BotAiConfigurationValidator
             }
         }
 
-        // Verify all 3x13 keys are present
-        foreach (var mode in ExpectedModeIndices.Keys)
+        // Completeness checks
+        if (isV2)
         {
-            foreach (var prof in ExpectedProfiles.Keys)
+            foreach (var mode in ExpectedModeIndices.Keys)
             {
-                if (!coveredKeys.Contains((mode, prof)))
+                for (int kid = 1; kid <= 14; kid++)
                 {
-                    errors.Add($"Missing required profile entry for mode '{mode}' and profile '{prof}'.");
+                    if (!coveredKickerKeys.Contains((mode, kid)))
+                    {
+                        errors.Add($"Missing required profile entry for mode '{mode}' and kickerId {kid}.");
+                    }
+                }
+            }
+        }
+        else
+        {
+            foreach (var mode in ExpectedModeIndices.Keys)
+            {
+                foreach (var prof in ExpectedLegacyProfiles.Keys)
+                {
+                    if (!coveredLegacyKeys.Contains((mode, prof)))
+                    {
+                        errors.Add($"Missing required profile entry for mode '{mode}' and profile '{prof}'.");
+                    }
                 }
             }
         }

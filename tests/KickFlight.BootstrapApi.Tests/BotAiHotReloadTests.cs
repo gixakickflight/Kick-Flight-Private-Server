@@ -45,9 +45,9 @@ public class BotAiHotReloadTests : IDisposable
 
         Assert.True(provider.IsUsingHardcodedFallback);
         Assert.NotNull(provider.CurrentSnapshot);
-        Assert.Equal(39, provider.CurrentSnapshot.AllPolicies.Count);
+        Assert.Equal(42, provider.CurrentSnapshot.AllPolicies.Count);
         Assert.Equal(15, provider.CurrentSnapshot.AllPolicies.Min(p => p.ParameterId));
-        Assert.Equal(53, provider.CurrentSnapshot.AllPolicies.Max(p => p.ParameterId));
+        Assert.Equal(71, provider.CurrentSnapshot.AllPolicies.Max(p => p.ParameterId));
 
         // Ana carrier (mode 0, prof 0) in defaults
         var ana = provider.GetPolicy(0, 0);
@@ -67,7 +67,7 @@ public class BotAiHotReloadTests : IDisposable
 
         Assert.True(provider.IsUsingHardcodedFallback);
         Assert.NotNull(provider.CurrentSnapshot);
-        Assert.Equal(39, provider.CurrentSnapshot.AllPolicies.Count);
+        Assert.Equal(42, provider.CurrentSnapshot.AllPolicies.Count);
     }
 
     [Fact]
@@ -79,7 +79,7 @@ public class BotAiHotReloadTests : IDisposable
         using var provider = new BotAiProfileProvider(configPath: configPath, enableWatcher: false);
 
         Assert.False(provider.IsUsingHardcodedFallback);
-        Assert.Equal(39, provider.CurrentSnapshot.AllPolicies.Count);
+        Assert.Equal(42, provider.CurrentSnapshot.AllPolicies.Count);
         Assert.Equal(1, provider.CurrentSnapshot.Version);
     }
 
@@ -210,11 +210,11 @@ public class BotAiHotReloadTests : IDisposable
                 {
                     var snapshot = provider.CurrentSnapshot;
                     Assert.NotNull(snapshot);
-                    Assert.Equal(39, snapshot.AllPolicies.Count);
+                    Assert.Equal(42, snapshot.AllPolicies.Count);
 
                     var policy = provider.GetPolicy(0, 0);
                     Assert.NotNull(policy);
-                    Assert.True(policy.ParameterId >= 15 && policy.ParameterId <= 53);
+                    Assert.True(policy.ParameterId >= 15 && policy.ParameterId <= 71);
 
                     var paramId = provider.ResolveParameterId("carrier", 8, BattleCompositionMode.CrystalScramble);
                     Assert.Equal(15, paramId);
@@ -263,7 +263,7 @@ public class BotAiHotReloadTests : IDisposable
         Assert.Equal(Path.GetFullPath(Path.Combine(publishDir, ".local", "masters-overrides", "bot_ai_profiles.json")), provider.ResolvedConfigPath);
         Assert.Equal(Path.GetFullPath(publishConfigFile), provider.CurrentSnapshot.SourcePath);
         Assert.NotNull(provider.CurrentSnapshot);
-        Assert.Equal(39, provider.CurrentSnapshot.AllPolicies.Count);
+        Assert.Equal(42, provider.CurrentSnapshot.AllPolicies.Count);
         Assert.Equal(1, provider.CurrentSnapshot.Version);
     }
 
@@ -541,9 +541,9 @@ public class BotAiHotReloadTests : IDisposable
         using var provider = new BotAiProfileProvider(configPath: null, contentRoot: emptyDir, enableWatcher: false);
 
         Assert.True(provider.IsUsingHardcodedFallback);
-        Assert.Equal(39, provider.CurrentSnapshot.AllPolicies.Count);
+        Assert.Equal(42, provider.CurrentSnapshot.AllPolicies.Count);
         Assert.Equal(15, provider.CurrentSnapshot.AllPolicies.Min(p => p.ParameterId));
-        Assert.Equal(53, provider.CurrentSnapshot.AllPolicies.Max(p => p.ParameterId));
+        Assert.Equal(71, provider.CurrentSnapshot.AllPolicies.Max(p => p.ParameterId));
         Assert.Equal(1, provider.CurrentSnapshot.Version);
     }
 
