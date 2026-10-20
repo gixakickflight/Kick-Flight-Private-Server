@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
+using System.Threading;
 
 public record AiRolePolicy(
     string Profile,
@@ -27,7 +28,8 @@ public record AiRolePolicy(
     bool CanLockon,
     string ScramblePolicy,
     string FlagFlightPolicy,
-    string RapidBallPolicy);
+    string RapidBallPolicy,
+    double LowHpDepositThreshold = 0.35);
 
 public static class ExperimentalAiRoleService
 {
@@ -146,443 +148,66 @@ public static class ExperimentalAiRoleService
         return -1;
     }
 
-    private static readonly Dictionary<(int ModeIndex, int ProfileIndex), AiRolePolicy> PoliciesByModeAndProfile;
-
-    static ExperimentalAiRoleService()
+    /// <summary>
+    /// Resolves the canonical profile index (0..12) purely based on profile name,
+    /// independent of kicker specialization. Used for 1:1 indexing of the 39-profile contract.
+    /// </summary>
+    public static int GetCanonicalProfileIndex(string? profile)
     {
-        PoliciesByModeAndProfile = new Dictionary<(int ModeIndex, int ProfileIndex), AiRolePolicy>();
-
-        for (int mode = 0; mode <= 2; mode++)
-        {
-            for (int prof = 0; prof <= 12; prof++)
-            {
-                var id = 15 + (13 * mode) + prof;
-                var policy = BuildPolicy(mode, prof, id);
-                PoliciesByModeAndProfile[(mode, prof)] = policy;
-            }
-        }
+        if (string.IsNullOrWhiteSpace(profile)) return -1;
+        if (string.Equals(profile, ProfileCarrier, StringComparison.OrdinalIgnoreCase)) return 0;
+        if (string.Equals(profile, ProfileTankDefender, StringComparison.OrdinalIgnoreCase)) return 1;
+        if (string.Equals(profile, ProfileHunter, StringComparison.OrdinalIgnoreCase)) return 2;
+        if (string.Equals(profile, ProfileObjectiveAttacker, StringComparison.OrdinalIgnoreCase)) return 3;
+        if (string.Equals(profile, ProfileHealer, StringComparison.OrdinalIgnoreCase)) return 4;
+        if (string.Equals(profile, ProfileSpeedSupport, StringComparison.OrdinalIgnoreCase)) return 5;
+        if (string.Equals(profile, ProfileDamageSupport, StringComparison.OrdinalIgnoreCase)) return 6;
+        if (string.Equals(profile, ProfileTrapDefender, StringComparison.OrdinalIgnoreCase)) return 7;
+        if (string.Equals(profile, ProfileYuyan, StringComparison.OrdinalIgnoreCase)) return 8;
+        if (string.Equals(profile, ProfileOwlbert, StringComparison.OrdinalIgnoreCase)) return 9;
+        if (string.Equals(profile, ProfileRuriha, StringComparison.OrdinalIgnoreCase)) return 10;
+        if (string.Equals(profile, ProfileGrenhawk, StringComparison.OrdinalIgnoreCase)) return 11;
+        if (string.Equals(profile, ProfileSid, StringComparison.OrdinalIgnoreCase)) return 12;
+        return -1;
     }
 
-    private static AiRolePolicy BuildPolicy(int mode, int prof, int paramId)
+    private static IBotAiProfileProvider _currentProvider = new BotAiProfileProvider(enableWatcher: false);
+
+    public static IBotAiProfileProvider CurrentProvider
     {
-        return prof switch
-        {
-            // 0: carrier (Kicker 8, Ana)
-            0 => new AiRolePolicy(
-                Profile: ProfileCarrier,
-                ModeIndex: mode,
-                ParameterId: paramId,
-                KickerId: 8,
-                KickerCostumeId: 2080101,
-                AttackMotivation: mode switch { 0 => 30, 1 => 25, _ => 35 },
-                DefenseMotivation: mode switch { 0 => 30, 1 => 20, _ => 25 },
-                ScoreMotivation: mode switch { 0 => 90, 1 => 95, _ => 90 },
-                ScoreToDeposit: mode switch { 0 => 5, 1 => 1, _ => 3 },
-                AttackDashInterval: 1.0,
-                DefenseDashInterval: 0.8,
-                ScoreDashInterval: mode == 1 ? 0.7 : 0.8,
-                AttackSkillInterval: 4.0,
-                HealSkillInterval: 3.0,
-                BuffSkillInterval: 4.0,
-                TrapSkillInterval: 5.0,
-                WarpSkillInterval: 4.0,
-                HealDamageRate: 0.5,
-                CanLockon: true,
-                ScramblePolicy: "Collect crystals; deposit at friendly guardian when crystals >= scoreToDeposit; Ana escapes evasively.",
-                FlagFlightPolicy: "Retrieve designated flag from pedestal or carrier; fly evasively to own team base stand.",
-                RapidBallPolicy: "Gather scattered balls; deposit into open goal once enemy guardian is downed."),
-
-            // 1: tank_defender (Kicker 3, Coco)
-            1 => new AiRolePolicy(
-                Profile: ProfileTankDefender,
-                ModeIndex: mode,
-                ParameterId: paramId,
-                KickerId: 3,
-                KickerCostumeId: 2030101,
-                AttackMotivation: mode switch { 0 => 50, 1 => 60, _ => 55 },
-                DefenseMotivation: mode switch { 0 => 90, 1 => 85, _ => 90 },
-                ScoreMotivation: mode switch { 0 => 20, 1 => 20, _ => 25 },
-                ScoreToDeposit: mode switch { 0 => 15, 1 => 1, _ => 10 },
-                AttackDashInterval: 1.2,
-                DefenseDashInterval: 0.8,
-                ScoreDashInterval: 1.5,
-                AttackSkillInterval: 3.0,
-                HealSkillInterval: 4.0,
-                BuffSkillInterval: 4.0,
-                TrapSkillInterval: 4.0,
-                WarpSkillInterval: 5.0,
-                HealDamageRate: 0.4,
-                CanLockon: true,
-                ScramblePolicy: "Engage approaching enemy attackers in combat zone using threat-based self-defense.",
-                FlagFlightPolicy: "Guard friendly flag pedestal and escort allied flag carrier.",
-                RapidBallPolicy: "Guard friendly guardian to prevent goal from opening."),
-
-            // 2: hunter (Kicker 4, Kite archetype)
-            2 => new AiRolePolicy(
-                Profile: ProfileHunter,
-                ModeIndex: mode,
-                ParameterId: paramId,
-                KickerId: 4,
-                KickerCostumeId: 2040101,
-                AttackMotivation: 90,
-                DefenseMotivation: mode switch { 0 => 20, 1 => 30, _ => 25 },
-                ScoreMotivation: 40,
-                ScoreToDeposit: mode switch { 0 => 10, 1 => 1, _ => 5 },
-                AttackDashInterval: 0.8,
-                DefenseDashInterval: 1.2,
-                ScoreDashInterval: 1.2,
-                AttackSkillInterval: 2.5,
-                HealSkillInterval: 5.0,
-                BuffSkillInterval: 5.0,
-                TrapSkillInterval: 4.0,
-                WarpSkillInterval: 4.0,
-                HealDamageRate: 0.5,
-                CanLockon: true,
-                ScramblePolicy: "Hunt and eliminate enemy crystal carriers and collectors.",
-                FlagFlightPolicy: "Intercept and eliminate opposing runners carrying the flag.",
-                RapidBallPolicy: "Eliminate enemy defenders and ball collectors."),
-
-            // 3: objective_attacker (Kicker 10, Yuyan base)
-            3 => new AiRolePolicy(
-                Profile: ProfileObjectiveAttacker,
-                ModeIndex: mode,
-                ParameterId: paramId,
-                KickerId: 10,
-                KickerCostumeId: 2100101,
-                AttackMotivation: mode switch { 0 => 85, 1 => 90, _ => 90 },
-                DefenseMotivation: 20,
-                ScoreMotivation: mode switch { 0 => 75, 1 => 70, _ => 80 },
-                ScoreToDeposit: mode switch { 0 => 10, 1 => 1, _ => 5 },
-                AttackDashInterval: 0.9,
-                DefenseDashInterval: 1.2,
-                ScoreDashInterval: 0.9,
-                AttackSkillInterval: 2.5,
-                HealSkillInterval: 5.0,
-                BuffSkillInterval: 4.0,
-                TrapSkillInterval: 5.0,
-                WarpSkillInterval: 4.0,
-                HealDamageRate: 0.5,
-                CanLockon: true,
-                ScramblePolicy: "Target enemy guardian to reduce HP and disrupt deposits; user requires Yuyan objective_attacker targeting enemy guardian.",
-                FlagFlightPolicy: "Pressure enemy base defenders and clear path to flag stand.",
-                RapidBallPolicy: "Focus damage on enemy guardian to defeat it and unlock the scoring goal."),
-
-            // 4: healer (Kicker 2, Ruriha base)
-            4 => new AiRolePolicy(
-                Profile: ProfileHealer,
-                ModeIndex: mode,
-                ParameterId: paramId,
-                KickerId: 2,
-                KickerCostumeId: 2020101,
-                AttackMotivation: 30,
-                DefenseMotivation: 60,
-                ScoreMotivation: 50,
-                ScoreToDeposit: mode switch { 0 => 10, 1 => 1, _ => 5 },
-                AttackDashInterval: 1.2,
-                DefenseDashInterval: 0.9,
-                ScoreDashInterval: 1.0,
-                AttackSkillInterval: 4.0,
-                HealSkillInterval: 2.0,
-                BuffSkillInterval: 3.5,
-                TrapSkillInterval: 5.0,
-                WarpSkillInterval: 4.0,
-                HealDamageRate: 0.7,
-                CanLockon: true,
-                ScramblePolicy: "Sustain self with healing discs under damage threshold to maintain presence during crystal disputes.",
-                FlagFlightPolicy: "Escort team and heal friendly flag carriers.",
-                RapidBallPolicy: "Keep allied defenders and collectors alive around objective areas."),
-
-            // 5: speed_support (Kicker 7, Grenhawk base)
-            5 => new AiRolePolicy(
-                Profile: ProfileSpeedSupport,
-                ModeIndex: mode,
-                ParameterId: paramId,
-                KickerId: 7,
-                KickerCostumeId: 2070101,
-                AttackMotivation: 60,
-                DefenseMotivation: 40,
-                ScoreMotivation: 60,
-                ScoreToDeposit: mode switch { 0 => 10, 1 => 1, _ => 5 },
-                AttackDashInterval: 0.8,
-                DefenseDashInterval: 0.8,
-                ScoreDashInterval: 0.8,
-                AttackSkillInterval: 3.0,
-                HealSkillInterval: 4.0,
-                BuffSkillInterval: 3.0,
-                TrapSkillInterval: 5.0,
-                WarpSkillInterval: 4.0,
-                HealDamageRate: 0.5,
-                CanLockon: true,
-                ScramblePolicy: "Apply ranged pressure and provide mobility buffs to allies.",
-                FlagFlightPolicy: "Contest neutral airspace and buff allied runner mobility.",
-                RapidBallPolicy: "Provide speed buffs to ball gatherers and harass enemy guardian defenders."),
-
-            // 6: damage_support (Kicker 14, Sid base)
-            6 => new AiRolePolicy(
-                Profile: ProfileDamageSupport,
-                ModeIndex: mode,
-                ParameterId: paramId,
-                KickerId: 14,
-                KickerCostumeId: 2140101,
-                AttackMotivation: 75,
-                DefenseMotivation: 35,
-                ScoreMotivation: 45,
-                ScoreToDeposit: mode switch { 0 => 10, 1 => 1, _ => 5 },
-                AttackDashInterval: 0.9,
-                DefenseDashInterval: 1.0,
-                ScoreDashInterval: 1.0,
-                AttackSkillInterval: 2.8,
-                HealSkillInterval: 4.5,
-                BuffSkillInterval: 3.0,
-                TrapSkillInterval: 5.0,
-                WarpSkillInterval: 4.0,
-                HealDamageRate: 0.5,
-                CanLockon: true,
-                ScramblePolicy: "Escort friendly carriers and boost allied offensive damage output.",
-                FlagFlightPolicy: "Escort flag runner and buff allied combat engagement.",
-                RapidBallPolicy: "Boost damage against enemy guardian to accelerate goal unlock."),
-
-            // 7: trap_defender (Kicker 5, Owlbert base)
-            7 => new AiRolePolicy(
-                Profile: ProfileTrapDefender,
-                ModeIndex: mode,
-                ParameterId: paramId,
-                KickerId: 5,
-                KickerCostumeId: 2050101,
-                AttackMotivation: 40,
-                DefenseMotivation: 85,
-                ScoreMotivation: 30,
-                ScoreToDeposit: mode switch { 0 => 15, 1 => 1, _ => 10 },
-                AttackDashInterval: 1.1,
-                DefenseDashInterval: 0.8,
-                ScoreDashInterval: 1.2,
-                AttackSkillInterval: 3.5,
-                HealSkillInterval: 4.5,
-                BuffSkillInterval: 4.0,
-                TrapSkillInterval: 2.5,
-                WarpSkillInterval: 4.0,
-                HealDamageRate: 0.5,
-                CanLockon: true,
-                ScramblePolicy: "Deploy area denial, smog, and traps around disputed chokepoints and transit lanes.",
-                FlagFlightPolicy: "Place traps along flag return routes and pedestal approach angles.",
-                RapidBallPolicy: "Deploy traps around friendly guardian and goal perimeter."),
-
-            // 8: Yuyan (Specialization: objective_attacker for Kicker 10)
-            8 => new AiRolePolicy(
-                Profile: ProfileObjectiveAttacker,
-                ModeIndex: mode,
-                ParameterId: paramId,
-                KickerId: 10,
-                KickerCostumeId: 2100101,
-                AttackMotivation: mode switch { 0 => 90, 1 => 92, _ => 95 },
-                DefenseMotivation: 15,
-                ScoreMotivation: mode switch { 0 => 80, 1 => 75, _ => 85 },
-                ScoreToDeposit: mode switch { 0 => 10, 1 => 1, _ => 5 },
-                AttackDashInterval: 0.8,
-                DefenseDashInterval: 1.2,
-                ScoreDashInterval: 0.9,
-                AttackSkillInterval: 2.2,
-                HealSkillInterval: 5.0,
-                BuffSkillInterval: 4.0,
-                TrapSkillInterval: 5.0,
-                WarpSkillInterval: 4.0,
-                HealDamageRate: 0.5,
-                CanLockon: true,
-                ScramblePolicy: "Target enemy guardian aggressively with pull-in and high offensive pressure; user requires Yuyan objective_attacker targeting enemy guardian.",
-                FlagFlightPolicy: "Aggressively assault defenders at enemy flag stand.",
-                RapidBallPolicy: "Prioritize damaging enemy guardian with high burst to down it and open goal."),
-
-            // 9: Owlbert (Specialization: trap_defender for Kicker 5)
-            9 => new AiRolePolicy(
-                Profile: ProfileTrapDefender,
-                ModeIndex: mode,
-                ParameterId: paramId,
-                KickerId: 5,
-                KickerCostumeId: 2050101,
-                AttackMotivation: 35,
-                DefenseMotivation: 90,
-                ScoreMotivation: 25,
-                ScoreToDeposit: mode switch { 0 => 15, 1 => 1, _ => 10 },
-                AttackDashInterval: 1.1,
-                DefenseDashInterval: 0.8,
-                ScoreDashInterval: 1.2,
-                AttackSkillInterval: 3.5,
-                HealSkillInterval: 4.5,
-                BuffSkillInterval: 4.0,
-                TrapSkillInterval: 2.0,
-                WarpSkillInterval: 4.0,
-                HealDamageRate: 0.5,
-                CanLockon: true,
-                ScramblePolicy: "Owlbert area denial: maintain continuous trap and smog coverage along key routes.",
-                FlagFlightPolicy: "Owlbert trap lockdown along flag path and pedestal.",
-                RapidBallPolicy: "Owlbert perimeter lockdown defending friendly revivalable guardian."),
-
-            // 10: Ruriha (Specialization: healer for Kicker 2)
-            10 => new AiRolePolicy(
-                Profile: ProfileHealer,
-                ModeIndex: mode,
-                ParameterId: paramId,
-                KickerId: 2,
-                KickerCostumeId: 2020101,
-                AttackMotivation: 25,
-                DefenseMotivation: 65,
-                ScoreMotivation: 50,
-                ScoreToDeposit: mode switch { 0 => 10, 1 => 1, _ => 5 },
-                AttackDashInterval: 1.2,
-                DefenseDashInterval: 0.8,
-                ScoreDashInterval: 1.0,
-                AttackSkillInterval: 4.0,
-                HealSkillInterval: 1.8,
-                BuffSkillInterval: 3.0,
-                TrapSkillInterval: 5.0,
-                WarpSkillInterval: 4.0,
-                HealDamageRate: 0.75,
-                CanLockon: true,
-                ScramblePolicy: "Ruriha prioritized healing: maintain high personal sustain to contest crystals longer.",
-                FlagFlightPolicy: "Ruriha dedicated runner support: heal flag carrier on transit.",
-                RapidBallPolicy: "Ruriha dedicated objective sustain: keep guardian attackers or defenders alive."),
-
-            // 11: Grenhawk (Specialization: speed_support for Kicker 7)
-            11 => new AiRolePolicy(
-                Profile: ProfileSpeedSupport,
-                ModeIndex: mode,
-                ParameterId: paramId,
-                KickerId: 7,
-                KickerCostumeId: 2070101,
-                AttackMotivation: 65,
-                DefenseMotivation: 35,
-                ScoreMotivation: 60,
-                ScoreToDeposit: mode switch { 0 => 10, 1 => 1, _ => 5 },
-                AttackDashInterval: 0.7,
-                DefenseDashInterval: 0.8,
-                ScoreDashInterval: 0.7,
-                AttackSkillInterval: 2.8,
-                HealSkillInterval: 4.0,
-                BuffSkillInterval: 2.5,
-                TrapSkillInterval: 5.0,
-                WarpSkillInterval: 4.0,
-                HealDamageRate: 0.5,
-                CanLockon: true,
-                ScramblePolicy: "Grenhawk ranged pressure and allied speed buffing.",
-                FlagFlightPolicy: "Grenhawk escort: accelerate allied flag runners and apply ranged cover.",
-                RapidBallPolicy: "Grenhawk mobility support: accelerate ball transport and harass defenders."),
-
-            // 12: Sid (Specialization: damage_support for Kicker 14)
-            12 => new AiRolePolicy(
-                Profile: ProfileDamageSupport,
-                ModeIndex: mode,
-                ParameterId: paramId,
-                KickerId: 14,
-                KickerCostumeId: 2140101,
-                AttackMotivation: 80,
-                DefenseMotivation: 30,
-                ScoreMotivation: 40,
-                ScoreToDeposit: mode switch { 0 => 10, 1 => 1, _ => 5 },
-                AttackDashInterval: 0.8,
-                DefenseDashInterval: 1.0,
-                ScoreDashInterval: 1.0,
-                AttackSkillInterval: 2.5,
-                HealSkillInterval: 4.5,
-                BuffSkillInterval: 2.5,
-                TrapSkillInterval: 5.0,
-                WarpSkillInterval: 4.0,
-                HealDamageRate: 0.5,
-                CanLockon: true,
-                ScramblePolicy: "Sid offensive escort: maximize allied burst damage on crystal disputes and guardian pressure.",
-                FlagFlightPolicy: "Sid flag escort: escort friendly runner and eliminate interceptors.",
-                RapidBallPolicy: "Sid guardian assault escort: amplify damage dealt to enemy guardian."),
-
-            _ => throw new ArgumentOutOfRangeException(nameof(prof), $"Unknown profile index {prof}")
-        };
+        get => Volatile.Read(ref _currentProvider);
+        set => Volatile.Write(ref _currentProvider, value ?? throw new ArgumentNullException(nameof(value)));
     }
+
+    public static AiRolePolicy BuildPolicy(int mode, int prof, int paramId) =>
+        BotAiDefaults.BuildDefaultPolicy(mode, prof, paramId);
 
     public static IReadOnlyList<AiRolePolicy> GetAllPolicies()
     {
-        return PoliciesByModeAndProfile.Values.OrderBy(p => p.ParameterId).ToList();
+        return CurrentProvider.GetAllPolicies();
     }
 
     public static AiRolePolicy? GetPolicy(string profile, int kickerId = 0, int modeIndex = 0)
     {
-        var effectiveProfile = profile;
-        if (kickerId == 10 && modeIndex is 0 or 2)
-        {
-            effectiveProfile = ProfileObjectiveAttacker;
-        }
-        var profIdx = GetProfileIndex(effectiveProfile, kickerId);
-        if (profIdx < 0 || modeIndex < 0 || modeIndex > 2) return null;
-
-        if (PoliciesByModeAndProfile.TryGetValue((modeIndex, profIdx), out var policy))
-        {
-            return policy;
-        }
-
-        return null;
+        return CurrentProvider.GetPolicy(profile, kickerId, modeIndex);
     }
 
     public static AiRolePolicy? GetPolicy(string profile, int kickerId, BattleCompositionMode? mode)
     {
-        var modeIndex = mode.HasValue ? GetModeIndex(mode.Value) : 0;
-        if (modeIndex < 0) return null;
-        return GetPolicy(profile, kickerId, modeIndex);
+        return CurrentProvider.GetPolicy(profile, kickerId, mode);
     }
 
     public static int ResolveParameterId(string? profile, int kickerId, BattleCompositionMode? mode = null, bool isGym = false)
     {
-        // Gym bots must ALWAYS receive GymAiParameterBase + kickerId (isolated from experimental roles)
-        if (isGym)
-        {
-            return BattleMatchmakingService.GymAiParameterBase + kickerId;
-        }
-
-        // When experimental flag is off, retain standard pristine kicker ID
-        if (!IsEnabled)
-        {
-            return kickerId;
-        }
-
-        if (mode is null)
-        {
-            return kickerId;
-        }
-
-        var modeIndex = GetModeIndex(mode.Value);
-        if (modeIndex < 0)
-        {
-            return kickerId;
-        }
-
-        var effectiveProfile = profile;
-        if (kickerId == 10 && mode.Value is BattleCompositionMode.CrystalScramble or BattleCompositionMode.RapidBall)
-        {
-            effectiveProfile = ProfileObjectiveAttacker;
-        }
-
-        var profileIndex = GetProfileIndex(effectiveProfile, kickerId);
-        if (profileIndex < 0)
-        {
-            return kickerId;
-        }
-
-        var id = MinRoleParamId + (13 * modeIndex) + profileIndex;
-        if (id < MinRoleParamId || id > MaxAllowedParamId)
-        {
-            throw new InvalidOperationException($"Role parameter ID {id} outside safe range [{MinRoleParamId}..{MaxAllowedParamId}].");
-        }
-        return id;
+        return CurrentProvider.ResolveParameterId(profile, kickerId, mode, isGym);
     }
 
     public static int ResolveParameterId(string? profile, int kickerId, int battleRuleId, bool isGym = false)
     {
-        if (isGym)
-        {
-            return BattleMatchmakingService.GymAiParameterBase + kickerId;
-        }
-
-        var mode = ScrambleBotCompositionSelector.ModeForBattleRuleId(battleRuleId);
-        return ResolveParameterId(profile, kickerId, mode, isGym);
+        return CurrentProvider.ResolveParameterId(profile, kickerId, battleRuleId, isGym);
     }
 
-    public static string AppendExperimentalRoleAiRows(string aiParamJson)
+    public static string AppendExperimentalRoleAiRows(string aiParamJson, BotAiProfileSnapshot? snapshot = null)
     {
         try
         {
@@ -607,7 +232,11 @@ public static class ExperimentalAiRoleService
             var extra = new List<JsonNode>();
             var existingIds = new HashSet<int>(rows.Select(r => r?["id"]?.GetValue<int>() ?? 0));
 
-            foreach (var policy in GetAllPolicies())
+            // Capture ONE snapshot per master generation
+            var effectiveSnapshot = snapshot ?? CurrentProvider.CurrentSnapshot;
+            var policies = effectiveSnapshot.AllPolicies;
+
+            foreach (var policy in policies)
             {
                 if (existingIds.Contains(policy.ParameterId)) continue;
 

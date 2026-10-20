@@ -1,8 +1,10 @@
 using System.Collections.Concurrent;
+using System.Collections.Frozen;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using KickFlight.BootstrapApi.Ops;
 using KickFlight.BootstrapApi.PlayerStore;
 using Microsoft.Extensions.Configuration;
@@ -10,15 +12,20 @@ using Microsoft.Extensions.Options;
 
 namespace KickFlight.BootstrapApi;
 
-public sealed partial class DemoSessionApi
+public sealed partial class DemoSessionApi : IDisposable
 {
     private sealed record ApplicationAssetRevision(int platform, int revision);
+    private sealed record MasterCatalogState(FrozenDictionary<string, byte[]> Masters, string MasterVersion);
 
     private const string CommonCode = "1a837b9ee2ae11a07a0f529a4cd4b61c";
     // The client keeps its downloaded masters until this header changes, so it must follow the content:
     // a SHA-256 over every served table (see the end of the constructor). Editing any config/masters_*.json
     // and restarting the server therefore makes the client re-download on its next launch.
-    public string MasterVersion { get; private set; } = "demo-master-v27";
+    public string MasterVersion => Volatile.Read(ref _masterState).MasterVersion;
+    private MasterCatalogState _masterState = new(FrozenDictionary<string, byte[]>.Empty, "demo-master-initial");
+    private readonly object _masterLock = new();
+    private string? _baseAiParamRows;
+    private readonly IBotAiProfileProvider _botAiProfiles;
     private const string AccessToken = "demo-access-token-0000000000000000000000000000";
 
     // Rank is per player and persisted now (player_ranks, via IPlayerStore); the table it indexes into, the
@@ -87,7 +94,8 @@ public sealed partial class DemoSessionApi
     public DemoSessionApi(ILogger<DemoSessionApi> logger, IWebHostEnvironment environment,
         BattleMatchmakingService matchmaking, BattleReplayService replays, IPlayerStore playerStore,
         IConfiguration configuration, MaintenanceState maintenance, ClientUpdateState clientUpdate,
-        TimeProvider timeProvider, OpsTelemetryService ops, IOptions<HarnessOptions> harnessOptions)
+        TimeProvider timeProvider, OpsTelemetryService ops, IOptions<HarnessOptions> harnessOptions,
+        IBotAiProfileProvider? botAiProfiles = null)
     {
         _logger = logger;
         _ops = ops;
@@ -98,10 +106,12 @@ public sealed partial class DemoSessionApi
         _timeProvider = timeProvider;
         _playerStore = playerStore;
         _harnessOptions = harnessOptions.Value;
+        _botAiProfiles = botAiProfiles ?? ExperimentalAiRoleService.CurrentProvider;
         _contentRoot = environment.ContentRootPath;
         _grpcPort = configuration.GetValue("GrpcPort", 18081);
         _mastersOverrides = new MasterOverrides(configuration[MasterOverrides.ConfigurationKey], environment.ContentRootPath);
         InitializeMasters(environment.ContentRootPath);
+        _botAiProfiles.ProfilesReloaded += OnBotAiProfilesReloaded;
 
         var overridden = _mastersOverrides.Applied;
         _logger.LogInformation("Master overrides in {OverrideDir}: {Count} ({Names})",
@@ -605,9 +615,11 @@ public sealed partial class DemoSessionApi
         var pingThresholdJson = LoadJson(contentRoot, "config/masters_matchmaking_ping_threshold.json", "[]");
 
         var aiParamRows = AppendGymAiRows(aiParamJson);
+        _baseAiParamRows = aiParamRows;
         if (ExperimentalAiRoleService.IsEnabled)
         {
-            aiParamRows = ExperimentalAiRoleService.AppendExperimentalRoleAiRows(aiParamRows);
+            var snapshot = _botAiProfiles.CurrentSnapshot;
+            aiParamRows = ExperimentalAiRoleService.AppendExperimentalRoleAiRows(aiParamRows, snapshot);
         }
         _encryptedMasters["KickerAiParameter"] = EncryptMaster(aiParamRows);
         _encryptedMasters["KickerAiDisc"] = EncryptMaster(aiDiscJson);
@@ -776,6 +788,7 @@ public sealed partial class DemoSessionApi
         _encryptedMasters["BattleReplayChannel"] = EncryptMaster(battleReplayChannelJson);
         _encryptedMasters["MovieCategory"] = EncryptMaster(movieCategoryJson);
 
+        string masterVersion;
         using (var sha = SHA256.Create())
         {
             foreach (var kvp in _encryptedMasters.OrderBy(k => k.Key, StringComparer.Ordinal))
@@ -785,9 +798,51 @@ public sealed partial class DemoSessionApi
                 sha.TransformBlock(kvp.Value, 0, kvp.Value.Length, null, 0);
             }
             sha.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
-            MasterVersion = "demo-master-" + Convert.ToHexString(sha.Hash!)[..16].ToLowerInvariant();
+            masterVersion = "demo-master-" + Convert.ToHexString(sha.Hash!)[..16].ToLowerInvariant();
         }
-        _logger.LogInformation("Master version {MasterVersion} ({Count} tables)", MasterVersion, _encryptedMasters.Count);
+        _masterState = new MasterCatalogState(_encryptedMasters.ToFrozenDictionary(StringComparer.Ordinal), masterVersion);
+        _logger.LogInformation("Master version {MasterVersion} ({Count} tables)", masterVersion, _masterState.Masters.Count);
+    }
+
+    public void OnBotAiProfilesReloaded(BotAiProfileSnapshot snapshot)
+    {
+        if (!ExperimentalAiRoleService.IsEnabled) return;
+
+        lock (_masterLock)
+        {
+            if (string.IsNullOrEmpty(_baseAiParamRows)) return;
+
+            var updatedAiRows = ExperimentalAiRoleService.AppendExperimentalRoleAiRows(_baseAiParamRows, snapshot);
+            var newEncrypted = EncryptMaster(updatedAiRows);
+
+            var current = Volatile.Read(ref _masterState);
+            var dict = new Dictionary<string, byte[]>(current.Masters, StringComparer.Ordinal)
+            {
+                ["KickerAiParameter"] = newEncrypted
+            };
+
+            string newMasterVersion;
+            using (var sha = SHA256.Create())
+            {
+                foreach (var kvp in dict.OrderBy(k => k.Key, StringComparer.Ordinal))
+                {
+                    var nameBytes = Encoding.UTF8.GetBytes(kvp.Key);
+                    sha.TransformBlock(nameBytes, 0, nameBytes.Length, null, 0);
+                    sha.TransformBlock(kvp.Value, 0, kvp.Value.Length, null, 0);
+                }
+                sha.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+                newMasterVersion = "demo-master-" + Convert.ToHexString(sha.Hash!)[..16].ToLowerInvariant();
+            }
+
+            Volatile.Write(ref _masterState, new MasterCatalogState(dict.ToFrozenDictionary(StringComparer.Ordinal), newMasterVersion));
+            _logger.LogInformation("Master version {MasterVersion} updated atomically after bot AI profile reload (version {ProfileVersion})",
+                newMasterVersion, snapshot.Version);
+        }
+    }
+
+    public void Dispose()
+    {
+        _botAiProfiles.ProfilesReloaded -= OnBotAiProfilesReloaded;
     }
 
     // Fallback for a checkout without config/masters_battle_replay_channel.json: the same table the config file
@@ -963,19 +1018,22 @@ public sealed partial class DemoSessionApi
         D2CCodec.Encode(Encoding.UTF8.GetBytes(json), Encoding.ASCII.GetBytes(CommonCode), new byte[16]);
 
     internal byte[]? GetEncryptedMaster(string masterName) =>
-        _encryptedMasters.TryGetValue(masterName, out var bytes) ? bytes : null;
+        Volatile.Read(ref _masterState).Masters.TryGetValue(masterName, out var bytes) ? bytes : null;
 
     public async Task<IResult?> TryHandleAsync(HttpContext context)
     {
+        var masterState = Volatile.Read(ref _masterState);
         context.Response.Headers["x-app-datetime"] = DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
-        context.Response.Headers["x-app-master-hash"] = MasterVersion;
+        context.Response.Headers["x-app-master-hash"] = masterState.MasterVersion;
         var path = context.Request.Path.Value ?? "/";
 
         if (HttpMethods.IsGet(context.Request.Method) && path.StartsWith("/demo-master/", StringComparison.Ordinal))
         {
             var masterName = path["/demo-master/".Length..];
-            if (_encryptedMasters.TryGetValue(masterName, out var masterBytes))
+            if (masterState.Masters.TryGetValue(masterName, out var masterBytes))
             {
+                context.Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+                context.Response.Headers["ETag"] = $"\"{Convert.ToHexString(SHA256.HashData(masterBytes)).ToLowerInvariant()}\"";
                 return new LocalFixtureResult(masterBytes, "application/octet-stream", StatusCodes.Status200OK);
             }
             return Results.NotFound();
@@ -1105,9 +1163,9 @@ public sealed partial class DemoSessionApi
         {
             context.Response.Headers["x-app-status-code"] = "0";
             context.Response.Headers["x-kickflight-fixture"] = "dynamic-demo-session";
-            context.Response.Headers["x-app-master-hash"] = MasterVersion;
-            var json = BuildDownloadMasterJson(context.Request);
-            _logger.LogInformation("Serving dynamic master list ({Count} masters)", _encryptedMasters.Count);
+            context.Response.Headers["x-app-master-hash"] = masterState.MasterVersion;
+            var json = BuildDownloadMasterJson(context.Request, masterState);
+            _logger.LogInformation("Serving dynamic master list ({Count} masters)", masterState.Masters.Count);
             return BinaryJson(json, key);
         }
 
@@ -1760,7 +1818,7 @@ public sealed partial class DemoSessionApi
         return JsonSerializer.Serialize(data);
     }
 
-    private string BuildDownloadMasterJson(HttpRequest request)
+    private string BuildDownloadMasterJson(HttpRequest request, MasterCatalogState state)
     {
         var configuredOrigin = _harnessOptions.MasterDownloadOriginsByHost.FirstOrDefault(pair =>
             string.Equals(pair.Key, request.Host.Host, StringComparison.OrdinalIgnoreCase)).Value;
@@ -1769,7 +1827,7 @@ public sealed partial class DemoSessionApi
             : configuredOrigin.TrimEnd('/');
         return JsonSerializer.Serialize(new
         {
-            masterDownloadList = _encryptedMasters.Select(kvp => new
+            masterDownloadList = state.Masters.Select(kvp => new
             {
                 name = kvp.Key,
                 hash = Convert.ToHexString(SHA256.HashData(kvp.Value)).ToLowerInvariant(),

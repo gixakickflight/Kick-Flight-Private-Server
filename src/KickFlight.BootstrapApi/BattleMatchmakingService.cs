@@ -24,12 +24,16 @@ public sealed class BattleMatchmakingService
     // still-cached Photon room from the previous process.
     private int _battleCounter = (int)(DateTimeOffset.UtcNow.ToUnixTimeSeconds() % 1_000_000_000);
 
+    private readonly IBotAiProfileProvider? _botAiProfiles;
+
     public BattleMatchmakingService(ILogger<BattleMatchmakingService> logger, IPhotonServerManager photonManager,
-        MaintenanceState? maintenance = null, IWebHostEnvironment? environment = null)
+        MaintenanceState? maintenance = null, IWebHostEnvironment? environment = null,
+        IBotAiProfileProvider? botAiProfiles = null)
     {
         _logger = logger;
         _photonManager = photonManager;
         _maintenance = maintenance;
+        _botAiProfiles = botAiProfiles;
         _scrambleBotDecks = ScrambleBotDeckCatalog.Load(
             environment?.ContentRootPath ?? Directory.GetCurrentDirectory(), logger);
         if (ExperimentalAiRoleService.IsEnabled && _scrambleBotDecks.Count == 0)
@@ -1330,7 +1334,7 @@ public sealed class BattleMatchmakingService
                         kickerCostumeId = bot.CostumeRowId,
                         honorId = 6010000,
                         teamType = assignment.TeamType,
-                        kickerAiParameterId = ExperimentalAiRoleService.ResolveParameterId(
+                        kickerAiParameterId = (_botAiProfiles ?? ExperimentalAiRoleService.CurrentProvider).ResolveParameterId(
                             assignment.Profile,
                             bot.KickerId,
                             mode,
