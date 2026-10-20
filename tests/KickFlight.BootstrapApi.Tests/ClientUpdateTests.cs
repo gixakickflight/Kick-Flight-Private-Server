@@ -319,6 +319,109 @@ public sealed class ClientUpdateTests : IClassFixture<ClientUpdateFixture>, IDis
         }
     }
 
+    [Fact]
+    public void Admin_rollback_lower_minimum_persists_across_restart_without_auto_elevation()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"kf-client-update-{Guid.NewGuid():N}", "client-update.json");
+        try
+        {
+            // Initial server ran with 2.11.4
+            var server = new ClientUpdateState(NullLogger<ClientUpdateState>.Instance, path, "2.11.4", "2.11.3");
+            Assert.Equal("2.11.4", server.Current.MinimumVersion);
+
+            // Operator intentionally rolls back Android gate to 2.11.3 through admin action (isManualOverride: true)
+            server.Set("2.11.3", "2.11.3", enabled: true, isManualOverride: true);
+            Assert.Equal("2.11.3", server.Current.MinimumVersion);
+            Assert.True(server.Current.IsManualOverride);
+
+            // Next deployment / container restart starts with config seed 2.11.4
+            // It MUST preserve the deliberate admin rollback rather than auto-elevating back to 2.11.4!
+            var restarted = new ClientUpdateState(NullLogger<ClientUpdateState>.Instance, path, "2.11.4", "2.11.3");
+            Assert.Equal("2.11.3", restarted.Current.MinimumVersion);
+            Assert.True(restarted.Current.IsManualOverride);
+            Assert.True(restarted.Current.Enabled);
+        }
+        finally
+        {
+            var dir = Path.GetDirectoryName(path);
+            if (dir is not null && Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Admin_disable_gate_persists_across_restart_and_allows_older_clients()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"kf-client-update-{Guid.NewGuid():N}", "client-update.json");
+        try
+        {
+            var server = new ClientUpdateState(NullLogger<ClientUpdateState>.Instance, path, "2.11.4", "2.11.3");
+            Assert.True(server.Current.Enabled);
+
+            // Admin disables forced update gate
+            server.Set(null, null, enabled: false, isManualOverride: true);
+            Assert.False(server.Current.Enabled);
+            Assert.False(server.IsOutdated("2.11.0"));
+
+            // Restart preserves disabled gate
+            var restarted = new ClientUpdateState(NullLogger<ClientUpdateState>.Instance, path, "2.11.4", "2.11.3");
+            Assert.False(restarted.Current.Enabled);
+            Assert.Equal("2.11.4", restarted.Current.MinimumVersion);
+            Assert.False(restarted.IsOutdated("2.11.0"));
+        }
+        finally
+        {
+            var dir = Path.GetDirectoryName(path);
+            if (dir is not null && Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Admin_endpoint_supports_enable_disable_and_reset_to_default()
+    {
+        // Set higher minimum version
+        var res1 = await AdminAsync("POST", JsonSerializer.Serialize(new { minimumVersion = "2.12.0", enabled = true }));
+        Assert.Equal(HttpStatusCode.OK, res1.StatusCode);
+        Assert.True(res1.Json.GetProperty("enabled").GetBoolean());
+        Assert.Equal("2.12.0", res1.Json.GetProperty("minimumVersion").GetString());
+        Assert.True(res1.Json.GetProperty("isManualOverride").GetBoolean());
+
+        // Disable gate via admin endpoint
+        var res2 = await AdminAsync("POST", JsonSerializer.Serialize(new { enabled = false }));
+        Assert.Equal(HttpStatusCode.OK, res2.StatusCode);
+        Assert.False(res2.Json.GetProperty("enabled").GetBoolean());
+        Assert.Equal("2.12.0", res2.Json.GetProperty("minimumVersion").GetString());
+
+        // Client with older version now passes because gate is disabled
+        using (var response = await PostAsync(_factory.CreateClient(), "/boot/index", "2.11.0"))
+        {
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal("0", response.Headers.GetValues("x-app-status-code").Single());
+        }
+
+        // Reset to deployment configuration defaults
+        var res3 = await AdminAsync("POST", JsonSerializer.Serialize(new { resetToDefault = true }));
+        Assert.Equal(HttpStatusCode.OK, res3.StatusCode);
+        Assert.False(res3.Json.GetProperty("isManualOverride").GetBoolean());
+
+        // GET verification
+        var resGet = await AdminAsync("GET", null);
+        Assert.Equal(HttpStatusCode.OK, resGet.StatusCode);
+        Assert.False(resGet.Json.GetProperty("isManualOverride").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Admin_endpoint_rejects_invalid_version_formats()
+    {
+        var invalidMin = await AdminAsync("POST", JsonSerializer.Serialize(new { minimumVersion = "not-a-version" }));
+        Assert.Equal(HttpStatusCode.BadRequest, invalidMin.StatusCode);
+
+        var invalidIos = await AdminAsync("POST", JsonSerializer.Serialize(new { iosMinimumVersion = "invalid-ios" }));
+        Assert.Equal(HttpStatusCode.BadRequest, invalidIos.StatusCode);
+
+        var invalidEnabled = await AdminAsync("POST", "{\"enabled\": \"yes\"}");
+        Assert.Equal(HttpStatusCode.BadRequest, invalidEnabled.StatusCode);
+    }
+
     private async Task SetAsync(string minimumVersion, string? iosMinimumVersion = null)
     {
         var payload = iosMinimumVersion is not null
