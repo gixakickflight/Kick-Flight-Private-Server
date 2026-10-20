@@ -6,18 +6,43 @@ internal static class ScrambleBotDeckCatalog
 {
     private const string RelativePath = "config/scramble_bot_disc_decks.json";
 
+    internal static string ResolveCatalogPath(string contentRoot)
+    {
+        if (string.IsNullOrWhiteSpace(contentRoot))
+            contentRoot = Directory.GetCurrentDirectory();
+
+        // 1. Explicit file path passed directly (retains highest precedence)
+        if (File.Exists(contentRoot)) return Path.GetFullPath(contentRoot);
+
+        // 2. Relative to contentRoot (e.g. contentRoot/config/scramble_bot_disc_decks.json)
+        var directPath = Path.Combine(contentRoot, RelativePath);
+        if (File.Exists(directPath)) return Path.GetFullPath(directPath);
+
+        // 3. Upward directory walk from contentRoot (handles repo-source contentRoot e.g. src/KickFlight.BootstrapApi)
+        var dir = new DirectoryInfo(Path.GetFullPath(contentRoot));
+        while (dir is not null)
+        {
+            var candidate = Path.Combine(dir.FullName, RelativePath);
+            if (File.Exists(candidate)) return Path.GetFullPath(candidate);
+            if (File.Exists(Path.Combine(dir.FullName, "KickFlight.PrivateServer.sln"))) break;
+            dir = dir.Parent;
+        }
+
+        // 4. Output / base directory (handles published deployment where config is alongside binary)
+        var outputPath = Path.Combine(AppContext.BaseDirectory, RelativePath);
+        if (File.Exists(outputPath)) return Path.GetFullPath(outputPath);
+
+        // Unresolved: retain default contentRoot-relative path for logging
+        return directPath;
+    }
+
     internal static IReadOnlyList<ScrambleBotDeck> Load(string contentRoot, ILogger logger)
     {
-        var path = Path.Combine(contentRoot, RelativePath);
+        var path = ResolveCatalogPath(contentRoot);
         if (!File.Exists(path))
         {
-            var outputPath = Path.Combine(AppContext.BaseDirectory, RelativePath);
-            if (File.Exists(outputPath)) path = outputPath;
-            else
-            {
-                logger.LogWarning("Scramble bot deck catalog is missing at {Path}; legacy bot decks remain active", path);
-                return [];
-            }
+            logger.LogWarning("Scramble bot deck catalog is missing at {Path}; legacy bot decks remain active", path);
+            return [];
         }
 
         try

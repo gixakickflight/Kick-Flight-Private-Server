@@ -604,7 +604,12 @@ public sealed partial class DemoSessionApi
         var aiDeckJson = LoadJson(contentRoot, "config/masters_kicker_ai_disc_deck.json", "[]");
         var pingThresholdJson = LoadJson(contentRoot, "config/masters_matchmaking_ping_threshold.json", "[]");
 
-        _encryptedMasters["KickerAiParameter"] = EncryptMaster(AppendGymAiRows(aiParamJson));
+        var aiParamRows = AppendGymAiRows(aiParamJson);
+        if (ExperimentalAiRoleService.IsEnabled)
+        {
+            aiParamRows = ExperimentalAiRoleService.AppendExperimentalRoleAiRows(aiParamRows);
+        }
+        _encryptedMasters["KickerAiParameter"] = EncryptMaster(aiParamRows);
         _encryptedMasters["KickerAiDisc"] = EncryptMaster(aiDiscJson);
         _encryptedMasters["KickerAiDiscDeck"] = EncryptMaster(aiDeckJson);
         _encryptedMasters["MatchmakingPingThreshold"] = EncryptMaster(pingThresholdJson);
@@ -956,6 +961,9 @@ public sealed partial class DemoSessionApi
 
     private static byte[] EncryptMaster(string json) =>
         D2CCodec.Encode(Encoding.UTF8.GetBytes(json), Encoding.ASCII.GetBytes(CommonCode), new byte[16]);
+
+    internal byte[]? GetEncryptedMaster(string masterName) =>
+        _encryptedMasters.TryGetValue(masterName, out var bytes) ? bytes : null;
 
     public async Task<IResult?> TryHandleAsync(HttpContext context)
     {

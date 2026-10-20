@@ -763,6 +763,69 @@ if sum(bool(patches) for patches in (DIAG_PATCHES_ARM64, DAMAGE_DIAG_PATCHES_ARM
 if os.environ.get("KF_DAMAGE_DIAG") == "1" and os.environ.get("KF_PHOTON") == "1":
     raise SystemExit("KF_DAMAGE_DIAG uses the stubbed InitializeReconnect body and requires the offline KF_PHOTON=0 flow")
 
+# Experimental telemetry KF_AI_ROLES; targeting KF_AI_ROLE_TARGETING and low-HP
+# carrier deposit KF_AI_ROLE_DEPOSIT require telemetry. All default OFF.
+if os.environ.get("KF_AI_ROLE_TARGETING") == "1" and os.environ.get("KF_AI_ROLES") != "1":
+    raise SystemExit("KF_AI_ROLE_TARGETING=1 requires KF_AI_ROLES=1")
+if os.environ.get("KF_AI_ROLE_DEPOSIT") == "1" and os.environ.get("KF_AI_ROLES") != "1":
+    raise SystemExit("KF_AI_ROLE_DEPOSIT=1 requires KF_AI_ROLES=1")
+if (os.environ.get("KF_AI_ROLES") == "1" or os.environ.get("KF_AI_ROLE_TARGETING") == "1" or os.environ.get("KF_AI_ROLE_DEPOSIT") == "1") and os.environ.get("KF_DIAG") == "1":
+    raise SystemExit("KF_AI_ROLES and KF_DIAG share dead body SetModel (0x159D410..0x159DA44) and are mutually exclusive")
+
+AI_ROLES_PATCHES_ARM64: list[dict[str, object]] = []
+if os.environ.get("KF_AI_ROLES") == "1":
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from scripts.re.ai_role_cave import (
+        generate_ai_role_cave_bytes,
+        generate_ai_role_targeting_cave_bytes,
+        FREE_CAVE_WINDOW_START,
+        CAVE_TARGETING_START,
+        HOOK_UPDATE_TARGET,
+        HOOK_UPDATE_TARGET_SCORING,
+    )
+    _cave_b = generate_ai_role_cave_bytes()
+    AI_ROLES_PATCHES_ARM64 = [
+        {
+            "description": "cave: AI roles telemetry cave (KF_AI_ROLES=1)",
+            "offset": FREE_CAVE_WINDOW_START,
+            "expected": bytes.fromhex(
+                "e1031faaefd70294081ca04e09000014e0031faa72dbf197e00317aae1031faae8d70294e0031faa081ca04e6cdbf197e00317aae1031faae6d70294687701f0082545f9091ca04e000140f9089c44398800083608d840b9480000353d67f197e203271e001da84e211da94ee0031faaf0de1694081ca04e291ca14e4a1ca24e780000b5e0031faa55dbf197e00318aa001da84e211da94e421daa4ee1031faaaeb04794781640f9780000b5e0031faa4bdbf197e00318aae1031faad7053994f80300aa570100b4e00317aae1031faac8d70294e00317aae1031faa081ca04ec8d70294091ca04e0f000014e0031faa3bdbf197e00317aae1031faabdd70294e0031faa081ca04e35dbf197e00317aae1031faabbd70294e0031faa091ca04e2fdbf197e00317aae1031faab9d70294021ca04e001da84e211da94ee0031faabcde1694081ca04e291ca14e4a1ca24e780000b5e0031faa21dbf197e00318aa001da84e211da94e421daa4ee1031faa05b14794770000b5e0031faa18dbf197e00317aae1031faa96d70294081ca04e760000b5e0031faa11dbf197fc7501d0c80240f99cdb46f9093d4279810340f9690100b40b5940f9ea031faa6b2100916c815ff89f0101eb200100544a0500915f0109eb6b41009143ffff54e2031f32e00316aa4415f19705000014690140b9290900110851298b00a10491080440a9e00316aa00013fd6f80300aa580000b5f3daf197e00318aae1031faa86dbfe97091ca04e760000b5e0031faaecdaf197c80240f9810340f9093d4279690100b40b5940f9ea031faa6b2100916c815ff89f0101eb200100544a0500915f0109eb6b41009143ffff54e2031f32e00316aa2115f19705000014690140b9290900110851298b00a10491080440a9e00316aa0809291e00013fd6f80300aa580000b5cfdaf197e00318aa001da84ee1031faa88e1fe97781a40f9780000b5e0031faac7daf197e00318aae1031faa"
+            ),
+            "replacement": _cave_b,
+        },
+        {
+            "description": "hook: AIPlayerEngine.UpdateTarget decision/score telemetry probe hook (KF_AI_ROLES=1)",
+            "offset": HOOK_UPDATE_TARGET,
+            "expected": bytes.fromhex("607e00b9"),  # str w0, [x19, #0x7c]
+            "replacement": bytes.fromhex("e757f617"),  # b 0x159d410
+        },
+    ]
+    if os.environ.get("KF_AI_ROLE_TARGETING") == "1":
+        _target_cave_b = generate_ai_role_targeting_cave_bytes()
+        # Pristine bytes at 0x159D6E0 of len 372
+        _target_cave_expected = bytes.fromhex(
+            "f80300aad70000b4e00317aae1031faa50d70294081ca04e09000014e0031faabbdaf197e00317aae1031faa49d70294e0031faa081ca04eb5daf197e00317aae1031faa47d70294011ca04ee203271e001da84ee0031faa42de1694081ca04e291ca14e4a1ca24e780000b5e0031faaa7daf197e00318aa001da84e211da94e421daa4ee1031faa00b04794781a40f9780000b5e0031faa9ddaf197e00318aae1031faa29053994f80300aa570100b4e00317aae1031faa32d70294e00317aae1031faa081ca04e32d70294091ca04e0f000014e0031faa8ddaf197e00317aae1031faa27d70294e0031faa081ca04e87daf197e00317aae1031faa25d70294e0031faa091ca04e81daf197e00317aae1031faa23d70294021ca04e001da84e211da94ee0031faa0ede1694081ca04e291ca14e4a1ca24e780000b5e0031faa73daf197e00318aa001da84e211da94e421daa4ee1031faa57b04794760000b5e0031faa6adaf197c80240f9810340f9093d4279"
+        )
+        assert len(_target_cave_b) == len(_target_cave_expected) == 372
+        AI_ROLES_PATCHES_ARM64.extend([
+            {
+                "description": "cave: AI role Scramble candidate scoring weighting cave (KF_AI_ROLE_TARGETING=1)",
+                "offset": CAVE_TARGETING_START,
+                "expected": _target_cave_expected,
+                "replacement": _target_cave_b,
+            },
+            {
+                "description": "hook: AIPlayerEngine.UpdateTarget candidate score weighting hook (KF_AI_ROLE_TARGETING=1)",
+                "offset": HOOK_UPDATE_TARGET_SCORING,
+                "expected": bytes.fromhex("410340f9"),  # ldr x1, [x26]
+                "replacement": bytes.fromhex("0459f617"),  # b 0x159d6e0
+            },
+        ])
+
+
+if os.environ.get("KF_AI_ROLE_DEPOSIT") == "1":
+    from scripts.re.ai_role_deposit_cave import get_deposit_patches
+    AI_ROLES_PATCHES_ARM64.extend(get_deposit_patches())
 
 # Basic-attack fire rate. The interval between two shots/swings is NOT master data: every XxxAttackAction..cctor builds
 # its static float[] ATTACK_INTERVAL from immediates (WeaponAttackActionBase.SetAttackInterval then divides it by the
@@ -2645,6 +2708,7 @@ NATIVE_PATCHES: dict[str, list[dict[str, object]]] = {
         *DIAG_PATCHES_ARM64,
         *DAMAGE_DIAG_PATCHES_ARM64,
         *RESULT_DIAG_PATCHES_ARM64,
+        *AI_ROLES_PATCHES_ARM64,
     ],
     "armeabi-v7a": [
         {

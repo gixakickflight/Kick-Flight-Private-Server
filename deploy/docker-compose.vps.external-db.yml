@@ -18,6 +18,7 @@ services:
       file: docker-compose.vps.yml
       service: api
     environment:
+      KF_EXPERIMENTAL_AI_ROLES: ${KF_EXPERIMENTAL_AI_ROLES:-1}
       PlayerStore__DatabaseUrl: ${DATABASE_URL:?Set DATABASE_URL to a postgres:// URL in the root .env}
       PlayerStore__ConnectionString: ""
       # Oldest client allowed to play (forced-update gate). Seeds the gate after every redeploy; change it with

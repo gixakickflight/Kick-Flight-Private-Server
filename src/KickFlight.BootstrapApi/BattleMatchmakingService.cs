@@ -32,6 +32,12 @@ public sealed class BattleMatchmakingService
         _maintenance = maintenance;
         _scrambleBotDecks = ScrambleBotDeckCatalog.Load(
             environment?.ContentRootPath ?? Directory.GetCurrentDirectory(), logger);
+        if (ExperimentalAiRoleService.IsEnabled && _scrambleBotDecks.Count == 0)
+        {
+            _logger.LogWarning(
+                "Experimental AI roles enabled ({Flag}=1) but Scramble bot deck catalog is unavailable (count=0); falling back to legacy bot AI parameters (experimental roles inactive)",
+                ExperimentalAiRoleService.EnvFlagName);
+        }
     }
 
     // Room lifecycle hooks for the ops telemetry (Ops/OpsTelemetryService). Some are raised while _matchLock is
@@ -1264,7 +1270,7 @@ public sealed class BattleMatchmakingService
         player.PartyId is { Length: > 0 } partyId ? $"party:{partyId}" : $"solo:{player.UserId}";
 
     /// <summary>Final roster, built only when the room's window closes: the humans plus the bots for the free slots.</summary>
-    private MatchingBattleInfo BuildRoster(
+    internal MatchingBattleInfo BuildRoster(
         ActiveBattleRoom room,
         IReadOnlyDictionary<BattleEntrySession, int> humanTeams)
     {
@@ -1291,6 +1297,13 @@ public sealed class BattleMatchmakingService
 
         var useModeAwareComposition = !gym && !TestBotDiscDeckEnabled && _scrambleBotDecks.Count > 0
             && ScrambleBotCompositionSelector.ModeForBattleRuleId(room.BattleRuleId) is not null;
+        if (!useModeAwareComposition && ExperimentalAiRoleService.IsEnabled && !gym && !TestBotDiscDeckEnabled
+            && ScrambleBotCompositionSelector.ModeForBattleRuleId(room.BattleRuleId) is not null && _scrambleBotDecks.Count == 0)
+        {
+            _logger.LogWarning(
+                "Battle {BattleId}: Experimental AI roles enabled ({Flag}=1) but Scramble bot deck catalog is unavailable (count=0); falling back to legacy bot parameter IDs (experimental roles inactive)",
+                room.BattleId, ExperimentalAiRoleService.EnvFlagName);
+        }
         if (useModeAwareComposition)
         {
             var mode = ScrambleBotCompositionSelector.ModeForBattleRuleId(room.BattleRuleId)!.Value;
@@ -1317,7 +1330,11 @@ public sealed class BattleMatchmakingService
                         kickerCostumeId = bot.CostumeRowId,
                         honorId = 6010000,
                         teamType = assignment.TeamType,
-                        kickerAiParameterId = bot.KickerId,
+                        kickerAiParameterId = ExperimentalAiRoleService.ResolveParameterId(
+                            assignment.Profile,
+                            bot.KickerId,
+                            mode,
+                            isGym: false),
                         kickerAiDiscDeckId = assignment.DeckId,
                         languageCode = "es",
                         frameId = 1,
