@@ -359,6 +359,15 @@ def main():
             # =================================================================
             context = browser.new_context(viewport={"width": 1280, "height": 800})
             page = context.new_page()
+            browser_errors = []
+            failed_requests = []
+            def fail_on_browser_error(message):
+                browser_errors.append(message)
+                raise AssertionError("Browser JavaScript error: " + message)
+
+            page.on("pageerror", lambda error: fail_on_browser_error(str(error)))
+            page.on("console", lambda msg: fail_on_browser_error("console.error: " + msg.text) if msg.type == "error" else None)
+            page.on("requestfailed", lambda request: failed_requests.append(f"{request.method} {request.url}: {request.failure}"))
 
             page.goto(f"{BASE_URL}/login")
             page.wait_for_selector("#loginForm")
@@ -391,7 +400,7 @@ def main():
             # Submit login form
             page.click("button[type='submit']")
             page.wait_for_selector("#top h1")
-            page.wait_for_selector("#list li.item", timeout=60000)
+            page.wait_for_selector("#list li.item", timeout=10000)
 
             # =================================================================
             # 2. DISCS TAB: SINGLE-LANGUAGE GUIDANCE & BANNER
@@ -715,6 +724,19 @@ def main():
             # =================================================================
             # 5. MOBILE VIEWPORT (390x844): BOT AI 14 KICKERS & SELECTOR
             # =================================================================
+            login_mobile_ctx = browser.new_context(viewport={"width": 390, "height": 844})
+            login_mobile = login_mobile_ctx.new_page()
+            login_mobile.goto(f"{BASE_URL}/login")
+            login_mobile.wait_for_selector("#loginForm")
+            for lang, slug in (("es", "es"), ("en", "en")):
+                login_mobile.select_option("#langSelect", lang)
+                login_mobile.wait_for_timeout(100)
+                shot = ARTIFACTS_DIR / f"login-{slug}-mobile.png"
+                login_mobile.screenshot(path=str(shot))
+                downscale_image(shot)
+                screenshots[f"login_{slug}_mobile"] = str(shot)
+            login_mobile_ctx.close()
+
             m_ctx = browser.new_context(viewport={"width": 390, "height": 844})
             m_ctx.add_cookies(context.cookies())
             m_page = m_ctx.new_page()
@@ -734,6 +756,29 @@ def main():
                 for right in nav_boxes[i + 1:]:
                     overlaps = left["left"] < right["right"] and right["left"] < left["right"] and left["top"] < right["bottom"] and right["top"] < left["bottom"]
                     assert not overlaps, f"Mobile nav buttons overlap: {left} / {right}"
+
+            # Populated health and single-language disc guidance at the real 390px viewport.
+            for lang, slug in (("es", "es"), ("en", "en")):
+                m_page.select_option("#langSelect", lang)
+                m_page.click("button[data-tab='health']")
+                m_page.wait_for_selector(".mbtns button")
+                m_page.wait_for_selector(".hcard")
+                shot = ARTIFACTS_DIR / f"health-{slug}-mobile.png"
+                m_page.screenshot(path=str(shot))
+                downscale_image(shot)
+                screenshots[f"health_{slug}_mobile"] = str(shot)
+
+                m_page.click("button[data-tab='discs']")
+                m_page.wait_for_selector("#list li.item")
+                m_page.locator("#list li.item").first.click()
+                m_page.wait_for_selector(".disc-guide")
+                shot = ARTIFACTS_DIR / f"discs-{slug}-mobile.png"
+                m_page.screenshot(path=str(shot))
+                downscale_image(shot)
+                screenshots[f"discs_{slug}_mobile"] = str(shot)
+
+            m_page.click("button[data-tab='bot-ai']")
+            m_page.wait_for_selector(".bot-ai-container")
 
             # Spanish Mobile 390
             m_page.select_option("#langSelect", "es")
@@ -790,6 +835,7 @@ def main():
             context.close()
             browser.close()
 
+            assert not failed_requests, "Browser requests failed: " + json.dumps(failed_requests)
             print("All internationalization and Bot AI Playwright tests passed successfully!")
             return screenshots
     finally:

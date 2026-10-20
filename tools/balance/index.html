@@ -1247,7 +1247,6 @@ function renderField(table, row, key, value, fieldGuidance) {
     const helpCopy = isEs ? guidance[3] : guidance[2];
     const valueLabel = isEs ? "Valor" : "Value";
     const heading = el("div", { class: "k" });
-    const friendlyName = isEs ? guidance[1] : guidance[0];
     heading.appendChild(el("span", { class: "friendly-name" }, friendlyName));
     heading.appendChild(el("code", { class: "raw-name" }, key));
     const details = el("details", { class: "field-help" });
@@ -2419,7 +2418,7 @@ function renderHealthPanel(panel) {
   wrap.appendChild(head);
 
   const controls = el("div", { class: "mbtns" });
-  for (const pair of HEALTH_WINDOWS) {
+  for (const pair of getHealthWindows()) {
     const label = pair[0] === "deploy" ? BalanceI18n.t("health.windowDeploy") : (pair[0] === "24h" ? BalanceI18n.t("health.window24h") : BalanceI18n.t("health.window7d"));
     const button = el("button", { type: "button" }, label);
     if ((state.healthWindow || "deploy") === pair[0]) button.className = "on";
@@ -3246,6 +3245,7 @@ function getBotAiDiff() {
 }
 
 function showBotAiReviewModal() {
+  const isEs = BalanceI18n.getLang() === "es";
   const diffs = getBotAiDiff();
   if (diffs.length === 0) return;
 
@@ -3280,9 +3280,9 @@ function showBotAiReviewModal() {
         class: "bot-ai-intent-chip-selected",
         style: "display:inline-flex; align-items:center; gap:6px; font-size:11px; padding:3px 8px; border-radius:4px; background:var(--bg); border:1px solid var(--line); margin-bottom:8px; color:var(--fg2);"
       });
-      intentBox.appendChild(el("span", null, activePreset.icon || "🎯"));
+      intentBox.appendChild(el("span", null, activeRaw.icon || "🎯"));
       intentBox.appendChild(el("span", null, isEs ? "Intención: " : "Intent: "));
-      intentBox.appendChild(el("strong", { style: "color:var(--accent);" }, isEs ? activePreset.title : (activePreset.titleEn || activePreset.title)));
+      intentBox.appendChild(el("strong", { style: "color:var(--accent);" }, isEs ? activeLoc.title : (activeLoc.titleEn || activeLoc.title)));
       card.appendChild(intentBox);
     }
 
