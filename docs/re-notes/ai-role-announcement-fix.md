@@ -28,13 +28,14 @@
 
 ## 3. Implemented Fix
 
-1. **Comment-Masked DOM Traversal (`scripts/update-latest-information.py`):**
-   - Added `mask_comments(text)` which replaces comment contents with spaces to preserve character offsets while preventing regex matches inside comments.
+1. **Comment & Unrendered Block Masked DOM Traversal (`scripts/update-latest-information.py`):**
+   - Added `mask_comments(text)` and `mask_invisible(text)` which mask HTML comments, `<head>`, `<script>`, and `<style>` blocks with spaces to preserve character offsets while preventing unrendered regex matches.
    - Added `strip_articles_from_comments(html)` to sanitize and recover existing persistent state where `v2-11-4` was trapped in comments.
    - Constrained article insertion to `<main>`: finds the first visible `<article>` tag strictly within `<main>` (or following `</h1>`).
-   - Added `get_visible_article_ids(html)` to parse only visible articles outside comments.
+   - Added `get_visible_article_ids(html)` to parse only visible articles outside comments, head, script, and style tags.
 2. **Automated Smoke Assertion (`scripts/deploy-vps-ci.sh`):**
-   - Added post-deployment smoke test asserting that both `/webview/information/index` and `/updates` return HTML whose first visible parsed article is `v2-11-4`, followed by `matchmaking-roles-2026-10-19`, `v2-11-3`, and `v2-11-2`. Fails deployment closed if false-positive or trapped comments occur.
+   - Added post-deployment smoke test asserting that both `/webview/information/index` and `/updates` return HTML whose first visible parsed article is `v2-11-4`, followed by `matchmaking-roles-2026-10-19`, `v2-11-3`, and `v2-11-2`.
+   - Deployment smoke test strictly ignores HTML comments, `<head>`, `<script>`, and `<style>` tags to inspect visible DOM only. Fails deployment closed if false-positive or trapped comments occur.
 
 ## 4. Verification
 

@@ -430,6 +430,9 @@ for path in ("/webview/information/index", "/updates"):
         html = resp.read().decode("utf-8")
 
     masked = re.sub(r'<!--[\s\S]*?-->', lambda m: ' ' * len(m.group(0)), html)
+    masked = re.sub(r'<head\b[^>]*>[\s\S]*?</head>', lambda m: ' ' * len(m.group(0)), masked, flags=re.IGNORECASE)
+    masked = re.sub(r'<script\b[^>]*>[\s\S]*?</script>', lambda m: ' ' * len(m.group(0)), masked, flags=re.IGNORECASE)
+    masked = re.sub(r'<style\b[^>]*>[\s\S]*?</style>', lambda m: ' ' * len(m.group(0)), masked, flags=re.IGNORECASE)
     visible_articles = re.findall(r'<article[^>]*\bid=["\']([^"\']+)["\']', masked)
     expected_articles = ["v2-11-4", "matchmaking-roles-2026-10-19", "v2-11-3", "v2-11-2"]
     if not visible_articles or visible_articles[:4] != expected_articles:

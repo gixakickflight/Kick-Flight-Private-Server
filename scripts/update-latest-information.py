@@ -43,6 +43,15 @@ def mask_comments(text: str) -> str:
     return re.sub(r'<!--[\s\S]*?-->', lambda m: ' ' * len(m.group(0)), text)
 
 
+def mask_invisible(text: str) -> str:
+    """Mask HTML comments, <head>, <script>, and <style> tags with spaces to preserve indices while ignoring unrendered tags."""
+    masked = mask_comments(text)
+    masked = re.sub(r'<head\b[^>]*>[\s\S]*?</head>', lambda m: ' ' * len(m.group(0)), masked, flags=re.IGNORECASE)
+    masked = re.sub(r'<script\b[^>]*>[\s\S]*?</script>', lambda m: ' ' * len(m.group(0)), masked, flags=re.IGNORECASE)
+    masked = re.sub(r'<style\b[^>]*>[\s\S]*?</style>', lambda m: ' ' * len(m.group(0)), masked, flags=re.IGNORECASE)
+    return masked
+
+
 def strip_articles_from_comments(html: str) -> str:
     """Remove any article blocks mistakenly injected into HTML comments."""
     def clean_comment(match: re.Match) -> str:
@@ -66,8 +75,8 @@ def extract_article(source_html: str, article_id: str) -> str:
 
 
 def get_visible_article_ids(html: str) -> list[str]:
-    """Extract IDs of articles that are rendered outside HTML comments."""
-    masked = mask_comments(html)
+    """Extract IDs of articles that are rendered in visible DOM outside comments, head, script, and style."""
+    masked = mask_invisible(html)
     return re.findall(r'<article[^>]*\bid=["\']([^"\']+)["\']', masked)
 
 
@@ -112,8 +121,8 @@ def insert_article_into_html(html: str, article_block: str, article_id: str) -> 
     # 2. Remove article_id if already present elsewhere in body so it is moved to top
     cleaned_html = remove_article_by_id(cleaned_html, article_id)
 
-    # 3. Locate insertion position inside <main> using comment-masked HTML
-    masked = mask_comments(cleaned_html)
+    # 3. Locate insertion position inside <main> using comment/head-masked HTML
+    masked = mask_invisible(cleaned_html)
     main_match = re.search(r'<main\b[^>]*>', masked)
     if main_match:
         after_main = masked[main_match.end():]
