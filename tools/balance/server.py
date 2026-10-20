@@ -154,6 +154,15 @@ LATEST_INFO_MAX_CHARS = 12000
 LATEST_INFO_MAX_HTML_BYTES = 1024 * 1024
 LATEST_INFO_MAX_URL_CHARS = 2048
 
+# Forced Client Update toggle. Reached exactly like the other loopback-only admin routes.
+CLIENT_UPDATE_URL = os.environ.get("KF_BALANCE_CLIENT_UPDATE_URL", "")
+CLIENT_UPDATE_CONTAINER = os.environ.get("KF_BALANCE_CLIENT_UPDATE_CONTAINER", ADMIN_CONTAINER)
+CLIENT_UPDATE_INTERNAL_URL = os.environ.get(
+    "KF_BALANCE_CLIENT_UPDATE_INTERNAL_URL", "http://127.0.0.1:8080/admin/client-update"
+)
+CLIENT_UPDATE_CMD = os.environ.get("KF_BALANCE_CLIENT_UPDATE_CMD", "")
+CLIENT_UPDATE_SET_CMD = os.environ.get("KF_BALANCE_CLIENT_UPDATE_SET_CMD", "")
+
 # Health tab: the game API's read-only /admin/ops/* telemetry endpoints.  Reached exactly like the other
 # loopback-only admin routes (docker exec curl inside the API container by default), with the same escape
 # hatches.  KF_BALANCE_OPS_CMD, when set, must contain "{url}" (the shell-quoted absolute URL).
@@ -858,6 +867,29 @@ def latest_information_set(payload):
     )
 
 
+def client_update_state():
+    """(status, payload) of GET /admin/client-update."""
+    if CLIENT_UPDATE_URL:
+        return _http_admin("GET", CLIENT_UPDATE_URL, None)
+    if CLIENT_UPDATE_CMD:
+        return _run_admin(CLIENT_UPDATE_CMD, None)
+    return _run_admin(["docker", "exec", CLIENT_UPDATE_CONTAINER, "curl", "-sS", CLIENT_UPDATE_INTERNAL_URL], None)
+
+
+def client_update_set(payload):
+    """(status, payload) of POST /admin/client-update with the given JSON body."""
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    if CLIENT_UPDATE_URL:
+        return _http_admin("POST", CLIENT_UPDATE_URL, body)
+    if CLIENT_UPDATE_SET_CMD:
+        return _run_admin(CLIENT_UPDATE_SET_CMD, body)
+    return _run_admin(
+        ["docker", "exec", "-i", CLIENT_UPDATE_CONTAINER, "curl", "-sS", "-X", "POST",
+         CLIENT_UPDATE_INTERNAL_URL, "-H", "Content-Type: application/json", "-d", "@-"],
+        body,
+    )
+
+
 def _with_window(url, window):
     if not window:
         return url
@@ -1297,6 +1329,9 @@ class BalanceHandler(BaseHTTPRequestHandler):
         if path == "/api/maintenance":
             self.handle_get_maintenance()
             return
+        if path == "/api/client-update":
+            self.handle_get_client_update()
+            return
         if path == "/api/latest-information":
             self.handle_get_latest_information()
             return
@@ -1354,6 +1389,9 @@ class BalanceHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/maintenance":
             self.handle_post_maintenance()
+            return
+        if path == "/api/client-update":
+            self.handle_post_client_update()
             return
         if path == "/api/latest-information":
             self.handle_post_latest_information()
@@ -1569,6 +1607,71 @@ class BalanceHandler(BaseHTTPRequestHandler):
                 "ok": False,
                 "error": "empty response from the admin endpoint (is the API's loopback reachable "
                          "from where this tool runs?)",
+            }
+        self.send_json(status, result)
+
+    def handle_get_client_update(self):
+        status, payload = client_update_state()
+        if status == 200 and payload is None:
+            status, payload = 502, {
+                "ok": False,
+                "error": "empty response from the client-update admin endpoint (is the API's loopback reachable?)",
+            }
+        self.send_json(status, payload)
+
+    def handle_post_client_update(self):
+        body, error = self.read_body()
+        if error is not None:
+            self.send_error_json(error[0], error[1])
+            return
+        try:
+            payload = json.loads(body.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError) as decode_error:
+            self.send_error_json(400, "body is not valid JSON: %s" % decode_error)
+            return
+        if not isinstance(payload, dict):
+            self.send_error_json(400, "body must be a JSON object")
+            return
+
+        forward = {}
+        if "resetToDefault" in payload:
+            if not isinstance(payload["resetToDefault"], bool):
+                self.send_error_json(400, "resetToDefault must be a boolean")
+                return
+            forward["resetToDefault"] = payload["resetToDefault"]
+        if "enabled" in payload:
+            if not isinstance(payload["enabled"], bool):
+                self.send_error_json(400, "enabled must be a boolean")
+                return
+            forward["enabled"] = payload["enabled"]
+        if "minimumVersion" in payload:
+            if not isinstance(payload["minimumVersion"], str):
+                self.send_error_json(400, "minimumVersion must be a string")
+                return
+            min_ver = payload["minimumVersion"].strip()
+            if min_ver and not re.match(r"^\d+(\.\d+)*(-[A-Za-z0-9_.-]+)?$", min_ver):
+                self.send_error_json(400, "minimumVersion must be a dotted version such as 2.11.4")
+                return
+            forward["minimumVersion"] = min_ver
+        if "iosMinimumVersion" in payload:
+            if not isinstance(payload["iosMinimumVersion"], str):
+                self.send_error_json(400, "iosMinimumVersion must be a string")
+                return
+            ios_ver = payload["iosMinimumVersion"].strip()
+            if ios_ver and not re.match(r"^\d+(\.\d+)*(-[A-Za-z0-9_.-]+)?$", ios_ver):
+                self.send_error_json(400, "iosMinimumVersion must be a dotted version such as 2.11.3")
+                return
+            forward["iosMinimumVersion"] = ios_ver
+
+        if not forward:
+            self.send_error_json(400, "body must contain enabled, minimumVersion, iosMinimumVersion, or resetToDefault")
+            return
+
+        status, result = client_update_set(forward)
+        if status == 200 and result is None:
+            status, result = 502, {
+                "ok": False,
+                "error": "empty response from the client-update admin endpoint",
             }
         self.send_json(status, result)
 

@@ -97,6 +97,9 @@ class MockAdmin(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
+        if self.path == "/admin/client-update":
+            self.send_json(200, dict(MockAdmin.client_update))
+            return
         if self.path.startswith("/admin/ops/"):
             self.handle_ops()
             return
@@ -134,6 +137,15 @@ class MockAdmin(BaseHTTPRequestHandler):
     def do_POST(self):
         length = int(self.headers.get("Content-Length", "0"))
         payload = json.loads(self.rfile.read(length) or b"{}")
+        if self.path == "/admin/client-update":
+            if payload.get("resetToDefault"):
+                MockAdmin.client_update.update({"enabled": True, "minimumVersion": "2.11.4",
+                                                "iosMinimumVersion": "", "isManualOverride": False})
+            else:
+                MockAdmin.client_update.update(payload)
+                MockAdmin.client_update["isManualOverride"] = True
+            self.send_json(200, dict(MockAdmin.client_update))
+            return
         if self.path == "/admin/latest-information":
             mode = payload.get("mode", "text")
             MockAdmin.latest_information.update(payload)
@@ -151,6 +163,9 @@ class MockAdmin(BaseHTTPRequestHandler):
 MockAdmin.latest_information = {"content": "Default news", "defaultContent": "Default news",
                                "mode": "text", "htmlContent": "", "externalUrl": "",
                                "changedAtUtc": "2026-10-05T00:00:00Z"}
+MockAdmin.client_update = {"enabled": True, "minimumVersion": "2.11.4", "iosMinimumVersion": "",
+                           "isManualOverride": False, "defaultMinimumVersion": "2.11.4",
+                           "defaultIosMinimumVersion": ""}
 
 # Canned /admin/ops/* telemetry; MockAdmin.ops_calls records (path, window) so the proxy can be checked.
 MockAdmin.ops_calls = []
@@ -285,6 +300,7 @@ def main():
         "KF_BALANCE_BASE_PATH": BASE_PATH,
         "KF_BALANCE_ALLOWED_ORIGINS": "https://balance.test",
         "KF_BALANCE_ADMIN_URL": "http://127.0.0.1:%d/admin/maintenance" % ADMIN_PORT,
+        "KF_BALANCE_CLIENT_UPDATE_URL": "http://127.0.0.1:%d/admin/client-update" % ADMIN_PORT,
         "KF_BALANCE_LATEST_INFO_URL": "http://127.0.0.1:%d/admin/latest-information" % ADMIN_PORT,
         "KF_BALANCE_OPS_URL": "http://127.0.0.1:%d/admin/ops" % ADMIN_PORT,
         "KF_BALANCE_ALLOWED_HOSTS": "balance.test",
@@ -337,6 +353,8 @@ def main():
               status == 308 and redirect_headers.get("Location") == BASE_PATH + "/")
         status, _ = request("/api/discs", auth=False)
         check("GET without a session is 401", status == 401, "got %s" % status)
+        status, _ = request("/api/client-update", auth=False)
+        check("client update controls require dashboard authentication", status == 401, "got %s" % status)
         page_req = urllib.request.Request("http://127.0.0.1:%d%s/" % (PORT, BASE_PATH))
         try:
             opener = urllib.request.build_opener(NoRedirect)
@@ -455,6 +473,9 @@ def main():
         status, _ = request("/api/maintenance", "POST", {"mode": "off"},
                             headers={"Origin": "https://evil.example"})
         check("foreign HTTPS Origin -> 403", status == 403, "got %s" % status)
+        status, _ = request("/api/client-update", "POST", {"enabled": False},
+                            headers={"Content-Type": "text/plain"})
+        check("client update toggle also rejects simple CSRF POST", status == 415, "got %s" % status)
         status, _ = request("/api/discs")
         check("legit request -> 200", status == 200, "got %s" % status)
         status, _ = request("/api/discs", headers={
@@ -661,6 +682,25 @@ def main():
               status == 200 and state.get("mode") == "hard", "status %s %s" % (status, state))
         status, _ = request("/api/maintenance", "POST", {"mode": "bogus"})
         check("invalid maintenance mode is rejected", status == 400, "status %s" % status)
+
+        # -- forced client update control ---------------------------------------
+        status, update = request("/api/client-update")
+        check("GET /api/client-update proxies current platform gate",
+              status == 200 and update.get("enabled") is True and update.get("minimumVersion") == "2.11.4",
+              "status %s %s" % (status, update))
+        status, update = request("/api/client-update", "POST", {
+            "enabled": False, "minimumVersion": "2.11.3", "iosMinimumVersion": "2.11.2"})
+        check("authenticated update settings preserve independent platform values",
+              status == 200 and update.get("enabled") is False and update.get("minimumVersion") == "2.11.3"
+              and update.get("iosMinimumVersion") == "2.11.2", "status %s %s" % (status, update))
+        status, _ = request("/api/client-update", "POST", {"enabled": "no"})
+        check("client update rejects non-boolean switch", status == 400, "status %s" % status)
+        status, _ = request("/api/client-update", "POST", {"iosMinimumVersion": "2.bad"})
+        check("client update rejects malformed iOS minimum", status == 400, "status %s" % status)
+        status, update = request("/api/client-update", "POST", {"resetToDefault": True})
+        check("client update can restore deployment defaults",
+              status == 200 and update.get("enabled") is True and update.get("minimumVersion") == "2.11.4"
+              and update.get("isManualOverride") is False, "status %s %s" % (status, update))
 
         # -- Latest Information -------------------------------------------------
         status, news = request("/api/latest-information")
