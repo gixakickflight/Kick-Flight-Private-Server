@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import os
 import json
+import socket
 import struct
 import sys
 from pathlib import Path
@@ -2856,6 +2857,31 @@ def normalize_base_url(value: str) -> tuple[str, str]:
     return f"http://{authority}", authority
 
 
+def validate_endpoint_host(host: str, port: int = 80) -> None:
+    """Validate that host resolves via DNS / socket.getaddrinfo (prevents NXDOMAIN builds)."""
+    try:
+        socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
+    except socket.gaierror as e:
+        raise ValueError(
+            f"Endpoint preflight check failed: configured host '{host}' cannot be resolved via DNS ({e}). "
+            "Verify network reachability or correct SERVER_BASE_URL/KF_PHOTON_HOST."
+        ) from e
+
+
+def validate_endpoint_preflight(base_url: str, photon_host: str | None = None, skip_dns_check: bool = False) -> tuple[str, str, str]:
+    """Validate base_url, authority, photon_host, and host resolution preflight."""
+    norm_url, authority = normalize_base_url(base_url)
+    parsed = urlsplit(norm_url)
+    api_host = parsed.hostname or ""
+    resolved_photon_host = photon_host or (api_host if api_host else "10.0.2.2")
+    if not skip_dns_check:
+        port = parsed.port or 80
+        validate_endpoint_host(api_host, port)
+        if resolved_photon_host != api_host:
+            validate_endpoint_host(resolved_photon_host, 5055)
+    return norm_url, authority, resolved_photon_host
+
+
 def patch_metadata(path: Path, base_url: str, authority: str, photon_host: str | None = None) -> list[dict[str, object]]:
     data = bytearray(path.read_bytes())
     sanity, version = struct.unpack_from("<II", data, 0)
@@ -3050,6 +3076,8 @@ def main() -> int:
     parser.add_argument("--base-url", required=False)
     parser.add_argument("--photon-host", required=False, default=os.environ.get("KF_PHOTON_HOST") or None,
                         help="host for the Photon NameServer literal (default: the --base-url host; env KF_PHOTON_HOST)")
+    parser.add_argument("--skip-preflight", action="store_true",
+                        help="Skip DNS/host resolution preflight check")
     parser.add_argument("dry_run_target", nargs="?", type=Path, help="Target .so file for dry-run")
     args = parser.parse_args()
 
@@ -3065,7 +3093,10 @@ def main() -> int:
     if not (args.metadata and args.arm64 and args.armv7 and args.base_url):
         parser.error("the following arguments are required: --metadata, --arm64, --armv7, --base-url")
 
-    base_url, authority = normalize_base_url(args.base_url)
+    skip_preflight = args.skip_preflight or os.environ.get("KF_SKIP_PREFLIGHT") == "1"
+    base_url, authority, resolved_photon_host = validate_endpoint_preflight(
+        args.base_url, args.photon_host, skip_dns_check=skip_preflight
+    )
     native_reports = [
         *patch_native(args.arm64, "arm64-v8a"),
         *patch_native(args.armv7, "armeabi-v7a"),
@@ -3075,8 +3106,8 @@ def main() -> int:
 
     report = {
         "baseUrl": base_url,
-        "photonHost": args.photon_host,
-        "metadata": patch_metadata(args.metadata, base_url, authority, args.photon_host),
+        "photonHost": resolved_photon_host,
+        "metadata": patch_metadata(args.metadata, base_url, authority, resolved_photon_host),
         "native": native_reports,
     }
     print(json.dumps(report, indent=2))

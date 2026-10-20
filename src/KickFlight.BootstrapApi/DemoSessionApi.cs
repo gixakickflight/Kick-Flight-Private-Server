@@ -1686,15 +1686,24 @@ public sealed partial class DemoSessionApi : IDisposable
     /// </summary>
     private IResult? TryHandleForcedUpdate(HttpContext context, string path)
     {
-        var clientVersion = context.Request.Headers["x-app-application-version"].ToString();
-        if (!_clientUpdate.IsOutdated(clientVersion)) return null;
+        // /auth/prepare carries no x-app-application-version; /auth/index right after it carries the header and enforces the gate.
+        if (path == "/auth/prepare") return null;
 
-        _logger.LogInformation("Client update: refused {Path} from version {Version}", path,
+        var isIos = IsIosClient(context.Request);
+        var clientVersion = context.Request.Headers["x-app-application-version"].ToString();
+        if (!_clientUpdate.IsOutdated(clientVersion, isIos)) return null;
+
+        _logger.LogInformation("Client update: refused {Path} from {Platform} version {Version}", path,
+            isIos ? "iOS" : "Android",
             string.IsNullOrWhiteSpace(clientVersion) ? "(missing)" : clientVersion);
         context.Response.Headers["x-app-status-code"] = "1";
         return Results.Text(_clientUpdate.BuildForcedUpdateJson(), "application/json", Encoding.UTF8,
             StatusCodes.Status200OK);
     }
+
+    internal static bool IsIosClient(HttpRequest request) =>
+        (int.TryParse(request.Headers["x-app-asset-platform"], NumberStyles.Integer, CultureInfo.InvariantCulture, out var assetPlatform) && assetPlatform == 2) ||
+        string.Equals(request.Headers["x-app-platform"].ToString(), "iOS", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Hard maintenance: every POST answers HTTP 503 with a plaintext {"error":{"code":"1000",...}} body, which the

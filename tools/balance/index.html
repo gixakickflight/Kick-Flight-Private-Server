@@ -264,7 +264,6 @@
   #healthStatus .line.ok { color: var(--ok); }
   #healthStatus .line.err { color: var(--err); }
   #healthStatus .line.info { color: var(--fg2); }
-
   /* ---------------- Bot AI Editor Styles ---------------- */
   .bot-ai-container { max-width: 880px; margin: 0 auto; padding: 10px 12px 110px; }
 
@@ -517,6 +516,24 @@
     .bot-ai-controls-grid { grid-template-columns: 1fr; }
     .bot-ai-action-bar { position: sticky; bottom: 0; border-radius: 0; margin: 16px -10px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.4); }
   }
+  /* Client update panel */
+  .ustate { display: inline-block; padding: 2px 10px; border-radius: 10px; font-weight: 600; border: 1px solid var(--line); }
+  .ustate.enabled { color: var(--ok); border-color: var(--ok); }
+  .ustate.disabled { color: var(--err); border-color: var(--err); }
+  .ustate.override { color: var(--dirty); border-color: var(--dirty); }
+  .ustate.default { color: #60a5fa; border-color: #60a5fa; }
+  .update-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 10px 0; }
+  .update-card { background: var(--bg3); border: 1px solid var(--line); border-radius: 6px; padding: 10px; }
+  .update-card .lbl { font-size: 11px; color: var(--fg2); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .update-card .val { font-size: 15px; font-weight: 600; color: var(--fg); font-family: ui-monospace, Consolas, monospace; }
+  .update-card .sub { font-size: 11px; color: var(--fg2); margin-top: 4px; }
+  .toggle-label { display: flex; align-items: center; gap: 8px; font-weight: 600; margin: 10px 0; cursor: pointer; user-select: none; }
+  .toggle-label input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+  #clientUpdateStatus:empty { display: none; }
+  #clientUpdateStatus .line { font: 11px/1.5 ui-monospace, Consolas, monospace; }
+  #clientUpdateStatus .line.ok { color: var(--ok); }
+  #clientUpdateStatus .line.err { color: var(--err); }
+  #clientUpdateStatus .line.info { color: var(--fg2); }
 </style>
 </head>
 <body>
@@ -537,6 +554,7 @@
       <button type="button" data-tab="latest-information">Latest information</button>
       <button type="button" data-tab="health">Health</button>
       <button type="button" data-tab="maintenance">Maintenance</button>
+      <button type="button" data-tab="client-update">Client update</button>
     </div>
     <div id="filters">
       <input type="text" id="filterText" placeholder="Filter by name or id" autocomplete="off">
@@ -700,6 +718,8 @@ const state = {
   applying: false,
   maintenance: null, /* last /admin/maintenance status snapshot */
   savingMaintenance: false,
+  clientUpdate: null, /* last /admin/client-update status snapshot */
+  savingClientUpdate: false,
   latestInformation: null,
   savingLatestInformation: false,
   botAi: {
@@ -983,8 +1003,9 @@ function renderList() {
       : "Outcomes, client exceptions and a battle drill-down"));
     return;
   }
-  if (state.tab === "maintenance") {
-    list.appendChild(el("li", { class: "count" }, "Server maintenance mode and notice text"));
+  if (state.tab === "maintenance" || state.tab === "client-update") {
+    list.appendChild(el("li", { class: "count" }, state.tab === "maintenance"
+      ? "Server maintenance mode and notice text" : "Forced client update gate by platform"));
     return;
   }
   if (state.tab === "bot-ai") {
@@ -1325,6 +1346,10 @@ function renderPanel() {
   clear(panel);
   if (state.tab === "maintenance") {
     renderMaintenancePanel(panel);
+    return;
+  }
+  if (state.tab === "client-update") {
+    renderClientUpdatePanel(panel);
     return;
   }
   if (state.tab === "latest-information") {
@@ -1904,6 +1929,75 @@ function latestInformationStatus(lines) {
   if (!box) return;
   clear(box);
   for (const line of lines) box.appendChild(el("div", { class: "line " + line[0] }, line[1]));
+}
+
+/* ------------------------------------------------------ client update gate */
+
+async function loadClientUpdate() {
+  try { state.clientUpdate = await fetchJSON("/api/client-update", { cache: "no-store" }); }
+  catch (error) { state.clientUpdate = { error: error.message }; }
+  return state.clientUpdate;
+}
+
+function clientUpdateStatus(lines) {
+  const box = document.getElementById("clientUpdateStatus");
+  if (!box) return;
+  clear(box);
+  for (const line of lines) box.appendChild(el("div", { class: "line " + line[0] }, line[1]));
+}
+
+function renderClientUpdatePanel(panel) {
+  const wrap = el("div", { class: "mpanel" });
+  const head = el("div", { class: "phead" });
+  const box = el("div");
+  box.appendChild(el("h1", null, "Client update"));
+  box.appendChild(el("div", { class: "meta" }, "Control the existing forced-update popup independently for Android and iOS."));
+  head.appendChild(box); wrap.appendChild(head);
+  const current = state.clientUpdate;
+  const section = el("section", { class: "sec" });
+  section.appendChild(el("h2", null, "Current server state"));
+  if (current && current.error) section.appendChild(el("p", { class: "note" }, "Could not read state: " + current.error));
+  else if (current) {
+    const line = el("p", { class: "note" });
+    const effectiveEnabled = current.enabled || current.stateValid === false;
+    line.appendChild(el("span", { class: "ustate " + (current.stateValid === false ? "disabled" : (effectiveEnabled ? "enabled" : "disabled")) },
+      current.stateValid === false ? "FAIL-CLOSED" : (effectiveEnabled ? "ENABLED" : "DISABLED")));
+    line.appendChild(document.createTextNode("  Android " + (current.minimumVersion || "(none)") +
+      "  iOS " + (current.iosMinimumVersion || "(follows Android)") +
+      "  " + (current.isManualOverride ? "manual override" : "deployment defaults")));
+    section.appendChild(line);
+    if (current.stateValid === false) section.appendChild(el("p", { class: "note" },
+      "Persisted update settings are malformed. All clients receive the forced-update response until valid settings are saved or deployment defaults are restored."));
+  }
+  const enabled = el("input", { type: "checkbox" }); enabled.checked = !!(current && (current.enabled || current.stateValid === false));
+  const toggle = el("label", { class: "toggle-label" }); toggle.appendChild(enabled); toggle.appendChild(document.createTextNode("Require a minimum client version"));
+  section.appendChild(toggle);
+  const android = el("input", { type: "text", value: (current && current.minimumVersion) || "", placeholder: "2.11.4", inputmode: "decimal" });
+  const ios = el("input", { type: "text", value: (current && current.iosMinimumVersion) || "", placeholder: "blank follows Android" });
+  for (const pair of [["Android minimum version", android], ["iOS minimum version (blank follows Android)", ios]]) {
+    const field = el("label", { class: "mfield" }); field.appendChild(el("span", { class: "k" }, pair[0])); field.appendChild(pair[1]); section.appendChild(field);
+  }
+  const buttons = el("div", { class: "mbtns" });
+  const save = el("button", { type: "button" }, "Save client update settings"); save.disabled = !!state.savingClientUpdate;
+  save.addEventListener("click", () => saveClientUpdate({ enabled: enabled.checked, minimumVersion: android.value.trim(), iosMinimumVersion: ios.value.trim() }));
+  const reset = el("button", { type: "button" }, "Restore deployment defaults"); reset.disabled = !!state.savingClientUpdate;
+  reset.addEventListener("click", () => saveClientUpdate({ resetToDefault: true }));
+  buttons.appendChild(save); buttons.appendChild(reset); section.appendChild(buttons); wrap.appendChild(section);
+  wrap.appendChild(el("div", { id: "clientUpdateStatus" }));
+  const help = el("section", { class: "sec" }); help.appendChild(el("h2", null, "Release safety"));
+  help.appendChild(el("p", { class: "note" }, "The gate remains at Android 2.11.4 until a signed release passes startup, login, matchmaking, and battle verification. Raising the minimum requires proof for the exact APK: SHA-256, signing certificate, and build flags."));
+  wrap.appendChild(help); panel.appendChild(wrap);
+}
+
+async function saveClientUpdate(payload) {
+  if (state.savingClientUpdate) return;
+  state.savingClientUpdate = true; renderPanel();
+  let line;
+  try {
+    await fetchJSON("/api/client-update", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    await loadClientUpdate(); line = ["ok", "client update settings saved and persisted"];
+  } catch (error) { line = ["err", "failed: " + error.message]; }
+  state.savingClientUpdate = false; renderPanel(); clientUpdateStatus([line]);
 }
 
 /* ---------------------------------------------------------- maintenance */
@@ -3638,8 +3732,9 @@ function wireEvents() {
     button.addEventListener("click", function () {
       state.tab = button.dataset.tab;
       for (const other of tabs) other.classList.toggle("on", other === button);
+      if (state.tab === "client-update") loadClientUpdate().then(renderPanel);
       document.getElementById("filters").style.display =
-        state.tab === "maintenance" || state.tab === "latest-information" || state.tab === "health" || state.tab === "bot-ai" ? "none" : "flex";
+        state.tab === "maintenance" || state.tab === "client-update" || state.tab === "latest-information" || state.tab === "health" || state.tab === "bot-ai" ? "none" : "flex";
       document.getElementById("discFilters").style.display =
         state.tab === "discs" ? "block" : "none";
       const foot = document.getElementById("foot");

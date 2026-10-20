@@ -107,6 +107,9 @@ services:
       # Commit being deployed (scripts/deploy-vps-ci.sh exports it from the workflow's GITHUB_SHA). Every API start
       # records it in the ops telemetry's server_runs table; the Health tab's default window is "this release".
       KF_RELEASE_SHA: ${KF_RELEASE_SHA:-unknown}
+      # Proposed 2.11.5 Android minimum; iOS remains on its separately verified 2.11.3 minimum.
+      ClientUpdate__MinimumVersion: "2.11.5"
+      ClientUpdate__IosMinimumVersion: "2.11.3"
       PlayerStore__ConnectionString: Host=postgres;Port=5432;Database=kickflight;Username=kickflight;Password=${KF_DB_PASSWORD:?Set KF_DB_PASSWORD in the root .env}
       PhotonServer__Enabled: "true"
       # This value is for health checks from the API container. Photon itself advertises KF_PUBLIC_HOST to clients.
