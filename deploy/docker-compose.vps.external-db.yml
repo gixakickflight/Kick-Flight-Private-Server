@@ -23,7 +23,8 @@ services:
       PlayerStore__ConnectionString: ""
       # Oldest client allowed to play (forced-update gate). Seeds the gate after every redeploy; change it with
       # POST /admin/client-update inside the container for a live switch, here to make it stick.
-      ClientUpdate__MinimumVersion: "2.11.1"
+      ClientUpdate__MinimumVersion: "2.11.4"
+      ClientUpdate__IosMinimumVersion: "2.11.3"
     depends_on: !override
       photon:
         condition: service_healthy
