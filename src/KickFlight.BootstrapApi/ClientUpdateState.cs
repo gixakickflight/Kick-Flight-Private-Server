@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace KickFlight.BootstrapApi;
 
-public sealed record ClientUpdateSnapshot(string MinimumVersion, DateTime ChangedAtUtc, string IosMinimumVersion = "");
+public sealed record ClientUpdateSnapshot(string MinimumVersion, DateTime ChangedAtUtc);
 
 /// <summary>
 /// Server-side forced client update switch, driven only by what the API answers (no client change): when a minimum
@@ -25,26 +25,21 @@ public sealed class ClientUpdateState
 
     private readonly ILogger<ClientUpdateState> _logger;
     private readonly object _lock = new();
-    private readonly string _initialMinimumVersion;
-    private readonly string _initialIosMinimumVersion;
     private ClientUpdateSnapshot _current;
 
     public ClientUpdateState(ILogger<ClientUpdateState> logger, IWebHostEnvironment environment, IConfiguration configuration)
         : this(logger, configuration["ClientUpdate:FilePath"] is { Length: > 0 } configured
             ? configured
             : Path.Combine(environment.ContentRootPath, "data", "client-update.json"),
-            configuration["ClientUpdate:MinimumVersion"] ?? configuration["ClientUpdate:AndroidMinimumVersion"],
-            configuration["ClientUpdate:IosMinimumVersion"])
+            configuration["ClientUpdate:MinimumVersion"])
     {
     }
 
-    public ClientUpdateState(ILogger<ClientUpdateState> logger, string filePath, string? initialMinimumVersion = null, string? initialIosMinimumVersion = null)
+    public ClientUpdateState(ILogger<ClientUpdateState> logger, string filePath, string? initialMinimumVersion = null)
     {
         _logger = logger;
         FilePath = Path.GetFullPath(filePath);
-        _initialMinimumVersion = Normalize(initialMinimumVersion);
-        _initialIosMinimumVersion = Normalize(initialIosMinimumVersion);
-        _current = new ClientUpdateSnapshot(_initialMinimumVersion, DateTime.UtcNow, _initialIosMinimumVersion);
+        _current = new ClientUpdateSnapshot(Normalize(initialMinimumVersion), DateTime.UtcNow);
         Load();
     }
 
@@ -57,20 +52,17 @@ public sealed class ClientUpdateState
     }
 
     /// <summary>Sets (or with an empty value clears) the minimum version and persists it.</summary>
-    public ClientUpdateSnapshot Set(string? minimumVersion, string? iosMinimumVersion = null)
+    public ClientUpdateSnapshot Set(string? minimumVersion)
     {
         ClientUpdateSnapshot next;
         lock (_lock)
         {
-            var nextIos = iosMinimumVersion is not null ? Normalize(iosMinimumVersion) : _current.IosMinimumVersion;
-            next = new ClientUpdateSnapshot(Normalize(minimumVersion), DateTime.UtcNow, nextIos);
+            next = new ClientUpdateSnapshot(Normalize(minimumVersion), DateTime.UtcNow);
             _current = next;
             Save(next);
         }
 
-        _logger.LogInformation("Client minimum version {MinimumVersion} (iOS: {IosMinimumVersion})",
-            next.MinimumVersion.Length == 0 ? "cleared" : $"set to {next.MinimumVersion}",
-            next.IosMinimumVersion.Length == 0 ? "default" : next.IosMinimumVersion);
+        _logger.LogInformation("Client minimum version {MinimumVersion}", next.MinimumVersion.Length == 0 ? "cleared" : $"set to {next.MinimumVersion}");
         return next;
     }
 
@@ -78,11 +70,9 @@ public sealed class ClientUpdateState
     /// True when a minimum is configured and the client is older. A missing or unparsable header counts as old, which
     /// is what catches clients too ancient to send it at all.
     /// </summary>
-    public bool IsOutdated(string? clientVersion, bool isIos = false)
+    public bool IsOutdated(string? clientVersion)
     {
-        var minimum = isIos
-            ? (Current.IosMinimumVersion.Length > 0 ? Current.IosMinimumVersion : Current.MinimumVersion)
-            : Current.MinimumVersion;
+        var minimum = Current.MinimumVersion;
         if (minimum.Length == 0) return false;
         if (!TryParseVersion(minimum, out var minimumVersion)) return false;
         return !TryParseVersion(clientVersion, out var parsed) || parsed < minimumVersion;
@@ -120,40 +110,9 @@ public sealed class ClientUpdateState
         {
             var loaded = JsonSerializer.Deserialize<ClientUpdateSnapshot>(File.ReadAllText(FilePath), FileJson);
             if (loaded is null) return;
-            var minVer = loaded.MinimumVersion ?? "";
-            var iosMinVer = loaded.IosMinimumVersion ?? "";
-
-            var upgraded = false;
-            if (TryParseVersion(_initialMinimumVersion, out var configVer) &&
-                TryParseVersion(minVer, out var currentVer) &&
-                configVer > currentVer)
-            {
-                _logger.LogInformation("Upgrading client minimum version from {Current} to {Configured} per deployment configuration",
-                    minVer, _initialMinimumVersion);
-                minVer = _initialMinimumVersion;
-                upgraded = true;
-            }
-            if (TryParseVersion(_initialIosMinimumVersion, out var configIosVer))
-            {
-                if (iosMinVer.Length == 0 || (TryParseVersion(iosMinVer, out var currentIosVer) && configIosVer > currentIosVer))
-                {
-                    _logger.LogInformation("Upgrading iOS client minimum version from {Current} to {Configured} per deployment configuration",
-                        iosMinVer.Length == 0 ? "(empty)" : iosMinVer, _initialIosMinimumVersion);
-                    iosMinVer = _initialIosMinimumVersion;
-                    upgraded = true;
-                }
-            }
-
-            _current = new ClientUpdateSnapshot(minVer, loaded.ChangedAtUtc, iosMinVer);
-            if (upgraded)
-            {
-                Save(_current);
-            }
-
-            _logger.LogInformation("Loaded client minimum version {MinimumVersion} (iOS: {IosMinimumVersion}) from {Path}",
-                _current.MinimumVersion.Length == 0 ? "(off)" : _current.MinimumVersion,
-                _current.IosMinimumVersion.Length == 0 ? "(default)" : _current.IosMinimumVersion,
-                FilePath);
+            _current = loaded with { MinimumVersion = loaded.MinimumVersion ?? "" };
+            _logger.LogInformation("Loaded client minimum version {MinimumVersion} from {Path}",
+                _current.MinimumVersion.Length == 0 ? "(off)" : _current.MinimumVersion, FilePath);
         }
         catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
         {
@@ -197,7 +156,6 @@ public static class ClientUpdateAdmin
         if (!MaintenanceAdmin.IsLocalAdmin(context)) return Results.NotFound();
 
         string? minimumVersion = null;
-        string? iosMinimumVersion = null;
         try
         {
             using var document = await JsonDocument.ParseAsync(context.Request.Body);
@@ -210,13 +168,6 @@ public static class ClientUpdateAdmin
             if (property.ValueKind == JsonValueKind.Null) minimumVersion = "";
             else if (property.ValueKind == JsonValueKind.String) minimumVersion = property.GetString();
             else return Results.BadRequest(new { error = "minimumVersion must be a string such as 2.12.0" });
-
-            if (root.TryGetProperty("iosMinimumVersion", out var iosProperty))
-            {
-                if (iosProperty.ValueKind == JsonValueKind.Null) iosMinimumVersion = "";
-                else if (iosProperty.ValueKind == JsonValueKind.String) iosMinimumVersion = iosProperty.GetString();
-                else return Results.BadRequest(new { error = "iosMinimumVersion must be a string such as 2.11.3" });
-            }
         }
         catch (JsonException ex)
         {
@@ -227,18 +178,13 @@ public static class ClientUpdateAdmin
         {
             return Results.BadRequest(new { error = "minimumVersion must be a dotted version such as 2.12.0" });
         }
-        if (iosMinimumVersion is not null && !ClientUpdateState.IsValidMinimumVersion(iosMinimumVersion))
-        {
-            return Results.BadRequest(new { error = "iosMinimumVersion must be a dotted version such as 2.11.3" });
-        }
 
-        return Status(clientUpdate.Set(minimumVersion, iosMinimumVersion));
+        return Status(clientUpdate.Set(minimumVersion));
     }
 
     private static IResult Status(ClientUpdateSnapshot current) => Results.Json(new
     {
         minimumVersion = current.MinimumVersion,
-        iosMinimumVersion = current.IosMinimumVersion,
         changedAtUtc = current.ChangedAtUtc.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture)
     });
 }
