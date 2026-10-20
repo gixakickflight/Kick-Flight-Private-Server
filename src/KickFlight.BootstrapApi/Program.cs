@@ -24,6 +24,7 @@ builder.Services.AddSingleton<MaintenanceState>();
 builder.Services.AddSingleton<ClientUpdateState>();
 builder.Services.AddSingleton<LatestInformationState>();
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<IBotAiProfileProvider, BotAiProfileProvider>();
 builder.Services.AddSingleton<BattleMatchmakingService>();
 builder.Services.AddSingleton<BattleReplayService>();
 builder.Services.AddSingleton<OpenMatchFrontendService>();
@@ -66,6 +67,7 @@ app.Services.GetRequiredService<MaintenanceState>();
 // Loads data/client-update.json now, so a restart keeps the forced-update minimum from the first request.
 app.Services.GetRequiredService<ClientUpdateState>();
 app.Services.GetRequiredService<LatestInformationState>();
+ExperimentalAiRoleService.CurrentProvider = app.Services.GetRequiredService<IBotAiProfileProvider>();
 // Loads every master now (rather than on the first player request) so the one-line "master overrides"
 // startup summary - and any missing config - is reported while the server boots.
 var demoSessionApi = app.Services.GetRequiredService<DemoSessionApi>();

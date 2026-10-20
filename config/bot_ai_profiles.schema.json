@@ -1,0 +1,202 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BotAiConfigurationRoot",
+  "description": "Schema for server-managed hot-reloadable bot AI profiles in KickFlight.BootstrapApi",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "profiles"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "profiles": {
+      "type": "array",
+      "minItems": 39,
+      "maxItems": 39,
+      "items": {
+        "$ref": "#/definitions/BotAiProfile"
+      }
+    }
+  },
+  "definitions": {
+    "BotAiMotivations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attack",
+        "defense",
+        "score"
+      ],
+      "properties": {
+        "attack": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "defense": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "BotAiDashIntervals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attack",
+        "defense",
+        "score"
+      ],
+      "properties": {
+        "attack": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "defense": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "score": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "BotAiSkillIntervals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attack",
+        "heal",
+        "buff",
+        "trap",
+        "warp"
+      ],
+      "properties": {
+        "attack": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "heal": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "buff": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "trap": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "warp": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "BotAiProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile",
+        "mode",
+        "parameterId",
+        "kickerId",
+        "kickerCostumeId",
+        "rank",
+        "motivations",
+        "scoreToDeposit",
+        "lowHpDepositThreshold",
+        "dashIntervals",
+        "skillIntervals",
+        "healDamageRate",
+        "canLockon"
+      ],
+      "properties": {
+        "profile": {
+          "type": "string",
+          "enum": [
+            "carrier",
+            "tank_defender",
+            "hunter",
+            "objective_attacker",
+            "healer",
+            "speed_support",
+            "damage_support",
+            "trap_defender",
+            "Yuyan",
+            "Owlbert",
+            "Ruriha",
+            "Grenhawk",
+            "Sid"
+          ]
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "CrystalScramble",
+            "FlagFlight",
+            "RapidBall"
+          ]
+        },
+        "parameterId": {
+          "type": "integer",
+          "minimum": 15,
+          "maximum": 53
+        },
+        "kickerId": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 14
+        },
+        "kickerCostumeId": {
+          "type": "integer"
+        },
+        "rank": {
+          "type": "integer",
+          "const": 13
+        },
+        "motivations": {
+          "$ref": "#/definitions/BotAiMotivations"
+        },
+        "scoreToDeposit": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "lowHpDepositThreshold": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "dashIntervals": {
+          "$ref": "#/definitions/BotAiDashIntervals"
+        },
+        "skillIntervals": {
+          "$ref": "#/definitions/BotAiSkillIntervals"
+        },
+        "healDamageRate": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "canLockon": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
