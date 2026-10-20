@@ -42,3 +42,8 @@
   - `test_exact_observed_state_comment_pollution_recovery`: exercises exact observed production snapshot; proves naive regex false positive vs visible parser; verifies recovery, comment sanitization, and visible placement ahead of all 3 old articles.
   - `test_fresh_template_with_instruction_comment_inserts_in_main`: verifies fresh template insertion ignores instruction comment.
   - Idempotency verified: re-running on updated state performs no modifications and preserves exact article order.
+
+## 5. Pull Request
+
+- **PR #47:** https://github.com/gixakickflight/Kick-Flight-Private-Server/pull/47
+
