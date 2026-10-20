@@ -305,6 +305,160 @@ class TestUpdateLatestInformation(unittest.TestCase):
         self.assertIn("location = /updates {", nginx_conf)
         self.assertIn("location = /updates.html { return 301 /updates; }", nginx_conf)
 
+    def test_exact_observed_state_comment_pollution_recovery(self) -> None:
+        """Reproduce exact live production corruption where v2-11-4 was trapped in an HTML comment."""
+        corrupted_html = """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Kick Flight Updates</title>
+  <!--
+    Patch notes page. The live copy is the Latest Information HTML page (balance WebUI -> Latest information ->
+    Content source "HTML page"); it is shown in-game and at https://kick-flight-fenix.us.ci/updates. This file is
+    only the starting template. To add a patch: copy one <article class="patch" id="v2-11-4">
+      <div class="patch-head"><h2>Patch 2.11.4</h2><time datetime="2026-10-19">2026-10-19</time></div>
+      <p class="headline">Experimental Scramble AI update. Requires new client APK.</p>
+      <h3>Scramble Mode &amp; AI Roles</h3>
+      <ul>
+        <li>Introduced experimental Scramble role targeting.</li>
+        <li>Introduced low HP carrier deposit threshold.</li>
+        <li>Standalone announcement and details: <a href="/updates-2.11.4.html">Release 2.11.4 Announcement</a>.</li>
+      </ul>
+    </article>
+
+    <article class="patch"> block to the top of <main>.
+    Links and images are absolute because the same page also opens inside the game's WebView.
+  -->
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="home-link" href="https://kick-flight-fenix.us.ci/">Download</a>
+    </div>
+  </header>
+  <main class="wrap">
+    <h1>Updates</h1>
+
+    <article class="patch" id="matchmaking-roles-2026-10-19">
+      <div class="patch-head"><h2>New matchmaking and more bot variety</h2><time datetime="2026-10-19">2026-10-19</time></div>
+      <p class="headline">Better team composition.</p>
+    </article>
+
+    <article class="patch" id="v2-11-3">
+      <div class="patch-head"><h2>Patch 2.11.3</h2><time datetime="2026-10-11">2026-10-11</time></div>
+      <p class="headline">Stability update.</p>
+    </article>
+
+    <article class="patch" id="v2-11-2">
+      <div class="patch-head"><h2>Patch 2.11.2</h2><time datetime="2026-10-10">2026-10-10</time></div>
+      <p class="headline">Replays are back!</p>
+    </article>
+  </main>
+</body>
+</html>"""
+
+        snapshot = dict(SAMPLE_LIVE_SNAPSHOT)
+        snapshot["htmlContent"] = corrupted_html
+        self.state_file.write_text(json.dumps(snapshot, indent=2), encoding="utf-8")
+
+        # 1. Verify why previous claims were wrong (naive regex matches comment text)
+        naive_ids = re.findall(r'<article[^>]*\bid=["\']([^"\']+)["\']', corrupted_html)
+        self.assertEqual(naive_ids, ["v2-11-4", "matchmaking-roles-2026-10-19", "v2-11-3", "v2-11-2"])
+
+        # But visible articles outside comments show matchmaking first!
+        pre_visible_ids = uli.get_visible_article_ids(corrupted_html)
+        self.assertEqual(pre_visible_ids, ["matchmaking-roles-2026-10-19", "v2-11-3", "v2-11-2"])
+
+        # 2. Run fix
+        result = uli.update_latest_information(
+            state_file=self.state_file,
+            source_docs=self.source_docs,
+            article_id="v2-11-4",
+            backup_dir=self.backup_dir,
+            record_backup_path=self.record_backup,
+        )
+        self.assertTrue(result)
+
+        # 3. Verify resulting visible articles and order
+        updated_data = json.loads(self.state_file.read_text(encoding="utf-8"))
+        updated_html = updated_data["htmlContent"]
+        post_visible_ids = uli.get_visible_article_ids(updated_html)
+        self.assertEqual(
+            post_visible_ids,
+            ["v2-11-4", "matchmaking-roles-2026-10-19", "v2-11-3", "v2-11-2"]
+        )
+
+        # 4. Verify comment has been sanitized (no article tags inside comment)
+        comment_match = re.search(r'<!--([\s\S]*?)-->', updated_html)
+        self.assertIsNotNone(comment_match)
+        self.assertNotIn("id=\"v2-11-4\"", comment_match.group(1))
+        self.assertNotIn("<article class=\"patch\" id=", comment_match.group(1))
+
+        # 5. Verify v2-11-4 is inside <main> and precedes matchmaking-roles
+        main_match = re.search(r'<main\b[^>]*>([\s\S]*?)</main>', updated_html)
+        self.assertIsNotNone(main_match)
+        main_content = main_match.group(1)
+        v2114_pos = main_content.find('id="v2-11-4"')
+        matchmaking_pos = main_content.find('id="matchmaking-roles-2026-10-19"')
+        self.assertGreater(v2114_pos, 0)
+        self.assertGreater(matchmaking_pos, v2114_pos)
+
+        # 6. Verify idempotency on second run
+        second_result = uli.update_latest_information(
+            state_file=self.state_file,
+            source_docs=self.source_docs,
+            article_id="v2-11-4",
+            backup_dir=self.backup_dir,
+            record_backup_path=self.record_backup,
+        )
+        self.assertFalse(second_result)
+        after_second_data = json.loads(self.state_file.read_text(encoding="utf-8"))
+        self.assertEqual(
+            uli.get_visible_article_ids(after_second_data["htmlContent"]),
+            ["v2-11-4", "matchmaking-roles-2026-10-19", "v2-11-3", "v2-11-2"]
+        )
+
+    def test_fresh_template_with_instruction_comment_inserts_in_main(self) -> None:
+        """Verify inserting into fresh template preserves instruction comment and targets main."""
+        fresh_html = """<!doctype html>
+<html lang="en">
+<head>
+  <title>Kick Flight Updates</title>
+  <!--
+    Patch notes page. The live copy is the Latest Information HTML page.
+    To add a patch: copy one <article class="patch"> block to the top of <main>.
+  -->
+</head>
+<body>
+  <main class="wrap">
+    <h1>Updates</h1>
+    <article class="patch" id="matchmaking-roles-2026-10-19">
+      <div class="patch-head"><h2>Matchmaking</h2></div>
+    </article>
+  </main>
+</body>
+</html>"""
+        snapshot = dict(SAMPLE_LIVE_SNAPSHOT)
+        snapshot["htmlContent"] = fresh_html
+        self.state_file.write_text(json.dumps(snapshot, indent=2), encoding="utf-8")
+
+        result = uli.update_latest_information(
+            state_file=self.state_file,
+            source_docs=self.source_docs,
+            article_id="v2-11-4",
+            backup_dir=self.backup_dir,
+        )
+        self.assertTrue(result)
+
+        updated_data = json.loads(self.state_file.read_text(encoding="utf-8"))
+        updated_html = updated_data["htmlContent"]
+        visible_ids = uli.get_visible_article_ids(updated_html)
+        self.assertEqual(visible_ids, ["v2-11-4", "matchmaking-roles-2026-10-19"])
+
+        # Comment is untouched and preserved
+        self.assertIn("To add a patch: copy one <article class=\"patch\"> block", updated_html)
+        self.assertNotIn("v2-11-4", re.search(r'<!--([\s\S]*?)-->', updated_html).group(1))
+
 
 if __name__ == "__main__":
     unittest.main()

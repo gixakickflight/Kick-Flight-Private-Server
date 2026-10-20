@@ -38,16 +38,42 @@ DEFAULT_CONTENT = (
 )
 
 
+def mask_comments(text: str) -> str:
+    """Mask HTML comments with spaces so indices match original text without matching comments."""
+    return re.sub(r'<!--[\s\S]*?-->', lambda m: ' ' * len(m.group(0)), text)
+
+
+def strip_articles_from_comments(html: str) -> str:
+    """Remove any article blocks mistakenly injected into HTML comments."""
+    def clean_comment(match: re.Match) -> str:
+        return re.sub(r'<article[^>]*>[\s\S]*?</article>\s*\n*\s*', '', match.group(0))
+    return re.sub(r'<!--[\s\S]*?-->', clean_comment, html)
+
+
+def remove_article_by_id(html: str, article_id: str) -> str:
+    """Remove visible or commented article by id if already present elsewhere in document."""
+    pattern = rf'<article[^>]*\bid=["\']{re.escape(article_id)}["\'][\s\S]*?</article>\s*\n*\s*'
+    return re.sub(pattern, '', html)
+
+
 def extract_article(source_html: str, article_id: str) -> str:
+    cleaned_source = strip_articles_from_comments(source_html)
     pattern = rf'(<article[^>]*\bid=["\']{re.escape(article_id)}["\'][\s\S]*?</article>)'
-    match = re.search(pattern, source_html)
+    match = re.search(pattern, cleaned_source)
     if not match:
         raise ValueError(f"Article with id='{article_id}' not found in source HTML")
     return match.group(1)
 
 
+def get_visible_article_ids(html: str) -> list[str]:
+    """Extract IDs of articles that are rendered outside HTML comments."""
+    masked = mask_comments(html)
+    return re.findall(r'<article[^>]*\bid=["\']([^"\']+)["\']', masked)
+
+
 def get_article_ids(html: str) -> list[str]:
-    return re.findall(r'<article[^>]*\bid=["\']([^"\']+)["\']', html)
+    """Alias for backwards compatibility: returns IDs of visible rendered articles."""
+    return get_visible_article_ids(html)
 
 
 def detect_field_casing(data: dict) -> dict[str, str]:
@@ -79,22 +105,35 @@ def create_initial_template(source_html: str, article_id: str) -> dict:
 
 
 def insert_article_into_html(html: str, article_block: str, article_id: str) -> str:
-    """Insert article block before the first <article> tag while preserving all existing articles."""
-    first_article = re.search(r'<article\b', html)
-    if not first_article:
-        # Fallback to inserting after <h1>Updates</h1> or opening <main>
-        main_match = re.search(r'(<main[^>]*>[\s\S]*?</h1>\s*)', html)
-        if main_match:
-            insert_pos = main_match.end()
-            new_html = html[:insert_pos] + "\n    " + article_block + "\n" + html[insert_pos:]
-        else:
-            raise ValueError("HTML content has neither <article> nor <main> element for insertion")
-    else:
-        insert_pos = first_article.start()
-        new_html = html[:insert_pos] + article_block + "\n\n    " + html[insert_pos:]
+    """Insert article block as the first visible article inside <main> while preserving all existing articles."""
+    # 1. Clean any articles mistakenly placed in comments
+    cleaned_html = strip_articles_from_comments(html)
 
-    old_ids = get_article_ids(html)
-    new_ids = get_article_ids(new_html)
+    # 2. Remove article_id if already present elsewhere in body so it is moved to top
+    cleaned_html = remove_article_by_id(cleaned_html, article_id)
+
+    # 3. Locate insertion position inside <main> using comment-masked HTML
+    masked = mask_comments(cleaned_html)
+    main_match = re.search(r'<main\b[^>]*>', masked)
+    if main_match:
+        after_main = masked[main_match.end():]
+        first_article = re.search(r'<article\b', after_main)
+        if first_article:
+            insert_pos = main_match.end() + first_article.start()
+        else:
+            h1_match = re.search(r'</h1>\s*', after_main)
+            insert_pos = main_match.end() + (h1_match.end() if h1_match else 0)
+    else:
+        first_article = re.search(r'<article\b', masked)
+        if first_article:
+            insert_pos = first_article.start()
+        else:
+            raise ValueError("HTML content has neither <main> nor visible <article> element for insertion")
+
+    new_html = cleaned_html[:insert_pos] + article_block + "\n\n    " + cleaned_html[insert_pos:]
+
+    old_ids = get_visible_article_ids(cleaned_html)
+    new_ids = get_visible_article_ids(new_html)
     expected_ids = [article_id] + old_ids
     if new_ids != expected_ids:
         raise ValueError(
@@ -166,12 +205,13 @@ def update_latest_information(
             if not isinstance(current_html, str) or not current_html.strip():
                 raise ValueError(f"State file '{html_key}' is missing or empty; fail-closed.")
 
-            current_ids = get_article_ids(current_html)
-            if article_id in current_ids:
-                print(f"Article '{article_id}' is already present in {state_file}. No changes needed (idempotent).")
+            cleaned_html = strip_articles_from_comments(current_html)
+            current_ids = get_visible_article_ids(cleaned_html)
+            if current_ids and current_ids[0] == article_id and cleaned_html == current_html:
+                print(f"Article '{article_id}' is already the first visible article in {state_file}. No changes needed (idempotent).")
                 return False
 
-            # Insert new article
+            # Insert new article (and clean any comment pollution)
             updated_html = insert_article_into_html(current_html, article_block, article_id)
             data[html_key] = updated_html
             data[changed_key] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
