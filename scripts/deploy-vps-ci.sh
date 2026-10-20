@@ -201,6 +201,13 @@ rollback_on_error() {
         --assets-root "$assets_root" --restore-backup "$backup_dir" || true
       cdn_restored=true
     fi
+    if [[ -f "$ci_dir/latest-info-backup" ]]; then
+      latest_backup=$(cat "$ci_dir/latest-info-backup" 2>/dev/null || true)
+      if [[ -n "$latest_backup" && -f "$latest_backup" ]]; then
+        cp -f -- "$latest_backup" "$app_dir/.local/maintenance/latest-information.json" || true
+      fi
+      rm -f -- "$ci_dir/latest-info-backup"
+    fi
     if [[ "$source_sync_started" == true && -n "$previous_release" && -d "$previous_release" ]]; then
       sync_release "$previous_release" || true
       compose_release_sha=${previous_sha:-unknown}
@@ -302,6 +309,20 @@ activated=true
 source_sync_started=true
 sync_release "$release_dir"
 
+# Update persistent Latest Information in-game announcement if docs/updates-page.html exists.
+# Inserts new release articles safely and idempotently into .local/maintenance/latest-information.json,
+# preserving prior announcement history, snapshot fields, and permissions, with pre-write backups.
+if [[ -f "$app_dir/docs/updates-page.html" && -f "$release_dir/scripts/update-latest-information.py" ]]; then
+  ci_info_backup="$ci_dir/latest-info-backup"
+  rm -f -- "$ci_info_backup"
+  python3 "$release_dir/scripts/update-latest-information.py" \
+    --state-file "$app_dir/.local/maintenance/latest-information.json" \
+    --source-docs "$app_dir/docs/updates-page.html" \
+    --article-id "v2-11-4" \
+    --backup-dir "$app_dir/.local/updates-backups" \
+    --record-backup-path "$ci_info_backup"
+fi
+
 compose_from_app config --quiet
 if [[ "$full_deploy" == true ]]; then
   compose_from_app up -d --build
@@ -386,6 +407,14 @@ if [[ "$sync_site" == true ]]; then
   actual_site=$(sha256sum "$smoke_file" | cut -d ' ' -f 1)
   rm -f -- "$smoke_file"
   [[ "$actual_site" == "$expected_site" ]] || { echo "served website checksum does not match deploy/site/index.html" >&2; exit 1; }
+
+  if [[ -f "$app_dir/deploy/site/updates-2.11.4.html" ]]; then
+    expected_updates=$(sha256sum "$app_dir/deploy/site/updates-2.11.4.html" | cut -d ' ' -f 1)
+    curl --fail --silent --show-error --max-time 30 "http://127.0.0.1:$http_port/updates-2.11.4.html" -o "$smoke_file"
+    actual_updates=$(sha256sum "$smoke_file" | cut -d ' ' -f 1)
+    rm -f -- "$smoke_file"
+    [[ "$actual_updates" == "$expected_updates" ]] || { echo "served standalone updates checksum does not match deploy/site/updates-2.11.4.html" >&2; exit 1; }
+  fi
 fi
 
 if [[ "$rebuild_farm" == true && -e "$backup_dir" ]]; then
@@ -401,6 +430,7 @@ if [[ "$previous_release" == "$releases_dir/.pre-ci-$release_sha" ]]; then
 fi
 printf '%s\n' "$release_sha" > "$state_file.tmp"
 mv -f -- "$state_file.tmp" "$state_file"
+rm -f -- "$ci_dir/latest-info-backup"
 activated=false
 cleanup_upload
 trap - EXIT ERR

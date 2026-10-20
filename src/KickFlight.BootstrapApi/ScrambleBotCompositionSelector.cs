@@ -14,7 +14,7 @@ internal sealed record ScrambleBotAssignment(
 internal sealed record ScrambleHumanParty(string Key, IReadOnlyList<ScrambleHuman> Humans);
 internal sealed record ScrambleHumanTeamSelection(IReadOnlyDictionary<string, int> PartyTeams, double Score);
 
-internal enum BattleCompositionMode
+public enum BattleCompositionMode
 {
     CrystalScramble,
     FlagFlight,
