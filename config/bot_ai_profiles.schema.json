@@ -19,7 +19,7 @@
     "profiles": {
       "type": "array",
       "minItems": 39,
-      "maxItems": 39,
+      "maxItems": 42,
       "items": {
         "$ref": "#/definitions/BotAiProfile"
       }
@@ -130,6 +130,21 @@
         "profile": {
           "type": "string",
           "enum": [
+            "Tsubame",
+            "Ruriha",
+            "Coco",
+            "Kite",
+            "Owlbert",
+            "Pitophy",
+            "Grenhawk",
+            "Anna",
+            "Jay",
+            "Yuyan",
+            "Diatrius",
+            "Buzzy Big",
+            "BuzzyBig",
+            "Hitagi",
+            "Sid",
             "carrier",
             "tank_defender",
             "hunter",
@@ -137,12 +152,7 @@
             "healer",
             "speed_support",
             "damage_support",
-            "trap_defender",
-            "Yuyan",
-            "Owlbert",
-            "Ruriha",
-            "Grenhawk",
-            "Sid"
+            "trap_defender"
           ]
         },
         "mode": {
@@ -156,7 +166,7 @@
         "parameterId": {
           "type": "integer",
           "minimum": 15,
-          "maximum": 53
+          "maximum": 99
         },
         "kickerId": {
           "type": "integer",

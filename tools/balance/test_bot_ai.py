@@ -49,7 +49,7 @@ def test_validator_pristine_config():
     valid, errors, normalized = balance_server.validate_bot_ai_profiles(data)
     assert valid, f"Expected pristine config to be valid, got errors: {errors}"
     assert normalized is not None
-    assert len(normalized["profiles"]) == 39
+    assert len(normalized["profiles"]) == 42
     assert normalized["version"] == data["version"]
 
 
@@ -444,7 +444,7 @@ def test_http_full_flow(tmp_path):
             assert etag is not None
             data = json.loads(res.read().decode("utf-8"))
             assert data["ok"] is True
-            assert len(data["profiles"]) == 39
+            assert len(data["profiles"]) == 42
             initial_hash = data["hash"]
             assert f'"{initial_hash}"' == etag
 
@@ -495,7 +495,7 @@ def test_http_full_flow(tmp_path):
             assert res.status == 200
             resp_body = json.loads(res.read().decode("utf-8"))
             assert resp_body["ok"] is True
-            assert resp_body["written"] == 39
+            assert resp_body["written"] == 42
             new_hash = resp_body["hash"]
             assert new_hash != initial_hash
 
@@ -749,7 +749,7 @@ def test_default_durable_flow_and_simulated_deploy(tmp_path):
             data = json.loads(res.read().decode("utf-8"))
             assert data["ok"] is True
             assert data.get("source") == "seed"
-            assert len(data["profiles"]) == 39
+            assert len(data["profiles"]) == 42
             seed_hash = data["hash"]
             assert hashlib.sha256(fixture.seed_file.read_bytes()).hexdigest() == seed_hash
 
@@ -848,3 +848,240 @@ def test_default_durable_flow_and_simulated_deploy(tmp_path):
 
     finally:
         fixture.stop()
+
+
+def test_saving_k1_does_not_affect_k8(tmp_path):
+    """Verify that updating Kicker 1 (Tsubame, ID 54) does not affect Kicker 8 (Anna, ID 15) in any mode."""
+    config_path = REPO / "config" / "bot_ai_profiles.json"
+    with config_path.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    # Clone data
+    test_data = copy.deepcopy(data)
+
+    # Find K1 and K8 in CrystalScramble (mode 0)
+    k1_profile = next(p for p in test_data["profiles"] if p["mode"] == "CrystalScramble" and p["kickerId"] == 1)
+    k8_profile = next(p for p in test_data["profiles"] if p["mode"] == "CrystalScramble" and p["kickerId"] == 8)
+
+    assert k1_profile["parameterId"] == 54
+    assert k8_profile["parameterId"] == 15
+    k8_original_attack = k8_profile["motivations"]["attack"]
+    k8_original_score = k8_profile["motivations"]["score"]
+
+    # Modify K1 drastically
+    k1_profile["motivations"]["attack"] = 99
+    k1_profile["motivations"]["score"] = 1
+    k1_profile["dashIntervals"]["attack"] = 0.42
+
+    valid, errors, normalized = balance_server.validate_bot_ai_profiles(test_data)
+    assert valid, f"Validation failed: {errors}"
+    assert normalized is not None
+
+    norm_k1 = next(p for p in normalized["profiles"] if p["mode"] == "CrystalScramble" and p["kickerId"] == 1)
+    norm_k8 = next(p for p in normalized["profiles"] if p["mode"] == "CrystalScramble" and p["kickerId"] == 8)
+
+    assert norm_k1["motivations"]["attack"] == 99
+    assert norm_k1["motivations"]["score"] == 1
+    assert norm_k1["dashIntervals"]["attack"] == 0.42
+
+    # K8 must remain completely untouched
+    assert norm_k8["motivations"]["attack"] == k8_original_attack
+    assert norm_k8["motivations"]["score"] == k8_original_score
+    assert norm_k8["parameterId"] == 15
+    assert norm_k8["kickerId"] == 8
+
+
+def test_all_42_unique_safe_mappings():
+    """Verify all 42 stable parameter IDs are strictly unique, >= 15 and <= 99, never in 1..14, and strictly < 100."""
+    seen_ids = set()
+    for (mode_idx, kicker_id), param_id in balance_server.BOT_AI_STABLE_PARAMETER_IDS.items():
+        assert 0 <= mode_idx <= 2
+        assert 1 <= kicker_id <= 14
+        assert 15 <= param_id <= 99, f"param_id {param_id} outside 15..99"
+        assert not (1 <= param_id <= 14), f"param_id {param_id} overlaps with pristine kicker ID [1..14]"
+        assert param_id < balance_server.BOT_AI_GYM_PARAM_BASE, f"param_id {param_id} violates Gym boundary (>={balance_server.BOT_AI_GYM_PARAM_BASE})"
+        assert param_id not in seen_ids, f"duplicate param_id {param_id}"
+        seen_ids.add(param_id)
+    assert len(seen_ids) == 42
+
+
+def test_v1_to_v2_migration_transparent():
+    """Verify that a legacy 39-profile V1 configuration migrates transparently with exact inherited values."""
+    # Build synthetic 39-profile V1 config
+    v1_profiles = []
+    for mode_name, mode_idx in balance_server.BOT_AI_EXPECTED_MODES.items():
+        for prof_name, (prof_idx, exp_kicker) in balance_server.BOT_AI_EXPECTED_PROFILES.items():
+            param_id = 15 + (13 * mode_idx) + prof_idx
+            v1_profiles.append({
+                "profile": prof_name,
+                "mode": mode_name,
+                "parameterId": param_id,
+                "kickerId": exp_kicker,
+                "kickerCostumeId": 2000000 + (exp_kicker * 10000) + 101,
+                "rank": 13,
+                "motivations": {
+                    "attack": 10 + prof_idx * 5,
+                    "defense": 20 + prof_idx * 5,
+                    "score": 30 + prof_idx * 5
+                },
+                "scoreToDeposit": 5 + prof_idx,
+                "lowHpDepositThreshold": 0.35,
+                "dashIntervals": {"attack": 1.0, "defense": 1.1, "score": 1.2},
+                "skillIntervals": {"attack": 2.0, "heal": 3.0, "buff": 4.0, "trap": 5.0, "warp": 6.0},
+                "healDamageRate": 0.5,
+                "canLockon": True
+            })
+
+    v1_payload = {
+        "version": 1,
+        "profiles": v1_profiles
+    }
+
+    valid, errors, normalized = balance_server.validate_bot_ai_profiles(v1_payload)
+    assert valid, f"Migration validation failed: {errors}"
+    assert normalized is not None
+    assert len(normalized["profiles"]) == 42
+
+    # Check that K1 (Tsubame), K8 (Anna), K9 (Jay) inherited from carrier (prof_idx 0)
+    for kid in (1, 8, 9):
+        k_profile = next(p for p in normalized["profiles"] if p["mode"] == "CrystalScramble" and p["kickerId"] == kid)
+        assert k_profile["motivations"]["attack"] == 10  # carrier attack
+        assert k_profile["motivations"]["defense"] == 20 # carrier defense
+        assert k_profile["motivations"]["score"] == 30   # carrier score
+
+    # Check that K3 (Coco), K11 (Diatrius), K12 (Buzzy Big) inherited from tank_defender (prof_idx 1)
+    for kid in (3, 11, 12):
+        k_profile = next(p for p in normalized["profiles"] if p["mode"] == "CrystalScramble" and p["kickerId"] == kid)
+        assert k_profile["motivations"]["attack"] == 15
+        assert k_profile["motivations"]["defense"] == 25
+        assert k_profile["motivations"]["score"] == 35
+
+    # Check that K4 (Kite), K6 (Pitophy), K13 (Hitagi) inherited from hunter (prof_idx 2)
+    for kid in (4, 6, 13):
+        k_profile = next(p for p in normalized["profiles"] if p["mode"] == "CrystalScramble" and p["kickerId"] == kid)
+        assert k_profile["motivations"]["attack"] == 20
+        assert k_profile["motivations"]["defense"] == 30
+        assert k_profile["motivations"]["score"] == 40
+
+
+def test_validator_rejects_pristine_kicker_id_overlap():
+    """Verify that parameterId in [1..14] is rejected because it is reserved for feature OFF."""
+    config_path = REPO / "config" / "bot_ai_profiles.json"
+    with config_path.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+    bad_data = copy.deepcopy(data)
+    bad_data["profiles"][0]["parameterId"] = 5
+    valid, errors, _ = balance_server.validate_bot_ai_profiles(bad_data)
+    assert not valid
+    assert any("overlaps with pristine kicker ID" in e for e in errors)
+
+
+def test_validator_rejects_out_of_range_parameter_id():
+    """Verify parameterId < 15 or > 99 is rejected."""
+    config_path = REPO / "config" / "bot_ai_profiles.json"
+    with config_path.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    # Test negative ID
+    bad_neg = copy.deepcopy(data)
+    bad_neg["profiles"][0]["parameterId"] = -1
+    valid, errors, _ = balance_server.validate_bot_ai_profiles(bad_neg)
+    assert not valid
+    assert any("outside allowed range" in e for e in errors)
+
+    # Test ID > 99
+    bad_high = copy.deepcopy(data)
+    bad_high["profiles"][0]["parameterId"] = 120
+    valid, errors, _ = balance_server.validate_bot_ai_profiles(bad_high)
+    assert not valid
+    assert any("outside allowed range" in e or "violates gym boundary" in e for e in errors)
+
+
+def test_http_revert_flow(tmp_path):
+    """Verify POST /api/bot-ai/profiles/revert removes durable override and falls back to seed."""
+    fixture = DefaultDurableFixture(tmp_path)
+    fixture.start()
+    try:
+        base_url = f"http://127.0.0.1:{fixture.port}/balance"
+        origin = f"http://127.0.0.1:{fixture.port}"
+
+        # 1. Reverting when no override exists -> 404
+        req = urllib.request.Request(
+            f"{base_url}/api/bot-ai/profiles/revert",
+            data=b"{}",
+            headers={"Content-Type": "application/json", "Origin": origin, "Cookie": fixture.cookie},
+            method="POST"
+        )
+        try:
+            urllib.request.urlopen(req)
+            assert False, "Reverting non-existent override should fail with 404"
+        except urllib.error.HTTPError as ex:
+            assert ex.code == 404
+
+        # 2. Save an override
+        req = urllib.request.Request(f"{base_url}/api/bot-ai/profiles")
+        req.add_header("Cookie", fixture.cookie)
+        with urllib.request.urlopen(req) as res:
+            data = json.loads(res.read().decode("utf-8"))
+            seed_hash = data["hash"]
+
+        clean_payload = {
+            "version": data["version"],
+            "$schema": data.get("$schema", "./bot_ai_profiles.schema.json"),
+            "profiles": data["profiles"]
+        }
+        modified_data = copy.deepcopy(clean_payload)
+        modified_data["profiles"][0]["motivations"]["attack"] = 77
+        modified_data["expectedHash"] = seed_hash
+
+        save_req = urllib.request.Request(
+            f"{base_url}/api/bot-ai/profiles",
+            data=json.dumps(modified_data).encode("utf-8"),
+            headers={"Content-Type": "application/json", "Origin": origin, "Cookie": fixture.cookie},
+            method="POST"
+        )
+        with urllib.request.urlopen(save_req) as res:
+            assert res.status == 200
+        assert fixture.durable_file.is_file()
+
+        # Verify GET returns override
+        req = urllib.request.Request(f"{base_url}/api/bot-ai/profiles")
+        req.add_header("Cookie", fixture.cookie)
+        with urllib.request.urlopen(req) as res:
+            get_data = json.loads(res.read().decode("utf-8"))
+            assert get_data["source"] == "override"
+            assert get_data["profiles"][0]["motivations"]["attack"] == 77
+
+        # 3. Revert override
+        revert_req = urllib.request.Request(
+            f"{base_url}/api/bot-ai/profiles/revert",
+            data=b"{}",
+            headers={"Content-Type": "application/json", "Origin": origin, "Cookie": fixture.cookie},
+            method="POST"
+        )
+        with urllib.request.urlopen(revert_req) as res:
+            assert res.status == 200
+            revert_resp = json.loads(res.read().decode("utf-8"))
+            assert revert_resp["ok"] is True
+            assert revert_resp["reverted"] == "bot_ai_profiles"
+            assert revert_resp["source"] == "seed"
+
+        # Verify durable file is gone
+        assert not fixture.durable_file.exists()
+
+        # Verify backup was created
+        backups = list(fixture.backups_dir.glob("bot_ai_profiles-*.json"))
+        assert len(backups) >= 2
+
+        # 4. GET now falls back to seed
+        req = urllib.request.Request(f"{base_url}/api/bot-ai/profiles")
+        req.add_header("Cookie", fixture.cookie)
+        with urllib.request.urlopen(req) as res:
+            get_seed_data = json.loads(res.read().decode("utf-8"))
+            assert get_seed_data["source"] == "seed"
+            assert get_seed_data["profiles"][0]["motivations"]["attack"] == clean_payload["profiles"][0]["motivations"]["attack"]
+
+    finally:
+        fixture.stop()
+
+

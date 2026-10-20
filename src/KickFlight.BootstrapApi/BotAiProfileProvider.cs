@@ -465,6 +465,7 @@ public sealed class BotAiProfileProvider : IBotAiProfileProvider
     }
 
     public AiRolePolicy? GetPolicy(int modeIndex, int profileIndex) => CurrentSnapshot.GetPolicy(modeIndex, profileIndex);
+    public AiRolePolicy? GetPolicyByKicker(int modeIndex, int kickerId) => CurrentSnapshot.GetPolicyByKicker(modeIndex, kickerId);
     public AiRolePolicy? GetPolicy(string profile, int kickerId = 0, int modeIndex = 0) => CurrentSnapshot.GetPolicy(profile, kickerId, modeIndex);
     public AiRolePolicy? GetPolicy(string profile, int kickerId, BattleCompositionMode? mode) => CurrentSnapshot.GetPolicy(profile, kickerId, mode);
     public int ResolveParameterId(string? profile, int kickerId, BattleCompositionMode? mode = null, bool isGym = false) =>

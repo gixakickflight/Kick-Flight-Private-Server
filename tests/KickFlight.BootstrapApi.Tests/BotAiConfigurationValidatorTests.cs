@@ -29,12 +29,12 @@ public class BotAiConfigurationValidatorTests
         Assert.Empty(result.Errors);
         Assert.NotNull(result.Configuration);
         Assert.Equal(1, result.Configuration.Version);
-        Assert.Equal(39, result.Configuration.Profiles.Count);
+        Assert.Equal(42, result.Configuration.Profiles.Count);
 
         var snapshot = result.ToSnapshot("test-path");
-        Assert.Equal(39, snapshot.AllPolicies.Count);
+        Assert.Equal(42, snapshot.AllPolicies.Count);
         Assert.Equal(15, snapshot.AllPolicies.Min(p => p.ParameterId));
-        Assert.Equal(53, snapshot.AllPolicies.Max(p => p.ParameterId));
+        Assert.Equal(71, snapshot.AllPolicies.Max(p => p.ParameterId));
     }
 
     [Theory]
@@ -286,11 +286,11 @@ public class BotAiConfigurationValidatorTests
 
         var snapshot = result.ToSnapshot("test-path");
 
-        // Defect 1 verification: exactly 39 unique dictionary keys
+        // V2 verification: 42 policies per-kicker, 39 legacy profile slots, 57 total parameter IDs (with legacy aliases)
+        Assert.Equal(42, snapshot.PoliciesByModeAndKicker.Count);
         Assert.Equal(39, snapshot.PoliciesByModeAndProfile.Count);
-        Assert.Equal(39, snapshot.PoliciesByModeAndProfileName.Count);
-        Assert.Equal(39, snapshot.PoliciesByParameterId.Count);
-        Assert.Equal(39, snapshot.AllPolicies.Count);
+        Assert.Equal(57, snapshot.PoliciesByParameterId.Count);
+        Assert.Equal(42, snapshot.AllPolicies.Count);
 
         // Verify GetPolicy(mode, each 0..12) for all 3 modes and expose all row parameters
         for (int mode = 0; mode <= 2; mode++)
@@ -481,5 +481,189 @@ public class BotAiConfigurationValidatorTests
         {
             Environment.SetEnvironmentVariable(ExperimentalAiRoleService.EnvFlagName, null);
         }
+    }
+
+    [Fact]
+    public void Independence_K1Tsubame_And_K8Anna_HaveIndependentValuesAndIds()
+    {
+        var result = BotAiConfigurationValidator.Validate(_validJson);
+        Assert.True(result.IsValid, string.Join("; ", result.Errors));
+        var snapshot = result.ToSnapshot("test-path");
+
+        // Scramble: K1 (Tsubame) = 54, K8 (Anna) = 15
+        var k1Scramble = snapshot.GetPolicyByKicker(0, 1);
+        var k8Scramble = snapshot.GetPolicyByKicker(0, 8);
+        Assert.NotNull(k1Scramble);
+        Assert.NotNull(k8Scramble);
+        Assert.Equal(54, k1Scramble.ParameterId);
+        Assert.Equal(15, k8Scramble.ParameterId);
+        Assert.NotEqual(k1Scramble.ParameterId, k8Scramble.ParameterId);
+
+        // FlagFlight: K1 = 60, K8 = 28
+        var k1Flag = snapshot.GetPolicyByKicker(1, 1);
+        var k8Flag = snapshot.GetPolicyByKicker(1, 8);
+        Assert.NotNull(k1Flag);
+        Assert.NotNull(k8Flag);
+        Assert.Equal(60, k1Flag.ParameterId);
+        Assert.Equal(28, k8Flag.ParameterId);
+
+        // RapidBall: K1 = 66, K8 = 41
+        var k1Rapid = snapshot.GetPolicyByKicker(2, 1);
+        var k8Rapid = snapshot.GetPolicyByKicker(2, 8);
+        Assert.NotNull(k1Rapid);
+        Assert.NotNull(k8Rapid);
+        Assert.Equal(66, k1Rapid.ParameterId);
+        Assert.Equal(41, k8Rapid.ParameterId);
+
+        // Modify K1 in JSON node and re-validate
+        var node = JsonNode.Parse(_validJson)!;
+        var profiles = node["profiles"]!.AsArray();
+        var k1Node = profiles.First(p => (string)p!["mode"]! == "CrystalScramble" && (int)p["kickerId"]! == 1);
+        k1Node!["motivations"]!["attack"] = 99;
+        k1Node["motivations"]!["score"] = 1;
+        k1Node["dashIntervals"]!["attack"] = 0.42;
+
+        var modResult = BotAiConfigurationValidator.Validate(node.ToJsonString());
+        Assert.True(modResult.IsValid);
+        var modSnapshot = modResult.ToSnapshot("mod-path");
+
+        var modK1 = modSnapshot.GetPolicyByKicker(0, 1);
+        var modK8 = modSnapshot.GetPolicyByKicker(0, 8);
+        Assert.NotNull(modK1);
+        Assert.NotNull(modK8);
+        Assert.Equal(99, modK1.AttackMotivation);
+        Assert.Equal(1, modK1.ScoreMotivation);
+        Assert.Equal(0.42, modK1.AttackDashInterval);
+
+        // K8 remains completely unchanged
+        Assert.Equal(k8Scramble.AttackMotivation, modK8.AttackMotivation);
+        Assert.Equal(k8Scramble.ScoreMotivation, modK8.ScoreMotivation);
+        Assert.Equal(k8Scramble.AttackDashInterval, modK8.AttackDashInterval);
+    }
+
+    [Fact]
+    public void Migration_LegacyThirtyNineProfiles_MigratesTransparentlyToFortyTwoIndependentProfiles()
+    {
+        // Construct legacy 39-profile V1 JSON
+        var v1Profiles = new JsonArray();
+        string[] modes = ["CrystalScramble", "FlagFlight", "RapidBall"];
+        var expectedProfiles = new (string Profile, int ProfIdx, int KickerId)[]
+        {
+            ("carrier", 0, 8),
+            ("tank_defender", 1, 3),
+            ("hunter", 2, 4),
+            ("objective_attacker", 3, 10),
+            ("healer", 4, 2),
+            ("speed_support", 5, 7),
+            ("damage_support", 6, 14),
+            ("trap_defender", 7, 5),
+            ("Yuyan", 8, 10),
+            ("Owlbert", 9, 5),
+            ("Ruriha", 10, 2),
+            ("Grenhawk", 11, 7),
+            ("Sid", 12, 14)
+        };
+
+        for (int m = 0; m < modes.Length; m++)
+        {
+            for (int p = 0; p < expectedProfiles.Length; p++)
+            {
+                var spec = expectedProfiles[p];
+                var paramId = 15 + (13 * m) + spec.ProfIdx;
+                var obj = new JsonObject
+                {
+                    ["profile"] = spec.Profile,
+                    ["mode"] = modes[m],
+                    ["parameterId"] = paramId,
+                    ["kickerId"] = spec.KickerId,
+                    ["kickerCostumeId"] = 2000000 + (spec.KickerId * 10000) + 101,
+                    ["rank"] = 13,
+                    ["motivations"] = new JsonObject { ["attack"] = 10 + spec.ProfIdx * 5, ["defense"] = 20 + spec.ProfIdx * 5, ["score"] = 30 + spec.ProfIdx * 5 },
+                    ["scoreToDeposit"] = 5 + spec.ProfIdx,
+                    ["lowHpDepositThreshold"] = 0.35,
+                    ["dashIntervals"] = new JsonObject { ["attack"] = 1.0, ["defense"] = 1.1, ["score"] = 1.2 },
+                    ["skillIntervals"] = new JsonObject { ["attack"] = 2.0, ["heal"] = 3.0, ["buff"] = 4.0, ["trap"] = 5.0, ["warp"] = 6.0 },
+                    ["healDamageRate"] = 0.5,
+                    ["canLockon"] = true
+                };
+                v1Profiles.Add(obj);
+            }
+        }
+
+        var v1Doc = new JsonObject
+        {
+            ["version"] = 1,
+            ["profiles"] = v1Profiles
+        };
+
+        var result = BotAiConfigurationValidator.Validate(v1Doc.ToJsonString());
+        Assert.True(result.IsValid, string.Join("; ", result.Errors));
+        Assert.NotNull(result.Configuration);
+        Assert.Equal(39, result.Configuration.Profiles.Count);
+
+        var snapshot = result.ToSnapshot("migration-test");
+        Assert.Equal(42, snapshot.AllPolicies.Count);
+
+        // Verify all 14 kickers in Scramble have their stable IDs [15..71]
+        for (int kid = 1; kid <= 14; kid++)
+        {
+            var policy = snapshot.GetPolicyByKicker(0, kid);
+            Assert.NotNull(policy);
+            var expectedId = BotAiDefaults.GetStableParameterId(0, kid);
+            Assert.Equal(expectedId, policy.ParameterId);
+            Assert.Equal(kid, policy.KickerId);
+        }
+
+        // Verify K1 (Tsubame), K8 (Anna), K9 (Jay) inherited from carrier (profIdx 0 -> attack 10, defense 20, score 30)
+        foreach (var kid in new[] { 1, 8, 9 })
+        {
+            var pol = snapshot.GetPolicyByKicker(0, kid);
+            Assert.NotNull(pol);
+            Assert.Equal(10, pol.AttackMotivation);
+            Assert.Equal(20, pol.DefenseMotivation);
+            Assert.Equal(30, pol.ScoreMotivation);
+        }
+
+        // Verify K3 (Coco), K11 (Diatrius), K12 (Buzzy Big) inherited from tank_defender (profIdx 1 -> attack 15, defense 25, score 35)
+        foreach (var kid in new[] { 3, 11, 12 })
+        {
+            var pol = snapshot.GetPolicyByKicker(0, kid);
+            Assert.NotNull(pol);
+            Assert.Equal(15, pol.AttackMotivation);
+            Assert.Equal(25, pol.DefenseMotivation);
+            Assert.Equal(35, pol.ScoreMotivation);
+        }
+
+        // Verify K4 (Kite), K6 (Pitophy), K13 (Hitagi) inherited from hunter (profIdx 2 -> attack 20, defense 30, score 40)
+        foreach (var kid in new[] { 4, 6, 13 })
+        {
+            var pol = snapshot.GetPolicyByKicker(0, kid);
+            Assert.NotNull(pol);
+            Assert.Equal(20, pol.AttackMotivation);
+            Assert.Equal(30, pol.DefenseMotivation);
+            Assert.Equal(40, pol.ScoreMotivation);
+        }
+    }
+
+    [Fact]
+    public void AllFortyTwoProfiles_HaveValidCostumesAndUniqueBoundedIds()
+    {
+        var result = BotAiConfigurationValidator.Validate(_validJson);
+        Assert.True(result.IsValid, string.Join("; ", result.Errors));
+        var snapshot = result.ToSnapshot("test-path");
+
+        var seenIds = new HashSet<int>();
+        foreach (var p in snapshot.AllPolicies)
+        {
+            Assert.True(seenIds.Add(p.ParameterId), $"Duplicate parameterId {p.ParameterId}");
+            Assert.InRange(p.ParameterId, 15, 71);
+            Assert.True(p.ParameterId < 100, $"ParameterId {p.ParameterId} violates Gym boundary");
+            Assert.False(p.ParameterId >= 1 && p.ParameterId <= 14, $"ParameterId {p.ParameterId} overlaps with pristine kicker ID");
+
+            // Kicker costume row ID check
+            var expectedCostume = 2000000 + (p.KickerId * 10000) + 101;
+            Assert.Equal(expectedCostume, p.KickerCostumeId);
+        }
+        Assert.Equal(42, seenIds.Count);
     }
 }

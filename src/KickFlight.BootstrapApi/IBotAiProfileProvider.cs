@@ -30,6 +30,7 @@ public interface IBotAiProfileProvider : IDisposable
     bool IsUsingHardcodedFallback { get; }
 
     AiRolePolicy? GetPolicy(int modeIndex, int profileIndex);
+    AiRolePolicy? GetPolicyByKicker(int modeIndex, int kickerId);
     AiRolePolicy? GetPolicy(string profile, int kickerId = 0, int modeIndex = 0);
     AiRolePolicy? GetPolicy(string profile, int kickerId, BattleCompositionMode? mode);
     int ResolveParameterId(string? profile, int kickerId, BattleCompositionMode? mode = null, bool isGym = false);
