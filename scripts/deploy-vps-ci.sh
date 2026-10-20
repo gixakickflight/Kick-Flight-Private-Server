@@ -415,6 +415,33 @@ if [[ "$sync_site" == true ]]; then
     rm -f -- "$smoke_file"
     [[ "$actual_updates" == "$expected_updates" ]] || { echo "served standalone updates checksum does not match deploy/site/updates-2.11.4.html" >&2; exit 1; }
   fi
+
+  if [[ -f "$app_dir/.local/maintenance/latest-information.json" ]]; then
+    python3 - "$http_port" <<'PY'
+import re
+import sys
+import urllib.request
+
+port = sys.argv[1]
+for path in ("/webview/information/index", "/updates"):
+    url = f"http://127.0.0.1:{port}{path}"
+    req = urllib.request.Request(url, headers={"User-Agent": "deploy-smoke-check"})
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        html = resp.read().decode("utf-8")
+
+    masked = re.sub(r'<!--[\s\S]*?-->', lambda m: ' ' * len(m.group(0)), html)
+    masked = re.sub(r'<head\b[^>]*>[\s\S]*?</head>', lambda m: ' ' * len(m.group(0)), masked, flags=re.IGNORECASE)
+    masked = re.sub(r'<script\b[^>]*>[\s\S]*?</script>', lambda m: ' ' * len(m.group(0)), masked, flags=re.IGNORECASE)
+    masked = re.sub(r'<style\b[^>]*>[\s\S]*?</style>', lambda m: ' ' * len(m.group(0)), masked, flags=re.IGNORECASE)
+    visible_articles = re.findall(r'<article[^>]*\bid=["\']([^"\']+)["\']', masked)
+    expected_articles = ["v2-11-4", "matchmaking-roles-2026-10-19", "v2-11-3", "v2-11-2"]
+    if not visible_articles or visible_articles[:4] != expected_articles:
+        raise SystemExit(
+            f"Smoke check failed on {path}: visible articles are {visible_articles}, expected starting with {expected_articles}"
+        )
+print("Latest Information visible articles verified on /webview/information/index and /updates")
+PY
+  fi
 fi
 
 if [[ "$rebuild_farm" == true && -e "$backup_dir" ]]; then
