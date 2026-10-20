@@ -1,0 +1,8 @@
+{
+  "serverBaseUrl": "http://159.54.134.159:18080",
+  "photonHost": "159.54.134.159",
+  "versionName": "2.11.5",
+  "versionCode": 60,
+  "updateUrl": "https://kick-flight-fenix.us.ci/",
+  "expectedSourceSha256": "ffa620d2e2f905e729812606024e02741124951dce908bb2e0587f0a4e16e031"
+}
