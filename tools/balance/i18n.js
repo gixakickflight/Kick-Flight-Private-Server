@@ -157,6 +157,12 @@
         modeLabel: "Modo de juego",
         rosterTitle: "Kickers en este perfil",
         affectsLabel: "Afecta a: {names}",
+        kickerSelectLabel: "Kicker a editar:",
+        editingKicker: "Editando kicker: {name}",
+        kickerListCount: "14 kickers ({mode})",
+        dirtyBadge: "Borrador con cambios sin guardar",
+        dirtyModified: "modificado",
+        intentChipLabel: "Intención: ",
         intentActiveBadge: "✓ Activo",
         behaviorSelected: "Comportamiento seleccionado:",
         advancedToggle: "🛠️ Ajustes avanzados de comportamiento (opcional)",
@@ -174,13 +180,15 @@
         conflictModalMemo: "Tus borradores locales se conservan en memoria. Puedes recargar la versión actual del servidor para actualizar la base manteniendo tus cambios pendientes.",
         conflictModalClose: "Cerrar y conservar borrador",
         conflictModalReload: "Recargar del servidor",
-        toastSaved: "Perfil guardado exitosamente en el servidor.",
+        toastSaved: "Configuración de IA de bots guardada exitosamente en el servidor.",
         toastDiscarded: "Borrador descartado.",
         toastSaveFailed: "Error al guardar el perfil: {err}",
         loading: "Cargando perfiles de IA de bots desde el servidor...",
         booting: "Iniciando editor de IA de bots...",
         retryBtn: "Reintentar carga",
         paramIdPrefix: "Identificador de parámetro: ",
+        nativeLowHpNotice: "Umbral huida vida baja (constante nativa 35%)",
+        nativeLowHpExplanation: "Límite nativo: 35% de HP para retirada (constante del cliente)",
         paramHelp: {
           motAttack: "¿Cuánto prioriza buscar y combatir rivales?",
           motDefense: "¿Cuánto prioriza replegarse o vigilar áreas?",
@@ -268,13 +276,17 @@
         title: "Salud",
         meta: "Telemetría en bucle local del servidor de juego (/admin/ops/*): resultados de partidas, excepciones de clientes y desglose de combates",
         windowDeploy: "Esta versión",
-        window24h: "Últimas 24 horas",
+        window24h: "Últimas 24 h",
         window7d: "Últimos 7 días",
         summarySection: "Resumen operativo",
         battles: "Partidas",
         exceptions: "Excepciones",
         rate: "Tasa de error",
         drilldownSection: "Detalle de combate",
+        sidebarCount: "Resultados, excepciones de clientes y desglose",
+        sidebarProblems: "{count} problema(s) en la ventana seleccionada",
+        errorPrefix: "no se pudo leer la telemetría: ",
+        loadingText: "cargando telemetría...",
         battleIdPlaceholder: "ID de combate (ej. 20261020-123456-abc)",
         inspectBtn: "Inspeccionar combate",
         thFingerprint: "Huella (Fingerprint)",
@@ -292,6 +304,11 @@
         title: "Mantenimiento",
         meta: "Control de mantenimiento en bucle local del servidor (/admin/maintenance): inactivo / advertencia / 503 total",
         currentState: "Estado actual",
+        sidebarCount: "Modo de mantenimiento del servidor y aviso",
+        errorPrefix: "no se pudo leer el estado: ",
+        savingPrefix: "estableciendo mantenimiento a {mode} ...",
+        savedPrefix: "el mantenimiento ahora está en {mode}",
+        failedPrefix: "falló: {err}",
         modeOff: "Inactivo (Servidor abierto a todos)",
         modeWarning: "Aviso previo (Acceso permitido con advertencia)",
         modeHard: "Mantenimiento total (Acceso bloqueado con 503)",
@@ -467,6 +484,12 @@
         modeLabel: "Game mode",
         rosterTitle: "Kickers in this profile",
         affectsLabel: "Affects: {names}",
+        kickerSelectLabel: "Kicker to edit:",
+        editingKicker: "Editing kicker: {name}",
+        kickerListCount: "14 kickers ({mode})",
+        dirtyBadge: "Draft with unsaved changes",
+        dirtyModified: "modified",
+        intentChipLabel: "Intent: ",
         intentActiveBadge: "✓ Active",
         behaviorSelected: "Selected behavior:",
         advancedToggle: "🛠️ Advanced behavior settings (optional)",
@@ -484,13 +507,15 @@
         conflictModalMemo: "Your local drafts are preserved in memory. You can reload the current server version to update the base while keeping your pending changes.",
         conflictModalClose: "Close & keep draft",
         conflictModalReload: "Reload from server",
-        toastSaved: "Profile saved successfully to server.",
+        toastSaved: "Bot AI configuration saved successfully to server.",
         toastDiscarded: "Draft discarded.",
         toastSaveFailed: "Failed to save profile: {err}",
         loading: "Loading bot AI profiles from server...",
         booting: "Initializing bot AI editor...",
         retryBtn: "Retry loading",
         paramIdPrefix: "Parameter identifier: ",
+        nativeLowHpNotice: "Low HP retreat threshold (native 35% constant)",
+        nativeLowHpExplanation: "Native constraint: 35% HP retreat threshold (client constant)",
         paramHelp: {
           motAttack: "How much does the bot prioritize seeking and fighting rivals?",
           motDefense: "How much does the bot prioritize retreating or guarding areas?",
@@ -578,13 +603,17 @@
         title: "Health",
         meta: "the game server's loopback-only /admin/ops/* telemetry: match outcomes, client exceptions and a battle drill-down",
         windowDeploy: "This release",
-        window24h: "Last 24 hours",
+        window24h: "Last 24 h",
         window7d: "Last 7 days",
         summarySection: "Operational summary",
         battles: "Battles",
         exceptions: "Exceptions",
         rate: "Error rate",
         drilldownSection: "Battle drill-down",
+        sidebarCount: "Outcomes, client exceptions and a battle drill-down",
+        sidebarProblems: "{count} problem match(es) in the selected window",
+        errorPrefix: "could not read telemetry: ",
+        loadingText: "loading telemetry...",
         battleIdPlaceholder: "Battle ID (e.g. 20261020-123456-abc)",
         inspectBtn: "Inspect battle",
         thFingerprint: "Fingerprint",
@@ -602,6 +631,11 @@
         title: "Maintenance",
         meta: "the game server's loopback-only /admin/maintenance toggle: off / soft notice / hard 503",
         currentState: "Current state",
+        sidebarCount: "Server maintenance mode and notice text",
+        errorPrefix: "could not read the state: ",
+        savingPrefix: "setting maintenance to {mode} ...",
+        savedPrefix: "maintenance is now {mode}",
+        failedPrefix: "failed: {err}",
         modeOff: "Off (Server open to everyone)",
         modeWarning: "Soft notice (Access allowed with notice)",
         modeHard: "Hard 503 (Access blocked)",
@@ -827,6 +861,22 @@
         es: { title: "Especialista: Sid", family: "Especialización Única", desc: "Configuración dedicada exclusivamente a Sid como soporte ofensivo.", role: "Especialización exclusiva" },
         en: { title: "Specialist: Sid", family: "Unique Specialization", desc: "Dedicated configuration exclusively for Sid as an offensive support.", role: "Exclusive specialization" }
       }
+    },
+    kickers: {
+      1: { name: "Tsubame", es: { role: "Velocista (Carrier)" }, en: { role: "Speedster (Carrier)" } },
+      2: { name: "Ruriha", es: { role: "Soporte (Healer)" }, en: { role: "Support (Healer)" } },
+      3: { name: "Coco", es: { role: "Tanque (Anchor)" }, en: { role: "Tank (Anchor)" } },
+      4: { name: "Kite", es: { role: "Ataque (Hunter)" }, en: { role: "Attack (Hunter)" } },
+      5: { name: "Owlbert", es: { role: "Soporte (Trampas)" }, en: { role: "Support (Traps)" } },
+      6: { name: "Pitophy", es: { role: "Ataque (Hunter)" }, en: { role: "Attack (Hunter)" } },
+      7: { name: "Grenhawk", es: { role: "Soporte (Velocidad)" }, en: { role: "Support (Speed)" } },
+      8: { name: "Anna", es: { role: "Velocista (Carrier)" }, en: { role: "Speedster (Carrier)" } },
+      9: { name: "Jay", es: { role: "Velocista (Carrier)" }, en: { role: "Speedster (Carrier)" } },
+      10: { name: "Yuyan", es: { role: "Ataque (Disruptor)" }, en: { role: "Attack (Disruptor)" } },
+      11: { name: "Diatrius", es: { role: "Tanque (Anchor)" }, en: { role: "Tank (Anchor)" } },
+      12: { name: "Buzzy Big", es: { role: "Tanque (Anchor)" }, en: { role: "Tank (Anchor)" } },
+      13: { name: "Hitagi", es: { role: "Ataque (Hunter)" }, en: { role: "Attack (Hunter)" } },
+      14: { name: "Sid", es: { role: "Soporte (Daño)" }, en: { role: "Support (Damage)" } }
     }
   };
 
@@ -1043,6 +1093,13 @@
       const entry = BOT_AI_LOCALIZATION.roles[roleKey];
       if (!entry) return null;
       return entry[currentLang] || entry[DEFAULT_LANG];
+    },
+
+    getBotAiKicker: function (kickerId) {
+      const entry = BOT_AI_LOCALIZATION.kickers && BOT_AI_LOCALIZATION.kickers[Number(kickerId)];
+      if (!entry) return { id: Number(kickerId), name: "Kicker " + kickerId, role: "General" };
+      const loc = entry[currentLang] || entry[DEFAULT_LANG];
+      return { id: Number(kickerId), name: entry.name, role: loc.role };
     }
   };
 

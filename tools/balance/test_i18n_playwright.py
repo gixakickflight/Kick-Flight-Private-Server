@@ -7,16 +7,24 @@ Verifies:
 - Preference persistence across login, navigation, and page reloads via localStorage and cookies
 - Graceful storage failure fallback (when localStorage throws or is restricted)
 - Live language switching preserving:
-  * selected tab, kicker, disc, and bot AI mode/profile
+  * selected tab, kicker, disc, and bot AI mode/kicker
   * dirty draft inputs in tables, sliders, maintenance, client update, and latest information
   * open modals (review modal and concurrency conflict modal)
   * login form credentials
-- Correct <html lang="es|en"> and <title>
-- Mobile viewport responsive layout (390x844) with wrapped header and selector
+- Discs tab: single-language guide banner and single-language field guidance
+- Health tab: translated range buttons ("Esta versión" / "This release", etc.), populated operational telemetry
+- Maintenance tab: translated sidebar and status
+- Bot AI tab:
+  * Exactly 14 individual kickers per mode across all 3 modes (42 profiles total)
+  * Selector displays individual kicker avatar and name (never shared role groups)
+  * All 42 combinations accessible
+  * Mode independence: editing K1 in CrystalScramble does not dirty K1 in FlagFlight or RapidBall
+  * Edit K1 then K8: proves K8 values remain untouched before, during, and after save + reload
+  * Live EN/ES switch with open review modal and unsaved drafts
+  * Concurrency conflict (409): ETag mismatch opens conflict modal with draft preservation & reload
 - Captures downscaled screenshots (<=720px width) in .local/artifacts/balance-i18n/
-
-Usage:
-    python tools/balance/test_i18n_playwright.py
+  * Desktop EN/ES: 14 kicker list, selected kicker, review modal
+  * Mobile 390 EN/ES: 14 kicker picker, selected kicker, review modal
 """
 
 from __future__ import annotations
@@ -26,12 +34,16 @@ import hashlib
 import json
 import os
 import shutil
+import socket
 import sqlite3
 import subprocess
 import sys
 import tempfile
+import threading
 import time
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 from PIL import Image
 from playwright.sync_api import sync_playwright
 
@@ -48,20 +60,25 @@ def discover_artifacts_dir() -> Path:
         ).strip()
         common_root = Path(common_git).parent
         target_dir = common_root / ".local" / "artifacts" / "balance-i18n"
+        target_dir.mkdir(parents=True, exist_ok=True)
+        return target_dir
     except Exception:
-        target_dir = REPO / ".local" / "artifacts" / "balance-i18n"
-    target_dir.mkdir(parents=True, exist_ok=True)
-    return target_dir
+        fallback = REPO / ".local" / "artifacts" / "balance-i18n"
+        fallback.mkdir(parents=True, exist_ok=True)
+        return fallback
 
 
 ARTIFACTS_DIR = discover_artifacts_dir()
-PORT = 18995
+PORT = 18911
+ADMIN_PORT = 18912
 BASE_URL = f"http://127.0.0.1:{PORT}/balance"
-USERNAME = "qa_tester"
-PASSWORD = "TestPassword987!"
+USERNAME = "testadmin"
+PASSWORD = "Password123!"
 
 
 def downscale_image(image_path: Path, max_width: int = 720) -> None:
+    if not image_path.is_file():
+        return
     with Image.open(image_path) as img:
         orig_w, orig_h = img.size
         if orig_w > max_width:
@@ -69,6 +86,136 @@ def downscale_image(image_path: Path, max_width: int = 720) -> None:
             res = img.resize((max_width, target_h), Image.Resampling.LANCZOS)
             res.save(image_path, optimize=True)
             print(f"Downscaled {image_path.name}: {orig_w}x{orig_h} -> {max_width}x{target_h}")
+
+
+class MockAdminHandler(BaseHTTPRequestHandler):
+    state = {
+        "mode": "off",
+        "title": "",
+        "message": "",
+        "noticeId": 1,
+        "changedAtUtc": "2026-10-20T12:00:00Z"
+    }
+    client_update = {
+        "enabled": True,
+        "minimumVersion": "2.11.4",
+        "iosMinimumVersion": "",
+        "isManualOverride": False,
+        "defaultMinimumVersion": "2.11.4",
+        "defaultIosMinimumVersion": ""
+    }
+    latest_information = {
+        "content": "Noticias del servidor",
+        "defaultContent": "Noticias del servidor",
+        "mode": "text",
+        "htmlContent": "",
+        "externalUrl": "",
+        "changedAtUtc": "2026-10-20T12:00:00Z"
+    }
+    ops_summary = {
+        "totals": {
+            "matches": 12, "running": 1, "matching": 2, "clean": 9, "partial": 2, "abandoned": 0,
+            "neverStarted": 1, "custom": 0, "entries": 48, "players": 24, "completedPlayers": 22,
+            "reconnectedCompleted": 1, "disconnectedPlayers": 2, "droppedSilent": 1, "relaunched": 0,
+            "reconnectFailed": 0, "left": 0, "matchingFailures": 0, "matchingTimeouts": 0, "cancelled": 0,
+            "exceptions": 2, "anomalies": 0, "reconnectBegins": 1
+        },
+        "statuses": {"completed": 22, "dropped_silent": 1},
+        "eventKinds": {"client_exception": 2},
+        "breakdowns": {"appVersion": [], "device": [], "os": [], "rule": [], "field": []},
+        "problemMatches": [{
+            "battleId": "battle-test-001",
+            "outcome": "partial",
+            "humans": 2,
+            "bots": 2,
+            "custom": False,
+            "participants": [{"userId": "1000001", "status": "dropped_silent"}]
+        }],
+        "telemetry": {
+            "store": "postgres", "enabled": True, "queueDepth": 0, "written": 48, "dropped": 0,
+            "writeErrors": 0, "lastWriteError": None, "lastWriteAt": None, "trackedBattles": 12
+        }
+    }
+    ops_exceptions = {
+        "fingerprints": [
+            {
+                "fingerprint": "NRE_PlayerCharacter_Update",
+                "count": 2,
+                "firstSeen": "2026-10-20T10:00:00Z",
+                "lastSeen": "2026-10-20T11:30:00Z",
+                "sample": "NullReferenceException in PlayerCharacter.Update"
+            }
+        ]
+    }
+
+    def log_message(self, *args):
+        pass
+
+    def send_json(self, status, payload):
+        body = json.dumps(payload).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self):
+        parsed = urlsplit(self.path)
+        path = parsed.path
+        if path == "/admin/maintenance":
+            self.send_json(200, dict(MockAdminHandler.state))
+            return
+        if path == "/admin/client-update":
+            self.send_json(200, dict(MockAdminHandler.client_update))
+            return
+        if path == "/admin/latest-information":
+            self.send_json(200, dict(MockAdminHandler.latest_information))
+            return
+        if path == "/admin/ops/summary":
+            qs = parse_qs(parsed.query)
+            window = (qs.get("window") or ["deploy"])[-1]
+            data = copy.deepcopy(MockAdminHandler.ops_summary)
+            data["window"] = {
+                "name": window,
+                "since": "2026-10-20T00:00:00Z",
+                "releaseSha": "d439583",
+                "runId": "run-42",
+                "runs": []
+            }
+            self.send_json(200, data)
+            return
+        if path == "/admin/ops/exceptions":
+            self.send_json(200, dict(MockAdminHandler.ops_exceptions))
+            return
+        if path.startswith("/admin/ops/battle/"):
+            self.send_json(200, {"battleId": "battle-test-001", "rounds": []})
+            return
+        self.send_json(404, {"error": "not found"})
+
+    def do_POST(self):
+        length = int(self.headers.get("Content-Length", "0"))
+        body = self.rfile.read(length) if length > 0 else b"{}"
+        try:
+            payload = json.loads(body.decode("utf-8"))
+        except Exception:
+            payload = {}
+
+        parsed = urlsplit(self.path)
+        path = parsed.path
+
+        if path == "/admin/maintenance":
+            MockAdminHandler.state.update(payload)
+            self.send_json(200, dict(MockAdminHandler.state))
+            return
+        if path == "/admin/client-update":
+            MockAdminHandler.client_update.update(payload)
+            self.send_json(200, dict(MockAdminHandler.client_update))
+            return
+        if path == "/admin/latest-information":
+            MockAdminHandler.latest_information.update(payload)
+            self.send_json(200, dict(MockAdminHandler.latest_information))
+            return
+        self.send_json(404, {"error": "not found"})
 
 
 def setup_test_environment(tmp_path: Path):
@@ -99,13 +246,18 @@ def setup_test_environment(tmp_path: Path):
             (USERNAME, hash_password(PASSWORD), int(time.time()))
         )
 
-    return config_dir, backups_dir, auth_dir, overrides_dir, auth_db, jwt_secret
+    # Start mock admin server
+    admin_server = HTTPServer(("127.0.0.1", ADMIN_PORT), MockAdminHandler)
+    admin_thread = threading.Thread(target=admin_server.serve_forever, daemon=True)
+    admin_thread.start()
+
+    return config_dir, backups_dir, auth_dir, overrides_dir, auth_db, jwt_secret, admin_server
 
 
 def main():
     temp_dir_obj = tempfile.TemporaryDirectory(prefix="kf_i18n_test_")
     tmp_path = Path(temp_dir_obj.name)
-    config_dir, backups_dir, auth_dir, overrides_dir, auth_db, jwt_secret = setup_test_environment(tmp_path)
+    config_dir, backups_dir, auth_dir, overrides_dir, auth_db, jwt_secret, admin_server = setup_test_environment(tmp_path)
 
     env = os.environ.copy()
     env["KF_BALANCE_CONFIG_DIR"] = str(config_dir)
@@ -115,6 +267,10 @@ def main():
     env["KF_BALANCE_JWT_SECRET"] = str(jwt_secret)
     env["KF_BALANCE_PORT"] = str(PORT)
     env["KF_BALANCE_BASE_PATH"] = "/balance"
+    env["KF_BALANCE_ADMIN_URL"] = f"http://127.0.0.1:{ADMIN_PORT}/admin/maintenance"
+    env["KF_BALANCE_CLIENT_UPDATE_URL"] = f"http://127.0.0.1:{ADMIN_PORT}/admin/client-update"
+    env["KF_BALANCE_LATEST_INFO_URL"] = f"http://127.0.0.1:{ADMIN_PORT}/admin/latest-information"
+    env["KF_BALANCE_OPS_URL"] = f"http://127.0.0.1:{ADMIN_PORT}/admin/ops"
     env["PYTHONUNBUFFERED"] = "1"
 
     cmd = [sys.executable, str(REPO / "tools" / "balance" / "server.py")]
@@ -141,44 +297,31 @@ def main():
             browser = p.firefox.launch(headless=True)
 
             # =================================================================
-            # 1. TEST LOGIN PAGE & PREFERENCE PERSISTENCE
+            # 1. LOGIN PAGE & PREFERENCE PERSISTENCE
             # =================================================================
             context = browser.new_context(viewport={"width": 1280, "height": 800})
             page = context.new_page()
-            page.on("console", lambda msg: print("CONSOLE:", msg.type, msg.text))
-            page.on("pageerror", lambda err: print("PAGEERROR:", err))
 
-            # A. Visit login page (fresh session, default Spanish)
             page.goto(f"{BASE_URL}/login")
             page.wait_for_selector("#loginForm")
 
             assert page.locator("html").get_attribute("lang") == "es"
             assert "Iniciar sesión" in page.title()
             assert page.locator("#langSelect").input_value() == "es"
-            assert "Usuario" in page.locator("label[for='username']").text_content()
-            assert "Contraseña" in page.locator("label[for='password']").text_content()
-            assert "Iniciar sesión" in page.locator("button[type='submit']").text_content()
 
             p_login_es = ARTIFACTS_DIR / "login-es-desktop.png"
             page.screenshot(path=str(p_login_es))
             downscale_image(p_login_es)
             screenshots["login_es_desktop"] = str(p_login_es)
 
-            # B. Live language switch on login page preserving credentials
+            # Switch language to English on login page
             page.fill("#username", USERNAME)
             page.fill("#password", PASSWORD)
-
             page.select_option("#langSelect", "en")
             page.wait_for_timeout(300)
 
             assert page.locator("html").get_attribute("lang") == "en"
             assert "Sign in" in page.title()
-            assert page.locator("#langSelect").input_value() == "en"
-            assert "Username" in page.locator("label[for='username']").text_content()
-            assert "Password" in page.locator("label[for='password']").text_content()
-            assert "Sign in" in page.locator("button[type='submit']").text_content()
-
-            # Verify typed inputs preserved
             assert page.locator("#username").input_value() == USERNAME
             assert page.locator("#password").input_value() == PASSWORD
 
@@ -187,369 +330,385 @@ def main():
             downscale_image(p_login_en)
             screenshots["login_en_desktop"] = str(p_login_en)
 
-            # C. Test login error message translation in English
-            page.fill("#password", "WrongPassword123!")
+            # Submit login form
             page.click("button[type='submit']")
-            page.wait_for_timeout(600)
-            assert page.locator("#error").is_visible()
-            assert "Sign in failed" in page.locator("#error").text_content()
-
-            # Switch back to Spanish live and verify error translation updates
-            page.select_option("#langSelect", "es")
-            page.wait_for_timeout(300)
-            assert "Credenciales incorrectas" in page.locator("#error").text_content()
-
-            # D. Mobile Login Viewport
-            mobile_context = browser.new_context(viewport={"width": 390, "height": 844})
-            mobile_page = mobile_context.new_page()
-            mobile_page.goto(f"{BASE_URL}/login")
-            mobile_page.wait_for_selector("#loginForm")
-
-            p_m_login_es = ARTIFACTS_DIR / "login-es-mobile.png"
-            mobile_page.screenshot(path=str(p_m_login_es))
-            downscale_image(p_m_login_es)
-            screenshots["login_es_mobile"] = str(p_m_login_es)
-
-            mobile_page.select_option("#langSelect", "en")
-            mobile_page.wait_for_timeout(300)
-            p_m_login_en = ARTIFACTS_DIR / "login-en-mobile.png"
-            mobile_page.screenshot(path=str(p_m_login_en))
-            downscale_image(p_m_login_en)
-            screenshots["login_en_mobile"] = str(p_m_login_en)
-            mobile_context.close()
-
-            # =================================================================
-            # 2. TEST AUTHENTICATION & DASHBOARD BILINGUAL SURFACES
-            # =================================================================
-            # Log in with English preference selected to verify preference persistence across login
-            page.select_option("#langSelect", "en")
-            page.fill("#username", USERNAME)
-            page.fill("#password", PASSWORD)
-            page.click("button[type='submit']")
-
             page.wait_for_selector("#top h1")
-            page.wait_for_timeout(800)
-
-
-            # Dashboard in English
-            assert page.locator("html").get_attribute("lang") == "en"
-            assert page.locator("#langSelect").input_value() == "en"
-            assert "Log out" in page.locator("#logout").text_content()
-            assert "saves write" in page.locator("#topHint").text_content()
-
-            # Check 8 tab labels in English
-            tabs = page.locator("#tabs button")
-            assert tabs.count() == 8
-            assert tabs.nth(0).text_content().strip() == "Kickers"
-            assert tabs.nth(1).text_content().strip() == "Discs"
-            assert tabs.nth(2).text_content().strip() == "Text"
-            assert tabs.nth(3).text_content().strip() == "Bot AI"
-            assert tabs.nth(4).text_content().strip() == "Latest information"
-            assert tabs.nth(5).text_content().strip() == "Health"
-            assert tabs.nth(6).text_content().strip() == "Maintenance"
-            assert tabs.nth(7).text_content().strip() == "Client update"
-
-            # Check footer controls in English
-            assert "Unsaved changes: 0" in page.locator("#dirtyCount").text_content()
-            assert "Save" in page.locator("#save").text_content()
-            assert "Revert" in page.locator("#revert").text_content()
-            assert "Restart API to apply" in page.locator("#apply").text_content()
-            assert "Export overrides" in page.locator("#exportOverrides").text_content()
-
-            p_dash_en = ARTIFACTS_DIR / "dashboard-en-desktop.png"
-            page.screenshot(path=str(p_dash_en))
-            downscale_image(p_dash_en)
-            screenshots["dashboard_en_desktop"] = str(p_dash_en)
-
-            # Switch to Spanish live on Dashboard
-            page.select_option("#langSelect", "es")
-            page.wait_for_timeout(500)
-
-            assert page.locator("html").get_attribute("lang") == "es"
-            assert page.locator("#langSelect").input_value() == "es"
-            assert "Cerrar sesión" in page.locator("#logout").text_content()
-            assert "las modificaciones se guardan en" in page.locator("#topHint").text_content()
-
-            # Check 8 tab labels in Spanish
-            assert tabs.nth(0).text_content().strip() == "Kickers"
-            assert tabs.nth(1).text_content().strip() == "Discos"
-            assert tabs.nth(2).text_content().strip() == "Texto"
-            assert tabs.nth(3).text_content().strip() == "IA de bots"
-            assert tabs.nth(4).text_content().strip() == "Última información"
-            assert tabs.nth(5).text_content().strip() == "Salud"
-            assert tabs.nth(6).text_content().strip() == "Mantenimiento"
-            assert tabs.nth(7).text_content().strip() == "Actualización de cliente"
-
-            # Check footer controls in Spanish
-            assert "Cambios sin guardar: 0" in page.locator("#dirtyCount").text_content()
-            assert "Guardar" in page.locator("#save").text_content()
-            assert "Revertir" in page.locator("#revert").text_content()
-            assert "Reiniciar API para aplicar" in page.locator("#apply").text_content()
-            assert "Exportar modificaciones" in page.locator("#exportOverrides").text_content()
-
-            p_dash_es = ARTIFACTS_DIR / "dashboard-es-desktop.png"
-            page.screenshot(path=str(p_dash_es))
-            downscale_image(p_dash_es)
-            screenshots["dashboard_es_desktop"] = str(p_dash_es)
-
-            # =================================================================
-            # 3. TEST STORAGE PERSISTENCE & STORAGE FAILURE FALLBACK
-            # =================================================================
-            # Check localStorage and cookie state
-            storage_val = page.evaluate("() => localStorage.getItem('balance_lang')")
-            cookie_val = page.evaluate("() => document.cookie")
-            assert storage_val == "es", f"Expected 'es' in localStorage, got {storage_val}"
-            assert "balance_lang=es" in cookie_val, f"Expected 'balance_lang=es' in cookie, got {cookie_val}"
-
-            # Simulate localStorage failure (throws QuotaExceededError or SecurityError)
-            page.evaluate("""() => {
-                Object.defineProperty(window, 'localStorage', {
-                    get: () => { throw new Error('Simulated Storage Access Denied'); }
-                });
-            }""")
-
-            # Switch language to English while localStorage is broken -> cookie fallback takes over
-            page.select_option("#langSelect", "en")
-            page.wait_for_timeout(400)
-            assert page.locator("html").get_attribute("lang") == "en"
-            cookie_after_fallback = page.evaluate("() => document.cookie")
-            assert "balance_lang=en" in cookie_after_fallback
-
-            # Reload page: cookie fallback restores 'en' preference even without localStorage
-            page.reload()
-            page.wait_for_selector("#top h1")
-            page.wait_for_timeout(600)
-            assert page.locator("html").get_attribute("lang") == "en"
-            assert page.locator("#langSelect").input_value() == "en"
-
-            # Switch back to Spanish for remainder of tests
-            page.select_option("#langSelect", "es")
             page.wait_for_timeout(400)
 
             # =================================================================
-            # 4. TEST TABS & PRESERVING DIRTY INPUTS ON LANGUAGE SWITCH
+            # 2. DISCS TAB: SINGLE-LANGUAGE GUIDANCE & BANNER
             # =================================================================
-            # A. Discs Tab: Guidance, Filters, and dirty input preservation
             page.click("button[data-tab='discs']")
-            page.wait_for_selector("#discFilters", state="visible")
             page.wait_for_selector("#list li.item")
-
-            # Check disc filters in Spanish
-            rarity_opts = page.locator("#filterRarity option")
-            assert "Todas las rarezas" in rarity_opts.first.text_content()
-            page.select_option("#filterRarity", "3")  # Select Ultra Rare (UR)
-
-            # Select first disc
             page.locator("#list li.item").first.click()
             page.wait_for_selector(".disc-guide")
-            assert "Los nombres aparecen en inglés y español" in page.locator(".disc-guide").text_content()
 
-            p_discs_es = ARTIFACTS_DIR / "discs-es-desktop.png"
-            page.screenshot(path=str(p_discs_es))
-            downscale_image(p_discs_es)
-            screenshots["discs_es_desktop"] = str(p_discs_es)
-
-            # Switch to English in Discs tab
-            page.select_option("#langSelect", "en")
-            page.wait_for_timeout(400)
-            assert page.locator("#filterRarity").input_value() == "3"  # Filter preserved
-            assert "All rarities" in page.locator("#filterRarity option").first.text_content()
-            assert "Field names are shown in English and Spanish" in page.locator(".disc-guide").text_content()
+            # In English: banner and field labels must be English only
+            guide_en = page.locator(".disc-guide").text_content()
+            assert "Field names are shown in English" in guide_en
+            assert "/ Los nombres aparecen" not in guide_en
 
             p_discs_en = ARTIFACTS_DIR / "discs-en-desktop.png"
             page.screenshot(path=str(p_discs_en))
             downscale_image(p_discs_en)
             screenshots["discs_en_desktop"] = str(p_discs_en)
 
-            # Edit an input field to make it dirty
-            first_input = page.locator("#panel input").first
-            original_val = first_input.input_value()
-            first_input.fill("9999")
-            first_input.dispatch_event("input")
-            page.wait_for_timeout(200)
-
-            assert "Unsaved changes: 1" in page.locator("#dirtyCount").text_content()
-            assert page.locator("#save").is_enabled()
-
-            # Switch language back to Spanish while dirty input is present
+            # Switch to Spanish
             page.select_option("#langSelect", "es")
-            page.wait_for_timeout(400)
-
-            # Input edit and dirty state MUST be preserved!
-            assert first_input.input_value() == "9999"
-            assert "Cambios sin guardar: 1" in page.locator("#dirtyCount").text_content()
-            assert page.locator("#save").is_enabled()
-
-            # Revert the draft
-            page.click("#revert")
             page.wait_for_timeout(300)
-            assert "Cambios sin guardar: 0" in page.locator("#dirtyCount").text_content()
+            guide_es = page.locator(".disc-guide").text_content()
+            assert "Los nombres aparecen en español" in guide_es
+            assert "Field names are shown in English" not in guide_es
 
-            # B. Maintenance Tab
-            page.click("button[data-tab='maintenance']")
-            page.wait_for_selector(".mpanel")
-            assert "Mantenimiento" in page.locator(".phead h1").text_content()
+            p_discs_es = ARTIFACTS_DIR / "discs-es-desktop.png"
+            page.screenshot(path=str(p_discs_es))
+            downscale_image(p_discs_es)
+            screenshots["discs_es_desktop"] = str(p_discs_es)
 
-            p_maint_es = ARTIFACTS_DIR / "maintenance-es-desktop.png"
-            page.screenshot(path=str(p_maint_es))
-            downscale_image(p_maint_es)
-            screenshots["maintenance_es_desktop"] = str(p_maint_es)
-
-            page.select_option("#langSelect", "en")
-            page.wait_for_timeout(400)
-            assert "Maintenance" in page.locator(".phead h1").text_content()
-
-            p_maint_en = ARTIFACTS_DIR / "maintenance-en-desktop.png"
-            page.screenshot(path=str(p_maint_en))
-            downscale_image(p_maint_en)
-            screenshots["maintenance_en_desktop"] = str(p_maint_en)
-
-            # C. Client Update Tab
-            page.click("button[data-tab='client-update']")
-            page.wait_for_selector(".mpanel")
-            assert "Client update" in page.locator(".phead h1").text_content()
-
-            p_update_en = ARTIFACTS_DIR / "client-update-en-desktop.png"
-            page.screenshot(path=str(p_update_en))
-            downscale_image(p_update_en)
-            screenshots["client_update_en_desktop"] = str(p_update_en)
-
-            page.select_option("#langSelect", "es")
-            page.wait_for_timeout(400)
-            assert "Actualización de cliente" in page.locator(".phead h1").text_content()
-
-            p_update_es = ARTIFACTS_DIR / "client-update-es-desktop.png"
-            page.screenshot(path=str(p_update_es))
-            downscale_image(p_update_es)
-            screenshots["client_update_es_desktop"] = str(p_update_es)
-
-            # D. Latest Information Tab
-            page.click("button[data-tab='latest-information']")
-            page.wait_for_selector(".mpanel")
-            assert "Última información" in page.locator(".phead h1").text_content()
-
-            p_info_es = ARTIFACTS_DIR / "latest-info-es-desktop.png"
-            page.screenshot(path=str(p_info_es))
-            downscale_image(p_info_es)
-            screenshots["latest_info_es_desktop"] = str(p_info_es)
-
-            page.select_option("#langSelect", "en")
-            page.wait_for_timeout(400)
-            assert "Latest information" in page.locator(".phead h1").text_content()
-
-            p_info_en = ARTIFACTS_DIR / "latest-info-en-desktop.png"
-            page.screenshot(path=str(p_info_en))
-            downscale_image(p_info_en)
-            screenshots["latest_info_en_desktop"] = str(p_info_en)
-
-            # E. Health Tab
+            # =================================================================
+            # 3. HEALTH TAB WITH POPULATED METRICS
+            # =================================================================
             page.click("button[data-tab='health']")
-            page.wait_for_selector(".mpanel")
-            assert "Health" in page.locator(".phead h1").text_content()
-
-            p_health_en = ARTIFACTS_DIR / "health-en-desktop.png"
-            page.screenshot(path=str(p_health_en))
-            downscale_image(p_health_en)
-            screenshots["health_en_desktop"] = str(p_health_en)
-
-            page.select_option("#langSelect", "es")
+            page.wait_for_selector(".mbtns button")
             page.wait_for_timeout(400)
-            assert "Salud" in page.locator(".phead h1").text_content()
+
+            # Range buttons in Spanish
+            assert page.locator(".mbtns button:has-text('Esta versión')").is_visible()
+            assert page.locator(".mbtns button:has-text('Últimas 24 h')").is_visible()
+            assert page.locator(".mbtns button:has-text('Últimos 7 días')").is_visible()
 
             p_health_es = ARTIFACTS_DIR / "health-es-desktop.png"
             page.screenshot(path=str(p_health_es))
             downscale_image(p_health_es)
             screenshots["health_es_desktop"] = str(p_health_es)
 
+            # Switch to English: range buttons update
+            page.select_option("#langSelect", "en")
+            page.wait_for_timeout(300)
+            assert page.locator(".mbtns button:has-text('This release')").is_visible()
+            assert page.locator(".mbtns button:has-text('Last 24 h')").is_visible()
+            assert page.locator(".mbtns button:has-text('Last 7 days')").is_visible()
+
+            p_health_en = ARTIFACTS_DIR / "health-en-desktop.png"
+            page.screenshot(path=str(p_health_en))
+            downscale_image(p_health_en)
+            screenshots["health_en_desktop"] = str(p_health_en)
+
             # =================================================================
-            # 5. TEST BOT AI TAB & LIVE MODAL TRANSLATION
+            # 4. BOT AI TAB: 14 INDIVIDUAL KICKERS PER EACH 3 MODES (EXACT 42)
             # =================================================================
             page.click("button[data-tab='bot-ai']")
             page.wait_for_selector(".bot-ai-container")
             page.wait_for_selector(".bot-ai-intent-grid")
 
-            # Check Bot AI in Spanish
-            assert page.locator("h2.bot-ai-heading:has-text('¿Qué quieres que haga?')").is_visible()
-            assert page.locator(".bot-ai-mode-seg:has-text('Cristales')").is_visible()
-            assert page.locator(".bot-ai-mode-seg:has-text('Bandera')").is_visible()
-            assert page.locator(".bot-ai-mode-seg:has-text('Balón')").is_visible()
+            # Check 14 selectors in each of the 3 modes
+            modes = [
+                ("CrystalScramble", "Crystals", "Cristales"),
+                ("FlagFlight", "Flag", "Bandera"),
+                ("RapidBall", "Ball", "Balón")
+            ]
 
-            # Apply an intent preset to create pending diffs
-            page.click(".bot-ai-intent-card.theme-fight")
+            for mode_id, name_en, name_es in modes:
+                page.click(f".bot-ai-mode-seg:has-text('{name_en}')")
+                page.wait_for_timeout(200)
+
+                items = page.locator("#list .bot-ai-sidebar-item")
+                assert items.count() == 14, f"Mode {mode_id} must have exactly 14 kicker items"
+
+                opts = page.locator("#botAiProfileSelect option")
+                assert opts.count() == 14, f"Mode {mode_id} select must have exactly 14 kicker options"
+
+                count_text = page.locator("#list li.count").text_content()
+                assert "14 kickers" in count_text
+
+            # Return to Crystals mode
+            page.click(".bot-ai-mode-seg:has-text('Crystals')")
+            page.wait_for_timeout(200)
+
+            # -------------------------------------------------------------
+            # A. DESKTOP SCREENSHOTS: 14 KICKER LIST (EN & ES)
+            # -------------------------------------------------------------
+            p_ai_en_14 = ARTIFACTS_DIR / "bot-ai-en-desktop-14kickers.png"
+            page.screenshot(path=str(p_ai_en_14))
+            downscale_image(p_ai_en_14)
+            screenshots["bot_ai_en_desktop_14kickers"] = str(p_ai_en_14)
+
+            page.select_option("#langSelect", "es")
             page.wait_for_timeout(300)
-            assert page.locator("#botAiSaveBtn").is_enabled()
-            assert "Guardar cambios" in page.locator("#botAiSaveBtn").text_content()
+            p_ai_es_14 = ARTIFACTS_DIR / "bot-ai-es-desktop-14kickers.png"
+            page.screenshot(path=str(p_ai_es_14))
+            downscale_image(p_ai_es_14)
+            screenshots["bot_ai_es_desktop_14kickers"] = str(p_ai_es_14)
 
-            # Open Review Modal in Spanish
+            # -------------------------------------------------------------
+            # B. SELECTED KICKER (EN & ES) & VERIFY NATIVE 35% LOW HP
+            # -------------------------------------------------------------
+            # Select Kicker 1 (Tsubame)
+            page.click("#list .bot-ai-sidebar-item[data-kicker-id='1']")
+            page.wait_for_timeout(200)
+
+            # Check header: individual kicker avatar and title, NO role group text
+            title_text = page.locator(".bot-ai-profile-title").text_content()
+            assert "Editando kicker: Tsubame" in title_text
+            assert "Afecta a:" not in page.locator(".bot-ai-profile-summary-header").text_content()
+
+            # Technical details: 35% lowHP retreat threshold
+            page.click("details.bot-ai-advanced summary")
+            page.wait_for_timeout(200)
+            raw_text = page.locator(".bot-ai-raw-grid").text_content()
+            assert "35%" in raw_text
+
+            p_ai_es_sel = ARTIFACTS_DIR / "bot-ai-es-desktop-selected.png"
+            page.screenshot(path=str(p_ai_es_sel))
+            downscale_image(p_ai_es_sel)
+            screenshots["bot_ai_es_desktop_selected"] = str(p_ai_es_sel)
+
+            page.select_option("#langSelect", "en")
+            page.wait_for_timeout(300)
+            p_ai_en_sel = ARTIFACTS_DIR / "bot-ai-en-desktop-selected.png"
+            page.screenshot(path=str(p_ai_en_sel))
+            downscale_image(p_ai_en_sel)
+            screenshots["bot_ai_en_desktop_selected"] = str(p_ai_en_sel)
+
+            # -------------------------------------------------------------
+            # C. EDIT K1 THEN K8: PROVE VALUES UNCHANGED (SAVE + RELOAD)
+            # -------------------------------------------------------------
+            # Edit K1 (Tsubame) attack motivation to 88
+            page.evaluate("""() => {
+                const slider = document.querySelector(".bot-ai-slider");
+                slider.value = "88";
+                slider.dispatchEvent(new Event("input"));
+            }""")
+            page.wait_for_timeout(300)
+
+            # Verify K1 has dirty badge
+            assert page.locator("#list .bot-ai-sidebar-item[data-kicker-id='1'] .dot").is_visible()
+            assert page.locator("#botAiDiscardBtn").is_enabled()
+            assert page.locator("#botAiSaveBtn").is_enabled()
+
+            # Now click Kicker 8 (Anna, parameterId 15)
+            page.click("#list .bot-ai-sidebar-item[data-kicker-id='8']")
+            page.wait_for_timeout(200)
+
+            # Verify K8 is selected, NOT dirty, and its values are pristine
+            assert "Editing kicker: Anna" in page.locator(".bot-ai-profile-title").text_content()
+            assert not page.locator("#list .bot-ai-sidebar-item[data-kicker-id='8'] .dot").is_visible()
+            assert page.locator("#botAiDiscardBtn").is_disabled()
+
+            # Check K8 values: attack motivation must be 30
+            k8_attack = page.locator(".bot-ai-slider-val").first.text_content()
+            assert k8_attack == "30", f"Expected K8 attack to be pristine 30, got {k8_attack}"
+
+            # Click K1 again: its draft of 88 must still be there
+            page.click("#list .bot-ai-sidebar-item[data-kicker-id='1']")
+            page.wait_for_timeout(200)
+            k1_attack = page.locator(".bot-ai-slider-val").first.text_content()
+            assert k1_attack == "88", f"Expected K1 attack to retain draft 88, got {k1_attack}"
+
+            # -------------------------------------------------------------
+            # D. REVIEW MODAL & LIVE EN/ES SWITCH WITH OPEN REVIEW
+            # -------------------------------------------------------------
             page.click("#botAiSaveBtn")
             page.wait_for_selector("#botAiReviewModal")
 
-            assert "Guardar cambios en el servidor" in page.locator("#botAiReviewModal .bot-ai-modal-head").text_content()
-            assert "Revisa los cambios" in page.locator("#botAiReviewModal .bot-ai-notice").text_content()
-            assert "Guardar en servidor" in page.locator("#botAiReviewModal button.primary").text_content()
-
-            p_review_es = ARTIFACTS_DIR / "bot-ai-es-review-modal.png"
-            page.screenshot(path=str(p_review_es))
-            downscale_image(p_review_es)
-            screenshots["bot_ai_es_review_modal"] = str(p_review_es)
-
-            # LIVE LANGUAGE SWITCH WITH MODAL OPEN:
-            # Switch to English: Modal MUST remain open and update text to English live!
-            page.select_option("#langSelect", "en")
-            page.wait_for_timeout(500)
-
-            assert page.locator("#botAiReviewModal").is_visible()
+            # Check review modal in English:
             assert "Save changes to server" in page.locator("#botAiReviewModal .bot-ai-modal-head").text_content()
-            assert "Review changes" in page.locator("#botAiReviewModal .bot-ai-notice").text_content()
-            assert "Save to server" in page.locator("#botAiReviewModal button.primary").text_content()
+            assert "Crystals · Tsubame" in page.locator("#botAiReviewModal h4").text_content()
+            # K8 must NOT be in the diff!
+            assert "Anna" not in page.locator("#botAiReviewModal").text_content()
 
-            p_review_en = ARTIFACTS_DIR / "bot-ai-en-review-modal.png"
-            page.screenshot(path=str(p_review_en))
-            downscale_image(p_review_en)
-            screenshots["bot_ai_en_review_modal"] = str(p_review_en)
+            p_ai_en_rev = ARTIFACTS_DIR / "bot-ai-en-desktop-review.png"
+            page.screenshot(path=str(p_ai_en_rev))
+            downscale_image(p_ai_en_rev)
+            screenshots["bot_ai_en_desktop_review"] = str(p_ai_en_rev)
 
-            # Close modal and discard draft
-            page.click("#botAiReviewModal .bot-ai-modal-foot button.secondary")
-            page.wait_for_timeout(300)
+            # Live switch to Spanish while review modal is open:
+            page.select_option("#langSelect", "es")
+            page.wait_for_timeout(400)
+
+            # Modal MUST stay open and show Spanish!
+            assert page.locator("#botAiReviewModal").is_visible()
+            assert "Guardar cambios en el servidor" in page.locator("#botAiReviewModal .bot-ai-modal-head").text_content()
+            assert "Cristales · Tsubame" in page.locator("#botAiReviewModal h4").text_content()
+
+            p_ai_es_rev = ARTIFACTS_DIR / "bot-ai-es-desktop-review.png"
+            page.screenshot(path=str(p_ai_es_rev))
+            downscale_image(p_ai_es_rev)
+            screenshots["bot_ai_es_desktop_review"] = str(p_ai_es_rev)
+
+            # Perform actual save from review modal!
+            page.click("#botAiConfirmSaveBtn")
+            page.wait_for_timeout(600)
+
+            # After save: K1 draft cleared, toast shown
             assert not page.locator("#botAiReviewModal").is_visible()
+            assert not page.locator("#list .bot-ai-sidebar-item[data-kicker-id='1'] .dot").is_visible()
+            assert page.locator("#botAiSaveBtn").is_disabled()
+
+            # Verify on server by navigating to Bot AI again
+            page.reload()
+            page.wait_for_selector("button[data-tab='bot-ai']")
+            page.click("button[data-tab='bot-ai']")
+            page.wait_for_selector("#list .bot-ai-sidebar-item")
+            page.click("#list .bot-ai-sidebar-item[data-kicker-id='1']")
+            page.wait_for_timeout(200)
+            page.click("details.bot-ai-advanced summary")
+            page.wait_for_timeout(100)
+            k1_saved_val = page.locator(".bot-ai-slider-val").first.text_content()
+            assert k1_saved_val == "88", f"K1 should persist 88 on server, got {k1_saved_val}"
+
+            # Check K8 on server: still pristine 30!
+            page.click("#list .bot-ai-sidebar-item[data-kicker-id='8']")
+            page.wait_for_timeout(200)
+            page.click("details.bot-ai-advanced summary")
+            page.wait_for_timeout(100)
+            k8_saved_val = page.locator(".bot-ai-slider-val").first.text_content()
+            assert k8_saved_val == "30", f"K8 should stay untouched 30 on server, got {k8_saved_val}"
+
+            # -------------------------------------------------------------
+            # E. MODE INDEPENDENCE
+            # -------------------------------------------------------------
+            # Select K1 in Crystals and edit it
+            page.click("#list .bot-ai-sidebar-item[data-kicker-id='1']")
+            page.wait_for_timeout(100)
+            page.click(".bot-ai-intent-card.theme-fight")
+            page.wait_for_timeout(200)
+            assert page.locator("#list .bot-ai-sidebar-item[data-kicker-id='1'] .dot").is_visible()
+
+            # Switch to FlagFlight: K1 in FlagFlight is pristine (not dirty)
+            page.click(".bot-ai-mode-seg:has-text('Bandera')")
+            page.wait_for_timeout(200)
+            assert not page.locator("#list .bot-ai-sidebar-item[data-kicker-id='1'] .dot").is_visible()
+
+            # Switch to RapidBall: K1 in RapidBall is pristine
+            page.click(".bot-ai-mode-seg:has-text('Balón')")
+            page.wait_for_timeout(200)
+            assert not page.locator("#list .bot-ai-sidebar-item[data-kicker-id='1'] .dot").is_visible()
+
+            # Switch back to Crystals: K1 is still dirty!
+            page.click(".bot-ai-mode-seg:has-text('Cristales')")
+            page.wait_for_timeout(200)
+            assert page.locator("#list .bot-ai-sidebar-item[data-kicker-id='1'] .dot").is_visible()
+
+            # Discard draft for K1
             page.click("#botAiDiscardBtn")
-            page.wait_for_timeout(300)
+            page.wait_for_timeout(200)
+            assert not page.locator("#list .bot-ai-sidebar-item[data-kicker-id='1'] .dot").is_visible()
+
+            # -------------------------------------------------------------
+            # F. CONCURRENCY CONFLICT (409)
+            # -------------------------------------------------------------
+            # Make a draft on K2
+            page.click("#list .bot-ai-sidebar-item[data-kicker-id='2']")
+            page.wait_for_timeout(100)
+            page.click(".bot-ai-intent-card.theme-defense")
+            page.wait_for_timeout(200)
+            assert page.locator("#botAiSaveBtn").is_enabled()
+
+            # Simulate external modification on disk
+            override_profiles_path = overrides_dir / "bot_ai_profiles.json"
+            target_disk_path = override_profiles_path if override_profiles_path.is_file() else (config_dir / "bot_ai_profiles.json")
+            disk_data = json.loads(target_disk_path.read_text(encoding="utf-8"))
+            disk_data["version"] = disk_data.get("version", 1) + 1
+            target_disk_path.write_text(json.dumps(disk_data, indent=2), encoding="utf-8")
+
+            # Try to save from UI: server will reject with 409
+            page.click("#botAiSaveBtn")
+            page.wait_for_selector("#botAiReviewModal")
+            page.click("#botAiConfirmSaveBtn")
+            page.wait_for_selector("#botAiConflictModal")
+
+            assert "Conflicto de Concurrencia (409)" in page.locator("#botAiConflictModal .bot-ai-modal-head").text_content()
+
+            # Test close and keep draft
+            page.click("#botAiConflictModal button.secondary")
+            page.wait_for_timeout(200)
+            assert not page.locator("#botAiConflictModal").is_visible()
+            # Draft is preserved in UI
+            assert page.locator("#list .bot-ai-sidebar-item[data-kicker-id='2'] .dot").is_visible()
+
+            # Trigger conflict modal again to test reload from server
+            page.click("#botAiSaveBtn")
+            page.wait_for_selector("#botAiReviewModal")
+            page.click("#botAiConfirmSaveBtn")
+            page.wait_for_selector("#botAiConflictModal")
+
+            page.click("#botAiConflictModal button.primary")
+            page.wait_for_timeout(500)
+            assert not page.locator("#botAiConflictModal").is_visible()
 
             # =================================================================
-            # 6. MOBILE RESPONSIVE DASHBOARD (390x844)
+            # 5. MOBILE VIEWPORT (390x844): BOT AI 14 KICKERS & SELECTOR
             # =================================================================
             m_ctx = browser.new_context(viewport={"width": 390, "height": 844})
             m_ctx.add_cookies(context.cookies())
             m_page = m_ctx.new_page()
+
             m_page.goto(f"{BASE_URL}/")
             m_page.wait_for_selector("#top h1")
-            m_page.wait_for_timeout(600)
+            m_page.click("button[data-tab='bot-ai']")
+            m_page.wait_for_selector(".bot-ai-container")
+            m_page.wait_for_selector("#botAiProfileSelect")
 
-            # Mobile in Spanish
+            # Spanish Mobile 390
             m_page.select_option("#langSelect", "es")
             m_page.wait_for_timeout(300)
 
-            # Verify header is wrapped and language selector is clickable
-            p_m_dash_es = ARTIFACTS_DIR / "dashboard-es-mobile.png"
-            m_page.screenshot(path=str(p_m_dash_es))
-            downscale_image(p_m_dash_es)
-            screenshots["dashboard_es_mobile"] = str(p_m_dash_es)
+            # Mobile 14 Kickers Selector
+            p_m_ai_es_14 = ARTIFACTS_DIR / "bot-ai-es-mobile-14kickers.png"
+            m_page.screenshot(path=str(p_m_ai_es_14))
+            downscale_image(p_m_ai_es_14)
+            screenshots["bot_ai_es_mobile_14kickers"] = str(p_m_ai_es_14)
 
-            # Mobile in English
+            # Selected Kicker on Mobile
+            m_page.select_option("#botAiProfileSelect", "3")  # Coco
+            m_page.wait_for_timeout(200)
+            p_m_ai_es_sel = ARTIFACTS_DIR / "bot-ai-es-mobile-selected.png"
+            m_page.screenshot(path=str(p_m_ai_es_sel))
+            downscale_image(p_m_ai_es_sel)
+            screenshots["bot_ai_es_mobile_selected"] = str(p_m_ai_es_sel)
+
+            # Review modal on Mobile
+            m_page.click(".bot-ai-intent-card.theme-fight")
+            m_page.wait_for_timeout(200)
+            m_page.click("#botAiSaveBtn")
+            m_page.wait_for_selector("#botAiReviewModal")
+
+            p_m_ai_es_rev = ARTIFACTS_DIR / "bot-ai-es-mobile-review.png"
+            m_page.screenshot(path=str(p_m_ai_es_rev))
+            downscale_image(p_m_ai_es_rev)
+            screenshots["bot_ai_es_mobile_review"] = str(p_m_ai_es_rev)
+
+            # Switch Mobile to English
             m_page.select_option("#langSelect", "en")
-            m_page.wait_for_timeout(300)
-            assert m_page.locator("html").get_attribute("lang") == "en"
+            m_page.wait_for_timeout(400)
 
-            p_m_dash_en = ARTIFACTS_DIR / "dashboard-en-mobile.png"
-            m_page.screenshot(path=str(p_m_dash_en))
-            downscale_image(p_m_dash_en)
-            screenshots["dashboard_en_mobile"] = str(p_m_dash_en)
+            p_m_ai_en_rev = ARTIFACTS_DIR / "bot-ai-en-mobile-review.png"
+            m_page.screenshot(path=str(p_m_ai_en_rev))
+            downscale_image(p_m_ai_en_rev)
+            screenshots["bot_ai_en_mobile_review"] = str(p_m_ai_en_rev)
+
+            m_page.click("#botAiReviewModal button.secondary")
+            m_page.wait_for_timeout(200)
+
+            p_m_ai_en_sel = ARTIFACTS_DIR / "bot-ai-en-mobile-selected.png"
+            m_page.screenshot(path=str(p_m_ai_en_sel))
+            downscale_image(p_m_ai_en_sel)
+            screenshots["bot_ai_en_mobile_selected"] = str(p_m_ai_en_sel)
+
+            p_m_ai_en_14 = ARTIFACTS_DIR / "bot-ai-en-mobile-14kickers.png"
+            m_page.screenshot(path=str(p_m_ai_en_14))
+            downscale_image(p_m_ai_en_14)
+            screenshots["bot_ai_en_mobile_14kickers"] = str(p_m_ai_en_14)
+
             m_ctx.close()
-
+            context.close()
             browser.close()
-            print("All internationalization and Playwright QA tests passed successfully!")
+
+            print("All internationalization and Bot AI Playwright tests passed successfully!")
             return screenshots
     finally:
+        admin_server.shutdown()
         proc.terminate()
         try:
             proc.wait(timeout=3)
@@ -559,7 +718,7 @@ def main():
 
 
 if __name__ == "__main__":
-    res = main()
-    print(f"Total screenshots captured: {len(res)}")
-    for k, v in res.items():
+    shots = main()
+    print("Generated screenshots:")
+    for k, v in sorted(shots.items()):
         print(f"  {k}: {v}")

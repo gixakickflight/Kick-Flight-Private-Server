@@ -752,7 +752,9 @@ const state = {
     drafts: {},
     activePresets: {},
     selectedMode: "CrystalScramble",
-    selectedProfile: "carrier",
+    selectedKickerId: 1,
+    selectedProfile: "Tsubame",
+    showAdvanced: false,
     saving: false
   },
   health: null,          /* {summary, exceptions, error} from /api/ops/* */
@@ -899,16 +901,16 @@ function renderApplyStatus() {
   if (!box) return;
   clear(box);
   const apply = state.apply;
+  const isEs = BalanceI18n.getLang() === "es";
   if (!apply) {
-    box.appendChild(el("div", { class: "line info" }, "apply status unknown"));
+    box.appendChild(el("div", { class: "line info" }, isEs ? "estado de aplicación desconocido" : "apply status unknown"));
     return;
   }
   if (apply.error) {
-    box.appendChild(el("div", { class: "line err" }, "apply status: " + apply.error));
+    box.appendChild(el("div", { class: "line err" }, (isEs ? "estado de aplicación: " : "apply status: ") + apply.error));
     return;
   }
   const pending = apply.pending || [];
-  const isEs = BalanceI18n.getLang() === "es";
   const pendingText = isEs
     ? ("cambios pendientes de aplicar: " + pending.join(", ") + " (archivos de modificación más recientes que el inicio de la API)")
     : ("pending changes not yet applied: " + pending.join(", ") + " (override files newer than the API container start)");
@@ -919,19 +921,19 @@ function renderApplyStatus() {
   if (apply.note) box.appendChild(el("div", { class: "line info" }, apply.note));
   const health = apply.health || {};
   box.appendChild(el("div", { class: "line " + (health.ok ? "ok" : "err") },
-    "health: " + (health.ok ? "ready" : "not ready") + (health.detail ? " - " + health.detail : "")));
+    (isEs ? "salud: " : "health: ") + (health.ok ? (isEs ? "lista" : "ready") : (isEs ? "no lista" : "not ready")) + (health.detail ? " - " + health.detail : "")));
 
   const applyButton = document.getElementById("apply");
   if (applyButton) {
     applyButton.textContent = state.applying
-      ? "Restarting..."
-      : (pending.length ? "Restart API to apply (" + pending.length + ")" : "Restart API to apply");
+      ? BalanceI18n.t("footer.applying")
+      : (pending.length ? BalanceI18n.t("footer.apply") + " (" + pending.length + ")" : BalanceI18n.t("footer.apply"));
     applyButton.disabled = state.applying;
   }
   const exportButton = document.getElementById("exportOverrides");
   if (exportButton) {
     const overrides = apply.overrides || [];
-    exportButton.textContent = overrides.length ? "Export overrides (" + overrides.length + ")" : "Export overrides";
+    exportButton.textContent = overrides.length ? BalanceI18n.t("footer.export") + " (" + overrides.length + ")" : BalanceI18n.t("footer.export");
     exportButton.disabled = overrides.length === 0;
   }
 }
@@ -1028,20 +1030,24 @@ function iconFor(kind, id, size) {
 function renderList() {
   const list = document.getElementById("list");
   clear(list);
+  const isEs = BalanceI18n.getLang() === "es";
   if (state.tab === "latest-information") {
-    list.appendChild(el("li", { class: "count" }, "Announcements shown in the in-game Latest Information screen"));
+    list.appendChild(el("li", { class: "count" }, isEs
+      ? "Avisos mostrados en la pantalla Última información del juego"
+      : "Announcements shown in the in-game Latest Information screen"));
     return;
   }
   if (state.tab === "health") {
     const problems = state.health && state.health.summary && state.health.summary.problemMatches;
     list.appendChild(el("li", { class: "count" }, problems
-      ? problems.length + " problem match(es) in the selected window"
-      : "Outcomes, client exceptions and a battle drill-down"));
+      ? (isEs ? problems.length + " problema(s) en la ventana seleccionada" : problems.length + " problem match(es) in the selected window")
+      : (isEs ? "Resultados, excepciones de clientes y desglose" : "Outcomes, client exceptions and a battle drill-down")));
     return;
   }
   if (state.tab === "maintenance" || state.tab === "client-update") {
     list.appendChild(el("li", { class: "count" }, state.tab === "maintenance"
-      ? "Server maintenance mode and notice text" : "Forced client update gate by platform"));
+      ? (isEs ? "Modo de mantenimiento del servidor y aviso" : "Server maintenance mode and notice text")
+      : (isEs ? "Control de actualización obligatoria de cliente" : "Forced client update gate by platform")));
     return;
   }
   if (state.tab === "bot-ai") {
@@ -1216,6 +1222,7 @@ function renderRow(table, row, options) {
 }
 
 function renderField(table, row, key, value, fieldGuidance) {
+  const isEs = BalanceI18n.getLang() === "es";
   const mode = fieldMode(table, key, value);
   const verifiedGuidance = fieldGuidance ? DISC_FIELD_GUIDANCE[table + "." + key] : null;
   const useGuidance = !!verifiedGuidance || (!!fieldGuidance && mode !== "readonly");
@@ -1231,13 +1238,13 @@ function renderField(table, row, key, value, fieldGuidance) {
   if (useGuidance) {
     inputId = "disc-field-" + table + "-" + row.id + "-" + key;
     const heading = el("div", { class: "k" });
-    heading.appendChild(el("span", { class: "friendly-name" }, guidance[0] + " / " + guidance[1]));
+    const friendlyName = isEs ? guidance[1] : guidance[0];
+    heading.appendChild(el("span", { class: "friendly-name" }, friendlyName));
     heading.appendChild(el("code", { class: "raw-name" }, key));
     const details = el("details", { class: "field-help" });
-    const summary = el("summary", { "aria-label": "Help / Ayuda: " + guidance[0] + " / " + guidance[1] }, "?");
+    const summary = el("summary", { "aria-label": (isEs ? "Ayuda: " : "Help: ") + friendlyName }, "?");
     const copy = el("div", { class: "help-copy" });
-    copy.appendChild(el("p", null, guidance[2]));
-    copy.appendChild(el("p", null, guidance[3]));
+    copy.appendChild(el("p", null, isEs ? guidance[3] : guidance[2]));
     details.append(summary, copy);
     heading.appendChild(details);
     label.appendChild(heading);
@@ -1245,18 +1252,21 @@ function renderField(table, row, key, value, fieldGuidance) {
     label.appendChild(el("span", { class: "k" }, key));
   }
 
+  const valueLabelText = isEs ? "Valor" : "Value";
+  const enabledLabelText = isEs ? "Activado" : "Enabled";
+
   if (mode === "number") {
     const inputAttrs = { type: "number", step: "any", value: formatValue(value) };
     if (useGuidance) inputAttrs.id = inputId;
     const input = el("input", inputAttrs);
-    if (useGuidance) input.setAttribute("aria-label", guidance[0] + " / " + guidance[1] + " — Value / Valor");
+    if (useGuidance) input.setAttribute("aria-label", (isEs ? guidance[1] : guidance[0]) + " — " + valueLabelText);
     input.dataset.table = table;
     input.dataset.rowId = String(row.id);
     input.dataset.field = key;
     if (typeof value === "number" && Number.isInteger(value)) input.dataset.int = "1";
     input.addEventListener("input", onFieldInput);
     state.inputs.set(fieldKey(table, row.id, key), input);
-    if (useGuidance) label.appendChild(el("label", { for: inputId }, "Value / Valor"));
+    if (useGuidance) label.appendChild(el("label", { for: inputId }, valueLabelText));
     label.appendChild(input);
     return label;
   }
@@ -1266,7 +1276,7 @@ function renderField(table, row, key, value, fieldGuidance) {
        shown and preserved (never silently changed to a known value). */
     const values = enumValues(enumNameFor(table, key)) || {};
     const select = el("select", useGuidance ? { id: inputId } : null);
-    if (useGuidance) select.setAttribute("aria-label", guidance[0] + " / " + guidance[1] + " — Value / Valor");
+    if (useGuidance) select.setAttribute("aria-label", (isEs ? guidance[1] : guidance[0]) + " — " + valueLabelText);
     const current = Number(value);
     const ids = Object.keys(values).map(Number).filter(function (id) {
       return Number.isFinite(id);
@@ -1284,7 +1294,7 @@ function renderField(table, row, key, value, fieldGuidance) {
     select.dataset.int = "1";
     select.addEventListener("change", onFieldInput);
     state.inputs.set(fieldKey(table, row.id, key), select);
-    if (useGuidance) label.appendChild(el("label", { for: inputId }, "Value / Valor"));
+    if (useGuidance) label.appendChild(el("label", { for: inputId }, valueLabelText));
     label.appendChild(select);
     return label;
   }
@@ -1292,14 +1302,14 @@ function renderField(table, row, key, value, fieldGuidance) {
     const inputAttrs = { type: "checkbox" };
     if (useGuidance) inputAttrs.id = inputId;
     const input = el("input", inputAttrs);
-    if (useGuidance) input.setAttribute("aria-label", guidance[0] + " / " + guidance[1] + " — Enabled / Activado");
+    if (useGuidance) input.setAttribute("aria-label", (isEs ? guidance[1] : guidance[0]) + " — " + enabledLabelText);
     input.checked = value === true;
     input.dataset.table = table;
     input.dataset.rowId = String(row.id);
     input.dataset.field = key;
     input.addEventListener("change", onFieldInput);
     state.inputs.set(fieldKey(table, row.id, key), input);
-    if (useGuidance) label.appendChild(el("label", { for: inputId }, "Enabled / Activado"));
+    if (useGuidance) label.appendChild(el("label", { for: inputId }, enabledLabelText));
     label.appendChild(input);
     return label;
   }
@@ -1549,8 +1559,10 @@ function renderDiscPanel(panel, disc) {
     " · " + (disc.type || "type ?") + " · " + (disc.attribute || "attribute ?") +
     " · skillId " + disc.skillId));
 
-  panel.appendChild(el("p", { class: "disc-guide" },
-    "Field names are shown in English and Spanish; raw master keys remain unchanged. Open ? with a click, tap, or keyboard to read what the value affects. / Los nombres aparecen en inglés y español; las claves originales se conservan. Abre ? con clic, toque o teclado para ver qué cambia el valor. Damage multipliers are per hit; the animation sets the number of hits. / Los multiplicadores de daño son por impacto; la animación define cuántos impactos hay. Note: Collision and Hit rows below are read only by guardian turret skills; they do not change a disc's hitboxes or impact effects, which come from the APK action data. / Nota: las filas Collision y Hit de abajo solo se usan en habilidades de torreta guardiana; no cambian las zonas ni los efectos de impacto de un disco, que vienen de los datos de acción del APK."));
+  const isEs = BalanceI18n.getLang() === "es";
+  panel.appendChild(el("p", { class: "disc-guide" }, isEs
+    ? "Los nombres aparecen en español; las claves originales se conservan. Abre ? con clic, toque o teclado para ver qué cambia el valor. Los multiplicadores de daño son por impacto; la animación define cuántos impactos hay. Nota: las filas Collision y Hit de abajo solo se usan en habilidades de torreta guardiana; no cambian las zonas ni los efectos de impacto de un disco, que vienen de los datos de acción del APK."
+    : "Field names are shown in English; raw master keys remain unchanged. Open ? with a click, tap, or keyboard to read what the value affects. Damage multipliers are per hit; the animation sets the number of hits. Note: Collision and Hit rows below are read only by guardian turret skills; they do not change a disc's hitboxes or impact effects, which come from the APK action data."));
 
   const effect = el("section", { class: "sec" });
   const effectHead = el("h2");
@@ -2140,7 +2152,8 @@ async function setMaintenance(mode, title, message) {
   if (state.savingMaintenance) return;
   state.savingMaintenance = true;
   renderPanel();
-  maintStatus([["info", "setting maintenance to " + mode + " ..."]]);
+  const isEs = BalanceI18n.getLang() === "es";
+  maintStatus([["info", isEs ? "estableciendo mantenimiento a " + mode + " ..." : "setting maintenance to " + mode + " ..."]]);
   let line;
   try {
     const body = { mode: mode };
@@ -2152,9 +2165,9 @@ async function setMaintenance(mode, title, message) {
       body: JSON.stringify(body)
     });
     await loadMaintenance();
-    line = ["ok", "maintenance is now " + ((state.maintenance && state.maintenance.mode) || mode)];
+    line = ["ok", isEs ? "el mantenimiento ahora está en " + ((state.maintenance && state.maintenance.mode) || mode) : "maintenance is now " + ((state.maintenance && state.maintenance.mode) || mode)];
   } catch (error) {
-    line = ["err", "failed: " + error.message];
+    line = ["err", (isEs ? "falló: " : "failed: ") + error.message];
   }
   state.savingMaintenance = false;
   renderPanel();
@@ -2398,7 +2411,8 @@ function renderHealthPanel(panel) {
 
   const controls = el("div", { class: "mbtns" });
   for (const pair of HEALTH_WINDOWS) {
-    const button = el("button", { type: "button" }, pair[1]);
+    const label = pair[0] === "deploy" ? BalanceI18n.t("health.windowDeploy") : (pair[0] === "24h" ? BalanceI18n.t("health.window24h") : BalanceI18n.t("health.window7d"));
+    const button = el("button", { type: "button" }, label);
     if ((state.healthWindow || "deploy") === pair[0]) button.className = "on";
     button.disabled = !!state.healthLoading;
     button.addEventListener("click", function () {
@@ -2414,7 +2428,7 @@ function renderHealthPanel(panel) {
   const health = state.health;
   if (!health || !health.summary) {
     wrap.appendChild(el("p", { class: "note" },
-      health && health.error ? "could not read telemetry: " + health.error : "loading telemetry..."));
+      health && health.error ? (isEs ? "no se pudo leer la telemetría: " : "could not read telemetry: ") + health.error : (isEs ? "cargando telemetría..." : "loading telemetry...")));
     panel.appendChild(wrap);
     return;
   }
@@ -2557,171 +2571,49 @@ const BOT_AI_MODES = [
   { id: "RapidBall", name: "Balón", icon: "⚽", fullName: "Balón Rápido", desc: "Control del balón y anotación en portería rival." }
 ];
 
-const BOT_AI_ROLE_FAMILIES = {
-  carrier: {
-    title: "Transportador veloz",
-    roleKey: "carrier",
-    family: "Objetivo y Movilidad",
-    desc: "Especialista en recolección rápida de cristales y movilidad ágil.",
-    templateKicker: 8,
-    kickers: [
-      { id: 8, name: "Anna", role: "Velocista (Carrier)" },
-      { id: 1, name: "Tsubame", role: "Velocista (Carrier)" },
-      { id: 9, name: "Jay", role: "Velocista (Carrier)" }
-    ],
-    isSpecialized: false
-  },
-  tank_defender: {
-    title: "Defensor Tanque",
-    roleKey: "tank_defender",
-    family: "Defensa Pesada",
-    desc: "Tanque robusto para control de zona, intercepción y aguante bajo presión.",
-    templateKicker: 3,
-    kickers: [
-      { id: 3, name: "Coco", role: "Tanque (Anchor)" },
-      { id: 11, name: "Diatrius", role: "Tanque (Anchor)" },
-      { id: 12, name: "Buzzy Big", role: "Tanque (Anchor)" }
-    ],
-    isSpecialized: false
-  },
-  hunter: {
-    title: "Cazador / Asesino",
-    roleKey: "hunter",
-    family: "Combate y Bajas",
-    desc: "Enfocado en perseguir rivales, ganar duelos y mantener presión ofensiva.",
-    templateKicker: 4,
-    kickers: [
-      { id: 4, name: "Kite", role: "Ataque (Hunter)" },
-      { id: 6, name: "Pitophy", role: "Ataque (Hunter)" },
-      { id: 13, name: "Hitagi", role: "Ataque (Hunter)" }
-    ],
-    isSpecialized: false
-  },
-  objective_attacker: {
-    title: "Atacante de Objetivos",
-    roleKey: "objective_attacker",
-    family: "Presión Ofensiva",
-    desc: "Presiona objetivos y asegura zonas clave (Kickers ofensivos genéricos).",
-    templateKicker: 10,
-    kickers: [
-      { id: 10, name: "Kickers ofensivos generales", role: "Presión general (Yuyan tiene perfil dedicado)" }
-    ],
-    isSpecialized: false
-  },
-  healer: {
-    title: "Sanador de Apoyo",
-    roleKey: "healer",
-    family: "Soporte",
-    desc: "Soporte con habilidades curativas genérico (Ruriha tiene perfil dedicado).",
-    templateKicker: 2,
-    kickers: [
-      { id: 2, name: "Soporte curativo general", role: "Curación genérica" }
-    ],
-    isSpecialized: false
-  },
-  speed_support: {
-    title: "Apoyo de Velocidad",
-    roleKey: "speed_support",
-    family: "Soporte",
-    desc: "Soporte enfocado en movilidad y aceleración (Grenhawk tiene perfil dedicado).",
-    templateKicker: 7,
-    kickers: [
-      { id: 7, name: "Soporte móvil general", role: "Movilidad y aceleración" }
-    ],
-    isSpecialized: false
-  },
-  damage_support: {
-    title: "Apoyo de Daño",
-    roleKey: "damage_support",
-    family: "Soporte",
-    desc: "Soporte auxiliar que combina daño a distancia y utilidad (Sid tiene perfil dedicado).",
-    templateKicker: 14,
-    kickers: [
-      { id: 14, name: "Soporte de daño general", role: "Daño y control" }
-    ],
-    isSpecialized: false
-  },
-  trap_defender: {
-    title: "Defensor con Trampas",
-    roleKey: "trap_defender",
-    family: "Defensa y Control",
-    desc: "Zonificación y colocación de trampas defensivas (Owlbert tiene perfil dedicado).",
-    templateKicker: 5,
-    kickers: [
-      { id: 5, name: "Defensa táctica general", role: "Trampas genéricas" }
-    ],
-    isSpecialized: false
-  },
-  Yuyan: {
-    title: "Especialista: Yuyan",
-    roleKey: "Yuyan",
-    family: "Especialización Única",
-    desc: "Configuración dedicada exclusivamente a Yuyan como atacante de objetivos.",
-    templateKicker: 10,
-    kickers: [
-      { id: 10, name: "Yuyan", role: "Especialización exclusiva" }
-    ],
-    isSpecialized: true
-  },
-  Owlbert: {
-    title: "Especialista: Owlbert",
-    roleKey: "Owlbert",
-    family: "Especialización Única",
-    desc: "Configuración dedicada exclusivamente a Owlbert como trampero táctico.",
-    templateKicker: 5,
-    kickers: [
-      { id: 5, name: "Owlbert", role: "Especialización exclusiva" }
-    ],
-    isSpecialized: true
-  },
-  Ruriha: {
-    title: "Especialista: Ruriha",
-    roleKey: "Ruriha",
-    family: "Especialización Única",
-    desc: "Configuración dedicada exclusivamente a Ruriha como sanadora de soporte.",
-    templateKicker: 2,
-    kickers: [
-      { id: 2, name: "Ruriha", role: "Especialización exclusiva" }
-    ],
-    isSpecialized: true
-  },
-  Grenhawk: {
-    title: "Especialista: Grenhawk",
-    roleKey: "Grenhawk",
-    family: "Especialización Única",
-    desc: "Configuración dedicada exclusivamente a Grenhawk como soporte veloz.",
-    templateKicker: 7,
-    kickers: [
-      { id: 7, name: "Grenhawk", role: "Especialización exclusiva" }
-    ],
-    isSpecialized: true
-  },
-  Sid: {
-    title: "Especialista: Sid",
-    roleKey: "Sid",
-    family: "Especialización Única",
-    desc: "Configuración dedicada exclusivamente a Sid como soporte ofensivo.",
-    templateKicker: 14,
-    kickers: [
-      { id: 14, name: "Sid", role: "Especialización exclusiva" }
-    ],
-    isSpecialized: true
-  }
-};
+const BOT_AI_KICKERS = [
+  { id: 1, name: "Tsubame", role: "Speedster (Carrier)", roleEs: "Velocista (Carrier)" },
+  { id: 2, name: "Ruriha", role: "Support (Healer)", roleEs: "Soporte (Healer)" },
+  { id: 3, name: "Coco", role: "Tank (Anchor)", roleEs: "Tanque (Anchor)" },
+  { id: 4, name: "Kite", role: "Attack (Hunter)", roleEs: "Ataque (Hunter)" },
+  { id: 5, name: "Owlbert", role: "Support (Traps)", roleEs: "Soporte (Trampas)" },
+  { id: 6, name: "Pitophy", role: "Attack (Hunter)", roleEs: "Ataque (Hunter)" },
+  { id: 7, name: "Grenhawk", role: "Support (Speed)", roleEs: "Soporte (Velocidad)" },
+  { id: 8, name: "Anna", role: "Speedster (Carrier)", roleEs: "Velocista (Carrier)" },
+  { id: 9, name: "Jay", role: "Speedster (Carrier)", roleEs: "Velocista (Carrier)" },
+  { id: 10, name: "Yuyan", role: "Attack (Disruptor)", roleEs: "Ataque (Disruptor)" },
+  { id: 11, name: "Diatrius", role: "Tank (Anchor)", roleEs: "Tanque (Anchor)" },
+  { id: 12, name: "Buzzy Big", role: "Tank (Anchor)", roleEs: "Tanque (Anchor)" },
+  { id: 13, name: "Hitagi", role: "Attack (Hunter)", roleEs: "Ataque (Hunter)" },
+  { id: 14, name: "Sid", role: "Support (Damage)", roleEs: "Soporte (Daño)" }
+];
+
+function getBotAiKickerMeta(kickerId) {
+  const kid = Number(kickerId);
+  return BOT_AI_KICKERS.find(k => k.id === kid) || { id: kid, name: "Kicker " + kid, role: "General", roleEs: "General" };
+}
 
 const BOT_AI_INTENT_PRESETS = [
   {
     id: "run_score",
     icon: "🏃",
     title: "Quiero que corra y puntúe",
+    titleEn: "Run & Score",
     theme: "theme-score",
     behaviorDesc: "El bot prioriza recolectar y anotar con impulsos rápidos continuos.",
+    behaviorDescEn: "The bot prioritizes collecting and scoring with continuous fast dashes.",
     summaries: {
       CrystalScramble: "Prioriza recolectar y depositar cristales rápidamente.",
       FlagFlight: "Prioriza capturar la bandera y llevarla a la meta.",
       RapidBall: "Prioriza tomar el balón y avanzar hacia la portería rival."
     },
+    summariesEn: {
+      CrystalScramble: "Prioritizes collecting and depositing crystals quickly.",
+      FlagFlight: "Prioritizes capturing the flag and carrying it to the goal.",
+      RapidBall: "Prioritizes taking the ball and pushing toward enemy goal."
+    },
     nativeLimit: "No altera la velocidad base del personaje, sino la frecuencia de impulsos.",
+    nativeLimitEn: "Does not modify base speed; adjusts dash impulse frequency.",
     apply: function (prof, mode) {
       prof.motivations.attack = 25;
       prof.motivations.defense = 25;
@@ -2743,14 +2635,22 @@ const BOT_AI_INTENT_PRESETS = [
     id: "fight",
     icon: "⚔️",
     title: "Quiero que busque pelea",
+    titleEn: "Fight Aggressively",
     theme: "theme-fight",
     behaviorDesc: "El bot presionará agresivamente a los rivales, buscando combates constantes con impulsos ofensivos rápidos.",
+    behaviorDescEn: "The bot aggressively hunts rivals, engaging in continuous combat with rapid offensive dashes.",
     summaries: {
       CrystalScramble: "Agresivo en combate y persecución continua de rivales.",
       FlagFlight: "Combate activamente a los rivales para despejar la bandera.",
       RapidBall: "Intercepta y ataca agresivamente a los oponentes."
     },
+    summariesEn: {
+      CrystalScramble: "Aggressive in combat and continuous enemy pursuit.",
+      FlagFlight: "Actively fights opponents to clear the flag.",
+      RapidBall: "Intercepts and aggressively attacks opponents."
+    },
     nativeLimit: null,
+    nativeLimitEn: null,
     apply: function (prof, mode) {
       prof.motivations.attack = 90;
       prof.motivations.defense = 20;
@@ -2772,14 +2672,22 @@ const BOT_AI_INTENT_PRESETS = [
     id: "defend_base",
     icon: "🛡️",
     title: "Quiero que cuide la base",
+    titleEn: "Defend Objective",
     theme: "theme-defense",
     behaviorDesc: "El bot mantendrá la posición defensiva y protegerá el área clave con zonificación e impulsos defensivos.",
+    behaviorDescEn: "The bot maintains defensive positioning and protects key zones with zoning and defensive dashes.",
     summaries: {
       CrystalScramble: "Protege la zona del guardián y defiende los cristales.",
       FlagFlight: "Vigila la bandera y protege el territorio propio.",
       RapidBall: "Defiende la portería e intercepta a los atacantes."
     },
+    summariesEn: {
+      CrystalScramble: "Guards the guardian area and defends crystals.",
+      FlagFlight: "Guards the flag and defends own territory.",
+      RapidBall: "Defends the goal and intercepts attackers."
+    },
     nativeLimit: null,
+    nativeLimitEn: null,
     apply: function (prof, mode) {
       prof.motivations.attack = 35;
       prof.motivations.defense = 85;
@@ -2801,14 +2709,22 @@ const BOT_AI_INTENT_PRESETS = [
     id: "support_team",
     icon: "🤝",
     title: "Quiero que apoye al equipo",
+    titleEn: "Team Support",
     theme: "theme-support",
     behaviorDesc: "El bot prioriza el uso frecuente de habilidades curativas y de potenciación grupal.",
+    behaviorDescEn: "The bot prioritizes frequent use of healing and team buff abilities.",
     summaries: {
       CrystalScramble: "Frecuencia alta de curación y potenciadores de apoyo.",
       FlagFlight: "Proporciona soporte continuo con curaciones y mejoras.",
       RapidBall: "Asiste a compañeros con curación y mejoras tácticas."
     },
+    summariesEn: {
+      CrystalScramble: "High frequency of healing and support buffs.",
+      FlagFlight: "Provides continuous support with heals and buffs.",
+      RapidBall: "Assists teammates with heals and tactical buffs."
+    },
     nativeLimit: "Límite nativo: Se cura a sí mismo al recibir daño; el juego no permite apuntar curación a distancia.",
+    nativeLimitEn: "Native constraint: Heals self upon taking damage; targeting distant teammates is not natively supported.",
     apply: function (prof, mode) {
       prof.motivations.attack = 25;
       prof.motivations.defense = 55;
@@ -2830,14 +2746,22 @@ const BOT_AI_INTENT_PRESETS = [
     id: "balanced",
     icon: "⚖️",
     title: "Quiero que sea equilibrado",
+    titleEn: "Balanced Play",
     theme: "theme-balanced",
     behaviorDesc: "El bot alterna equilibradamente entre combatir rivales, defender zonas y buscar objetivos.",
+    behaviorDescEn: "The bot balances fighting rivals, defending zones, and seeking objectives.",
     summaries: {
       CrystalScramble: "Alterna de forma equilibrada entre combate, defensa y recolectar cristales.",
       FlagFlight: "Equilibrio entre capturar la bandera y responder a amenazas.",
       RapidBall: "Equilibrio entre avanzar con el balón y defender el terreno."
     },
+    summariesEn: {
+      CrystalScramble: "Balanced alternation between combat, defense, and crystal collection.",
+      FlagFlight: "Balance between flag capture and responding to threats.",
+      RapidBall: "Balance between carrying the ball and defending territory."
+    },
     nativeLimit: null,
+    nativeLimitEn: null,
     apply: function (prof, mode) {
       prof.motivations.attack = 50;
       prof.motivations.defense = 50;
@@ -2858,13 +2782,20 @@ const BOT_AI_INTENT_PRESETS = [
 ];
 
 function getPresetSummary(pr, mode) {
-  if (pr.summaries && pr.summaries[mode]) return pr.summaries[mode];
-  return pr.summary || "";
+  const isEs = BalanceI18n.getLang() === "es";
+  if (isEs) {
+    if (pr.summaries && pr.summaries[mode]) return pr.summaries[mode];
+    return pr.behaviorDesc || "";
+  } else {
+    if (pr.summariesEn && pr.summariesEn[mode]) return pr.summariesEn[mode];
+    return pr.behaviorDescEn || pr.summaries?.[mode] || "";
+  }
 }
 
-function detectActivePreset(prof, mode, profKey) {
-  if (state.botAi.activePresets && state.botAi.activePresets[mode + "/" + profKey]) {
-    return state.botAi.activePresets[mode + "/" + profKey];
+function detectActivePreset(prof, mode, kickerId) {
+  const key = mode + "/" + kickerId;
+  if (state.botAi.activePresets && state.botAi.activePresets[key]) {
+    return state.botAi.activePresets[key];
   }
   if (!prof || !prof.motivations) return "balanced";
   const m = prof.motivations;
@@ -2919,40 +2850,44 @@ async function loadBotAiProfiles(force) {
     state.botAi.loaded = true;
     state.botAi.loading = false;
   } catch (err) {
-    state.botAi.error = err.message || "Error al cargar perfiles de IA de bots";
+    state.botAi.error = err.message || (BalanceI18n.getLang() === "es" ? "Error al cargar perfiles de IA de bots" : "Failed to load bot AI profiles");
     state.botAi.loading = false;
   }
   renderBotAiList();
   renderBotAiPanel(document.getElementById("panel"));
 }
 
-function getPristineBotAiProfile(mode, profileName) {
+function getPristineBotAiProfile(mode, kickerId) {
+  const kid = Number(kickerId);
   for (const p of state.botAi.rawProfiles) {
-    if (p.mode === mode && p.profile === profileName) {
+    if (p.mode === mode && p.kickerId === kid) {
       return p;
     }
   }
   return null;
 }
 
-function getActiveBotAiProfile(mode, profileName) {
-  const key = mode + "/" + profileName;
+function getActiveBotAiProfile(mode, kickerId) {
+  const kid = Number(kickerId);
+  const key = mode + "/" + kid;
   if (state.botAi.drafts[key]) {
     return state.botAi.drafts[key];
   }
-  const pristine = getPristineBotAiProfile(mode, profileName);
+  const pristine = getPristineBotAiProfile(mode, kid);
   return pristine ? JSON.parse(JSON.stringify(pristine)) : null;
 }
 
-function isBotAiProfileDirty(mode, profileName) {
-  const key = mode + "/" + profileName;
+function isBotAiProfileDirty(mode, kickerId) {
+  const kid = Number(kickerId);
+  const key = mode + "/" + kid;
   return !!state.botAi.drafts[key];
 }
 
-function setBotAiField(mode, profileName, section, field, value) {
-  const key = mode + "/" + profileName;
+function setBotAiField(mode, kickerId, section, field, value) {
+  const kid = Number(kickerId);
+  const key = mode + "/" + kid;
   if (!state.botAi.drafts[key]) {
-    const pristine = getPristineBotAiProfile(mode, profileName);
+    const pristine = getPristineBotAiProfile(mode, kid);
     if (!pristine) return;
     state.botAi.drafts[key] = JSON.parse(JSON.stringify(pristine));
   }
@@ -2962,155 +2897,179 @@ function setBotAiField(mode, profileName, section, field, value) {
   } else {
     draft[field] = value;
   }
-
-  // Check if draft matches pristine
-  const pristine = getPristineBotAiProfile(mode, profileName);
-  if (JSON.stringify(draft) === JSON.stringify(pristine)) {
-    delete state.botAi.drafts[key];
-  }
-
-  // Update dirty badge & save button without full re-render
   updateBotAiDirtyState();
 }
 
-function applyBotAiPreset(mode, profileName, presetId) {
-  const preset = BOT_AI_INTENT_PRESETS.find(p => p.id === presetId);
-  if (!preset) return;
-  const key = mode + "/" + profileName;
+function applyBotAiPreset(mode, kickerId, presetId) {
+  const kid = Number(kickerId);
+  const key = mode + "/" + kid;
   if (!state.botAi.drafts[key]) {
-    const pristine = getPristineBotAiProfile(mode, profileName);
+    const pristine = getPristineBotAiProfile(mode, kid);
     if (!pristine) return;
     state.botAi.drafts[key] = JSON.parse(JSON.stringify(pristine));
   }
   const draft = state.botAi.drafts[key];
+  const preset = BOT_AI_INTENT_PRESETS.find(p => p.id === presetId);
+  if (!preset) return;
   preset.apply(draft, mode);
+  if (!state.botAi.activePresets) state.botAi.activePresets = {};
   state.botAi.activePresets[key] = presetId;
-
-  const pristine = getPristineBotAiProfile(mode, profileName);
-  if (JSON.stringify(draft) === JSON.stringify(pristine)) {
-    delete state.botAi.drafts[key];
-  }
-
-  renderBotAiList();
+  updateBotAiDirtyState();
   renderBotAiPanel(document.getElementById("panel"));
+  renderBotAiList();
 }
 
-function discardBotAiDraft(mode, profileName) {
-  const key = mode + "/" + profileName;
-  if (state.botAi.drafts[key]) {
-    delete state.botAi.drafts[key];
-    delete state.botAi.activePresets[key];
-    renderBotAiList();
-    renderBotAiPanel(document.getElementById("panel"));
-  }
+function discardBotAiDraft(mode, kickerId) {
+  const kid = Number(kickerId);
+  const key = mode + "/" + kid;
+  delete state.botAi.drafts[key];
+  if (state.botAi.activePresets) delete state.botAi.activePresets[key];
+  updateBotAiDirtyState();
+  renderBotAiList();
+  renderBotAiPanel(document.getElementById("panel"));
+  const isEs = BalanceI18n.getLang() === "es";
+  showToast(isEs ? "Borrador descartado." : "Draft discarded.");
 }
 
 function updateBotAiDirtyState() {
   const dirtyCount = Object.keys(state.botAi.drafts).length;
+  const isEs = BalanceI18n.getLang() === "es";
+
   const saveBtn = document.getElementById("botAiSaveBtn");
   if (saveBtn) {
     saveBtn.disabled = dirtyCount === 0 || state.botAi.saving;
-    saveBtn.textContent = state.botAi.saving ? "Guardando..." : "Guardar cambios" + (dirtyCount > 0 ? " (" + dirtyCount + ")" : "");
+    const baseSaveText = isEs ? "Guardar cambios" : "Save changes";
+    saveBtn.textContent = state.botAi.saving ? (isEs ? "Guardando..." : "Saving...")
+      : (dirtyCount > 0 ? baseSaveText + " (" + dirtyCount + ")" : baseSaveText);
   }
-  const dirtyBadge = document.getElementById("botAiProfileDirtyBadge");
-  if (dirtyBadge) {
-    const isCurDirty = isBotAiProfileDirty(state.botAi.selectedMode, state.botAi.selectedProfile);
-    dirtyBadge.style.display = isCurDirty ? "inline-block" : "none";
-  }
+
+  const curKid = state.botAi.selectedKickerId;
+  const curMode = state.botAi.selectedMode;
+  const isCurDirty = isBotAiProfileDirty(curMode, curKid);
   const discardBtn = document.getElementById("botAiDiscardBtn");
   if (discardBtn) {
-    discardBtn.disabled = !isBotAiProfileDirty(state.botAi.selectedMode, state.botAi.selectedProfile);
+    discardBtn.disabled = !isCurDirty;
   }
-  renderBotAiList();
+
+  // Update dots and count on sidebar
+  const items = document.querySelectorAll("#list .bot-ai-sidebar-item");
+  for (const item of items) {
+    const kid = Number(item.dataset.kickerId);
+    const itemDirty = isBotAiProfileDirty(curMode, kid);
+    let dot = item.querySelector(".dot");
+    if (itemDirty && !dot) {
+      dot = el("span", { class: "dot", title: isEs ? "Borrador con cambios sin guardar" : "Draft with unsaved changes" });
+      item.appendChild(dot);
+    } else if (!itemDirty && dot) {
+      dot.remove();
+    }
+  }
+
+  const countEl = document.querySelector("#list li.count");
+  if (countEl) {
+    const locM = BalanceI18n.getBotAiMode(curMode);
+    countEl.textContent = "14 kickers (" + (locM.name || curMode) + ")" +
+      (dirtyCount > 0 ? " · " + dirtyCount + (isEs ? " modificado(s)" : " modified") : "");
+  }
 }
 
 function deriveFriendlyBehaviors(draft, pristine, mode) {
+  const isEs = BalanceI18n.getLang() === "es";
   const descriptions = [];
 
   // 1. Motivations
-  if (draft.motivations.attack > pristine.motivations.attack) {
-    descriptions.push("Más prioridad a pelear");
-  } else if (draft.motivations.attack < pristine.motivations.attack) {
-    descriptions.push("Menos prioridad a pelear");
-  }
-
-  if (draft.motivations.defense > pristine.motivations.defense) {
-    descriptions.push("Más prioridad a defender");
-  } else if (draft.motivations.defense < pristine.motivations.defense) {
-    descriptions.push("Menos prioridad a defender");
-  }
-
-  if (draft.motivations.score > pristine.motivations.score) {
-    descriptions.push("Más prioridad a recoger");
-  } else if (draft.motivations.score < pristine.motivations.score) {
-    descriptions.push("Menos prioridad a recoger");
-  }
-
-  // 2. Dash Intervals (lower = faster = more frequent)
-  const dashProps = ["attack", "defense", "score"];
-  const dashFaster = dashProps.filter(p => draft.dashIntervals[p] < pristine.dashIntervals[p]);
-  const dashSlower = dashProps.filter(p => draft.dashIntervals[p] > pristine.dashIntervals[p]);
-
-  if (dashFaster.length > 0 && dashSlower.length === 0) {
-    if (dashFaster.length >= 2 || dashFaster.length === dashProps.length) {
-      descriptions.push("Impulsos más frecuentes");
+  if (draft.motivations.attack !== pristine.motivations.attack) {
+    const diff = draft.motivations.attack - pristine.motivations.attack;
+    if (diff > 0) {
+      descriptions.push(isEs ? "Aumenta la agresividad en combate (+" + diff + ")" : "Increases combat aggression (+" + diff + ")");
     } else {
-      const scopeMap = { attack: "en combate", defense: "al defender", score: "al recoger" };
-      descriptions.push("Impulsos más frecuentes " + scopeMap[dashFaster[0]]);
+      descriptions.push(isEs ? "Disminuye la agresividad en combate (" + diff + ")" : "Decreases combat aggression (" + diff + ")");
     }
-  } else if (dashSlower.length > 0 && dashFaster.length === 0) {
-    if (dashSlower.length >= 2 || dashSlower.length === dashProps.length) {
-      descriptions.push("Impulsos menos frecuentes");
+  }
+
+  if (draft.motivations.defense !== pristine.motivations.defense) {
+    const diff = draft.motivations.defense - pristine.motivations.defense;
+    if (diff > 0) {
+      descriptions.push(isEs ? "Mayor enfoque defensivo y protección de zona (+" + diff + ")" : "Greater defensive focus and zone protection (+" + diff + ")");
     } else {
-      const scopeMap = { attack: "en combate", defense: "al defender", score: "al recoger" };
-      descriptions.push("Impulsos menos frecuentes " + scopeMap[dashSlower[0]]);
-    }
-  } else if (dashFaster.length > 0 || dashSlower.length > 0) {
-    if (dashFaster.includes("attack")) descriptions.push("Impulsos más frecuentes en combate");
-    if (dashSlower.includes("attack")) descriptions.push("Impulsos menos frecuentes en combate");
-    if (dashFaster.includes("defense")) descriptions.push("Impulsos más frecuentes al defender");
-    if (dashSlower.includes("defense")) descriptions.push("Impulsos menos frecuentes al defender");
-    if (dashFaster.includes("score")) descriptions.push("Impulsos más frecuentes al recoger");
-    if (dashSlower.includes("score")) descriptions.push("Impulsos menos frecuentes al recoger");
-  }
-
-  // 3. Skill Intervals (lower = faster = more frequent)
-  const skillProps = ["attack", "heal", "buff", "trap", "warp"];
-  const skillFaster = skillProps.filter(p => draft.skillIntervals[p] < pristine.skillIntervals[p]);
-  const skillSlower = skillProps.filter(p => draft.skillIntervals[p] > pristine.skillIntervals[p]);
-
-  if (skillFaster.length >= 3 && skillSlower.length === 0) {
-    descriptions.push("Uso de habilidades más frecuente");
-  } else if (skillSlower.length >= 3 && skillFaster.length === 0) {
-    descriptions.push("Uso de habilidades menos frecuente");
-  } else {
-    const skillLabels = { attack: "ataque", heal: "curación", buff: "mejora", trap: "trampa", warp: "teletransporte" };
-    for (const p of skillFaster) {
-      descriptions.push("Habilidades de " + skillLabels[p] + " más frecuentes");
-    }
-    for (const p of skillSlower) {
-      descriptions.push("Habilidades de " + skillLabels[p] + " menos frecuentes");
+      descriptions.push(isEs ? "Menor prioridad a la defensa (" + diff + ")" : "Lower defensive priority (" + diff + ")");
     }
   }
 
-  // 4. Heal damage rate (lower = heals sooner at less damage = more preventive)
-  if (draft.healDamageRate < pristine.healDamageRate) {
-    descriptions.push("Curación más preventiva (se cura con menos daño)");
-  } else if (draft.healDamageRate > pristine.healDamageRate) {
-    descriptions.push("Espera a recibir más daño para curarse");
+  if (draft.motivations.score !== pristine.motivations.score) {
+    const diff = draft.motivations.score - pristine.motivations.score;
+    if (diff > 0) {
+      if (mode === "RapidBall") {
+        descriptions.push(isEs ? "Mayor agresividad para llevar el balón a la portería (+" + diff + ")" : "Greater drive to carry the ball to the goal (+" + diff + ")");
+      } else if (mode === "FlagFlight") {
+        descriptions.push(isEs ? "Mayor enfoque en capturar y asegurar la bandera (+" + diff + ")" : "Greater focus on capturing and securing the flag (+" + diff + ")");
+      } else {
+        descriptions.push(isEs ? "Prioriza recolectar y asegurar cristales (+" + diff + ")" : "Prioritizes collecting and securing crystals (+" + diff + ")");
+      }
+    } else {
+      descriptions.push(isEs ? "Menor urgencia por recolectar/objetivo (" + diff + ")" : "Lower urgency for objective collection (" + diff + ")");
+    }
+  }
+
+  // 2. Dash Intervals
+  if (draft.dashIntervals.attack !== pristine.dashIntervals.attack) {
+    if (draft.dashIntervals.attack < pristine.dashIntervals.attack) {
+      descriptions.push(isEs ? "Impulsos ofensivos más rápidos y frecuentes" : "Faster and more frequent offensive dashes");
+    } else {
+      descriptions.push(isEs ? "Impulsos ofensivos más pausados" : "More measured offensive dashes");
+    }
+  }
+  if (draft.dashIntervals.defense !== pristine.dashIntervals.defense) {
+    if (draft.dashIntervals.defense < pristine.dashIntervals.defense) {
+      descriptions.push(isEs ? "Maniobras de repliegue defensivo más rápidas" : "Faster defensive retreat maneuvers");
+    } else {
+      descriptions.push(isEs ? "Maniobras defensivas más pausadas" : "More measured defensive maneuvers");
+    }
+  }
+  if (draft.dashIntervals.score !== pristine.dashIntervals.score) {
+    if (draft.dashIntervals.score < pristine.dashIntervals.score) {
+      descriptions.push(isEs ? "Desplazamiento más veloz hacia objetivos" : "Faster movement toward objectives");
+    } else {
+      descriptions.push(isEs ? "Desplazamiento más medido hacia objetivos" : "More measured movement toward objectives");
+    }
+  }
+
+  // 3. Skill Intervals
+  if (draft.skillIntervals.attack !== pristine.skillIntervals.attack) {
+    if (draft.skillIntervals.attack < pristine.skillIntervals.attack) {
+      descriptions.push(isEs ? "Uso más frecuente de habilidades ofensivas" : "More frequent offensive skill usage");
+    } else {
+      descriptions.push(isEs ? "Uso más conservador de habilidades ofensivas" : "More conservative offensive skill usage");
+    }
+  }
+  if (draft.skillIntervals.heal !== pristine.skillIntervals.heal) {
+    if (draft.skillIntervals.heal < pristine.skillIntervals.heal) {
+      descriptions.push(isEs ? "Uso más frecuente de habilidades de curación" : "More frequent heal skill usage");
+    } else {
+      descriptions.push(isEs ? "Uso más espaciado de habilidades de curación" : "More spaced out heal skill usage");
+    }
+  }
+
+  // 4. Heal Damage Rate
+  if (draft.healDamageRate !== pristine.healDamageRate) {
+    if (draft.healDamageRate < pristine.healDamageRate) {
+      descriptions.push(isEs ? "Se cura antes tras sufrir daño leve" : "Heals sooner after taking light damage");
+    } else {
+      descriptions.push(isEs ? "Espera a recibir más daño para curarse" : "Waits to take more damage before healing");
+    }
   }
 
   // 5. Can Lockon
   if (draft.canLockon !== pristine.canLockon) {
-    descriptions.push(draft.canLockon ? "Fijar blanco activado" : "Fijar blanco desactivado");
+    descriptions.push(draft.canLockon ? (isEs ? "Fijar blanco activado" : "Lock-on enabled") : (isEs ? "Fijar blanco desactivado" : "Lock-on disabled"));
   }
 
   // 6. Score to deposit
   if (mode !== "FlagFlight" && draft.scoreToDeposit !== pristine.scoreToDeposit) {
     if (draft.scoreToDeposit > pristine.scoreToDeposit) {
-      descriptions.push("Acumula más cristales antes de depositar");
+      descriptions.push(isEs ? "Acumula más cristales antes de depositar" : "Hoards more crystals before depositing");
     } else {
-      descriptions.push("Deposita cristales con mayor frecuencia");
+      descriptions.push(isEs ? "Deposita cristales con mayor frecuencia" : "Deposits crystals more frequently");
     }
   }
 
@@ -3119,7 +3078,8 @@ function deriveFriendlyBehaviors(draft, pristine, mode) {
 
 function getBotAiDiff() {
   const diffs = [];
-  const fieldLabels = {
+  const isEs = BalanceI18n.getLang() === "es";
+  const fieldLabels = isEs ? {
     "motivations.attack": "Agresividad en combate (Ataque)",
     "motivations.defense": "Instinto defensivo (Defensa)",
     "motivations.score": "Enfoque en objetivos (Puntuación)",
@@ -3134,14 +3094,31 @@ function getBotAiDiff() {
     "healDamageRate": "Umbral de daño para curar",
     "canLockon": "Permitir fijar blanco",
     "scoreToDeposit": "Cristales para depositar"
+  } : {
+    "motivations.attack": "Combat Aggression (Attack)",
+    "motivations.defense": "Defensive Instinct (Defense)",
+    "motivations.score": "Objective Focus (Score)",
+    "dashIntervals.attack": "Attack dash impulse",
+    "dashIntervals.defense": "Defensive dash impulse",
+    "dashIntervals.score": "Objective dash impulse",
+    "skillIntervals.attack": "Attack skill cooldown",
+    "skillIntervals.heal": "Heal skill cooldown",
+    "skillIntervals.buff": "Buff skill cooldown",
+    "skillIntervals.trap": "Trap skill cooldown",
+    "skillIntervals.warp": "Warp skill cooldown",
+    "healDamageRate": "Damage threshold to heal",
+    "canLockon": "Allow lock-on",
+    "scoreToDeposit": "Crystals to deposit"
   };
 
   for (const key of Object.keys(state.botAi.drafts)) {
-    const [mode, profName] = key.split("/");
+    const [mode, kidStr] = key.split("/");
+    const kickerId = Number(kidStr);
     const draft = state.botAi.drafts[key];
-    const pristine = getPristineBotAiProfile(mode, profName);
+    const pristine = getPristineBotAiProfile(mode, kickerId);
     if (!pristine) continue;
 
+    const kickerMeta = getBotAiKickerMeta(kickerId);
     const changes = [];
     for (const prop of ["attack", "defense", "score"]) {
       if (draft.motivations[prop] !== pristine.motivations[prop]) {
@@ -3180,8 +3157,8 @@ function getBotAiDiff() {
     if (draft.canLockon !== pristine.canLockon) {
       changes.push({
         label: fieldLabels["canLockon"],
-        oldVal: pristine.canLockon ? "Sí" : "No",
-        newVal: draft.canLockon ? "Sí" : "No"
+        oldVal: pristine.canLockon ? (isEs ? "Sí" : "Yes") : "No",
+        newVal: draft.canLockon ? (isEs ? "Sí" : "Yes") : "No"
       });
     }
     if (draft.scoreToDeposit !== pristine.scoreToDeposit) {
@@ -3193,11 +3170,11 @@ function getBotAiDiff() {
     }
 
     if (changes.length > 0) {
-      const modeObj = BOT_AI_MODES.find(m => m.id === mode);
-      const roleMeta = BOT_AI_ROLE_FAMILIES[profName] || { title: profName };
+      const modeObj = BalanceI18n.getBotAiMode(mode);
       diffs.push({
         mode: modeObj ? modeObj.name : mode,
-        profile: roleMeta.title,
+        profile: kickerMeta.name,
+        kickerId: kickerId,
         key: key,
         changes: changes,
         behaviors: deriveFriendlyBehaviors(draft, pristine, mode)
@@ -3244,59 +3221,49 @@ function showBotAiReviewModal() {
         style: "display:inline-flex; align-items:center; gap:6px; font-size:11px; padding:3px 8px; border-radius:4px; background:var(--bg); border:1px solid var(--line); margin-bottom:8px; color:var(--fg2);"
       });
       intentBox.appendChild(el("span", null, activePreset.icon || "🎯"));
-      intentBox.appendChild(el("span", null, "Intención: "));
-      intentBox.appendChild(el("strong", { style: "color:var(--accent);" }, activePreset.title));
+      intentBox.appendChild(el("span", null, isEs ? "Intención: " : "Intent: "));
+      intentBox.appendChild(el("strong", { style: "color:var(--accent);" }, isEs ? activePreset.title : (activePreset.titleEn || activePreset.title)));
       card.appendChild(intentBox);
     }
 
-    // Default friendly per-profile behavior descriptions (derived from actual before/after)
-    if (d.behaviors && d.behaviors.length > 0) {
-      const behaviorList = el("ul", {
-        class: "bot-ai-review-behavior-list",
-        style: "margin:0 0 10px; padding-left:18px; font-size:12px; color:var(--fg); line-height:1.5;"
-      });
+    if (d.behaviors.length > 0) {
+      const ul = el("ul", { style: "margin:0 0 8px 18px; padding:0; font-size:12px; color:var(--fg); line-height:1.5;" });
       for (const b of d.behaviors) {
-        behaviorList.appendChild(el("li", null, b));
+        ul.appendChild(el("li", null, b));
       }
-      card.appendChild(behaviorList);
+      card.appendChild(ul);
     }
 
-    // Optional numeric detail disclosure: ALL raw numeric rows ONLY inside here!
-    const numDetails = el("details", { class: "bot-ai-modal-diff-details", style: "font-size:11px; margin-top:6px;" });
-    numDetails.appendChild(el("summary", { style: "cursor:pointer; color:var(--fg2); margin-bottom:6px; font-weight:500;" }, isEs ? "Ver detalle de valores numéricos" : "View numeric parameter details"));
-
-    const table = el("table", { class: "htable" });
-    const thead = el("thead");
-    const trh = el("tr");
-    trh.appendChild(el("th", null, isEs ? "Parámetro" : "Parameter"));
-    trh.appendChild(el("th", null, isEs ? "Valor anterior" : "Previous value"));
-    trh.appendChild(el("th", null, isEs ? "Nuevo valor" : "New value"));
-    thead.appendChild(trh);
-    table.appendChild(thead);
-
-    const tbody = el("tbody");
+    const details = el("details", { style: "font-size:11px; color:var(--fg2); margin-top:6px;" });
+    details.appendChild(el("summary", { style: "cursor:pointer; color:var(--fg2);" },
+      isEs ? "Ver detalle de valores numéricos (" + d.changes.length + " cambio(s))" : "View numeric parameter details (" + d.changes.length + " change(s))"));
+    const tbl = el("table", { style: "width:100%; margin-top:6px; border-collapse:collapse;" });
     for (const c of d.changes) {
-      const tr = el("tr");
-      tr.appendChild(el("td", null, c.label));
-      tr.appendChild(el("td", { style: "color:var(--fg2);" }, String(c.oldVal)));
-      tr.appendChild(el("td", { style: "color:var(--ok); font-weight:600;" }, String(c.newVal)));
-      tbody.appendChild(tr);
+      const tr = el("tr", { style: "border-bottom:1px solid var(--line);" });
+      tr.appendChild(el("td", { style: "padding:3px 0; color:var(--fg);" }, c.label));
+      tr.appendChild(el("td", { style: "padding:3px 0; text-align:right; color:var(--fg2); text-decoration:line-through;" }, String(c.oldVal)));
+      tr.appendChild(el("td", { style: "padding:3px 0; text-align:right; font-weight:600; color:var(--ok);" }, " → " + String(c.newVal)));
+      tbl.appendChild(tr);
     }
-    table.appendChild(tbody);
-    numDetails.appendChild(table);
-    card.appendChild(numDetails);
+    details.appendChild(tbl);
+    card.appendChild(details);
 
     body.appendChild(card);
   }
+
   modal.appendChild(body);
 
   const foot = el("div", { class: "bot-ai-modal-foot" });
-  const cancelBtn = el("button", { type: "button", class: "bot-ai-btn secondary" }, isEs ? "Cancelar" : "Cancel");
+  const cancelBtn = el("button", { type: "button", class: "bot-ai-btn secondary" }, isEs ? "Seguir editando" : "Keep editing");
   cancelBtn.addEventListener("click", function () { backdrop.remove(); });
   foot.appendChild(cancelBtn);
 
-  const confirmBtn = el("button", { type: "button", class: "bot-ai-btn primary" }, isEs ? "Guardar en servidor" : "Save to server");
+  const confirmBtn = el("button", { type: "button", class: "bot-ai-btn primary", id: "botAiConfirmSaveBtn" },
+    state.botAi.saving ? (isEs ? "Guardando..." : "Saving...") : (isEs ? "Guardar en servidor" : "Save to server"));
+  confirmBtn.disabled = state.botAi.saving;
   confirmBtn.addEventListener("click", async function () {
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = isEs ? "Guardando..." : "Saving...";
     backdrop.remove();
     await saveBotAiProfiles();
   });
@@ -3307,25 +3274,34 @@ function showBotAiReviewModal() {
   document.body.appendChild(backdrop);
 }
 
-function showBotAiConflictModal(errMessage) {
+function showBotAiConflictModal(errorMsg) {
   const existing = document.getElementById("botAiConflictModal");
   if (existing) existing.remove();
 
-  const isEs = BalanceI18n.getLang() === "es";
   const backdrop = el("div", { id: "botAiConflictModal", class: "bot-ai-modal-backdrop" });
   const modal = el("div", { class: "bot-ai-modal" });
 
-  const head = el("div", { class: "bot-ai-modal-head", style: "border-color:var(--dirty);" });
-  head.appendChild(el("span", { style: "color:var(--dirty);" }, isEs ? "⚠️ Conflicto de Concurrencia (409)" : "⚠️ Concurrency Conflict (409)"));
+  const isEs = BalanceI18n.getLang() === "es";
+  const head = el("div", { class: "bot-ai-modal-head" });
+  head.appendChild(el("span", { style: "color:var(--err);" }, isEs ? "⚠️ Conflicto de Concurrencia (409)" : "⚠️ Concurrency Conflict (409)"));
+  const closeBtn = el("button", { type: "button", class: "mini" }, "✕");
+  closeBtn.addEventListener("click", function () { backdrop.remove(); });
+  head.appendChild(closeBtn);
   modal.appendChild(head);
 
   const body = el("div", { class: "bot-ai-modal-body" });
   body.appendChild(el("p", { class: "bot-ai-notice warn" },
-    errMessage || (isEs ? "El archivo de configuración fue modificado externamente en el disco por otro proceso o usuario. Para evitar sobrescribir cambios ajenos, tu guardado ha sido detenido."
-                        : "The configuration file was modified externally on disk by another process or user. To prevent overwriting external changes, your save was halted.")));
-  body.appendChild(el("p", null,
+    isEs ? "El archivo de configuración fue modificado externamente en el disco por otro proceso o usuario. Para evitar sobrescribir cambios ajenos, tu guardado ha sido detenido."
+         : "The configuration file was modified externally on disk by another process or user. To prevent overwriting external changes, your save was halted."));
+
+  if (errorMsg) {
+    body.appendChild(el("p", { class: "note", style: "font-family:monospace; font-size:11px;" }, errorMsg));
+  }
+
+  body.appendChild(el("p", { style: "font-size:12px; color:var(--fg2); line-height:1.4;" },
     isEs ? "Tus borradores locales se conservan en memoria. Puedes recargar la versión actual del servidor para actualizar la base manteniendo tus cambios pendientes."
          : "Your local drafts are preserved in memory. You can reload the current server version to update the base while keeping your pending changes."));
+
   modal.appendChild(body);
 
   const foot = el("div", { class: "bot-ai-modal-foot" });
@@ -3353,7 +3329,7 @@ async function saveBotAiProfiles() {
   updateBotAiDirtyState();
 
   const combined = state.botAi.rawProfiles.map(p => {
-    const key = p.mode + "/" + p.profile;
+    const key = p.mode + "/" + p.kickerId;
     return state.botAi.drafts[key] ? JSON.parse(JSON.stringify(state.botAi.drafts[key])) : JSON.parse(JSON.stringify(p));
   });
 
@@ -3375,6 +3351,7 @@ async function saveBotAiProfiles() {
     if (res.status === 409) {
       const errJson = await res.json().catch(() => ({}));
       state.botAi.saving = false;
+      updateBotAiDirtyState();
       showBotAiConflictModal(errJson.error);
       return;
     }
@@ -3406,43 +3383,51 @@ function renderBotAiList() {
   if (!list) return;
   clear(list);
 
+  const isEs = BalanceI18n.getLang() === "es";
+
   if (state.botAi.loading) {
-    list.appendChild(el("li", { class: "count" }, "Cargando perfiles..."));
+    list.appendChild(el("li", { class: "count" }, isEs ? "Cargando perfiles..." : "Loading profiles..."));
     return;
   }
   if (state.botAi.error) {
-    list.appendChild(el("li", { class: "count", style: "color:var(--err);" }, "Error al cargar"));
+    list.appendChild(el("li", { class: "count", style: "color:var(--err);" }, isEs ? "Error al cargar" : "Failed to load"));
     return;
   }
 
   const dirtyCount = Object.keys(state.botAi.drafts).length;
-  const modeObj = BOT_AI_MODES.find(m => m.id === state.botAi.selectedMode);
-  const countText = "13 perfiles (" + (modeObj?.name || state.botAi.selectedMode) + ")" +
-    (dirtyCount > 0 ? " · " + dirtyCount + " modificado(s)" : "");
+  const locM = BalanceI18n.getBotAiMode(state.botAi.selectedMode);
+  const countText = "14 kickers (" + (locM.name || state.botAi.selectedMode) + ")" +
+    (dirtyCount > 0 ? " · " + dirtyCount + (isEs ? " modificado(s)" : " modified") : "");
   list.appendChild(el("li", { class: "count" }, countText));
 
-  for (const profKey of Object.keys(BOT_AI_ROLE_FAMILIES)) {
-    const meta = BOT_AI_ROLE_FAMILIES[profKey];
-    const isDirty = isBotAiProfileDirty(state.botAi.selectedMode, profKey);
-    const isSelected = state.botAi.selectedProfile === profKey;
+  for (const kicker of BOT_AI_KICKERS) {
+    const isDirty = isBotAiProfileDirty(state.botAi.selectedMode, kicker.id);
+    const isSelected = state.botAi.selectedKickerId === kicker.id;
 
-    const li = el("li", { class: "bot-ai-sidebar-item" + (isSelected ? " sel" : "") });
-    li.appendChild(iconFor("kicker", meta.templateKicker, 32));
+    const li = el("li", {
+      class: "bot-ai-sidebar-item" + (isSelected ? " sel" : ""),
+      "data-kicker-id": String(kicker.id)
+    });
+    li.appendChild(iconFor("kicker", kicker.id, 32));
 
     const metaBox = el("div", { style: "flex:1; min-width:0;" });
-    const nm = el("div", { style: "font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" }, meta.title);
-    const sub = el("div", { class: "sub", style: "white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" },
-      meta.kickers.map(k => k.name).join(", "));
+    const nm = el("div", { style: "font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" }, kicker.name);
+    const roleText = isEs ? kicker.roleEs : kicker.role;
+    const sub = el("div", { class: "sub", style: "white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" }, roleText);
     metaBox.appendChild(nm);
     metaBox.appendChild(sub);
     li.appendChild(metaBox);
 
     if (isDirty) {
-      li.appendChild(el("span", { class: "dot", title: "Borrador con cambios sin guardar" }));
+      li.appendChild(el("span", {
+        class: "dot",
+        title: isEs ? "Borrador con cambios sin guardar" : "Draft with unsaved changes"
+      }));
     }
 
     li.addEventListener("click", function () {
-      state.botAi.selectedProfile = profKey;
+      state.botAi.selectedKickerId = kicker.id;
+      state.botAi.selectedProfile = kicker.name;
       renderBotAiList();
       renderBotAiPanel(document.getElementById("panel"));
     });
@@ -3453,14 +3438,16 @@ function renderBotAiList() {
 function renderBotAiPanel(panel) {
   clear(panel);
 
+  const isEs = BalanceI18n.getLang() === "es";
+
   if (state.botAi.loading) {
-    panel.appendChild(el("p", { class: "empty" }, "Cargando perfiles de IA de bots desde el servidor..."));
+    panel.appendChild(el("p", { class: "empty" }, isEs ? "Cargando perfiles de IA de bots desde el servidor..." : "Loading bot AI profiles from server..."));
     return;
   }
   if (state.botAi.error) {
     const errBox = el("div", { class: "bot-ai-container" });
     errBox.appendChild(el("div", { class: "bot-ai-notice warn" }, "⚠️ " + state.botAi.error));
-    const retryBtn = el("button", { type: "button", class: "bot-ai-btn primary" }, "Reintentar carga");
+    const retryBtn = el("button", { type: "button", class: "bot-ai-btn primary" }, isEs ? "Reintentar carga" : "Retry loading");
     retryBtn.addEventListener("click", function () { loadBotAiProfiles(true); });
     errBox.appendChild(retryBtn);
     panel.appendChild(errBox);
@@ -3468,14 +3455,13 @@ function renderBotAiPanel(panel) {
   }
   if (!state.botAi.loaded) {
     loadBotAiProfiles();
-    panel.appendChild(el("p", { class: "empty" }, "Iniciando editor de IA de bots..."));
+    panel.appendChild(el("p", { class: "empty" }, isEs ? "Iniciando editor de IA de bots..." : "Initializing bot AI editor..."));
     return;
   }
 
   const container = el("div", { class: "bot-ai-container" });
 
-  // 1. Mode Selector: Compact 3-column segmented control (Cristales / Bandera / Balón)
-  const isEs = BalanceI18n.getLang() === "es";
+  // 1. Mode Selector: 3-column segmented control (Cristales / Bandera / Balón)
   const modeSeg = el("div", { class: "bot-ai-modes-segmented", role: "tablist", "aria-label": isEs ? "Modo de juego" : "Game mode" });
   for (const m of BOT_AI_MODES) {
     const locM = BalanceI18n.getBotAiMode(m.id);
@@ -3489,7 +3475,7 @@ function renderBotAiPanel(panel) {
       if (state.botAi.selectedMode !== m.id) {
         state.botAi.selectedMode = m.id;
         renderBotAiList();
-        renderBotAiPanel(panel);
+        renderBotAiPanel(document.getElementById("panel"));
       }
     });
     modeSeg.appendChild(btn);
@@ -3498,254 +3484,311 @@ function renderBotAiPanel(panel) {
 
   // Active Profile Data
   const curMode = state.botAi.selectedMode;
-  const curProfKey = state.botAi.selectedProfile;
-  const roleMeta = BOT_AI_ROLE_FAMILIES[curProfKey] || { title: curProfKey, family: "General", desc: "", kickers: [] };
-  const profile = getActiveBotAiProfile(curMode, curProfKey);
+  const curKid = state.botAi.selectedKickerId || 1;
+  const kickerMeta = getBotAiKickerMeta(curKid);
+  const profile = getActiveBotAiProfile(curMode, curKid);
 
   if (!profile) {
-    container.appendChild(el("p", { class: "empty" }, "No se encontró el perfil seleccionado en este modo."));
+    container.appendChild(el("p", { class: "empty" }, isEs ? "No se encontró el perfil del kicker en este modo." : "No profile found for kicker in this mode."));
     panel.appendChild(container);
     return;
   }
 
-  const isDirty = isBotAiProfileDirty(curMode, curProfKey);
+  const isDirty = isBotAiProfileDirty(curMode, curKid);
+  const locCurMode = BalanceI18n.getBotAiMode(curMode);
 
   // 2. Profile Selection: Mobile Native Select Picker
   const mobilePicker = el("div", { class: "bot-ai-mobile-picker" });
-  mobilePicker.appendChild(el("label", { for: "botAiProfileSelect", class: "bot-ai-picker-label" }, "Perfil a editar:"));
+  mobilePicker.appendChild(el("label", { for: "botAiProfileSelect", class: "bot-ai-picker-label" }, isEs ? "Kicker a editar:" : "Kicker to edit:"));
   const pickerRow = el("div", { class: "bot-ai-picker-row" });
-  pickerRow.appendChild(iconFor("kicker", roleMeta.templateKicker, 32));
-  const select = el("select", { id: "botAiProfileSelect", class: "bot-ai-select", "aria-label": "Seleccionar perfil de bot" });
-  for (const pk of Object.keys(BOT_AI_ROLE_FAMILIES)) {
-    const meta = BOT_AI_ROLE_FAMILIES[pk];
-    const opt = el("option", { value: pk });
-    const isD = isBotAiProfileDirty(curMode, pk);
-    const names = meta.kickers.map(k => k.name).join(", ");
-    opt.textContent = meta.title + " (" + names + ")" + (isD ? " •" : "");
-    if (pk === curProfKey) opt.selected = true;
+  pickerRow.appendChild(iconFor("kicker", kickerMeta.id, 32));
+  const select = el("select", {
+    id: "botAiProfileSelect",
+    class: "bot-ai-select",
+    "aria-label": isEs ? "Seleccionar kicker de bot" : "Select bot kicker"
+  });
+  for (const k of BOT_AI_KICKERS) {
+    const opt = el("option", { value: String(k.id) });
+    const isD = isBotAiProfileDirty(curMode, k.id);
+    const roleText = isEs ? k.roleEs : k.role;
+    opt.textContent = k.name + " (" + roleText + ")" + (isD ? (isEs ? " • modificado" : " • modified") : "");
+    if (k.id === curKid) opt.selected = true;
     select.appendChild(opt);
   }
   select.addEventListener("change", function () {
-    state.botAi.selectedProfile = select.value;
+    state.botAi.selectedKickerId = Number(select.value);
+    state.botAi.selectedProfile = getBotAiKickerMeta(Number(select.value)).name;
     renderBotAiList();
-    renderBotAiPanel(panel);
+    renderBotAiPanel(document.getElementById("panel"));
   });
   pickerRow.appendChild(select);
   mobilePicker.appendChild(pickerRow);
   container.appendChild(mobilePicker);
 
-  // Profile Header: Friendly sentence & compact Afecta a label with expandable explanation
+  // 3. Profile Header: Individual kicker avatar and info (never shared role groups)
   const summaryHeader = el("div", { class: "bot-ai-profile-summary-header" });
   const sumLeft = el("div", { style: "display:flex; align-items:center; gap:10px;" });
-  sumLeft.appendChild(iconFor("kicker", roleMeta.templateKicker, 38));
+  sumLeft.appendChild(iconFor("kicker", kickerMeta.id, 38));
   const sumTitles = el("div");
-  sumTitles.appendChild(el("div", { class: "bot-ai-profile-title" }, "Editando perfil: " + roleMeta.title));
-  const affectsNames = roleMeta.kickers.map(k => k.name).join(", ");
+  sumTitles.appendChild(el("div", { class: "bot-ai-profile-title" }, (isEs ? "Editando kicker: " : "Editing kicker: ") + kickerMeta.name));
   sumTitles.appendChild(el("div", { class: "bot-ai-affects-label" },
-    roleMeta.isSpecialized ? ("Personaje exclusivo: " + affectsNames) : ("Afecta a: " + affectsNames)));
+    (isEs ? "Modo: " : "Mode: ") + locCurMode.name + " · " + (isEs ? "Identificador de parámetro: " : "Parameter ID: ") + profile.parameterId));
   sumLeft.appendChild(sumTitles);
   summaryHeader.appendChild(sumLeft);
 
-  const dirtyBadge = el("span", { id: "botAiProfileDirtyBadge", class: "badge dirty", style: isDirty ? "" : "display:none;" }, "Borrador modificado");
-  summaryHeader.appendChild(dirtyBadge);
-
-  if (!roleMeta.isSpecialized) {
-    const sharedDetails = el("details", { class: "bot-ai-shared-details" });
-    sharedDetails.appendChild(el("summary", null, "¿Por qué afecta a varios kickers?"));
-    sharedDetails.appendChild(el("p", null, "En KickFlight, los kickers de este rol comparten la misma plantilla de IA base. Cualquier ajuste realizado aquí se aplicará a todos ellos al jugar con bots."));
-    summaryHeader.appendChild(sharedDetails);
-  }
   container.appendChild(summaryHeader);
 
-  // 3. Heading & Subheading: "¿Qué quieres que haga?"
+  // 4. Intent Presets Section
   const headingBox = el("div", { class: "bot-ai-heading-box" });
-  headingBox.appendChild(el("h2", { class: "bot-ai-heading" }, "🎯 " + (isEs ? "¿Qué quieres que haga?" : "What do you want it to do?")));
-  headingBox.appendChild(el("p", { class: "bot-ai-subheading" }, isEs ? "Selecciona una intención para aplicar una recomendación rápida y editable:" : "Select an intent preset to apply a quick, editable recommendation:"));
+  headingBox.appendChild(el("h3", { class: "bot-ai-heading" }, isEs ? "¿Qué quieres que haga?" : "What do you want it to do?"));
+  headingBox.appendChild(el("p", { class: "bot-ai-subheading" },
+    isEs ? "Selecciona un comportamiento táctico predefinido para aplicar valores optimizados a este kicker."
+         : "Select a tactical preset to apply optimized settings to this kicker."));
   container.appendChild(headingBox);
 
-  // 4. Intent Choices: 5 Compact, Colorful Intent Cards
-  const intentGrid = el("div", { class: "bot-ai-intent-grid" });
-  const activePresetId = detectActivePreset(profile, curMode, curProfKey);
+  const activePresetId = detectActivePreset(profile, curMode, curKid);
 
-  for (const pr of BOT_AI_INTENT_PRESETS) {
-    const locPr = BalanceI18n.getBotAiPreset(pr.id) || pr;
-    const isSelected = activePresetId === pr.id;
-    const card = el("button", {
-      type: "button",
-      class: "bot-ai-intent-card " + pr.theme + (isSelected ? " selected" : ""),
-      "aria-pressed": isSelected ? "true" : "false"
+  const grid = el("div", { class: "bot-ai-intent-grid" });
+  for (const preset of BOT_AI_INTENT_PRESETS) {
+    const isSelected = activePresetId === preset.id;
+    const card = el("div", {
+      class: "bot-ai-intent-card " + preset.theme + (isSelected ? " selected" : ""),
+      role: "button",
+      tabindex: "0"
     });
 
-    const topRow = el("div", { class: "bot-ai-intent-top" });
+    const top = el("div", { class: "bot-ai-intent-top" });
     const iconTitle = el("div", { class: "bot-ai-intent-icon-title" });
-    iconTitle.appendChild(el("span", { class: "bot-ai-intent-icon" }, pr.icon));
-    iconTitle.appendChild(el("span", { class: "bot-ai-intent-title" }, locPr.title));
-    topRow.appendChild(iconTitle);
+    iconTitle.appendChild(el("span", { class: "bot-ai-intent-icon" }, preset.icon));
+    iconTitle.appendChild(el("span", { class: "bot-ai-intent-title" }, isEs ? preset.title : (preset.titleEn || preset.title)));
+    top.appendChild(iconTitle);
 
     if (isSelected) {
-      topRow.appendChild(el("span", { class: "bot-ai-intent-badge" }, isEs ? "✓ Activo" : "✓ Active"));
+      top.appendChild(el("span", { class: "bot-ai-intent-badge" }, isEs ? "✓ Activo" : "✓ Active"));
     }
-    card.appendChild(topRow);
+    card.appendChild(top);
 
-    const summaryText = getPresetSummary(locPr, curMode);
-    card.appendChild(el("div", { class: "bot-ai-intent-summary" }, summaryText));
+    card.appendChild(el("p", { class: "bot-ai-intent-desc" }, isEs ? preset.behaviorDesc : (preset.behaviorDescEn || preset.behaviorDesc)));
 
-    if (locPr.nativeLimit) {
-      card.appendChild(el("div", { class: "bot-ai-intent-subnote" }, locPr.nativeLimit));
+    const summaryText = getPresetSummary(preset, curMode);
+    if (summaryText) {
+      card.appendChild(el("div", { class: "bot-ai-intent-mode-summary" },
+        (isEs ? "Comportamiento seleccionado: " : "Selected behavior: ") + summaryText));
+    }
+
+    const noteText = isEs ? preset.nativeLimit : (preset.nativeLimitEn || preset.nativeLimit);
+    if (noteText) {
+      card.appendChild(el("p", { class: "bot-ai-intent-note" }, "ℹ️ " + noteText));
     }
 
     card.addEventListener("click", function () {
-      applyBotAiPreset(curMode, curProfKey, pr.id);
+      applyBotAiPreset(curMode, curKid, preset.id);
     });
-    intentGrid.appendChild(card);
+    grid.appendChild(card);
   }
-  container.appendChild(intentGrid);
+  container.appendChild(grid);
 
-  // Plain language behavior summary
-  const activeRawObj = BOT_AI_INTENT_PRESETS.find(p => p.id === activePresetId);
-  const activeObj = activeRawObj ? (BalanceI18n.getBotAiPreset(activeRawObj.id) || activeRawObj) : null;
-  if (activeObj) {
-    const feedback = el("div", { class: "bot-ai-preset-feedback" });
-    feedback.innerHTML = (isEs ? "Comportamiento seleccionado: <strong>" : "Selected behavior: <strong>") + activeObj.title + "</strong> — " + activeObj.behaviorDesc;
-    container.appendChild(feedback);
-  }
+  // 5. Advanced Behavior Sliders & Cooldowns
+  const advDetails = el("details", { class: "bot-ai-advanced" });
+  if (state.botAi.showAdvanced) advDetails.open = true;
+  advDetails.addEventListener("toggle", function () {
+    state.botAi.showAdvanced = advDetails.open;
+  });
 
-  // 5. Customization: Advanced collapsible includes numeric fields; beginners don't need sliders
-  const customDetails = el("details", { class: "bot-ai-custom-details" });
-  customDetails.appendChild(el("summary", null, "🛠️ Ajustes avanzados de comportamiento (opcional)"));
-  const customBody = el("div", { class: "bot-ai-custom-body" });
-  const grid = el("div", { class: "bot-ai-controls-grid" });
+  advDetails.appendChild(el("summary", null, isEs ? "🛠️ Ajustes avanzados de comportamiento (opcional)" : "🛠️ Advanced behavior settings (optional)"));
+  const advBody = el("div", { class: "bot-ai-advanced-body" });
 
-  function createSlider(label, help, val, min, max, step, unit, onChange) {
-    const field = el("div", { class: "bot-ai-field" });
-    const fhead = el("div", { class: "bot-ai-field-head" });
-    fhead.appendChild(el("span", { class: "bot-ai-field-label" }, label));
-    const valDisplay = el("span", { class: "bot-ai-field-val" }, String(val) + (unit || ""));
-    fhead.appendChild(valDisplay);
-    field.appendChild(fhead);
+  // Motivations
+  const motGroup = el("div", { class: "bot-ai-param-group" });
+  motGroup.appendChild(el("h4", { style: "margin:0 0 10px; font-size:13px; color:var(--accent);" },
+    isEs ? "🎯 Prioridades de Decisión (Motivaciones 0-100)" : "🎯 Decision Priorities (Motivations 0-100)"));
 
+  const motFields = [
+    { key: "attack", label: isEs ? "⚔️ Agresividad en combate (Ataque)" : "⚔️ Combat Aggression (Attack)", hint: isEs ? "¿Cuánto prioriza buscar y combatir rivales?" : "How much does the bot prioritize seeking and fighting rivals?" },
+    { key: "defense", label: isEs ? "🛡️ Instinto defensivo (Defensa)" : "🛡️ Defensive Instinct (Defense)", hint: isEs ? "¿Cuánto prioriza replegarse o vigilar áreas?" : "How much does the bot prioritize retreating or guarding areas?" },
+    { key: "score", label: isEs ? "💎 Enfoque en objetivo (Puntuación)" : "💎 Objective Focus (Score)", hint: isEs ? "¿Cuánto prioriza recolectar cristales o avanzar con el balón?" : "How much does the bot prioritize collecting crystals or moving with the ball?" }
+  ];
+
+  for (const f of motFields) {
+    const row = el("div", { class: "bot-ai-slider-row" });
+    const lbl = el("div", { class: "bot-ai-param-label" });
+    lbl.appendChild(el("span", { class: "bot-ai-param-title" }, f.label));
+    lbl.appendChild(el("span", { class: "bot-ai-param-hint" }, f.hint));
+    row.appendChild(lbl);
+
+    const sliderVal = el("span", { class: "bot-ai-slider-val" }, String(profile.motivations[f.key]));
     const slider = el("input", {
       type: "range",
       class: "bot-ai-slider",
-      min: String(min),
-      max: String(max),
-      step: String(step),
-      value: String(val)
+      min: "0",
+      max: "100",
+      step: "1",
+      value: String(profile.motivations[f.key]),
+      "aria-label": f.label
     });
     slider.addEventListener("input", function () {
-      const numVal = step < 1 ? parseFloat(slider.value) : parseInt(slider.value, 10);
-      valDisplay.textContent = String(numVal) + (unit || "");
-      onChange(numVal);
+      const val = parseInt(slider.value, 10);
+      sliderVal.textContent = String(val);
+      setBotAiField(curMode, curKid, "motivations", f.key, val);
     });
-    field.appendChild(slider);
-    field.appendChild(el("div", { class: "bot-ai-field-help" }, help));
-    return field;
+
+    row.appendChild(slider);
+    row.appendChild(sliderVal);
+    motGroup.appendChild(row);
   }
+  advBody.appendChild(motGroup);
 
-  // Motivations
-  grid.appendChild(createSlider("⚔️ Agresividad en combate (Ataque)", "¿Cuánto prioriza buscar y combatir rivales?",
-    profile.motivations.attack, 0, 100, 1, "", function (v) { setBotAiField(curMode, curProfKey, "motivations", "attack", v); }));
+  // Dash intervals
+  const dashGroup = el("div", { class: "bot-ai-param-group" });
+  dashGroup.appendChild(el("h4", { style: "margin:0 0 10px; font-size:13px; color:var(--accent);" },
+    isEs ? "⚡ Frecuencia de Impulsos Dash (segundos)" : "⚡ Dash Impulse Frequency (seconds)"));
 
-  grid.appendChild(createSlider("🛡️ Instinto defensivo (Defensa)", "¿Cuánto prioriza replegarse o vigilar áreas?",
-    profile.motivations.defense, 0, 100, 1, "", function (v) { setBotAiField(curMode, curProfKey, "motivations", "defense", v); }));
+  const dashFields = [
+    { key: "attack", label: isEs ? "En combate" : "In combat", hint: isEs ? "Segundos entre impulsos ofensivos (menor = más frecuente)." : "Seconds between offensive dashes (lower = more frequent)." },
+    { key: "defense", label: isEs ? "En defensa" : "In defense", hint: isEs ? "Segundos entre impulsos defensivos." : "Seconds between defensive dashes." },
+    { key: "score", label: isEs ? "Hacia objetivo" : "Toward objective", hint: isEs ? "Segundos entre impulsos hacia cristales o balón." : "Seconds between dashes toward crystals or ball." }
+  ];
 
-  grid.appendChild(createSlider("💎 Enfoque en objetivo (Puntuación)", "¿Cuánto prioriza recolectar cristales o avanzar con el balón?",
-    profile.motivations.score, 0, 100, 1, "", function (v) { setBotAiField(curMode, curProfKey, "motivations", "score", v); }));
+  for (const f of dashFields) {
+    const row = el("div", { class: "bot-ai-slider-row" });
+    const lbl = el("div", { class: "bot-ai-param-label" });
+    lbl.appendChild(el("span", { class: "bot-ai-param-title" }, f.label));
+    lbl.appendChild(el("span", { class: "bot-ai-param-hint" }, f.hint));
+    row.appendChild(lbl);
 
-  // Dash Intervals
-  grid.appendChild(createSlider("Frecuencia impulso dash en ataque", "Segundos entre impulsos ofensivos (menor = más frecuente).",
-    profile.dashIntervals.attack, 0.3, 2.5, 0.1, "s", function (v) { setBotAiField(curMode, curProfKey, "dashIntervals", "attack", v); }));
+    const numInput = el("input", {
+      type: "number",
+      class: "bot-ai-num-input",
+      min: "0.1",
+      max: "5.0",
+      step: "0.1",
+      value: String(profile.dashIntervals[f.key]),
+      "aria-label": f.label
+    });
+    numInput.addEventListener("input", function () {
+      const val = parseFloat(numInput.value);
+      if (!isNaN(val) && val > 0) {
+        setBotAiField(curMode, curKid, "dashIntervals", f.key, val);
+      }
+    });
 
-  grid.appendChild(createSlider("Frecuencia impulso dash en defensa", "Segundos entre impulsos defensivos.",
-    profile.dashIntervals.defense, 0.3, 2.5, 0.1, "s", function (v) { setBotAiField(curMode, curProfKey, "dashIntervals", "defense", v); }));
+    row.appendChild(numInput);
+    dashGroup.appendChild(row);
+  }
+  advBody.appendChild(dashGroup);
 
-  grid.appendChild(createSlider("Frecuencia impulso dash hacia objetivo", "Segundos entre impulsos hacia cristales o balón.",
-    profile.dashIntervals.score, 0.3, 2.5, 0.1, "s", function (v) { setBotAiField(curMode, curProfKey, "dashIntervals", "score", v); }));
+  // Skill cooldowns
+  const skillGroup = el("div", { class: "bot-ai-param-group" });
+  skillGroup.appendChild(el("h4", { style: "margin:0 0 10px; font-size:13px; color:var(--accent);" },
+    isEs ? "🕒 Enfriamiento de Habilidades (segundos)" : "🕒 Skill Cooldowns (seconds)"));
 
-  // Skill Intervals
-  grid.appendChild(createSlider("Intervalo habilidad de ataque", "Enfriamiento entre usos de habilidades ofensivas.",
-    profile.skillIntervals.attack, 1.0, 10.0, 0.5, "s", function (v) { setBotAiField(curMode, curProfKey, "skillIntervals", "attack", v); }));
+  const skillFields = [
+    { key: "attack", label: isEs ? "Habilidad de ataque" : "Attack skill", hint: isEs ? "Enfriamiento entre usos ofensivos." : "Cooldown between offensive uses." },
+    { key: "heal", label: isEs ? "Habilidad de curación" : "Heal skill", hint: isEs ? "Enfriamiento entre curaciones." : "Cooldown between heals." },
+    { key: "buff", label: isEs ? "Habilidad de mejora (Buff)" : "Buff skill", hint: isEs ? "Enfriamiento entre potenciadores." : "Cooldown between buffs." },
+    { key: "trap", label: isEs ? "Habilidad de trampa" : "Trap skill", hint: isEs ? "Enfriamiento entre colocación de trampas." : "Cooldown between trap placement." },
+    { key: "warp", label: isEs ? "Habilidad de teletransporte / warp" : "Warp skill", hint: isEs ? "Enfriamiento entre desplazamientos rápidos." : "Cooldown between warps." }
+  ];
 
-  grid.appendChild(createSlider("Intervalo habilidad curativa", "Enfriamiento entre usos de curaciones.",
-    profile.skillIntervals.heal, 1.0, 10.0, 0.5, "s", function (v) { setBotAiField(curMode, curProfKey, "skillIntervals", "heal", v); }));
+  for (const f of skillFields) {
+    const row = el("div", { class: "bot-ai-slider-row" });
+    const lbl = el("div", { class: "bot-ai-param-label" });
+    lbl.appendChild(el("span", { class: "bot-ai-param-title" }, f.label));
+    lbl.appendChild(el("span", { class: "bot-ai-param-hint" }, f.hint));
+    row.appendChild(lbl);
 
-  grid.appendChild(createSlider("Intervalo habilidad potenciadora (Buff)", "Enfriamiento entre potenciadores de equipo.",
-    profile.skillIntervals.buff, 1.0, 10.0, 0.5, "s", function (v) { setBotAiField(curMode, curProfKey, "skillIntervals", "buff", v); }));
+    const numInput = el("input", {
+      type: "number",
+      class: "bot-ai-num-input",
+      min: "0.5",
+      max: "30.0",
+      step: "0.5",
+      value: String(profile.skillIntervals[f.key]),
+      "aria-label": f.label
+    });
+    numInput.addEventListener("input", function () {
+      const val = parseFloat(numInput.value);
+      if (!isNaN(val) && val > 0) {
+        setBotAiField(curMode, curKid, "skillIntervals", f.key, val);
+      }
+    });
 
-  grid.appendChild(createSlider("Intervalo habilidad de trampas", "Enfriamiento entre colocación de trampas.",
-    profile.skillIntervals.trap, 1.0, 10.0, 0.5, "s", function (v) { setBotAiField(curMode, curProfKey, "skillIntervals", "trap", v); }));
+    row.appendChild(numInput);
+    skillGroup.appendChild(row);
+  }
+  advBody.appendChild(skillGroup);
 
-  grid.appendChild(createSlider("Intervalo teletransporte (Warp)", "Enfriamiento entre saltos o transportes.",
-    profile.skillIntervals.warp, 1.0, 10.0, 0.5, "s", function (v) { setBotAiField(curMode, curProfKey, "skillIntervals", "warp", v); }));
+  // Mode-specific deposits & combat toggles
+  const miscGroup = el("div", { class: "bot-ai-param-group" });
+  miscGroup.appendChild(el("h4", { style: "margin:0 0 10px; font-size:13px; color:var(--accent);" },
+    isEs ? "🎮 Reglas de Modo y Combate" : "🎮 Mode Rules & Combat"));
 
-  // Health and Target Decision
-  grid.appendChild(createSlider("Umbral de daño para curar", "Porcentaje de vida perdida para activar curación personal.",
-    Math.round(profile.healDamageRate * 100), 10, 90, 5, "%", function (v) { setBotAiField(curMode, curProfKey, null, "healDamageRate", v / 100); }));
-
-  // Can Lockon
-  const lockonField = el("div", { class: "bot-ai-field" });
-  const lockonHead = el("div", { class: "bot-ai-field-head" });
-  lockonHead.appendChild(el("span", { class: "bot-ai-field-label" }, "Permitir fijar blanco"));
-  const lockonVal = el("span", { class: "bot-ai-field-val" }, profile.canLockon ? "Activado" : "Desactivado");
-  lockonHead.appendChild(lockonVal);
-  lockonField.appendChild(lockonHead);
-
-  const lockonCheck = el("input", { type: "checkbox", style: "width:18px; height:18px; cursor:pointer;" });
-  lockonCheck.checked = !!profile.canLockon;
-  lockonCheck.addEventListener("change", function () {
-    lockonVal.textContent = lockonCheck.checked ? "Activado" : "Desactivado";
-    setBotAiField(curMode, curProfKey, null, "canLockon", lockonCheck.checked);
-  });
-  lockonField.appendChild(lockonCheck);
-  lockonField.appendChild(el("div", { class: "bot-ai-field-help" }, "Habilita si el bot puede fijar la mira automáticamente en rivales."));
-  grid.appendChild(lockonField);
-
-  // Score to deposit (Hidden in FlagFlight)
   if (curMode !== "FlagFlight") {
-    grid.appendChild(createSlider("Cristales para depositar", "Cantidad de cristales requerida para acudir al guardián.",
-      profile.scoreToDeposit, 1, 20, 1, "", function (v) { setBotAiField(curMode, curProfKey, null, "scoreToDeposit", v); }));
+    const rowDep = el("div", { class: "bot-ai-slider-row" });
+    const lblDep = el("div", { class: "bot-ai-param-label" });
+    lblDep.appendChild(el("span", { class: "bot-ai-param-title" }, isEs ? "Cristales para depositar" : "Crystals to deposit"));
+    lblDep.appendChild(el("span", { class: "bot-ai-param-hint" }, isEs ? "Cantidad de cristales requeridos para ir al guardián." : "Number of crystals required before moving to guardian."));
+    rowDep.appendChild(lblDep);
+
+    const depInput = el("input", {
+      type: "number",
+      class: "bot-ai-num-input",
+      min: "1",
+      max: "10",
+      step: "1",
+      value: String(profile.scoreToDeposit || 5),
+      "aria-label": isEs ? "Cristales para depositar" : "Crystals to deposit"
+    });
+    depInput.addEventListener("input", function () {
+      const val = parseInt(depInput.value, 10);
+      if (!isNaN(val) && val >= 1 && val <= 10) {
+        setBotAiField(curMode, curKid, null, "scoreToDeposit", val);
+      }
+    });
+    rowDep.appendChild(depInput);
+    miscGroup.appendChild(rowDep);
   }
 
-  // Low HP Deposit Threshold (Read-only contextual note)
-  const lowHpField = el("div", { class: "bot-ai-field locked" });
-  const lowHpHead = el("div", { class: "bot-ai-field-head" });
-  lowHpHead.appendChild(el("span", { class: "bot-ai-field-label" }, "Umbral de vida para huir / depositar"));
-  lowHpHead.appendChild(el("span", { class: "bot-ai-field-val" }, "35% (Fijo nativo)"));
-  lowHpField.appendChild(lowHpHead);
-  lowHpField.appendChild(el("div", { class: "bot-ai-field-help", style: "color:#ffd285;" },
-    "⚠️ Límite nativo: El ejecutable cliente de KickFlight tiene este valor compilado estrictamente al 35%. No es modificable desde el servidor porque el cliente ignora valores distintos."));
-  grid.appendChild(lowHpField);
+  // Lock-on checkbox
+  const rowLock = el("div", { class: "bot-ai-slider-row" });
+  const lblLock = el("div", { class: "bot-ai-param-label" });
+  lblLock.appendChild(el("span", { class: "bot-ai-param-title" }, isEs ? "Permitir fijar blanco (Lock-on)" : "Allow lock-on"));
+  lblLock.appendChild(el("span", { class: "bot-ai-param-hint" }, isEs ? "Permite al bot fijar la mira al combatir o usar habilidades dirigidas." : "Allows bot to acquire target locks during combat and targeted skill usage."));
+  rowLock.appendChild(lblLock);
 
-  customBody.appendChild(grid);
-  customDetails.appendChild(customBody);
-  container.appendChild(customDetails);
+  const lockCheck = el("input", {
+    type: "checkbox",
+    "aria-label": isEs ? "Permitir fijar blanco" : "Allow lock-on"
+  });
+  lockCheck.checked = profile.canLockon !== false;
+  lockCheck.addEventListener("change", function () {
+    setBotAiField(curMode, curKid, null, "canLockon", lockCheck.checked);
+  });
+  rowLock.appendChild(lockCheck);
+  miscGroup.appendChild(rowLock);
 
-  // 6. How changes apply disclosure (Friendly language, no technical jargon)
-  const applyDisclosure = el("details", { class: "bot-ai-disclosure" });
-  applyDisclosure.appendChild(el("summary", null, "ℹ️ ¿Cómo se aplican estos cambios?"));
-  const applyBody = el("div", { class: "bot-ai-disclosure-body" });
-  applyBody.appendChild(el("p", { style: "margin:0 0 6px;" },
-    "Los cambios se guardan directamente en el servidor y se aplican a todas las nuevas partidas creadas a partir de ese momento."));
-  applyBody.appendChild(el("p", { style: "margin:0; font-size:11px; color:var(--fg2);" },
-    "El cliente del juego descarga automáticamente los parámetros de IA actualizados al iniciar partida. No es necesario reiniciar el servidor."));
-  applyDisclosure.appendChild(applyBody);
-  container.appendChild(applyDisclosure);
+  advBody.appendChild(miscGroup);
 
-  // 7. Technical parameters disclosure
-  const adv = el("details", { class: "bot-ai-advanced" });
-  adv.appendChild(el("summary", null, "⚙️ Parámetros técnicos nativos"));
-  const advBody = el("div", { class: "bot-ai-advanced-body" });
+  // Technical Native Parameters (Readonly Low HP 35% preserved)
+  const rawGroup = el("div", { class: "bot-ai-param-group" });
+  rawGroup.appendChild(el("h4", { style: "margin:0 0 10px; font-size:13px; color:var(--accent);" },
+    isEs ? "⚙️ Parámetros Técnicos Nativos" : "⚙️ Native Technical Parameters"));
   const rawGrid = el("div", { class: "bot-ai-raw-grid" });
-  rawGrid.appendChild(el("div", null, "Identificador de parámetro: " + profile.parameterId));
-  rawGrid.appendChild(el("div", null, "Kicker ID: " + profile.kickerId));
-  rawGrid.appendChild(el("div", null, "Disfraz ID: " + profile.kickerCostumeId));
-  rawGrid.appendChild(el("div", null, "Rango: " + profile.rank));
-  rawGrid.appendChild(el("div", null, "Umbral huida vida baja: " + profile.lowHpDepositThreshold));
-  advBody.appendChild(rawGrid);
-  adv.appendChild(advBody);
-  container.appendChild(adv);
+  rawGrid.appendChild(el("div", null, (isEs ? "Identificador de parámetro: " : "Parameter ID: ") + profile.parameterId));
+  rawGrid.appendChild(el("div", null, (isEs ? "Kicker ID: " : "Kicker ID: ") + profile.kickerId));
+  rawGrid.appendChild(el("div", null, (isEs ? "Disfraz ID: " : "Costume ID: ") + profile.kickerCostumeId));
+  rawGrid.appendChild(el("div", null, (isEs ? "Rango: " : "Rank: ") + profile.rank));
+  rawGrid.appendChild(el("div", null, (isEs ? "Umbral huida vida baja (constante nativa 35%): " : "Low HP retreat threshold (native 35% constant): ") + (Math.round((profile.lowHpDepositThreshold || 0.35) * 100)) + "%"));
+  rawGroup.appendChild(rawGrid);
+  rawGroup.appendChild(el("p", { class: "note", style: "margin-top:8px;" },
+    isEs ? "Nota técnica: El umbral de huida por vida baja está preservado en 35% como constante nativa del cliente."
+         : "Technical note: The low HP retreat threshold is preserved at 35% as a native client constant."));
+  advBody.appendChild(rawGroup);
 
-  // 8. Persistent Bottom Save Bar
+  advDetails.appendChild(advBody);
+  container.appendChild(advDetails);
+
+  // 6. Persistent Bottom Action Bar
   const dirtyCount = Object.keys(state.botAi.drafts).length;
   const actionBar = el("div", { class: "bot-ai-action-bar" });
 
@@ -3757,7 +3800,7 @@ function renderBotAiPanel(panel) {
   }, isEs ? "Descartar cambios" : "Discard changes");
   discardBtn.disabled = !isDirty;
   discardBtn.addEventListener("click", function () {
-    discardBotAiDraft(curMode, curProfKey);
+    discardBotAiDraft(curMode, curKid);
   });
   leftActions.appendChild(discardBtn);
   actionBar.appendChild(leftActions);
