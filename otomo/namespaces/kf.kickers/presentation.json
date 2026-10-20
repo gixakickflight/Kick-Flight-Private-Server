@@ -1,0 +1,69 @@
+{
+  "title": "Kickers",
+  "order": [
+    "kickers",
+    "parameters",
+    "abilities",
+    "abilityConditions"
+  ],
+  "tables": {
+    "/kickers": {
+      "label": "name",
+      "frozen": [
+        "id",
+        "name"
+      ],
+      "search": [
+        "id",
+        "name",
+        "shortName"
+      ],
+      "rows": {
+        "add": false,
+        "delete": false
+      }
+    },
+    "/parameters": {
+      "frozen": [
+        "id",
+        "kickerId"
+      ],
+      "search": [
+        "id",
+        "kickerId"
+      ],
+      "rows": {
+        "add": false,
+        "delete": false
+      }
+    },
+    "/abilities": {
+      "frozen": [
+        "id",
+        "kickerId"
+      ],
+      "search": [
+        "id",
+        "kickerId"
+      ],
+      "rows": {
+        "add": true,
+        "delete": true
+      }
+    },
+    "/abilityConditions": {
+      "frozen": [
+        "id",
+        "kickerAbilityId"
+      ],
+      "search": [
+        "id",
+        "kickerAbilityId"
+      ],
+      "rows": {
+        "add": true,
+        "delete": true
+      }
+    }
+  }
+}

@@ -1,0 +1,485 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Kickers",
+  "description": "The playable kickers: identity, base stats and passives. Mirrors masters_kicker, masters_kicker_parameter, masters_kicker_ability and masters_kicker_ability_condition.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kickers",
+    "parameters",
+    "abilities",
+    "abilityConditions"
+  ],
+  "properties": {
+    "kickers": {
+      "type": "array",
+      "title": "Kickers",
+      "x-otomo-key": "id",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "ID",
+            "minimum": 1,
+            "readOnly": true
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "minLength": 1
+          },
+          "shortName": {
+            "type": "string",
+            "title": "Short name"
+          },
+          "nameSpelling": {
+            "type": "string",
+            "title": "Name spelling"
+          },
+          "voiceActorName": {
+            "type": "string",
+            "title": "Voice actor line",
+            "description": "Shown as written on the profile screen."
+          },
+          "cv": {
+            "type": "string",
+            "title": "CV"
+          }
+        }
+      }
+    },
+    "parameters": {
+      "type": "array",
+      "title": "Stats",
+      "x-otomo-key": "id",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kickerId",
+          "roleType",
+          "weaponType",
+          "maxHp",
+          "attack"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "ID",
+            "minimum": 1,
+            "readOnly": true
+          },
+          "kickerId": {
+            "type": "integer",
+            "title": "Kicker",
+            "minimum": 1,
+            "description": "The kicker this stats row belongs to.",
+            "readOnly": true
+          },
+          "roleType": {
+            "type": "integer",
+            "title": "Role",
+            "enum": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "enumNames": [
+              "0 - Speed",
+              "1 - Support",
+              "2 - Attack",
+              "3 - Tank"
+            ],
+            "readOnly": true
+          },
+          "weaponType": {
+            "type": "integer",
+            "title": "Weapon",
+            "enum": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13
+            ],
+            "enumNames": [
+              "0 - Sword",
+              "1 - TwoGuns",
+              "2 - Hammer",
+              "3 - ThrowingStar",
+              "4 - Drone",
+              "5 - RocketLauncher",
+              "6 - Gun",
+              "7 - PunchGlove",
+              "8 - Bowgun",
+              "9 - Shield",
+              "10 - Bat",
+              "11 - Nunchaku",
+              "12 - JapaneseSword",
+              "13 - Laser"
+            ],
+            "readOnly": true
+          },
+          "skillId": {
+            "type": "integer",
+            "title": "Kicker skill",
+            "description": "Skill master row of the kicker skill (KS).",
+            "readOnly": true
+          },
+          "maxHp": {
+            "type": "integer",
+            "title": "Max HP",
+            "minimum": 1
+          },
+          "attack": {
+            "type": "integer",
+            "title": "Attack",
+            "minimum": 0
+          },
+          "defense": {
+            "type": "integer",
+            "title": "Defense",
+            "minimum": 0
+          },
+          "speed": {
+            "type": "number",
+            "title": "Speed",
+            "minimum": 0
+          },
+          "moveSpeedCoefficient": {
+            "type": "number",
+            "title": "Move speed ×",
+            "minimum": 0
+          },
+          "moveTurningSpeedCoefficient": {
+            "type": "number",
+            "title": "Turn speed ×",
+            "minimum": 0
+          },
+          "moveDashSpeedCoefficient": {
+            "type": "number",
+            "title": "Dash speed ×",
+            "minimum": 0
+          },
+          "groundMoveSpeedCoefficient": {
+            "type": "number",
+            "title": "Ground speed ×",
+            "minimum": 0
+          },
+          "groundMoveTurningSpeedCoefficient": {
+            "type": "number",
+            "title": "Ground turn speed ×",
+            "minimum": 0
+          },
+          "acceleration": {
+            "type": "number",
+            "title": "Acceleration",
+            "minimum": 0
+          },
+          "attackTargetSearchDistance": {
+            "type": "number",
+            "title": "Target search distance",
+            "minimum": 0
+          },
+          "attackTargetSearchAngle": {
+            "type": "number",
+            "title": "Target search angle",
+            "minimum": 0,
+            "maximum": 360
+          },
+          "dashAttackRange": {
+            "type": "number",
+            "title": "Dash attack range",
+            "minimum": 0
+          },
+          "dashAttackSpeedWeight": {
+            "type": "number",
+            "title": "Dash attack speed weight",
+            "minimum": 0
+          },
+          "dashAttackTime": {
+            "type": "number",
+            "title": "Dash attack time",
+            "minimum": 0
+          },
+          "dashAttackFollowThroughTime": {
+            "type": "number",
+            "title": "Dash follow-through time",
+            "minimum": 0
+          },
+          "footHeight": {
+            "type": "number",
+            "title": "Foot height",
+            "minimum": 0
+          },
+          "height": {
+            "type": "number",
+            "title": "Height",
+            "minimum": 0
+          },
+          "recoveryBoostPoint": {
+            "type": "number",
+            "title": "Boost recovery (air)",
+            "minimum": 0
+          },
+          "recoveryBoostPointGround": {
+            "type": "number",
+            "title": "Boost recovery (ground)",
+            "minimum": 0
+          },
+          "addMoveSpecialSkillPoint": {
+            "type": "number",
+            "title": "SP per distance flown",
+            "minimum": 0,
+            "description": "Special-skill points gained per unit of distance flown. The gauge holds 100, so 100 divided by this is the distance to a full gauge."
+          },
+          "addWeaponAttackSpecialSkillPoint": {
+            "type": "number",
+            "title": "SP per weapon hit",
+            "minimum": 0,
+            "description": "Special-skill points gained per basic-attack hit."
+          },
+          "hpCorrection": {
+            "type": "number",
+            "title": "HP correction",
+            "minimum": 0
+          },
+          "attackCorrection": {
+            "type": "number",
+            "title": "Attack correction",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "abilities": {
+      "type": "array",
+      "title": "Passives",
+      "x-otomo-key": "id",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kickerId",
+          "triggerType"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "ID",
+            "minimum": 1,
+            "readOnly": true
+          },
+          "kickerId": {
+            "type": "integer",
+            "title": "Kicker",
+            "minimum": 1,
+            "readOnly": true
+          },
+          "triggerType": {
+            "type": "integer",
+            "title": "Trigger",
+            "enum": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+            ],
+            "enumNames": [
+              "1 - Heal path (ApplyHeal / ApplyCondition)",
+              "2 - AbilityConditionAction (AddDamage)",
+              "3 - Avoid / BarrelRoll",
+              "4 - Own death (PlayerStateDead)",
+              "5 - Trap placed (AddTrap)",
+              "6 - Takedown (ApplyDamage -> ApplyDeadState)"
+            ]
+          },
+          "time": {
+            "type": "number",
+            "title": "Time",
+            "minimum": 0
+          },
+          "value": {
+            "type": "number",
+            "title": "Value",
+            "description": "The passive's amount. For a trap passive it is the trap skill's id."
+          },
+          "overlapCount": {
+            "type": "integer",
+            "title": "Stack limit",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    "abilityConditions": {
+      "type": "array",
+      "title": "Passive conditions",
+      "x-otomo-key": "id",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kickerAbilityId",
+          "conditionType",
+          "triggerType"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "ID",
+            "minimum": 1,
+            "readOnly": true
+          },
+          "kickerAbilityId": {
+            "type": "integer",
+            "title": "Passive",
+            "minimum": 1,
+            "description": "The passive row this condition belongs to.",
+            "readOnly": true
+          },
+          "conditionType": {
+            "type": "integer",
+            "title": "Condition",
+            "enum": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23,
+              24,
+              25,
+              26,
+              27,
+              28,
+              29,
+              30,
+              31,
+              32,
+              34
+            ],
+            "enumNames": [
+              "0 - None",
+              "1 - AttackRate",
+              "2 - SpeedRate",
+              "3 - DefenseRate",
+              "4 - DamageRate",
+              "5 - Poison",
+              "6 - Paralysis",
+              "7 - Burn",
+              "8 - Stun",
+              "9 - Silent",
+              "10 - Drain",
+              "11 - Regeneration",
+              "12 - Inhale",
+              "13 - BlowoffCollider",
+              "14 - Restrainted",
+              "15 - Restraint",
+              "16 - Prison",
+              "17 - Dot",
+              "18 - Smog",
+              "19 - SmogDisturb",
+              "20 - SmogProtection",
+              "21 - Gravity",
+              "22 - Confusion",
+              "23 - PullIn",
+              "24 - Stealth",
+              "25 - Panda",
+              "26 - ShieldForward",
+              "27 - ShieldAll",
+              "28 - AttackSpeedRate",
+              "29 - RocketLauncherTarget",
+              "30 - AutoMove",
+              "31 - BoostHealSpeedRate",
+              "32 - SpecialSkillGaugeRate",
+              "34 - OneShotKiller"
+            ]
+          },
+          "duration": {
+            "type": "number",
+            "title": "Duration",
+            "minimum": 0
+          },
+          "interval": {
+            "type": "number",
+            "title": "Interval",
+            "minimum": 0
+          },
+          "effectValue": {
+            "type": "number",
+            "title": "Effect value"
+          },
+          "triggerType": {
+            "type": "integer",
+            "title": "Trigger",
+            "enum": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "enumNames": [
+              "0 - None",
+              "1 - ReceiveDamage",
+              "2 - AddDamage",
+              "3 - Execute",
+              "4 - EnterTrap",
+              "5 - EnterEnemyTeamTrap",
+              "6 - EnterMyTeamTrap",
+              "7 - All"
+            ]
+          },
+          "limitCount": {
+            "type": "integer",
+            "title": "Limit",
+            "minimum": 0
+          }
+        }
+      }
+    }
+  }
+}

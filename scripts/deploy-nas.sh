@@ -13,7 +13,7 @@
 # architecture, so there is no cross-build and no registry to push through.
 set -euo pipefail
 
-NAS="${NAS:-root@192.168.68.53}"
+NAS="${NAS:-root@10.10.20.148}"
 ROOT="/mnt/Tanuki_1/kickflight"
 REPO="${REPO:-/mnt/c/Users/Tanuki/Kick-Flight/Kick-Flight-Private-Server}"
 ASSETS_SRC="${ASSETS_SRC:-/mnt/c/Users/Tanuki/Kick-Flight/Kick-Flight-Assets}"
@@ -95,4 +95,4 @@ fi
 
 say "done"
 echo "Ready check (allow ~5 s; it probes Photon before answering):"
-echo "  curl -m 10 http://192.168.68.53:18080/health/ready"
+echo "  curl -m 10 http://10.10.20.148:18080/health/ready"

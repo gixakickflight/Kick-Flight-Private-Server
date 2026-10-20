@@ -1,6 +1,7 @@
 # Despliegue en el TrueNAS
 
-El API y el CDN corren en el NAS (`192.168.68.53`, TrueNAS SCALE 25.10.3), Photon sigue en la VM pública.
+El API y el CDN corren en el NAS (`10.10.20.148` en la LAN, `100.116.38.51` por Tailscale; TrueNAS SCALE 25.10.3),
+Photon sigue en la VM pública. La dirección vieja `192.168.68.53` ya no existe (la LAN pasó a `10.10.20.0/24`).
 Este documento describe la topología, los puertos que se abren y cómo desplegar y verificar.
 
 ## Topología
@@ -11,7 +12,7 @@ Cliente Android
    |  HTTP 18080  (API + todos los assets)
    |  gRPC 18081  (matchmaking: el cliente aprende el puerto en la respuesta de /battle/start)
    v
-Router  ->  192.168.68.53 (TrueNAS)
+Router  ->  10.10.20.148 (TrueNAS)
                 |
                 +-- kickflight-cdn   (nginx)   0.0.0.0:18080
                 |      /cdn/<clave>  -> se sirve desde disco (/assets/cdn)
@@ -44,8 +45,8 @@ por eso un cliente en la LAN y otro en el nombre DDNS funcionan a la vez sin con
 No hay puertos UDP: Photon no corre aquí.
 
 Nombres que deben estar en `Harness__DirectClientHosts` (el gate de `Program.cs:170` responde 421 a
-cualquier otro): `192.168.68.53`, `tanukifurhirenas.tplinkdns.com`, `kickflightsg.ddns.net`,
-`192.168.68.55`. Son **hostnames sin puerto**: el puerto se descarta antes de comparar.
+cualquier otro): `10.10.20.148`, `tanukifurhirenas.tplinkdns.com`, `kickflightsg.ddns.net`,
+`192.168.68.55` y `100.116.38.51` (Tailscale). Son **hostnames sin puerto**: el puerto se descarta antes de comparar.
 
 ## Datasets
 
@@ -84,13 +85,13 @@ una capa de mapeo y la posibilidad de un guardado a medias.
 
 ```bash
 # inspeccionar
-ssh root@192.168.68.53 'docker exec kickflight-postgres psql -U kickflight -d kickflight -c \
+ssh root@10.10.20.148 'docker exec kickflight-postgres psql -U kickflight -d kickflight -c \
     "select id, uuid, display_name, item_jet_coins from players order by id"'
 # el rango de un jugador concreto
-ssh root@192.168.68.53 'docker exec kickflight-postgres psql -U kickflight -d kickflight -c \
+ssh root@10.10.20.148 'docker exec kickflight-postgres psql -U kickflight -d kickflight -c \
     "select * from player_ranks order by player_id"'
 # copia de seguridad
-ssh root@192.168.68.53 'docker exec kickflight-postgres pg_dump -U kickflight kickflight' > kickflight.sql
+ssh root@10.10.20.148 'docker exec kickflight-postgres pg_dump -U kickflight kickflight' > kickflight.sql
 ```
 
 La contraseña es `KF_DB_PASSWORD` (por defecto `kickflight-local`). El puerto no se publica, así que solo
@@ -131,7 +132,7 @@ síntoma es engañoso — `/cdn/` (que nginx sirve de disco) funciona y **todo l
 parece una caída del API. A mano, el equivalente es:
 
 ```bash
-ssh root@192.168.68.53 'docker compose -f /mnt/Tanuki_1/kickflight/app/deploy/docker-compose.nas.yml up -d \
+ssh root@10.10.20.148 'docker compose -f /mnt/Tanuki_1/kickflight/app/deploy/docker-compose.nas.yml up -d \
     && docker restart kickflight-cdn'
 ```
 
@@ -152,21 +153,23 @@ imposible, así que se copian. La salida del script dice cuántos de cada uno.
 
 ```bash
 # readiness (tarda ~5 s: sondea Photon antes de responder, un curl -m 3 lo reporta como caido sin estarlo)
-curl -m 10 http://192.168.68.53:18080/health/ready
+curl -m 10 http://10.10.20.148:18080/health/ready
 
 # el CDN lo sirve nginx, no el API
-curl -sI http://192.168.68.53:18080/cdn/VsckeT | head -5
+curl -sI http://10.10.20.148:18080/cdn/VsckeT | head -5
 docker logs --tail 20 kickflight-cdn        # debe aparecer la peticion
 docker logs --tail 20 kickflight-api        # NO debe aparecer
 
 # desde fuera de la LAN
 curl -m 10 http://tanukifurhirenas.tplinkdns.com:18080/health/ready
+# o por Tailscale (el NAS corre el contenedor ix-tailscale)
+curl -m 10 http://100.116.38.51:18080/health/ready
 
 # la identidad sobrevive a un reinicio: el mismo uuid debe recuperar el mismo id y el mismo nombre
 # (con scripts/d2c.py, que hace el handshake D2C; ver el docstring del script)
-python scripts/d2c.py http://192.168.68.53:18080 --uuid <uuid> --post /startup/index
-ssh root@192.168.68.53 'docker compose -f /mnt/Tanuki_1/kickflight/app/deploy/docker-compose.nas.yml restart api'
-python scripts/d2c.py http://192.168.68.53:18080 --uuid <uuid> --post /startup/index   # mismo id
+python scripts/d2c.py http://10.10.20.148:18080 --uuid <uuid> --post /startup/index
+ssh root@10.10.20.148 'docker compose -f /mnt/Tanuki_1/kickflight/app/deploy/docker-compose.nas.yml restart api'
+python scripts/d2c.py http://10.10.20.148:18080 --uuid <uuid> --post /startup/index   # mismo id
 ```
 
 En el emulador, con la APK reconstruida contra el NAS (`.local/build.sh`, el knob `URL` está en la línea 9):
@@ -183,7 +186,7 @@ registrarla como Custom App y que aparezca en la UI, crear una app con el conten
 en los puertos:
 
 ```bash
-ssh root@192.168.68.53 'cd /mnt/Tanuki_1/kickflight/app/deploy && docker compose -f docker-compose.nas.yml down'
+ssh root@10.10.20.148 'cd /mnt/Tanuki_1/kickflight/app/deploy && docker compose -f docker-compose.nas.yml down'
 ```
 
 ## Limitaciones conocidas

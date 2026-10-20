@@ -1,0 +1,708 @@
+{
+  "UserId": "1000027",
+  "UserName": "KiteDiag9",
+  "KickerId": 13,
+  "KickerCostumeId": 2130101,
+  "ActiveDeckNumber": 1,
+  "Decks": {
+    "1": [
+      3010013,
+      3010102,
+      3010107,
+      3010113
+    ],
+    "2": [
+      3010005,
+      3010006,
+      3010007,
+      3010008
+    ],
+    "3": [
+      3010009,
+      3010010,
+      3010011,
+      3010012
+    ],
+    "4": [
+      3010013,
+      3010014,
+      3010020,
+      3010022
+    ],
+    "5": [
+      3010023,
+      3010024,
+      3010029,
+      3010030
+    ]
+  },
+  "Discs": {
+    "3010001": {
+      "DiscId": 3010001,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010002": {
+      "DiscId": 3010002,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010003": {
+      "DiscId": 3010003,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010004": {
+      "DiscId": 3010004,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010005": {
+      "DiscId": 3010005,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010006": {
+      "DiscId": 3010006,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010007": {
+      "DiscId": 3010007,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010008": {
+      "DiscId": 3010008,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010009": {
+      "DiscId": 3010009,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010010": {
+      "DiscId": 3010010,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010011": {
+      "DiscId": 3010011,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010012": {
+      "DiscId": 3010012,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010013": {
+      "DiscId": 3010013,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010014": {
+      "DiscId": 3010014,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010015": {
+      "DiscId": 3010015,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010016": {
+      "DiscId": 3010016,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010017": {
+      "DiscId": 3010017,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010018": {
+      "DiscId": 3010018,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010019": {
+      "DiscId": 3010019,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010020": {
+      "DiscId": 3010020,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010021": {
+      "DiscId": 3010021,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010022": {
+      "DiscId": 3010022,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010023": {
+      "DiscId": 3010023,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010024": {
+      "DiscId": 3010024,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010025": {
+      "DiscId": 3010025,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010026": {
+      "DiscId": 3010026,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010027": {
+      "DiscId": 3010027,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010028": {
+      "DiscId": 3010028,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010029": {
+      "DiscId": 3010029,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010030": {
+      "DiscId": 3010030,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010031": {
+      "DiscId": 3010031,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010032": {
+      "DiscId": 3010032,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010033": {
+      "DiscId": 3010033,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010034": {
+      "DiscId": 3010034,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010035": {
+      "DiscId": 3010035,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010036": {
+      "DiscId": 3010036,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010037": {
+      "DiscId": 3010037,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010038": {
+      "DiscId": 3010038,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010039": {
+      "DiscId": 3010039,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010040": {
+      "DiscId": 3010040,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010041": {
+      "DiscId": 3010041,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010042": {
+      "DiscId": 3010042,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010043": {
+      "DiscId": 3010043,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010044": {
+      "DiscId": 3010044,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010045": {
+      "DiscId": 3010045,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010046": {
+      "DiscId": 3010046,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010047": {
+      "DiscId": 3010047,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010048": {
+      "DiscId": 3010048,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010049": {
+      "DiscId": 3010049,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010050": {
+      "DiscId": 3010050,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010051": {
+      "DiscId": 3010051,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010052": {
+      "DiscId": 3010052,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010053": {
+      "DiscId": 3010053,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010055": {
+      "DiscId": 3010055,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010056": {
+      "DiscId": 3010056,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010057": {
+      "DiscId": 3010057,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010058": {
+      "DiscId": 3010058,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010059": {
+      "DiscId": 3010059,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010060": {
+      "DiscId": 3010060,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010061": {
+      "DiscId": 3010061,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010062": {
+      "DiscId": 3010062,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010063": {
+      "DiscId": 3010063,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010064": {
+      "DiscId": 3010064,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010065": {
+      "DiscId": 3010065,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010066": {
+      "DiscId": 3010066,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010067": {
+      "DiscId": 3010067,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010068": {
+      "DiscId": 3010068,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010069": {
+      "DiscId": 3010069,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010070": {
+      "DiscId": 3010070,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010071": {
+      "DiscId": 3010071,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010072": {
+      "DiscId": 3010072,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010073": {
+      "DiscId": 3010073,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010074": {
+      "DiscId": 3010074,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010075": {
+      "DiscId": 3010075,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010076": {
+      "DiscId": 3010076,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010077": {
+      "DiscId": 3010077,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010078": {
+      "DiscId": 3010078,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010079": {
+      "DiscId": 3010079,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010080": {
+      "DiscId": 3010080,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010081": {
+      "DiscId": 3010081,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010082": {
+      "DiscId": 3010082,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010083": {
+      "DiscId": 3010083,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010084": {
+      "DiscId": 3010084,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010085": {
+      "DiscId": 3010085,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010086": {
+      "DiscId": 3010086,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010087": {
+      "DiscId": 3010087,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010088": {
+      "DiscId": 3010088,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010089": {
+      "DiscId": 3010089,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010090": {
+      "DiscId": 3010090,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010091": {
+      "DiscId": 3010091,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010092": {
+      "DiscId": 3010092,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010093": {
+      "DiscId": 3010093,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010094": {
+      "DiscId": 3010094,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010095": {
+      "DiscId": 3010095,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010096": {
+      "DiscId": 3010096,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010097": {
+      "DiscId": 3010097,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010098": {
+      "DiscId": 3010098,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010101": {
+      "DiscId": 3010101,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010102": {
+      "DiscId": 3010102,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010103": {
+      "DiscId": 3010103,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010104": {
+      "DiscId": 3010104,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010105": {
+      "DiscId": 3010105,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010106": {
+      "DiscId": 3010106,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010107": {
+      "DiscId": 3010107,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010108": {
+      "DiscId": 3010108,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010109": {
+      "DiscId": 3010109,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010110": {
+      "DiscId": 3010110,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010111": {
+      "DiscId": 3010111,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010112": {
+      "DiscId": 3010112,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010113": {
+      "DiscId": 3010113,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010114": {
+      "DiscId": 3010114,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010115": {
+      "DiscId": 3010115,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010116": {
+      "DiscId": 3010116,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010117": {
+      "DiscId": 3010117,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010118": {
+      "DiscId": 3010118,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010119": {
+      "DiscId": 3010119,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010120": {
+      "DiscId": 3010120,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010122": {
+      "DiscId": 3010122,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010123": {
+      "DiscId": 3010123,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010124": {
+      "DiscId": 3010124,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010125": {
+      "DiscId": 3010125,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010127": {
+      "DiscId": 3010127,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010128": {
+      "DiscId": 3010128,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010129": {
+      "DiscId": 3010129,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010131": {
+      "DiscId": 3010131,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010132": {
+      "DiscId": 3010132,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010133": {
+      "DiscId": 3010133,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010134": {
+      "DiscId": 3010134,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010135": {
+      "DiscId": 3010135,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010136": {
+      "DiscId": 3010136,
+      "Level": 10,
+      "Amount": 99
+    },
+    "3010138": {
+      "DiscId": 3010138,
+      "Level": 10,
+      "Amount": 99
+    }
+  },
+  "ItemJetCoins": 220754,
+  "ItemPaidJetCoins": 10000,
+  "ItemDiscForce": 999999,
+  "ItemKickPoints": 52400,
+  "ItemAmounts": {},
+  "CostumeGears": {},
+  "PendingGear": {
+    "KickerId": 0,
+    "GearId": 0
+  },
+  "HasName": true,
+  "PlayerId": 1000027
+}

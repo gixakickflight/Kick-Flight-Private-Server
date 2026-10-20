@@ -1,4 +1,4 @@
-# Kick-Flight API + CDN + PostgreSQL, as deployed on the TrueNAS (192.168.68.53).
+# Kick-Flight API + CDN + PostgreSQL, as deployed on the TrueNAS (10.10.20.148 on the LAN, 100.116.38.51 on Tailscale).
 #
 # This is the file a TrueNAS Custom App is created from. It references a pre-built image rather than
 # building one: the Custom App UI has no build context, so the image is built on the NAS itself first.
@@ -97,10 +97,11 @@ services:
       # The host gate in Program.cs answers 421 for anything not listed here. Entries are bare hostnames -
       # the port is stripped before comparison - and the request's own Host decides the CDN urls, so a client
       # on the LAN and one on the DDNS name both work.
-      Harness__DirectClientHosts__0: 192.168.68.53
+      Harness__DirectClientHosts__0: 10.10.20.148
       Harness__DirectClientHosts__1: tanukifurhirenas.tplinkdns.com
       Harness__DirectClientHosts__2: kickflightsg.ddns.net
       Harness__DirectClientHosts__3: 192.168.68.55
+      Harness__DirectClientHosts__4: 100.116.38.51
       Harness__PersistCaptures: "false"
     depends_on:
       postgres:

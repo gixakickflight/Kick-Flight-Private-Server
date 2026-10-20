@@ -772,10 +772,10 @@ reconstruir lo perdido.
 
 | valor del autor | dónde vive | qué poner |
 | --- | --- | --- |
-| `192.168.68.53` (host de la API) | `deploy/`, `scripts/deploy-nas.sh`, lista de hosts permitidos | la IP de tu host |
+| `10.10.20.148` (host de la API) | `deploy/`, `scripts/deploy-nas.sh`, lista de hosts permitidos | la IP de tu host |
 | `tanukifurhirenas.tplinkdns.com`, `kickflightsg.ddns.net` | documentación y APKs ya construidas | tu DDNS |
 | `51.79.241.70` (VM de Photon) | `deploy/docker-compose.nas.yml`, APKs ya construidas | la IP de tu VM |
-| `root@192.168.68.53` | `scripts/deploy-nas.sh` | tu usuario y host de despliegue |
+| `root@10.10.20.148` | `scripts/deploy-nas.sh` | tu usuario y host de despliegue |
 | `/mnt/Tanuki_1/kickflight` (rutas del host) | `scripts/deploy-nas.sh`, `deploy/docker-compose.nas.yml` | tus rutas |
 | `/mnt/c/Users/Tanuki/Kick-Flight/Kick-Flight-Assets` | `scripts/deploy-nas.sh` (`ASSETS_SRC`) | tu árbol de assets |
 | `C:\Users\Tanuki\AppData\Local\Android\Sdk\build-tools\35.0.0` | `.local/build.sh` | tu SDK |

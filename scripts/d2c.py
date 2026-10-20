@@ -19,13 +19,13 @@ AES comes from whichever backend is installed, since Windows Python and WSL Pyth
 Usage as a library:
 
     from d2c import Client
-    client = Client("http://192.168.68.53:18080")
+    client = Client("http://10.10.20.148:18080")
     client.auth("some-device-uuid")            # populates client.token / client.key / client.user_id
     status, headers, body = client.post("/startup/index", {})
 
 Usage from the shell, mostly to prove the server is speaking the protocol:
 
-    python scripts/d2c.py http://192.168.68.53:18080 --uuid probe-0001
+    python scripts/d2c.py http://10.10.20.148:18080 --uuid probe-0001
 
 Careful with --post from Git Bash on Windows: MSYS rewrites an argument that looks like a POSIX path into a
 Windows one, so `/startup/index` arrives as `C:/Program Files/Git/startup/index` and urllib rejects it. Prefix
@@ -186,7 +186,7 @@ class Client:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Probe a Kick-Flight server with the client's own protocol")
-    parser.add_argument("base_url", help="e.g. http://192.168.68.53:18080")
+    parser.add_argument("base_url", help="e.g. http://10.10.20.148:18080")
     parser.add_argument("--uuid", default="d2c-probe-device", help="device uuid to authenticate as")
     parser.add_argument("--post", action="append", default=[], metavar="PATH",
                         help="path to POST after auth (repeatable); body is {} unless --body is given")
