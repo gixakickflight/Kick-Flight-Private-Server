@@ -498,6 +498,8 @@
 
   @media (max-width: 768px) {
     header#top { flex-wrap: wrap; gap: 8px 12px; }
+    #tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 6px 8px; }
+    #tabs button { padding: 6px 4px; font-size: 11px; line-height: 1.25; word-break: normal; overflow-wrap: anywhere; hyphens: auto; text-align: center; }
     header#top .hint { display: none; }
     header#top .top-actions { width: auto; }
     #layout { flex-direction: column; height: auto; }
@@ -2434,10 +2436,8 @@ function renderHealthPanel(panel) {
 
   const health = state.health;
   if (!health || !health.summary) {
-    const errorPrefix = isEs ? "no se pudo leer la telemetría: " : "could not read telemetry: ";
-    const loadingText = isEs ? BalanceI18n.t("health.loadingTelemetry") : "loading telemetry...";
     wrap.appendChild(el("p", { class: "note" },
-      health && health.error ? (isEs ? "no se pudo leer la telemetría: " : "could not read telemetry: ") + health.error : (isEs ? "cargando telemetría..." : "loading telemetry...")));
+      health && health.error ? BalanceI18n.t("health.couldNotReadTelemetry", { err: BalanceI18n.translateApiError(health.error) }) : BalanceI18n.t("health.loadingTelemetry")));
     panel.appendChild(wrap);
     return;
   }
@@ -2446,9 +2446,9 @@ function renderHealthPanel(panel) {
   const totals = summary.totals || {};
   const info = summary.window || {};
   wrap.appendChild(el("p", { class: "note" },
-    "window " + (info.name || state.healthWindow) + " · since " + (info.since || "-") +
-    " · release " + (info.releaseSha || "-") + " · run " + (info.runId || "-") +
-    " · store " + ((summary.telemetry && summary.telemetry.store) || "-")));
+    BalanceI18n.t("health.metaWindow") + " " + (info.name === "deploy" ? BalanceI18n.t("health.windowDeploy") : (info.name === "24h" ? BalanceI18n.t("health.window24h") : (info.name === "7d" ? BalanceI18n.t("health.window7d") : (info.name || state.healthWindow)))) + " · " + BalanceI18n.t("health.metaSince") + " " + (info.since || "-") +
+    " · " + BalanceI18n.t("health.metaRelease") + " " + (info.releaseSha || "-") + " · " + BalanceI18n.t("health.metaRun") + " " + (info.runId || "-") +
+    " · " + BalanceI18n.t("health.metaStore") + " " + ((summary.telemetry && summary.telemetry.store) || "-")));
 
   const outcomes = el("section", { class: "sec" });
   outcomes.appendChild(el("h2", null, BalanceI18n.t("health.matchOutcomes")));
@@ -2491,7 +2491,7 @@ function renderHealthPanel(panel) {
   exceptions.appendChild(el("h2", null, BalanceI18n.t("health.clientExceptions")));
   const groups = (health.exceptions && health.exceptions.groups) || [];
   if (health.exceptions && health.exceptions.error) {
-    exceptions.appendChild(el("p", { class: "note" }, (isEs ? "no se pudieron leer las excepciones: " : "could not read exceptions: ") + BalanceI18n.translateApiError(health.exceptions.error)));
+    exceptions.appendChild(el("p", { class: "note" }, BalanceI18n.t("health.exceptionsError", { err: BalanceI18n.translateApiError(health.exceptions.error) })));
   } else if (!groups.length) {
     exceptions.appendChild(el("p", { class: "note" }, BalanceI18n.t("health.noExceptionsInWindow")));
   } else {
@@ -2499,7 +2499,7 @@ function renderHealthPanel(panel) {
       const users = group.users || [];
       const userText = users.join(", ") + (group.userCount > users.length ? " +" + (group.userCount - users.length) : "");
       const versions = (group.appVersions || []).map(function (v) { return v.key + " x" + v.count; }).join(", ");
-      return [group.kind || "-", group.count, codeCell((group.fingerprint || "") + String.fromCharCode(10) + (group.signature || "")),
+    return [group.kind || "-", group.count, codeCell((group.fingerprint || "") + String.fromCharCode(10) + (group.signature || "")),
               userText || "-", versions || "-", group.lastAt || "-"];
     });
     exceptions.appendChild(healthTable([
@@ -2518,9 +2518,13 @@ function renderHealthPanel(panel) {
   const problemRows = (summary.problemMatches || []).slice(0, 100).map(function (match) {
     const button = el("button", { type: "button" }, BalanceI18n.t("health.drillDownBtn"));
     button.addEventListener("click", function () { loadHealthBattle(match.battleId); });
-    const statuses = (match.participants || []).map(function (p) { return p.userId + "=" + p.status; }).join(", ");
-    return [button, match.battleId, match.outcome || "-", (match.humans || 0) + "h/" + (match.bots || 0) + "b",
-            match.custom ? "custom" : "-", statuses || "-"];
+    const outcomes = { clean: "outcomeClean", partial: "outcomePartial", abandoned: "outcomeAbandoned", never_started: "outcomeNeverStarted", running: "outcomeRunning", matching: "outcomeMatching", open: "outcomeOpen" };
+    const statuses = (match.participants || []).map(function (p) {
+      const statusKey = p.status === "dropped_silent" ? "statusDroppedSilent" : (p.status === "open" ? "statusOpen" : null);
+      return p.userId + "=" + (statusKey ? BalanceI18n.t("health." + statusKey) : p.status);
+    }).join(", ");
+    return [button, match.battleId, outcomes[match.outcome] ? BalanceI18n.t("health." + outcomes[match.outcome]) : (match.outcome || "-"), (match.humans || 0) + "h/" + (match.bots || 0) + "b",
+            match.custom ? BalanceI18n.t("health.custom") : "-", statuses || "-"];
   });
   if (!problemRows.length) {
     problems.appendChild(el("p", { class: "note" }, BalanceI18n.t("health.noProblemMatchesInWindow")));
@@ -2551,19 +2555,24 @@ function renderHealthPanel(panel) {
 
   if (state.healthBattle) {
     const drill = el("section", { class: "sec" });
-    drill.appendChild(el("h2", null, (isEs ? "Combate " : "Battle ") + (state.healthBattleId || "")));
+    drill.appendChild(el("h2", null, BalanceI18n.t("health.thBattle") + " " + (state.healthBattleId || "")));
     if (state.healthBattle.error) {
       drill.appendChild(el("p", { class: "note" }, (isEs ? "no se pudo cargar el combate: " : "could not load battle: ") + BalanceI18n.translateApiError(state.healthBattle.error)));
     } else {
       const data = state.healthBattle.data || {};
       const battle = data.battle;
       if (battle) {
+        const outcomeKeys = { clean: "outcomeClean", partial: "outcomePartial", abandoned: "outcomeAbandoned", never_started: "outcomeNeverStarted", running: "outcomeRunning", matching: "outcomeMatching", open: "outcomeOpen" };
+        const battleOutcome = outcomeKeys[battle.outcome] ? BalanceI18n.t("health." + outcomeKeys[battle.outcome]) : (battle.outcome || "-");
         drill.appendChild(el("p", { class: "note" },
-          "outcome " + (battle.outcome || "open") + " · rule " + battle.ruleId + " · field " + battle.fieldId +
-          " · humans " + battle.humans + " · bots " + battle.bots + " · created " + (battle.createdAt || "-")));
+          BalanceI18n.t("health.thOutcome") + " " + battleOutcome + " · " + BalanceI18n.t("health.rule") + " " + battle.ruleId + " · " + BalanceI18n.t("health.field") + " " + battle.fieldId +
+          " · " + BalanceI18n.t("health.humans") + " " + battle.humans + " · " + BalanceI18n.t("health.bots") + " " + battle.bots + " · " + BalanceI18n.t("health.created") + " " + (battle.createdAt || "-")));
       }
       const participantRows = (data.participants || []).map(function (p) {
-        return [p.userId, p.status, p.kickerId + "/" + p.costumeId, p.team,
+        const participantStatusKeys = { completed: "completed", reconnected: "reconnected", reconnect_failed: "reconnectFailed", dropped_silent: "droppedSilent", relaunched: "relaunched", matching_failure: "matchingFailures", matching_timeout: "matchingTimeouts", cancelled: "cancelled" };
+        const statusKey = participantStatusKeys[p.status];
+        const statusLabel = p.status === "open" ? BalanceI18n.t("health.statusOpen") : (statusKey ? BalanceI18n.t("health.statuses." + statusKey) : p.status);
+        return [p.userId, statusLabel, p.kickerId + "/" + p.costumeId, p.team,
                 (p.appVersion || "-") + " " + (p.deviceName || ""), p.reconnectBegins, p.exceptionCount];
       });
       drill.appendChild(healthTable([
@@ -2593,12 +2602,12 @@ function renderHealthPanel(panel) {
   const stats = el("section", { class: "sec" });
   stats.appendChild(el("h2", null, BalanceI18n.t("health.telemetryWriter")));
   stats.appendChild(el("p", { class: "note" },
-    "store " + (telemetry.store || "-") + " · queue " + (telemetry.queueDepth === undefined ? "-" : telemetry.queueDepth) +
-    " · written " + (telemetry.written === undefined ? "-" : telemetry.written) +
-    " · dropped " + (telemetry.dropped === undefined ? "-" : telemetry.dropped) +
-    " · errors " + (telemetry.writeErrors === undefined ? "-" : telemetry.writeErrors) +
-    " · tracked battles " + (telemetry.trackedBattles === undefined ? "-" : telemetry.trackedBattles)));
-  if (telemetry.lastWriteError) stats.appendChild(el("p", { class: "note" }, "last error: " + telemetry.lastWriteError));
+    BalanceI18n.t("health.metaStore") + " " + (telemetry.store || "-") + " · " + BalanceI18n.t("health.metaQueue") + " " + (telemetry.queueDepth === undefined ? "-" : telemetry.queueDepth) +
+    " · " + BalanceI18n.t("health.metaWritten") + " " + (telemetry.written === undefined ? "-" : telemetry.written) +
+    " · " + BalanceI18n.t("health.metaDropped") + " " + (telemetry.dropped === undefined ? "-" : telemetry.dropped) +
+    " · " + BalanceI18n.t("health.metaErrors") + " " + (telemetry.writeErrors === undefined ? "-" : telemetry.writeErrors) +
+    " · " + BalanceI18n.t("health.metaTrackedBattles") + " " + (telemetry.trackedBattles === undefined ? "-" : telemetry.trackedBattles)));
+  if (telemetry.lastWriteError) stats.appendChild(el("p", { class: "note" }, BalanceI18n.t("health.lastError") + ": " + telemetry.lastWriteError));
   wrap.appendChild(stats);
 
   const help = el("section", { class: "sec" });
@@ -3462,11 +3471,8 @@ function renderBotAiList() {
     li.appendChild(iconFor("kicker", kicker.id, 32));
 
     const metaBox = el("div", { style: "flex:1; min-width:0;" });
-    const nm = el("div", { style: "font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" }, kicker.name);
-    const roleText = isEs ? kicker.roleEs : kicker.role;
-    const sub = el("div", { class: "sub", style: "white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" }, roleText);
+    const nm = el("div", { style: "font-weight:600; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" }, kicker.name);
     metaBox.appendChild(nm);
-    metaBox.appendChild(sub);
     li.appendChild(metaBox);
 
     if (isDirty) {
@@ -3561,8 +3567,7 @@ function renderBotAiPanel(panel) {
   for (const k of BOT_AI_KICKERS) {
     const opt = el("option", { value: String(k.id) });
     const isD = isBotAiProfileDirty(curMode, k.id);
-    const roleText = isEs ? k.roleEs : k.role;
-    opt.textContent = k.name + " (" + roleText + ")" + (isD ? (isEs ? " • modificado" : " • modified") : "");
+    opt.textContent = k.name + (isD ? (isEs ? " • modificado" : " • modified") : "");
     if (k.id === curKid) opt.selected = true;
     select.appendChild(opt);
   }

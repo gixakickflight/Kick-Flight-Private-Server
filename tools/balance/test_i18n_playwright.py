@@ -36,6 +36,7 @@ import json
 import os
 import shutil
 import socket
+import socketserver
 import sqlite3
 import subprocess
 import sys
@@ -105,7 +106,7 @@ def discover_artifacts_dir() -> Path:
             stderr=subprocess.DEVNULL
         ).strip()
         common_root = Path(common_git).parent
-        target_dir = common_root / ".local" / "artifacts" / "balance-i18n"
+        target_dir = common_root / ".local" / "artifacts" / "balance-final"
         target_dir.mkdir(parents=True, exist_ok=True)
         return target_dir
     except Exception:
@@ -234,7 +235,11 @@ class MockAdminHandler(BaseHTTPRequestHandler):
             self.send_json(200, dict(MockAdminHandler.ops_exceptions))
             return
         if path.startswith("/admin/ops/battle/"):
-            self.send_json(200, {"battleId": "battle-test-001", "rounds": []})
+            self.send_json(200, {
+                "battle": {"outcome": "abandoned", "ruleId": 1, "fieldId": 801, "humans": 2, "bots": 2, "createdAt": "2026-10-20T12:00:00Z"},
+                "participants": [{"userId": "1000001", "status": "dropped_silent", "kickerId": 13, "costumeId": 1, "team": 1, "appVersion": "2.11.4", "deviceName": "Pixel", "reconnectBegins": 1, "exceptionCount": 0}],
+                "timeline": [{"at": "2026-10-20T12:00:00Z", "kind": "client_exception", "userId": "1000001", "payload": {"detail": "preserve raw"}}]
+            })
             return
         self.send_json(404, {"error": "not found"})
 
@@ -313,6 +318,7 @@ def main():
     env = os.environ.copy()
     env["KF_BALANCE_OPS_URL"] = f"http://127.0.0.1:{mock_ops_port}"
     env["KF_BALANCE_CONFIG_DIR"] = str(config_dir)
+    env["KF_BALANCE_BASE_DIR"] = str(config_dir)
     env["KF_BALANCE_BACKUP_DIR"] = str(backups_dir)
     env["KF_BALANCE_OVERRIDE_DIR"] = str(overrides_dir)
     env["KF_BALANCE_AUTH_DB"] = str(auth_db)
@@ -385,13 +391,13 @@ def main():
             # Submit login form
             page.click("button[type='submit']")
             page.wait_for_selector("#top h1")
-            page.wait_for_timeout(400)
+            page.wait_for_selector("#list li.item", timeout=60000)
 
             # =================================================================
             # 2. DISCS TAB: SINGLE-LANGUAGE GUIDANCE & BANNER
             # =================================================================
             page.click("button[data-tab='discs']")
-            page.wait_for_selector("#list li.item")
+            page.wait_for_selector("#list li.item", timeout=60000)
             page.locator("#list li.item").first.click()
             page.wait_for_selector(".disc-guide")
 
@@ -428,6 +434,18 @@ def main():
             assert page.locator(".mbtns button:has-text('Esta versión')").is_visible()
             assert page.locator(".mbtns button:has-text('Últimas 24 h')").is_visible()
             assert page.locator(".mbtns button:has-text('Últimos 7 días')").is_visible()
+            health_text_es = page.locator("#panel").inner_text()
+            for phrase in ("Resultados de partidas", "Estados de jugadores", "Excepciones de clientes por huella", "Partidas con problemas", "nunca iniciada", "en curso", "desconexión silenciosa", "Ventana Esta versión", "desde", "almacén", "cola", "combates seguidos"):
+                assert phrase.lower() in health_text_es.lower(), f"Missing Spanish populated health label: {phrase}"
+            for english in ("Match outcomes", "Player statuses", "Problem matches", "never started", "tracked battles", "drill down", "Outcome", "Roster", "Participants"):
+                assert english.lower() not in health_text_es.lower(), f"English UI leaked in populated Spanish health: {english}"
+
+            # Open populated drill-down and verify its UI chrome and outcome/status labels.
+            page.locator("#panel button").filter(has_text="inspeccionar").first.click()
+            page.wait_for_timeout(200)
+            drill_es = page.locator("#panel").inner_text()
+            for phrase in ("Partida bat", "Resultado abandonada", "regla", "escenario", "desconexión silenciosa", "Línea de tiempo", "Carga útil"):
+                assert phrase.lower() in drill_es.lower(), f"Missing Spanish drill-down label: {phrase}"
 
             p_health_es = ARTIFACTS_DIR / "health-es-desktop.png"
             page.screenshot(path=str(p_health_es))
@@ -440,6 +458,9 @@ def main():
             assert page.locator(".mbtns button:has-text('This release')").is_visible()
             assert page.locator(".mbtns button:has-text('Last 24 h')").is_visible()
             assert page.locator(".mbtns button:has-text('Last 7 days')").is_visible()
+            health_text_en = page.locator("#panel").inner_text()
+            for phrase in ("Match outcomes", "Player statuses", "Problem matches", "never started", "tracked battles", "drill down", "Outcome", "Roster", "Participants"):
+                assert phrase.lower() in health_text_en.lower(), f"Missing English populated health label: {phrase}"
 
             p_health_en = ARTIFACTS_DIR / "health-en-desktop.png"
             page.screenshot(path=str(p_health_en))
@@ -502,6 +523,8 @@ def main():
             # Check header: individual kicker avatar and title, NO role group text
             title_text = page.locator(".bot-ai-profile-title").text_content()
             assert "Editando kicker: Tsubame" in title_text
+            assert page.locator("#botAiProfileSelect option:checked").text_content().strip() == "Tsubame"
+            assert "Carrier" not in page.locator("#list .bot-ai-sidebar-item[data-kicker-id='1']").text_content()
             assert "Afecta a:" not in page.locator(".bot-ai-profile-summary-header").text_content()
 
             # Technical details: 35% lowHP retreat threshold
@@ -701,6 +724,16 @@ def main():
             m_page.click("button[data-tab='bot-ai']")
             m_page.wait_for_selector(".bot-ai-container")
             m_page.wait_for_selector("#botAiProfileSelect")
+
+            # All eight navigation buttons stay inside their own boxes at 390px.
+            nav_boxes = m_page.locator("#tabs button").evaluate_all("els => els.map(e => { const r=e.getBoundingClientRect(); return {text:e.textContent.trim(), left:r.left, right:r.right, top:r.top, bottom:r.bottom}; })")
+            assert len(nav_boxes) == 8
+            for box in nav_boxes:
+                assert box["left"] >= 0 and box["right"] <= 390, f"Mobile nav overflow: {box}"
+            for i, left in enumerate(nav_boxes):
+                for right in nav_boxes[i + 1:]:
+                    overlaps = left["left"] < right["right"] and right["left"] < left["right"] and left["top"] < right["bottom"] and right["top"] < left["bottom"]
+                    assert not overlaps, f"Mobile nav buttons overlap: {left} / {right}"
 
             # Spanish Mobile 390
             m_page.select_option("#langSelect", "es")

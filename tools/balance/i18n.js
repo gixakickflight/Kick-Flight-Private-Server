@@ -420,7 +420,12 @@
           matchingTimeouts: "tiempos agotados",
           cancelled: "cancelado",
           exceptions: "excepciones"
-        }
+        },
+        metaWindow: "ventana", metaSince: "desde", metaRelease: "versión", metaRun: "ejecución", metaStore: "almacén",
+        metaQueue: "cola", metaWritten: "escritos", metaDropped: "descartados", metaErrors: "errores", metaTrackedBattles: "combates seguidos",
+        lastError: "último error", outcomeOpen: "abierta", rule: "regla", field: "escenario", humans: "humanos", bots: "bots", created: "creada",
+        statusOpen: "abierta", statusDroppedSilent: "desconexión silenciosa", outcomeClean: "limpia", outcomePartial: "parcial", outcomeAbandoned: "abandonada", outcomeNeverStarted: "nunca iniciada", outcomeRunning: "en curso", outcomeMatching: "emparejando",
+        exceptionsError: "no se pudieron leer las excepciones: {err}", custom: "personalizada"
       },
       maintenance: {
         title: "Mantenimiento",
@@ -879,7 +884,12 @@
           matchingTimeouts: "matching timeouts",
           cancelled: "cancelled",
           exceptions: "exceptions"
-        }
+        },
+        metaWindow: "window", metaSince: "since", metaRelease: "release", metaRun: "run", metaStore: "store",
+        metaQueue: "queue", metaWritten: "written", metaDropped: "dropped", metaErrors: "errors", metaTrackedBattles: "tracked battles",
+        lastError: "last error", outcomeOpen: "open", rule: "rule", field: "field", humans: "humans", bots: "bots", created: "created",
+        statusOpen: "open", statusDroppedSilent: "dropped silent", outcomeClean: "clean", outcomePartial: "partial", outcomeAbandoned: "abandoned", outcomeNeverStarted: "never started", outcomeRunning: "running", outcomeMatching: "matching",
+        exceptionsError: "could not read exceptions: {err}", custom: "custom"
       },
       maintenance: {
         title: "Maintenance",
