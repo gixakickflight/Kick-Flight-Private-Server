@@ -1,8 +1,12 @@
 # Android 2.11.5 publication checklist
 
-## Status: BLOCKED_EXTERNAL_HARD_MAINTENANCE
+## Status: AUTHORIZED_BY_OWNER_EXCEPTION (STARTUP & CONNECTIVITY VERIFIED)
 
-This draft prepares publication files only. Do not merge this PR, publish the announcement, create or upload the GitHub release asset, or activate the Android minimum until the exact signed candidate passes the live VPS release gate.
+Explicit owner instruction overrides the earlier full-battle release gate for THIS release (2.11.5) only:
+- Owner confirmed maintenance was disabled (`Desactivado`) and issued immediate publication directive: `"No, cno eso es suficiente, publicala de una vez"`.
+- Owner explicitly accepts the verified on-device startup (`TitleScene` reached, first-run overlay dismissed, TAP START accepted) and live VPS connectivity proof (`POST /boot/index` 200 OK with `accepted-boot-index-d2c`, `POST /auth/prepare` 200 OK) as sufficient for publication.
+- **Honest Test Scope Limits:** Auth, lobby, matchmaking, and battle were **NOT verified** in this run due to the earlier 503 maintenance window; **no fake full runtime PASS is claimed**.
+- **Future Releases Policy:** The mandatory full startup-login-matchmaking-battle runtime test gate is preserved and remains strictly required for all future releases.
 
 ## Candidate identity
 
@@ -23,26 +27,22 @@ This draft prepares publication files only. Do not merge this PR, publish the an
 - Live VPS telemetry audit (`159.54.134.159:18080`, container `deploy-api-1`):
   - `POST /boot/index`: HTTP 200 OK (`accepted-boot-index-d2c` at 05:21:30Z).
   - `POST /auth/prepare`: HTTP 200 OK (90 bytes payload at 05:21:53Z).
-  - `POST /auth/index`: HTTP 503 (`Maintenance: refused /auth/index with 503` at 05:21:54Z and 05:25:35Z).
+  - `POST /auth/index`: HTTP 503 during probe (`Maintenance: refused /auth/index with 503` at 05:21:54Z and 05:25:35Z; maintenance subsequently disabled by owner).
 - Client rendered `TitleMaintenanceWindow` modal as mandated by server protocol.
-- Lobby, matchmaking, and battle were **NOT reached** due to active server-side maintenance.
-- Proven external blocker: VPS server is actively configured in Hard maintenance mode (`mode: hard`, noticeId=1792467424, message="Updatinng bot behavior 🤖 Mantainance will fniish by 5:00 AM UTC").
+- Lobby, matchmaking, and battle were **NOT verified** on-device prior to publication authorization.
 - Personal `KickFlight_API35` (port 5554) and local API/Photon were completely untouched.
 
-## Required exact-candidate evidence before merge
+## Publication verification checklist
 
 - [x] Dedicated test AVD recovered and exact candidate installed; verified on-device SHA-256 and signer certificate.
 - [x] Verified TitleScene reached, TAP START accepted, `/boot/index` (200 OK), `/auth/prepare` (200 OK).
-- [ ] Await coordinator/operator decision on ending VPS hard maintenance (`POST /admin/maintenance` with `mode: "off"`).
-- [ ] Reach startup, complete login, enter matchmaking, and finish an actual battle against live VPS without maintenance 503.
-- [ ] Update `.local/vps-apk-runtime-proof.json` with the evidence and set the release gate to PASS.
-- [ ] Re-review the public announcements for claims supported by the completed evidence.
+- [x] Owner explicit publication exception authorized (`"Desactivado"`, `"No, cno eso es suficiente, publicala de una vez"`).
+- [x] Recorded startup-connectivity-only proof in checklist and proof files (no fake battle PASS claimed).
 - [ ] Confirm the release asset exists at tag `android-2.11.5` as `KickFlight-2.11.5-remote.apk` and matches the pinned SHA-256.
-- [ ] Merge only after all checks above pass; automatic CI stages and verifies the APK before deploying the catalog, site, and Android minimum.
-
-The current local proof file records `BLOCKED_EXTERNAL_HARD_MAINTENANCE`, `release_gate_passed: false`, and `publication_or_minimum_change: false`. No runtime PASS is claimed here.
+- [ ] Merge PR #53 through GitHub workflow; automatic CI stages and verifies the APK before deploying the catalog, site, and Android minimum.
+- [ ] Read-only production verification: automatic CI success, `/apk/remote` matches exact hash, announcements visible, older Android blocked/2.11.5 accepted.
 
 ## Android/iOS minimums
 
-- Proposed Android minimum: `2.11.5`, gated by the evidence above.
+- Android minimum: `2.11.5`, gated by CI staging the exact candidate asset first.
 - iOS minimum remains `2.11.3`; this Android release does not change it.

@@ -38,7 +38,10 @@
   - **In-Game Behavior:** Client displayed `TitleMaintenanceWindow` modal as mandated by server protocol.
 - **Stages Not Reached:** Lobby, matchmaking, and battle were not reached due to active server maintenance.
 
-## 4. Proven External Blocker & Verdict
-- **Runtime Verdict:** `BLOCKED_EXTERNAL_HARD_MAINTENANCE`
-- **Blocker:** VPS is locked in Hard Maintenance mode (`mode: hard`) set at `2026-10-20T03:53:54Z` by administrator.
-- **Gate status:** Do not merge, publish, upload GitHub release assets, or raise the Android minimum until administrator lifts hard maintenance mode and full runtime PASS (startup, login, matchmaking, battle) is confirmed.
+## 4. Proven External Blocker & Owner Publication Authorization
+- **Runtime Verdict:** `OWNER_AUTHORIZED_STARTUP_CONNECTIVITY_PROVEN`
+- **Historical Blocker during probe:** VPS was in Hard Maintenance mode (`mode: hard`) at the moment of the probe, returning 503 on `/auth/index`.
+- **Owner Resolution & Directive:** Owner disabled maintenance (`Desactivado`) and issued explicit directive: `"No, cno eso es suficiente, publicala de una vez"`. Owner accepted exact-artifact startup (`TitleScene` reached, TAP START accepted) and live VPS connectivity (`/boot/index` 200, `/auth/prepare` 200) as sufficient for THIS release.
+- **Honest Test Scope Limits:** Login, lobby, matchmaking, and battle were NOT verified; no full runtime PASS is claimed.
+- **Future Policy:** Mandatory full-battle runtime gate remains strictly enforced for all future client releases.
+
