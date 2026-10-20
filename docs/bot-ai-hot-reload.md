@@ -17,9 +17,17 @@ The bot AI hot-reload system exposes native bot AI behavioral parameters (motiva
 
 ---
 
-## 2. Configuration & Validation
+## 2. Configuration & Persistence Architecture
 
-- **Config Path:** `config/bot_ai_profiles.json` (resolves relative to repo root, `AppContext.BaseDirectory`, content root, or `KF_BOT_AI_PROFILES_PATH`).
+- **Durable Override Path:** `.local/masters-overrides/bot_ai_profiles.json` (resolves relative to repo root, `AppContext.BaseDirectory`, content root, or `KF_BOT_AI_PROFILES_PATH`).
+  - Survives CI rsync deployments because `.local/` is excluded from deploy rsync and mounted into the container at `../.local:/srv/repo/.local:ro`.
+  - Is safely ignored by generic master table loaders (`MasterOverrides.cs`) and WebUI table exports because it does not match the `masters_*.json` naming convention.
+- **Seed Fallback Path:** `config/bot_ai_profiles.json` (resolves relative to repo root, `AppContext.BaseDirectory`, content root, or `KF_BOT_AI_SEED_PATH`).
+  - Tracked in git, ships baseline defaults, and is **never** overwritten by default balance panel operations.
+- **Startup Resolution Hierarchy (`BotAiProfileProvider`):**
+  1. Valid durable override file (`.local/masters-overrides/bot_ai_profiles.json` or `KF_BOT_AI_PROFILES_PATH`).
+  2. Valid seed fallback file (`config/bot_ai_profiles.json` or `KF_BOT_AI_SEED_PATH`).
+  3. Builtin hardcoded defaults (`BotAiDefaults`).
 - **Validation Rules (`BotAiConfigurationValidator`):**
   - **Strict Schema:** Unknown/unmapped fields at root, profile, motivations, or interval objects are rejected.
   - **3x13 Coverage:** All 3 modes and 13 profile keys must be present (exactly 39 entries).
@@ -33,14 +41,19 @@ The bot AI hot-reload system exposes native bot AI behavioral parameters (motiva
 
 ---
 
-## 3. Hot-Reload & Fault Tolerance
+## 3. Hot-Reload & Read-Only Mount Support
 
-- **Debounced Watcher:** A `FileSystemWatcher` monitors `config/bot_ai_profiles.json` for `Changed`, `Created`, `Renamed`, and `Deleted` events with a 250ms debounce window.
+- **Target Hot-Reload:** A `FileSystemWatcher` monitors the durable override target (`.local/masters-overrides/bot_ai_profiles.json`) for `Changed`, `Created`, `Renamed`, and `Deleted` events with a 250ms debounce window.
+- **Missing Parent Directories & Read-Only Layout:**
+  - Even if the durable file or its directory (`.local/masters-overrides`) does not exist at startup, the provider watches the target.
+  - Because container layouts mount `.local` read-only (`../.local:/srv/repo/.local:ro`), the API never attempts to create parent directories.
+  - When target directories are absent, the watcher monitors the nearest existing ancestor directory with `IncludeSubdirectories = true` and event filtering.
+  - When the external host or balance panel creates `.local/masters-overrides/bot_ai_profiles.json`, the watcher detects the creation and automatically reloads.
 - **Atomic Swap:** Successfully validated configurations are compiled into an immutable `BotAiProfileSnapshot` backed by `FrozenDictionary` and atomically swapped via reference exchange.
 - **Fault Tolerance:**
-  - **Startup Missing/Invalid:** Falls back to hardcoded 39-profile defaults (`BotAiDefaults`), logging a warning.
-  - **Reload Missing/Invalid:** Retains the last active valid snapshot without downtime or crash, logging an error.
-  - **Atomic Renames:** Supported by watching both creation/rename events and directory updates.
+  - **Startup Missing:** Falls back to seed file, then builtin hardcoded defaults (`BotAiDefaults`), logging appropriate diagnostics.
+  - **Reload Invalid/Deleted:** Retains the last active valid snapshot without downtime or crash, logging an error.
+  - **Atomic Renames:** Supported by watching creation, modification, rename, and directory events.
 
 ---
 
