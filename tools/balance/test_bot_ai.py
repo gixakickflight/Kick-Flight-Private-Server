@@ -633,3 +633,218 @@ def test_http_full_flow(tmp_path):
 
     finally:
         fixture.stop()
+
+
+class DefaultDurableFixture:
+    """Fixture testing default durable path (.local/masters-overrides/bot_ai_profiles.json).
+
+    Simulates the production environment where KF_BOT_AI_PROFILES_PATH is unset,
+    config/bot_ai_profiles.json is the seed, and saves write to .local/masters-overrides/.
+    """
+    def __init__(self, tmp_path: Path):
+        self.tmp_path = tmp_path
+        self.port = 18897
+        self.root = tmp_path / "repo_root"
+        self.root.mkdir(parents=True)
+        self.config_dir = self.root / "config"
+        self.config_dir.mkdir(parents=True)
+        self.overrides_dir = self.root / ".local" / "masters-overrides"
+        self.backups_dir = self.root / ".local" / "balance-backups"
+        self.auth_dir = self.root / ".local" / "balance-auth"
+        self.auth_dir.mkdir(parents=True, mode=0o700)
+
+        pristine_config = REPO / "config" / "bot_ai_profiles.json"
+        self.seed_file = self.config_dir / "bot_ai_profiles.json"
+        shutil.copy(pristine_config, self.seed_file)
+        self.durable_file = self.overrides_dir / "bot_ai_profiles.json"
+
+        for m in (REPO / "config").glob("masters_*.json"):
+            shutil.copy(m, self.config_dir / m.name)
+
+        self.auth_db = self.auth_dir / "auth.sqlite3"
+        self.jwt_secret = self.auth_dir / "jwt-secret"
+        self.jwt_secret.write_bytes(os.urandom(32))
+        os.chmod(self.jwt_secret, 0o600)
+
+        from auth import AuthStore, hash_password
+        self.auth_store = AuthStore(self.auth_db, jwt_secret=self.jwt_secret.read_bytes())
+        self.username = "testdurable"
+        self.password = "valid-test-password-12345"
+        import sqlite3
+        with sqlite3.connect(self.auth_db) as conn:
+            conn.execute(
+                "INSERT INTO users(username, password_hash, created_at) VALUES (?, ?, ?)",
+                (self.username, hash_password(self.password), int(time.time()))
+            )
+
+        self.env = dict(os.environ)
+        self.env.pop("KF_BOT_AI_PROFILES_PATH", None)
+        self.env.update({
+            "KF_BALANCE_BASE_DIR": str(self.config_dir),
+            "KF_BALANCE_OVERRIDE_DIR": str(self.overrides_dir),
+            "KF_BALANCE_BACKUP_DIR": str(self.backups_dir),
+            "KF_BALANCE_AUTH_DB": str(self.auth_db),
+            "KF_BALANCE_JWT_SECRET_FILE": str(self.jwt_secret),
+            "KF_BALANCE_BASE_PATH": "/balance",
+            "KF_BALANCE_ALLOW_APPLY": "0",
+        })
+        self.proc = None
+        self.cookie = None
+
+    def start(self):
+        self.proc = subprocess.Popen(
+            [sys.executable, str(REPO / "tools/balance/server.py"), "--host", "127.0.0.1", "--port", str(self.port)],
+            env=self.env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT
+        )
+        deadline = time.time() + 10.0
+        while time.time() < deadline:
+            try:
+                req = urllib.request.Request(f"http://127.0.0.1:{self.port}/balance/login")
+                with urllib.request.urlopen(req, timeout=1.0) as res:
+                    if res.status == 200:
+                        break
+            except Exception:
+                time.sleep(0.1)
+        else:
+            out = self.proc.stdout.read().decode("utf-8", "replace") if self.proc.stdout else ""
+            raise RuntimeError(f"Server failed to start:\n{out}")
+
+        login_req = urllib.request.Request(
+            f"http://127.0.0.1:{self.port}/balance/api/login",
+            data=json.dumps({"username": self.username, "password": self.password}).encode("utf-8"),
+            headers={"Content-Type": "application/json", "Origin": f"http://127.0.0.1:{self.port}"},
+            method="POST"
+        )
+        with urllib.request.urlopen(login_req, timeout=5.0) as res:
+            set_cookie = res.headers.get("Set-Cookie")
+            self.cookie = set_cookie.split(";", 1)[0]
+
+    def stop(self):
+        if self.proc:
+            self.proc.terminate()
+            try:
+                self.proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                self.proc.kill()
+
+
+def test_default_durable_flow_and_simulated_deploy(tmp_path):
+    """Verify default durable path (.local/masters-overrides), seed preservation, and 409 conflict."""
+    fixture = DefaultDurableFixture(tmp_path)
+    fixture.start()
+    try:
+        base_url = f"http://127.0.0.1:{fixture.port}/balance"
+        origin = f"http://127.0.0.1:{fixture.port}"
+
+        # 1. Before save: durable override file does NOT exist
+        assert not fixture.durable_file.exists()
+
+        # 2. GET before override exists reads valid seed and revision
+        req = urllib.request.Request(f"{base_url}/api/bot-ai/profiles")
+        req.add_header("Cookie", fixture.cookie)
+        with urllib.request.urlopen(req) as res:
+            assert res.status == 200
+            data = json.loads(res.read().decode("utf-8"))
+            assert data["ok"] is True
+            assert data.get("source") == "seed"
+            assert len(data["profiles"]) == 39
+            seed_hash = data["hash"]
+            assert hashlib.sha256(fixture.seed_file.read_bytes()).hexdigest() == seed_hash
+
+        # 3. First POST atomically creates durable file, leaves seed untouched, and creates backup
+        clean_payload = {
+            "version": data["version"],
+            "$schema": data.get("$schema", "./bot_ai_profiles.schema.json"),
+            "profiles": data["profiles"]
+        }
+        modified_data = copy.deepcopy(clean_payload)
+        modified_data["profiles"][0]["motivations"]["attack"] = 85
+        modified_data["expectedHash"] = seed_hash
+
+        post_req = urllib.request.Request(
+            f"{base_url}/api/bot-ai/profiles",
+            data=json.dumps(modified_data).encode("utf-8"),
+            headers={"Content-Type": "application/json", "Origin": origin, "Cookie": fixture.cookie},
+            method="POST"
+        )
+        with urllib.request.urlopen(post_req) as res:
+            assert res.status == 200
+            resp_body = json.loads(res.read().decode("utf-8"))
+            assert resp_body["ok"] is True
+            assert resp_body.get("source") == "override"
+            durable_hash = resp_body["hash"]
+            assert durable_hash != seed_hash
+
+        # Assert durable override was created on disk with attack = 85
+        assert fixture.durable_file.is_file()
+        on_disk_durable = json.loads(fixture.durable_file.read_text(encoding="utf-8"))
+        assert on_disk_durable["profiles"][0]["motivations"]["attack"] == 85
+
+        # Assert seed config/bot_ai_profiles.json remains completely untouched
+        on_disk_seed = json.loads(fixture.seed_file.read_text(encoding="utf-8"))
+        assert on_disk_seed["profiles"][0]["motivations"]["attack"] == clean_payload["profiles"][0]["motivations"]["attack"]
+
+        # Assert backup was created in balance-backups
+        backups = list(fixture.backups_dir.glob("bot_ai_profiles-*.json"))
+        assert len(backups) == 1
+
+        # 4. Stale 409 after initial save: POST with old seed hash fails with 409
+        stale_data = copy.deepcopy(modified_data)
+        stale_data["expectedHash"] = seed_hash
+        try:
+            req = urllib.request.Request(
+                f"{base_url}/api/bot-ai/profiles",
+                data=json.dumps(stale_data).encode("utf-8"),
+                headers={"Content-Type": "application/json", "Origin": origin, "Cookie": fixture.cookie},
+                method="POST"
+            )
+            urllib.request.urlopen(req)
+            assert False, "Stale save after initial save should reject with 409"
+        except urllib.error.HTTPError as ex:
+            assert ex.code == 409
+            conflict_body = json.loads(ex.read().decode("utf-8"))
+            assert conflict_body["conflict"] is True
+            assert conflict_body["currentHash"] == durable_hash
+            assert conflict_body["expectedHash"] == seed_hash
+
+        # 5. Simulated deploy: rsync overwrites config/ (the seed)
+        # Modify the seed file to simulate a fresh deploy rsyncing config/
+        deploy_seed_content = copy.deepcopy(on_disk_seed)
+        deploy_seed_content["version"] = 99
+        fixture.seed_file.write_text(json.dumps(deploy_seed_content), encoding="utf-8")
+
+        # GET must still read durable override (attack = 85, source = override)
+        req = urllib.request.Request(f"{base_url}/api/bot-ai/profiles")
+        req.add_header("Cookie", fixture.cookie)
+        with urllib.request.urlopen(req) as res:
+            assert res.status == 200
+            get_data = json.loads(res.read().decode("utf-8"))
+            assert get_data["source"] == "override"
+            assert get_data["profiles"][0]["motivations"]["attack"] == 85
+            assert get_data["version"] == data["version"]
+
+        # 6. Ensure bot override is NOT mistaken for generic master table
+        tables_req = urllib.request.Request(f"{base_url}/api/tables")
+        tables_req.add_header("Cookie", fixture.cookie)
+        with urllib.request.urlopen(tables_req) as res:
+            assert res.status == 200
+            tables_data = json.loads(res.read().decode("utf-8"))
+            table_names = [t["name"] for t in tables_data]
+            assert "bot_ai_profiles" not in table_names
+            assert "bot_ai" not in table_names
+
+        # Check export zip does not include bot_ai_profiles.json
+        export_req = urllib.request.Request(f"{base_url}/api/overrides/export")
+        export_req.add_header("Cookie", fixture.cookie)
+        with urllib.request.urlopen(export_req) as res:
+            assert res.status == 200
+            import zipfile
+            import io
+            with zipfile.ZipFile(io.BytesIO(res.read())) as zf:
+                for name in zf.namelist():
+                    assert "bot_ai" not in name
+
+    finally:
+        fixture.stop()

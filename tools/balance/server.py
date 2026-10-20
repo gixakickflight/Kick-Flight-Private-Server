@@ -74,8 +74,26 @@ MASTERS_DIR = _env_path("KF_BALANCE_BASE_DIR", _env_path("KF_BALANCE_MASTERS_DIR
 # .local/ is excluded and survives.  The API's master override layer reads this directory (reads only).
 OVERRIDE_DIR = _env_path("KF_BALANCE_OVERRIDE_DIR", REPO_ROOT / ".local" / "masters-overrides")
 BACKUP_DIR = _env_path("KF_BALANCE_BACKUP_DIR", BALANCE_DIR / "backups")
-BOT_AI_PROFILES_FILE = _env_path("KF_BOT_AI_PROFILES_PATH", CONFIG_DIR / "bot_ai_profiles.json")
-BOT_AI_SCHEMA_FILE = _env_path("KF_BOT_AI_SCHEMA_PATH", CONFIG_DIR / "bot_ai_profiles.schema.json")
+
+# Bot AI configuration: durable override lives under .local/masters-overrides/bot_ai_profiles.json
+# (survives VPS deployments because .local/ is excluded from CI rsync).
+# Tracked config/bot_ai_profiles.json remains the SEED fallback, never overwritten by the panel.
+BOT_AI_SEED_FILE = _env_path(
+    "KF_BOT_AI_SEED_PATH",
+    (MASTERS_DIR / "bot_ai_profiles.json") if (MASTERS_DIR / "bot_ai_profiles.json").is_file() else (CONFIG_DIR / "bot_ai_profiles.json")
+)
+BOT_AI_PROFILES_FILE = _env_path(
+    "KF_BOT_AI_PROFILES_PATH",
+    OVERRIDE_DIR / "bot_ai_profiles.json"
+)
+BOT_AI_SCHEMA_FILE = _env_path(
+    "KF_BOT_AI_SCHEMA_PATH",
+    (MASTERS_DIR / "bot_ai_profiles.schema.json") if (MASTERS_DIR / "bot_ai_profiles.schema.json").is_file() else (CONFIG_DIR / "bot_ai_profiles.schema.json")
+)
+
+def get_bot_ai_files() -> tuple[Path, Path]:
+    """Return (durable_override_path, seed_fallback_path)."""
+    return BOT_AI_PROFILES_FILE, BOT_AI_SEED_FILE
 
 # Authentication is mandatory. The local DB is never committed, and an empty user table denies
 # every login until an operator inserts an account manually.
@@ -687,9 +705,10 @@ def backup_bot_ai_profiles(original_text: str) -> Path:
     return path
 
 
-def write_bot_ai_profiles(payload: dict) -> str:
+def write_bot_ai_profiles(payload: dict, target_path: Path | None = None) -> str:
     """Write the bot AI profiles file atomically with same-directory tempfile + fsync + os.replace."""
-    target_path = BOT_AI_PROFILES_FILE
+    if target_path is None:
+        target_path = BOT_AI_PROFILES_FILE
     if target_path.is_symlink():
         target_dest = os.readlink(target_path)
         raise OSError(f"Refusing to write over symlink {target_path} -> {target_dest}")
@@ -2070,12 +2089,14 @@ class BalanceHandler(BaseHTTPRequestHandler):
         self.send_json(status, payload)
 
     def handle_get_bot_ai_profiles(self):
-        if not BOT_AI_PROFILES_FILE.exists():
+        durable_path, seed_path = get_bot_ai_files()
+        target_path = durable_path if durable_path.is_file() else seed_path
+        if not target_path.is_file():
             self.send_error_json(404, "bot_ai_profiles.json not found")
             return
         with WRITE_LOCK:
             try:
-                raw_bytes = BOT_AI_PROFILES_FILE.read_bytes()
+                raw_bytes = target_path.read_bytes()
                 text = raw_bytes.decode("utf-8")
                 data = json.loads(text, parse_constant=_reject_json_constant, object_pairs_hook=_reject_json_duplicates)
             except Exception as err:
@@ -2089,7 +2110,8 @@ class BalanceHandler(BaseHTTPRequestHandler):
             "version": data.get("version", 1),
             "profiles": data.get("profiles", []),
             "hash": file_hash,
-            "revision": file_hash
+            "revision": file_hash,
+            "source": "override" if target_path == durable_path and durable_path.is_file() else "seed",
         }, {"ETag": f'"{file_hash}"'})
 
     def handle_post_bot_ai_profiles(self):
@@ -2122,23 +2144,25 @@ class BalanceHandler(BaseHTTPRequestHandler):
             if if_match:
                 expected_hash = if_match.strip('"')
 
+        durable_path, seed_path = get_bot_ai_files()
+
         with WRITE_LOCK:
-            if BOT_AI_PROFILES_FILE.is_symlink():
+            if durable_path.is_symlink():
                 try:
-                    target_dest = os.readlink(BOT_AI_PROFILES_FILE)
+                    target_dest = os.readlink(durable_path)
                 except OSError:
                     target_dest = "(desconocido)"
                 self.send_error_json(
                     409,
-                    f"El archivo de configuración '{BOT_AI_PROFILES_FILE}' es un enlace simbólico que apunta a '{target_dest}'. "
+                    f"El archivo de configuración '{durable_path}' es un enlace simbólico que apunta a '{target_dest}'. "
                     "Se rechaza la escritura (409) para preservar el enlace simbólico y su destino."
                 )
                 return
 
             existing_text = None
-            if BOT_AI_PROFILES_FILE.exists():
+            if durable_path.exists():
                 try:
-                    existing_raw = BOT_AI_PROFILES_FILE.read_bytes()
+                    existing_raw = durable_path.read_bytes()
                     existing_text = existing_raw.decode("utf-8")
                     # Reject silent overwrite if on-disk file is malformed
                     json.loads(existing_text, parse_constant=_reject_json_constant, object_pairs_hook=_reject_json_duplicates)
@@ -2161,6 +2185,32 @@ class BalanceHandler(BaseHTTPRequestHandler):
                         "expectedHash": expected_hash,
                     })
                     return
+            else:
+                # First save: durable override does not exist yet. Validate against seed file.
+                if seed_path.exists():
+                    try:
+                        seed_raw = seed_path.read_bytes()
+                        existing_text = seed_raw.decode("utf-8")
+                        json.loads(existing_text, parse_constant=_reject_json_constant, object_pairs_hook=_reject_json_duplicates)
+                    except Exception as malformed_err:
+                        self.send_error_json(
+                            409,
+                            f"El archivo base de configuración está corrupto o malformado ({malformed_err}). "
+                            "No se creará el override automáticamente para evitar datos inconsistentes."
+                        )
+                        return
+
+                    seed_hash = hashlib.sha256(seed_raw).hexdigest()
+                    if expected_hash and expected_hash != seed_hash:
+                        self.send_json(409, {
+                            "ok": False,
+                            "conflict": True,
+                            "error": "Conflicto de concurrencia: El archivo base fue modificado antes de crear el override inicial. "
+                                     "Recargue la configuración antes de guardar.",
+                            "currentHash": seed_hash,
+                            "expectedHash": expected_hash,
+                        })
+                        return
 
             is_valid, errors, normalized_payload = validate_bot_ai_profiles(payload)
             if not is_valid:
@@ -2175,19 +2225,20 @@ class BalanceHandler(BaseHTTPRequestHandler):
                 return
 
             try:
-                write_bot_ai_profiles(normalized_payload)
+                write_bot_ai_profiles(normalized_payload, target_path=durable_path)
             except OSError as write_error:
                 self.send_error_json(500, f"could not write bot AI profiles: {write_error}")
                 return
 
-            new_hash = hashlib.sha256(BOT_AI_PROFILES_FILE.read_bytes()).hexdigest()
+            new_hash = hashlib.sha256(durable_path.read_bytes()).hexdigest()
 
         self.send_json_with_headers(200, {
             "ok": True,
             "written": len(normalized_payload["profiles"]),
             "hash": new_hash,
             "revision": new_hash,
-            "path": str(BOT_AI_PROFILES_FILE)
+            "path": str(durable_path),
+            "source": "override"
         }, {"ETag": f'"{new_hash}"'})
 
     def handle_diff(self, name):
@@ -2234,7 +2285,7 @@ def lan_addresses():
 
 
 def main(argv=None):
-    global MASTERS_DIR, OVERRIDE_DIR, BACKUP_DIR
+    global MASTERS_DIR, OVERRIDE_DIR, BACKUP_DIR, BOT_AI_PROFILES_FILE, BOT_AI_SEED_FILE
     parser = argparse.ArgumentParser(description="Balance WebUI for masters_*.json")
     parser.add_argument(
         "--port", type=int, default=int(os.environ.get("KF_BALANCE_PORT", "8765")),
@@ -2263,8 +2314,13 @@ def main(argv=None):
 
     if args.masters_dir:
         MASTERS_DIR = Path(args.masters_dir).expanduser()
+        if "KF_BOT_AI_SEED_PATH" not in os.environ:
+            seed_candidate = MASTERS_DIR / "bot_ai_profiles.json"
+            BOT_AI_SEED_FILE = seed_candidate if seed_candidate.is_file() else (CONFIG_DIR / "bot_ai_profiles.json")
     if args.override_dir:
         OVERRIDE_DIR = Path(args.override_dir).expanduser()
+        if "KF_BOT_AI_PROFILES_PATH" not in os.environ:
+            BOT_AI_PROFILES_FILE = OVERRIDE_DIR / "bot_ai_profiles.json"
     if args.backup_dir:
         BACKUP_DIR = Path(args.backup_dir).expanduser()
 
@@ -2312,6 +2368,7 @@ def main(argv=None):
     print("base masters: %s" % MASTERS_DIR)
     print("overrides (written here): %s" % OVERRIDE_DIR)
     print("backups: %s" % BACKUP_DIR)
+    print("bot AI durable profiles: %s (seed: %s)" % (BOT_AI_PROFILES_FILE, BOT_AI_SEED_FILE))
     if ADMIN_URL:
         print("maintenance via %s" % ADMIN_URL)
     else:

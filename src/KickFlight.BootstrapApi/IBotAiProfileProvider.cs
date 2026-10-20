@@ -19,6 +19,11 @@ public interface IBotAiProfileProvider : IDisposable
     string ResolvedConfigPath { get; }
 
     /// <summary>
+    /// Resolved absolute path to the seed fallback config/bot_ai_profiles.json, if found.
+    /// </summary>
+    string? ResolvedSeedPath { get; }
+
+    /// <summary>
     /// True if the provider is currently serving hardcoded defaults because the config file
     /// was missing or invalid on startup.
     /// </summary>
