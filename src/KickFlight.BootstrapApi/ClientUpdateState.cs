@@ -33,6 +33,7 @@ public sealed class ClientUpdateState
     private readonly string _initialMinimumVersion;
     private readonly string _initialIosMinimumVersion;
     private ClientUpdateSnapshot _current;
+    private bool _invalidPersistedState;
 
     public ClientUpdateState(ILogger<ClientUpdateState> logger, IWebHostEnvironment environment, IConfiguration configuration)
         : this(logger, configuration["ClientUpdate:FilePath"] is { Length: > 0 } configured
@@ -57,6 +58,7 @@ public sealed class ClientUpdateState
     public string FilePath { get; }
     public string ConfiguredMinimumVersion => _initialMinimumVersion;
     public string ConfiguredIosMinimumVersion => _initialIosMinimumVersion;
+    public bool IsPersistedStateValid { get { lock (_lock) return !_invalidPersistedState; } }
 
     /// <summary>Immutable snapshot; read it once per request so the comparison uses a consistent minimum.</summary>
     public ClientUpdateSnapshot Current
@@ -74,8 +76,9 @@ public sealed class ClientUpdateState
             var nextIos = iosMinimumVersion is not null ? Normalize(iosMinimumVersion) : _current.IosMinimumVersion;
             var nextEnabled = enabled ?? (nextMin.Length > 0 || nextIos.Length > 0);
             next = new ClientUpdateSnapshot(nextMin, DateTime.UtcNow, nextIos, nextEnabled, isManualOverride);
+            if (!Save(next)) throw new IOException($"Could not persist client update state to {FilePath}");
             _current = next;
-            Save(next);
+            _invalidPersistedState = false;
         }
 
         _logger.LogInformation("Client minimum version {MinimumVersion} (iOS: {IosMinimumVersion}, Enabled: {Enabled}, ManualOverride: {ManualOverride})",
@@ -94,8 +97,9 @@ public sealed class ClientUpdateState
         {
             var enabled = _initialMinimumVersion.Length > 0 || _initialIosMinimumVersion.Length > 0;
             next = new ClientUpdateSnapshot(_initialMinimumVersion, DateTime.UtcNow, _initialIosMinimumVersion, enabled, IsManualOverride: false);
+            if (!Save(next)) throw new IOException($"Could not persist client update state to {FilePath}");
             _current = next;
-            Save(next);
+            _invalidPersistedState = false;
         }
 
         _logger.LogInformation("Reset client update state to deployment config (Android: {MinimumVersion}, iOS: {IosMinimumVersion}, Enabled: {Enabled})",
@@ -112,6 +116,9 @@ public sealed class ClientUpdateState
     public bool IsOutdated(string? clientVersion, bool isIos = false)
     {
         var current = Current;
+        // Unknown persisted settings must never silently disable an update gate. An operator can recover by saving
+        // valid settings or explicitly resetting to deployment defaults through the loopback admin endpoint.
+        if (!IsPersistedStateValid) return true;
         if (!current.Enabled) return false;
         var minimum = isIos
             ? (current.IosMinimumVersion.Length > 0 ? current.IosMinimumVersion : current.MinimumVersion)
@@ -152,7 +159,12 @@ public sealed class ClientUpdateState
         try
         {
             var loaded = JsonSerializer.Deserialize<ClientUpdateSnapshot>(File.ReadAllText(FilePath), FileJson);
-            if (loaded is null) return;
+            if (loaded is null || !IsValidMinimumVersion(loaded.MinimumVersion) || !IsValidMinimumVersion(loaded.IosMinimumVersion))
+            {
+                _invalidPersistedState = true;
+                _logger.LogWarning("Invalid client update state {Path}; forcing update responses until an operator saves valid settings", FilePath);
+                return;
+            }
             var minVer = loaded.MinimumVersion ?? "";
             var iosMinVer = loaded.IosMinimumVersion ?? "";
             var isManualOverride = loaded.IsManualOverride;
@@ -205,11 +217,12 @@ public sealed class ClientUpdateState
         }
         catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
         {
-            _logger.LogWarning("Could not read client update state {Path}, starting with the configured value: {Error}", FilePath, ex.Message);
+            _invalidPersistedState = true;
+            _logger.LogWarning("Could not read client update state {Path}; forcing update responses until an operator saves valid settings: {Error}", FilePath, ex.Message);
         }
     }
 
-    private void Save(ClientUpdateSnapshot snapshot)
+    private bool Save(ClientUpdateSnapshot snapshot)
     {
         try
         {
@@ -218,11 +231,13 @@ public sealed class ClientUpdateState
             var temporary = FilePath + ".tmp";
             File.WriteAllText(temporary, JsonSerializer.Serialize(snapshot, FileJson));
             File.Move(temporary, FilePath, overwrite: true);
+            return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // The switch still applies to this process; it only would not survive a restart.
+            // Keep the previous in-memory snapshot when persistence fails; callers must not report an unsaved change.
             _logger.LogWarning("Could not persist client update state to {Path}: {Error}", FilePath, ex.Message);
+            return false;
         }
     }
 }
@@ -325,6 +340,7 @@ public static class ClientUpdateAdmin
         minimumVersion = current.MinimumVersion,
         iosMinimumVersion = current.IosMinimumVersion,
         isManualOverride = current.IsManualOverride,
+        stateValid = state.IsPersistedStateValid,
         defaultMinimumVersion = state.ConfiguredMinimumVersion,
         defaultIosMinimumVersion = state.ConfiguredIosMinimumVersion,
         changedAtUtc = current.ChangedAtUtc.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture)

@@ -1685,13 +1685,17 @@ function renderClientUpdatePanel(panel) {
   if (current && current.error) section.appendChild(el("p", { class: "note" }, "Could not read state: " + current.error));
   else if (current) {
     const line = el("p", { class: "note" });
-    line.appendChild(el("span", { class: "ustate " + (current.enabled ? "enabled" : "disabled") }, current.enabled ? "ENABLED" : "DISABLED"));
+    const effectiveEnabled = current.enabled || current.stateValid === false;
+    line.appendChild(el("span", { class: "ustate " + (current.stateValid === false ? "disabled" : (effectiveEnabled ? "enabled" : "disabled")) },
+      current.stateValid === false ? "FAIL-CLOSED" : (effectiveEnabled ? "ENABLED" : "DISABLED")));
     line.appendChild(document.createTextNode("  Android " + (current.minimumVersion || "(none)") +
       "  iOS " + (current.iosMinimumVersion || "(follows Android)") +
       "  " + (current.isManualOverride ? "manual override" : "deployment defaults")));
     section.appendChild(line);
+    if (current.stateValid === false) section.appendChild(el("p", { class: "note" },
+      "Persisted update settings are malformed. All clients receive the forced-update response until valid settings are saved or deployment defaults are restored."));
   }
-  const enabled = el("input", { type: "checkbox" }); enabled.checked = !!(current && current.enabled);
+  const enabled = el("input", { type: "checkbox" }); enabled.checked = !!(current && (current.enabled || current.stateValid === false));
   const toggle = el("label", { class: "toggle-label" }); toggle.appendChild(enabled); toggle.appendChild(document.createTextNode("Require a minimum client version"));
   section.appendChild(toggle);
   const android = el("input", { type: "text", value: (current && current.minimumVersion) || "", placeholder: "2.11.4", inputmode: "decimal" });

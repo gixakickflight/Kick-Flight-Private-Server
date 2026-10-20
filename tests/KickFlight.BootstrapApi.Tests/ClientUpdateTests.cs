@@ -375,6 +375,33 @@ public sealed class ClientUpdateTests : IClassFixture<ClientUpdateFixture>, IDis
         }
     }
 
+    [Theory]
+    [InlineData("{")]
+    [InlineData("{\"MinimumVersion\":\"not-a-version\",\"ChangedAtUtc\":\"2026-10-19T00:00:00Z\",\"IosMinimumVersion\":\"\",\"Enabled\":false,\"IsManualOverride\":true}")]
+    public void Malformed_persisted_state_fails_closed_until_valid_admin_save(string contents)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"kf-client-update-{Guid.NewGuid():N}", "client-update.json");
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, contents);
+
+            // No configured minimum would normally disable the gate. Unknown disk state must block clients instead.
+            var server = new ClientUpdateState(NullLogger<ClientUpdateState>.Instance, path);
+            Assert.False(server.IsPersistedStateValid);
+            Assert.True(server.IsOutdated("2.11.0"));
+
+            server.Set("2.11.4", enabled: false, isManualOverride: true);
+            Assert.True(server.IsPersistedStateValid);
+            Assert.False(server.IsOutdated("2.11.0"));
+        }
+        finally
+        {
+            var dir = Path.GetDirectoryName(path);
+            if (dir is not null && Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task Admin_endpoint_supports_enable_disable_and_reset_to_default()
     {
