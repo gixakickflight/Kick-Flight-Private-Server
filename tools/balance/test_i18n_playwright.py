@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import http.server
 import json
 import os
 import shutil
@@ -49,6 +50,51 @@ from playwright.sync_api import sync_playwright
 
 REPO = Path(__file__).resolve().parents[2]
 
+
+
+class MockOpsHandler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        if "summary" in self.path:
+            data = {
+                "ok": True,
+                "window": {"name": "deploy", "since": "2026-10-20T00:00:00Z", "releaseSha": "abc1234", "runId": "run-1"},
+                "totals": {
+                    "clean": 42, "partial": 3, "abandoned": 1, "neverStarted": 0, "running": 2, "matching": 0,
+                    "completedPlayers": 120, "reconnectedCompleted": 5, "reconnectFailed": 1, "droppedSilent": 0,
+                    "relaunched": 0, "matchingFailures": 0, "matchingTimeouts": 0, "cancelled": 0, "failed": 0, "other": 0
+                },
+                "telemetry": {"store": "sqlite3"}
+            }
+        elif "exceptions" in self.path:
+            data = {
+                "ok": True,
+                "groups": [{
+                    "kind": "NullReferenceException",
+                    "count": 7,
+                    "fingerprint": "NRE_0x13c74cc",
+                    "signature": "PlayerCharacter.Initialize",
+                    "userCount": 3,
+                    "users": ["usr1", "usr2"],
+                    "appVersions": [{"key": "2.11.0", "count": 7}],
+                    "lastAt": "2026-10-20T12:00:00Z"
+                }],
+                "problemMatches": [{
+                    "battleId": "bat-9988",
+                    "outcome": "abandoned",
+                    "roster": "Hitagi vs Sid",
+                    "errorKind": "NullReferenceException",
+                    "participants": 4
+                }]
+            }
+        else:
+            data = {"ok": True}
+        self.wfile.write(json.dumps(data).encode("utf-8"))
+
+    def log_message(self, format, *args):
+        pass
 
 def discover_artifacts_dir() -> Path:
     try:
@@ -259,7 +305,13 @@ def main():
     tmp_path = Path(temp_dir_obj.name)
     config_dir, backups_dir, auth_dir, overrides_dir, auth_db, jwt_secret, admin_server = setup_test_environment(tmp_path)
 
+    mock_ops_server = socketserver.TCPServer(("127.0.0.1", 0), MockOpsHandler)
+    mock_ops_port = mock_ops_server.server_address[1]
+    mock_ops_thread = threading.Thread(target=mock_ops_server.serve_forever, daemon=True)
+    mock_ops_thread.start()
+
     env = os.environ.copy()
+    env["KF_BALANCE_OPS_URL"] = f"http://127.0.0.1:{mock_ops_port}"
     env["KF_BALANCE_CONFIG_DIR"] = str(config_dir)
     env["KF_BALANCE_BACKUP_DIR"] = str(backups_dir)
     env["KF_BALANCE_OVERRIDE_DIR"] = str(overrides_dir)

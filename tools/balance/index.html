@@ -915,7 +915,7 @@ function renderApplyStatus() {
     ? ("cambios pendientes de aplicar: " + pending.join(", ") + " (archivos de modificación más recientes que el inicio de la API)")
     : ("pending changes not yet applied: " + pending.join(", ") + " (override files newer than the API container start)");
   const upToDateText = isEs
-    ? "sin cambios pendientes: la API ha cargado todas las modificaciones"
+    ? BalanceI18n.t("footer.noPendingOverrides")
     : "no pending changes: the API has loaded every override";
   box.appendChild(el("div", { class: "line " + (pending.length ? "info" : "ok") }, pending.length ? pendingText : upToDateText));
   if (apply.note) box.appendChild(el("div", { class: "line info" }, apply.note));
@@ -925,6 +925,8 @@ function renderApplyStatus() {
 
   const applyButton = document.getElementById("apply");
   if (applyButton) {
+    const applyLabel = BalanceI18n.t("footer.apply");
+    const applyingLabel = BalanceI18n.t("common.applying");
     applyButton.textContent = state.applying
       ? BalanceI18n.t("footer.applying")
       : (pending.length ? BalanceI18n.t("footer.apply") + " (" + pending.length + ")" : BalanceI18n.t("footer.apply"));
@@ -1038,6 +1040,7 @@ function renderList() {
     return;
   }
   if (state.tab === "health") {
+    const isEs = BalanceI18n.getLang() === "es";
     const problems = state.health && state.health.summary && state.health.summary.problemMatches;
     list.appendChild(el("li", { class: "count" }, problems
       ? (isEs ? problems.length + " problema(s) en la ventana seleccionada" : problems.length + " problem match(es) in the selected window")
@@ -1056,7 +1059,7 @@ function renderList() {
   }
   const items = filteredItems();
   if (state.tab === "text") {
-    list.appendChild(el("li", { class: "count" }, items.length + " of " + state.screens.length + " screens"));
+    list.appendChild(el("li", { class: "count" }, BalanceI18n.t("common.screensCount", { shown: items.length, total: state.screens.length })));
     const current = state.selection.text;
     for (const screen of items) {
       const li = el("li", { class: "item", "data-id": screen.name });
@@ -1071,8 +1074,9 @@ function renderList() {
     }
     return;
   }
+  const totalCount = state.tab === "kickers" ? state.kickers.length : state.discs.length;
   list.appendChild(el("li", { class: "count" },
-    items.length + " of " + (state.tab === "kickers" ? state.kickers.length : state.discs.length) + " shown"));
+    BalanceI18n.t("common.itemsCount", { shown: items.length, total: totalCount })));
 
   const selected = state.selection[state.tab];
   for (const item of items) {
@@ -1237,6 +1241,9 @@ function renderField(table, row, key, value, fieldGuidance) {
   let inputId = "";
   if (useGuidance) {
     inputId = "disc-field-" + table + "-" + row.id + "-" + key;
+    const friendlyName = isEs ? guidance[1] : guidance[0];
+    const helpCopy = isEs ? guidance[3] : guidance[2];
+    const valueLabel = isEs ? "Valor" : "Value";
     const heading = el("div", { class: "k" });
     const friendlyName = isEs ? guidance[1] : guidance[0];
     heading.appendChild(el("span", { class: "friendly-name" }, friendlyName));
@@ -1286,7 +1293,8 @@ function renderField(table, row, key, value, fieldGuidance) {
       if (id === current) known = true;
       select.appendChild(el("option", { value: String(id) }, id + " - " + values[String(id)]));
     }
-    if (!known) select.appendChild(el("option", { value: String(current) }, formatValue(value) + " - (unknown)"));
+    const unknownText = isEs ? "(desconocido)" : "(unknown)";
+    if (!known) select.appendChild(el("option", { value: String(current) }, formatValue(value) + " - " + unknownText));
     select.value = String(current);
     select.dataset.table = table;
     select.dataset.rowId = String(row.id);
@@ -2230,14 +2238,14 @@ async function save() {
   if (state.saving) return;
   const tables = Array.from(state.dirtyTables).sort();
   if (!tables.length) {
-    setStatus([["info", "nothing to save"]]);
+    setStatus([["info", BalanceI18n.t("footer.noTablesToSave")]]);
     return;
   }
   state.saving = true;
   refreshDirty();
   const results = [];
   for (const table of tables) {
-    setStatus(results.concat([["info", "saving masters_" + table + ".json ..."]]));
+    setStatus(results.concat([["info", BalanceI18n.t("footer.savingTable", { table: table })]]));
     try {
       const body = await fetchJSON("/api/table/" + table, {
         method: "POST",
@@ -2246,16 +2254,16 @@ async function save() {
       });
       if (!body || body.ok !== true) throw new Error("unexpected response");
       state.pristine[table] = JSON.parse(JSON.stringify(state.data[table]));
-      results.push(["ok", "ok   wrote override masters_" + table + ".json (" + body.written + " rows)"]);
+      results.push(["ok", BalanceI18n.t("footer.savedTableSuccess", { table: table, rows: body.written })]);
     } catch (error) {
-      results.push(["err", "fail masters_" + table + ".json: " + error.message]);
+      results.push(["err", BalanceI18n.t("footer.savedTableError", { table: table, err: error.message })]);
     }
     setStatus(results);
   }
   state.saving = false;
   refreshDirty();
   if (!results.some(function (line) { return line[0] === "err"; })) {
-    results.push(["info", "saved to the override dir - click \"Restart API to apply\" to load them"]);
+    results.push(["info", BalanceI18n.t("footer.savedToOverrideDir")]);
   }
   await loadOverrides();
   await loadApplyStatus();
@@ -2266,16 +2274,16 @@ async function save() {
 async function revert() {
   if (state.saving) return;
   state.saving = true;
-  setStatus([["info", "reloading the masters ..."]]);
+  setStatus([["info", BalanceI18n.t("footer.revertingMasters")]]);
   try {
     await loadEverything(true);
     await loadOverrides();
     buildScreens();
     state.inputs.clear();
     renderPanel();
-    setStatus([["info", "masters reloaded"]]);
+    setStatus([["info", BalanceI18n.t("footer.revertedMastersSuccess")]]);
   } catch (error) {
-    setStatus([["err", "reload failed: " + error.message]]);
+    setStatus([["err", BalanceI18n.t("footer.revertedMastersError", { err: error.message })]]);
   }
   state.saving = false;
   refreshDirty();
@@ -2286,15 +2294,13 @@ async function applyNow() {
   if (state.applying) return;
   const command = (state.apply && state.apply.applyCmd) || "docker restart deploy-api-1";
   const pending = (state.apply && state.apply.pending) || [];
-  if (!window.confirm("Restart the API to load the saved overrides?\n\n" +
-      "Live matches are dropped: players in a match disconnect or lose the battle state.\n\n" +
-      (pending.length ? "Pending override(s): " + pending.join(", ") + "\n\n" : "") +
-      "Command:\n" + command)) {
+  const pendingText = pending.length ? BalanceI18n.t("footer.pendingOverrides", { list: pending.join(", ") }) : "";
+  if (!window.confirm(BalanceI18n.t("footer.confirmRestart", { pending: pendingText, cmd: command }))) {
     return;
   }
   state.applying = true;
   renderApplyStatus();
-  setStatus([["info", "restarting the API: " + command]]);
+  setStatus([["info", BalanceI18n.t("footer.restartingApi", { cmd: command })]]);
   try {
     const body = await fetchJSON("/api/apply", {
       method: "POST",
@@ -2302,15 +2308,14 @@ async function applyNow() {
     });
     if (!body || body.ok !== true) throw new Error((body && body.error) || "apply failed");
     setStatus([
-      ["ok", "API restarted and healthy after " + body.elapsedSeconds + "s (" +
-        ((body.health && body.health.attempts) || 0) + " probe(s))"],
+      ["ok", BalanceI18n.t("footer.restartedApiSuccess", { seconds: body.elapsedSeconds, probes: (body.health && body.health.attempts) || 0 })],
       ["info", (body.pending && body.pending.length)
-        ? "still pending: " + body.pending.join(", ")
-        : "no pending overrides: the API has loaded every override"],
+        ? BalanceI18n.t("footer.stillPendingOverrides", { list: body.pending.join(", ") })
+        : BalanceI18n.t("footer.noPendingOverrides")],
     ]);
     state.apply = await fetchJSON("/api/apply", { cache: "no-store" });
   } catch (error) {
-    setStatus([["err", "apply failed: " + error.message]]);
+    setStatus([["err", BalanceI18n.t("footer.applyFailed", { err: error.message })]]);
     try { state.apply = await fetchJSON("/api/apply", { cache: "no-store" }); } catch (ignored) { /* keep the old status */ }
   }
   state.applying = false;
@@ -2319,11 +2324,13 @@ async function applyNow() {
 
 /* ----------------------------------------------------------------- health */
 
-const HEALTH_WINDOWS = [
-  ["deploy", "This release"],
-  ["24h", "Last 24 h"],
-  ["7d", "Last 7 days"]
-];
+function getHealthWindows() {
+  return [
+    ["deploy", BalanceI18n.t("health.windowDeploy")],
+    ["24h", BalanceI18n.t("health.window24h")],
+    ["7d", BalanceI18n.t("health.window7d")]
+  ];
+}
 
 function healthLine(lines) {
   const box = document.getElementById("healthStatus");
@@ -2427,6 +2434,8 @@ function renderHealthPanel(panel) {
 
   const health = state.health;
   if (!health || !health.summary) {
+    const errorPrefix = isEs ? "no se pudo leer la telemetría: " : "could not read telemetry: ";
+    const loadingText = isEs ? BalanceI18n.t("health.loadingTelemetry") : "loading telemetry...";
     wrap.appendChild(el("p", { class: "note" },
       health && health.error ? (isEs ? "no se pudo leer la telemetría: " : "could not read telemetry: ") + health.error : (isEs ? "cargando telemetría..." : "loading telemetry...")));
     panel.appendChild(wrap);
@@ -2442,66 +2451,94 @@ function renderHealthPanel(panel) {
     " · store " + ((summary.telemetry && summary.telemetry.store) || "-")));
 
   const outcomes = el("section", { class: "sec" });
-  outcomes.appendChild(el("h2", null, "Match outcomes"));
+  outcomes.appendChild(el("h2", null, BalanceI18n.t("health.matchOutcomes")));
   const outcomeGrid = el("div", { id: "healthGrid" });
-  for (const pair of [["clean", totals.clean], ["partial", totals.partial], ["abandoned", totals.abandoned],
-                      ["never started", totals.neverStarted], ["running", totals.running], ["matching", totals.matching]]) {
+  const outcomePairs = [
+    [BalanceI18n.t("health.outcomes.clean"), totals.clean],
+    [BalanceI18n.t("health.outcomes.partial"), totals.partial],
+    [BalanceI18n.t("health.outcomes.abandoned"), totals.abandoned],
+    [BalanceI18n.t("health.outcomes.neverStarted"), totals.neverStarted],
+    [BalanceI18n.t("health.outcomes.running"), totals.running],
+    [BalanceI18n.t("health.outcomes.matching"), totals.matching]
+  ];
+  for (const pair of outcomePairs) {
     outcomeGrid.appendChild(healthCard(pair[0], pair[1]));
   }
   outcomes.appendChild(outcomeGrid);
   wrap.appendChild(outcomes);
 
   const players = el("section", { class: "sec" });
-  players.appendChild(el("h2", null, "Player statuses"));
+  players.appendChild(el("h2", null, BalanceI18n.t("health.playerStatuses")));
   const playerGrid = el("div", { id: "healthGrid" });
-  for (const pair of [["completed", totals.completedPlayers], ["reconnected", totals.reconnectedCompleted],
-                      ["reconnect failed", totals.reconnectFailed], ["dropped silent", totals.droppedSilent],
-                      ["relaunched", totals.relaunched], ["matching failures", totals.matchingFailures],
-                      ["matching timeouts", totals.matchingTimeouts], ["cancelled", totals.cancelled],
-                      ["exceptions", totals.exceptions]]) {
+  const statusPairs = [
+    [BalanceI18n.t("health.statuses.completed"), totals.completedPlayers],
+    [BalanceI18n.t("health.statuses.reconnected"), totals.reconnectedCompleted],
+    [BalanceI18n.t("health.statuses.reconnectFailed"), totals.reconnectFailed],
+    [BalanceI18n.t("health.statuses.droppedSilent"), totals.droppedSilent],
+    [BalanceI18n.t("health.statuses.relaunched"), totals.relaunched],
+    [BalanceI18n.t("health.statuses.matchingFailures"), totals.matchingFailures],
+    [BalanceI18n.t("health.statuses.matchingTimeouts"), totals.matchingTimeouts],
+    [BalanceI18n.t("health.statuses.cancelled"), totals.cancelled],
+    [BalanceI18n.t("health.statuses.exceptions"), totals.exceptions]
+  ];
+  for (const pair of statusPairs) {
     playerGrid.appendChild(healthCard(pair[0], pair[1]));
   }
   players.appendChild(playerGrid);
   wrap.appendChild(players);
 
   const exceptions = el("section", { class: "sec" });
-  exceptions.appendChild(el("h2", null, "Client exceptions by fingerprint"));
+  exceptions.appendChild(el("h2", null, BalanceI18n.t("health.clientExceptions")));
   const groups = (health.exceptions && health.exceptions.groups) || [];
   if (health.exceptions && health.exceptions.error) {
-    exceptions.appendChild(el("p", { class: "note" }, "could not read exceptions: " + health.exceptions.error));
+    exceptions.appendChild(el("p", { class: "note" }, (isEs ? "no se pudieron leer las excepciones: " : "could not read exceptions: ") + BalanceI18n.translateApiError(health.exceptions.error)));
   } else if (!groups.length) {
-    exceptions.appendChild(el("p", { class: "note" }, "no client error reports in this window"));
+    exceptions.appendChild(el("p", { class: "note" }, BalanceI18n.t("health.noExceptionsInWindow")));
   } else {
     const rows = groups.slice(0, 50).map(function (group) {
       const users = group.users || [];
       const userText = users.join(", ") + (group.userCount > users.length ? " +" + (group.userCount - users.length) : "");
       const versions = (group.appVersions || []).map(function (v) { return v.key + " x" + v.count; }).join(", ");
-      return [group.kind || "-", group.count, codeCell((group.fingerprint || "") + "\n" + (group.signature || "")),
+      return [group.kind || "-", group.count, codeCell((group.fingerprint || "") + String.fromCharCode(10) + (group.signature || "")),
               userText || "-", versions || "-", group.lastAt || "-"];
     });
-    exceptions.appendChild(healthTable(["Kind", "Count", "Fingerprint / signature", "Users", "App versions", "Last"], rows));
+    exceptions.appendChild(healthTable([
+      BalanceI18n.t("health.thKind"),
+      BalanceI18n.t("health.thCount"),
+      BalanceI18n.t("health.thFingerprintSignature"),
+      BalanceI18n.t("health.thUsers"),
+      BalanceI18n.t("health.thAppVersions"),
+      BalanceI18n.t("health.thLast")
+    ], rows));
   }
   wrap.appendChild(exceptions);
 
   const problems = el("section", { class: "sec" });
-  problems.appendChild(el("h2", null, "Problem matches"));
+  problems.appendChild(el("h2", null, BalanceI18n.t("health.problemMatches")));
   const problemRows = (summary.problemMatches || []).slice(0, 100).map(function (match) {
-    const button = el("button", { type: "button" }, "drill down");
+    const button = el("button", { type: "button" }, BalanceI18n.t("health.drillDownBtn"));
     button.addEventListener("click", function () { loadHealthBattle(match.battleId); });
     const statuses = (match.participants || []).map(function (p) { return p.userId + "=" + p.status; }).join(", ");
     return [button, match.battleId, match.outcome || "-", (match.humans || 0) + "h/" + (match.bots || 0) + "b",
             match.custom ? "custom" : "-", statuses || "-"];
   });
   if (!problemRows.length) {
-    problems.appendChild(el("p", { class: "note" }, "no problem matches in this window"));
+    problems.appendChild(el("p", { class: "note" }, BalanceI18n.t("health.noProblemMatchesInWindow")));
   } else {
-    problems.appendChild(healthTable(["", "Battle", "Outcome", "Roster", "Type", "Participants"], problemRows));
+    problems.appendChild(healthTable([
+      "",
+      BalanceI18n.t("health.thBattle"),
+      BalanceI18n.t("health.thOutcome"),
+      BalanceI18n.t("health.thRoster"),
+      BalanceI18n.t("health.thType"),
+      BalanceI18n.t("health.thParticipants")
+    ], problemRows));
   }
   const byId = el("div", { class: "mfield" });
-  byId.appendChild(el("span", { class: "k" }, "Or open a battle by id"));
+  byId.appendChild(el("span", { class: "k" }, BalanceI18n.t("health.openById")));
   const idWrap = el("div", { class: "mbtns" });
   const idInput = el("input", { type: "text", value: state.healthBattleId || "" });
-  const idButton = el("button", { type: "button" }, "Open");
+  const idButton = el("button", { type: "button" }, BalanceI18n.t("health.openBtn"));
   idButton.addEventListener("click", function () {
     const value = idInput.value.trim();
     if (value) loadHealthBattle(value);
@@ -2514,9 +2551,9 @@ function renderHealthPanel(panel) {
 
   if (state.healthBattle) {
     const drill = el("section", { class: "sec" });
-    drill.appendChild(el("h2", null, "Battle " + (state.healthBattleId || "")));
+    drill.appendChild(el("h2", null, (isEs ? "Combate " : "Battle ") + (state.healthBattleId || "")));
     if (state.healthBattle.error) {
-      drill.appendChild(el("p", { class: "note" }, "could not load battle: " + state.healthBattle.error));
+      drill.appendChild(el("p", { class: "note" }, (isEs ? "no se pudo cargar el combate: " : "could not load battle: ") + BalanceI18n.translateApiError(state.healthBattle.error)));
     } else {
       const data = state.healthBattle.data || {};
       const battle = data.battle;
@@ -2529,19 +2566,32 @@ function renderHealthPanel(panel) {
         return [p.userId, p.status, p.kickerId + "/" + p.costumeId, p.team,
                 (p.appVersion || "-") + " " + (p.deviceName || ""), p.reconnectBegins, p.exceptionCount];
       });
-      drill.appendChild(healthTable(["User", "Status", "Kicker/Costume", "Team", "App / device", "Reconnects", "Exceptions"], participantRows));
+      drill.appendChild(healthTable([
+        isEs ? "Usuario" : "User",
+        isEs ? "Estado" : "Status",
+        isEs ? "Kicker/Disfraz" : "Kicker/Costume",
+        isEs ? "Equipo" : "Team",
+        isEs ? "App / dispositivo" : "App / device",
+        isEs ? "Reconexiones" : "Reconnects",
+        isEs ? "Excepciones" : "Exceptions"
+      ], participantRows));
       const timelineRows = (data.timeline || []).slice(-300).map(function (event) {
         return [event.at || "-", event.kind || "-", event.userId || "-", codeCell(JSON.stringify(event.payload || {}))];
       });
-      drill.appendChild(el("h2", null, "Timeline (oldest first)"));
-      drill.appendChild(healthTable(["At", "Kind", "User", "Payload"], timelineRows));
+      drill.appendChild(el("h2", null, isEs ? "Línea de tiempo (más antiguo primero)" : "Timeline (oldest first)"));
+      drill.appendChild(healthTable([
+        isEs ? "Hora" : "At",
+        isEs ? "Tipo" : "Kind",
+        isEs ? "Usuario" : "User",
+        isEs ? "Carga útil" : "Payload"
+      ], timelineRows));
     }
     wrap.appendChild(drill);
   }
 
   const telemetry = summary.telemetry || {};
   const stats = el("section", { class: "sec" });
-  stats.appendChild(el("h2", null, "Telemetry writer"));
+  stats.appendChild(el("h2", null, BalanceI18n.t("health.telemetryWriter")));
   stats.appendChild(el("p", { class: "note" },
     "store " + (telemetry.store || "-") + " · queue " + (telemetry.queueDepth === undefined ? "-" : telemetry.queueDepth) +
     " · written " + (telemetry.written === undefined ? "-" : telemetry.written) +
@@ -2552,18 +2602,16 @@ function renderHealthPanel(panel) {
   wrap.appendChild(stats);
 
   const help = el("section", { class: "sec" });
-  help.appendChild(el("h2", null, "How it reaches the API"));
+  help.appendChild(el("h2", null, BalanceI18n.t("health.howItReaches")));
   help.appendChild(el("p", { class: "note" },
-    "The API only answers /admin/ops/* on its own loopback and its HTTP port is not published. This tool runs it " +
-    "inside the container (docker exec deploy-api-1 curl -sS http://127.0.0.1:8080/admin/ops/...); set " +
-    "KF_BALANCE_OPS_URL to call the endpoint directly on a dev host."));
+    isEs
+      ? "La API solo responde /admin/ops/* en su propio bucle local y su puerto HTTP no está publicado. Esta herramienta lo ejecuta dentro del contenedor (docker exec deploy-api-1 curl -sS http://127.0.0.1:8080/admin/ops/...); define KF_BALANCE_OPS_URL para invocar el endpoint directamente en un host de desarrollo."
+      : "The API only answers /admin/ops/* on its own loopback and its HTTP port is not published. This tool runs it inside the container (docker exec deploy-api-1 curl -sS http://127.0.0.1:8080/admin/ops/...); set KF_BALANCE_OPS_URL to call the endpoint directly on a dev host."));
   wrap.appendChild(help);
 
   wrap.appendChild(el("div", { id: "healthStatus" }));
   panel.appendChild(wrap);
-}
-
-/* ----------------------------------------------------------- bot AI editor */
+}/* ----------------------------------------------------------- bot AI editor */
 
 const BOT_AI_MODES = [
   { id: "CrystalScramble", name: "Cristales", icon: "💎", fullName: "Batalla Scramble", desc: "Recolección y depósito de cristales en el guardián." },
@@ -3111,6 +3159,10 @@ function getBotAiDiff() {
     "scoreToDeposit": "Crystals to deposit"
   };
 
+  const yesStr = BalanceI18n.t("common.yes");
+  const noStr = BalanceI18n.t("common.no");
+  const secStr = BalanceI18n.t("common.secondsUnit");
+
   for (const key of Object.keys(state.botAi.drafts)) {
     const [mode, kidStr] = key.split("/");
     const kickerId = Number(kidStr);
@@ -3133,8 +3185,8 @@ function getBotAiDiff() {
       if (draft.dashIntervals[prop] !== pristine.dashIntervals[prop]) {
         changes.push({
           label: fieldLabels["dashIntervals." + prop],
-          oldVal: pristine.dashIntervals[prop] + "s",
-          newVal: draft.dashIntervals[prop] + "s"
+          oldVal: pristine.dashIntervals[prop] + secStr,
+          newVal: draft.dashIntervals[prop] + secStr
         });
       }
     }
@@ -3142,8 +3194,8 @@ function getBotAiDiff() {
       if (draft.skillIntervals[prop] !== pristine.skillIntervals[prop]) {
         changes.push({
           label: fieldLabels["skillIntervals." + prop],
-          oldVal: pristine.skillIntervals[prop] + "s",
-          newVal: draft.skillIntervals[prop] + "s"
+          oldVal: pristine.skillIntervals[prop] + secStr,
+          newVal: draft.skillIntervals[prop] + secStr
         });
       }
     }
@@ -3194,18 +3246,15 @@ function showBotAiReviewModal() {
   const backdrop = el("div", { id: "botAiReviewModal", class: "bot-ai-modal-backdrop" });
   const modal = el("div", { class: "bot-ai-modal" });
 
-  const isEs = BalanceI18n.getLang() === "es";
   const head = el("div", { class: "bot-ai-modal-head" });
-  head.appendChild(el("span", null, isEs ? "📋 Guardar cambios en el servidor" : "📋 Save changes to server"));
+  head.appendChild(el("span", null, BalanceI18n.t("botAi.reviewModalHead")));
   const closeBtn = el("button", { type: "button", class: "mini" }, "✕");
   closeBtn.addEventListener("click", function () { backdrop.remove(); });
   head.appendChild(closeBtn);
   modal.appendChild(head);
 
   const body = el("div", { class: "bot-ai-modal-body" });
-  body.appendChild(el("p", { class: "bot-ai-notice info" },
-    isEs ? "Revisa los cambios. Al guardar quedarán en el servidor para las nuevas partidas."
-         : "Review changes. Once saved, they apply on the server for future matches."));
+  body.appendChild(el("p", { class: "bot-ai-notice info" }, BalanceI18n.t("botAi.reviewModalNotice")));
 
   for (const d of diffs) {
     const card = el("div", { class: "bot-ai-card", style: "margin-bottom:12px; padding:12px;" });
@@ -3215,9 +3264,11 @@ function showBotAiReviewModal() {
 
     // Optionally selected intent
     const activePresetId = state.botAi.activePresets && state.botAi.activePresets[d.key];
-    const activePreset = activePresetId ? BOT_AI_INTENT_PRESETS.find(p => p.id === activePresetId) : null;
-    if (activePreset) {
+    const activeRaw = activePresetId ? BOT_AI_INTENT_PRESETS.find(p => p.id === activePresetId) : null;
+    const activeLoc = activePresetId ? BalanceI18n.getBotAiPreset(activePresetId) : null;
+    if (activeRaw && activeLoc) {
       const intentBox = el("div", {
+        class: "bot-ai-intent-chip-selected",
         style: "display:inline-flex; align-items:center; gap:6px; font-size:11px; padding:3px 8px; border-radius:4px; background:var(--bg); border:1px solid var(--line); margin-bottom:8px; color:var(--fg2);"
       });
       intentBox.appendChild(el("span", null, activePreset.icon || "🎯"));
@@ -3373,7 +3424,7 @@ async function saveBotAiProfiles() {
     renderBotAiPanel(document.getElementById("panel"));
   } catch (err) {
     state.botAi.saving = false;
-    alert("Error al guardar: " + err.message);
+    alert((BalanceI18n.getLang() === "es" ? "Error al guardar: " : "Save failed: ") + err.message);
     updateBotAiDirtyState();
   }
 }
@@ -3797,7 +3848,7 @@ function renderBotAiPanel(panel) {
     type: "button",
     id: "botAiDiscardBtn",
     class: "bot-ai-btn danger"
-  }, isEs ? "Descartar cambios" : "Discard changes");
+  }, BalanceI18n.t("botAi.discardDraft"));
   discardBtn.disabled = !isDirty;
   discardBtn.addEventListener("click", function () {
     discardBotAiDraft(curMode, curKid);
@@ -3808,10 +3859,10 @@ function renderBotAiPanel(panel) {
   const rightActions = el("div", { style: "display:flex; align-items:center; gap:12px;" });
   if (dirtyCount > 0) {
     rightActions.appendChild(el("span", { style: "font-size:12px; color:var(--dirty); font-weight:600;" },
-      isEs ? (dirtyCount + " perfil(es) modificado(s)") : (dirtyCount + " modified profile(s)")));
+      BalanceI18n.t("botAi.reviewSave") + " (" + dirtyCount + ")"));
   }
-  const saveLabel = state.botAi.saving ? (isEs ? "Guardando..." : "Saving...")
-    : (isEs ? "Guardar cambios" : "Save changes") + (dirtyCount > 0 ? " (" + dirtyCount + ")" : "");
+  const saveLabel = state.botAi.saving ? BalanceI18n.t("common.saving")
+    : BalanceI18n.t("botAi.saveBtn") + (dirtyCount > 0 ? " (" + dirtyCount + ")" : "");
   const saveBtn = el("button", {
     type: "button",
     id: "botAiSaveBtn",
@@ -3828,10 +3879,23 @@ function renderBotAiPanel(panel) {
   panel.appendChild(container);
 }
 
-
 /* -------------------------------------------------------------------- boot */
 
 function syncLanguage() {
+  const activeEl = document.activeElement;
+  let activeFieldKey = null;
+  let activeCursorStart = null;
+  let activeCursorEnd = null;
+  if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "SELECT")) {
+    if (activeEl.dataset && activeEl.dataset.table && activeEl.dataset.rowId && activeEl.dataset.field) {
+      activeFieldKey = fieldKey(activeEl.dataset.table, activeEl.dataset.rowId, activeEl.dataset.field);
+      if (typeof activeEl.selectionStart === "number") {
+        activeCursorStart = activeEl.selectionStart;
+        activeCursorEnd = activeEl.selectionEnd;
+      }
+    }
+  }
+
   const lang = BalanceI18n.getLang();
   document.documentElement.lang = lang;
   document.title = BalanceI18n.t("header.title");
@@ -3867,13 +3931,12 @@ function syncLanguage() {
       }
       const conflictModal = document.getElementById("botAiConflictModal");
       if (conflictModal) {
-        const isEs = BalanceI18n.getLang() === "es";
         const head = conflictModal.querySelector(".bot-ai-modal-head span");
-        if (head) head.textContent = isEs ? "⚠️ Conflicto de Concurrencia (409)" : "⚠️ Concurrency Conflict (409)";
+        if (head) head.textContent = BalanceI18n.t("botAi.conflictModalHead");
         const cancelBtn = conflictModal.querySelector(".bot-ai-modal-foot button.secondary");
-        if (cancelBtn) cancelBtn.textContent = isEs ? "Cerrar y conservar borrador" : "Close & keep draft";
+        if (cancelBtn) cancelBtn.textContent = BalanceI18n.t("botAi.conflictModalClose");
         const reloadBtn = conflictModal.querySelector(".bot-ai-modal-foot button.primary");
-        if (reloadBtn) reloadBtn.textContent = isEs ? "Recargar del servidor" : "Reload from server";
+        if (reloadBtn) reloadBtn.textContent = BalanceI18n.t("botAi.conflictModalReload");
       }
     }
   } else if (state.tab === "maintenance") {
@@ -3938,6 +4001,17 @@ function syncLanguage() {
     }
   } else {
     renderPanel();
+  }
+
+  // Restore active element focus in tables
+  if (activeFieldKey && state.inputs.has(activeFieldKey)) {
+    const input = state.inputs.get(activeFieldKey);
+    if (input && typeof input.focus === "function") {
+      input.focus();
+      if (activeCursorStart !== null && typeof input.setSelectionRange === "function") {
+        try { input.setSelectionRange(activeCursorStart, activeCursorEnd); } catch (ignored) {}
+      }
+    }
   }
 }
 

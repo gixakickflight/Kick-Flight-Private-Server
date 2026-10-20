@@ -50,7 +50,11 @@
         english: "English",
         secondsUnit: "s",
         metersUnit: "m",
-        percentUnit: "%"
+        percentUnit: "%",
+        yes: "Sí",
+        no: "No",
+        screensCount: "{shown} de {total} pantallas",
+        itemsCount: "{shown} de {total} mostrados"
       },
       header: {
         title: "Kick-Flight Balance",
@@ -95,7 +99,21 @@
         appliedSuccess: "API reiniciada correctamente.",
         applyFailed: "Error al reiniciar API: {err}",
         applyPending: "Hay modificaciones pendientes de aplicar.",
-        applyUpToDate: "Todo aplicado y sincronizado."
+        applyUpToDate: "Todo aplicado y sincronizado.",
+        noTablesToSave: "Nada que guardar",
+        savingTable: "Guardando masters_{table}.json ...",
+        savedTableSuccess: "ok se guardó la modificación masters_{table}.json ({rows} filas)",
+        savedTableError: "falló masters_{table}.json: {err}",
+        savedToOverrideDir: "Guardado en el directorio de modificaciones - haz clic en \"Reiniciar API para aplicar\" para cargarlas",
+        revertingMasters: "Recargando los maestros ...",
+        revertedMastersSuccess: "Maestros recargados",
+        revertedMastersError: "Error al recargar: {err}",
+        confirmRestart: "¿Reiniciar la API para cargar las modificaciones guardadas?\n\nSe interrumpen las partidas en curso: los jugadores en partida se desconectan o pierden el estado del combate.\n\n{pending}Comando:\n{cmd}",
+        pendingOverrides: "Modificación(es) pendiente(s): {list}\n\n",
+        restartingApi: "Reiniciando la API: {cmd}",
+        restartedApiSuccess: "API reiniciada y saludable tras {seconds}s ({probes} sondeo(s))",
+        stillPendingOverrides: "Aún pendientes: {list}",
+        noPendingOverrides: "Sin modificaciones pendientes: la API ha cargado todas las modificaciones"
       },
       login: {
         title: "Iniciar sesión · Kick-Flight Balance",
@@ -150,10 +168,17 @@
         searchPlaceholder: "Filtrar por clave o texto…",
         keyCol: "Clave",
         valCol: "Texto en pantalla",
-        wireframeToggle: "Mostrar wireframe"
+        wireframeToggle: "Mostrar wireframe",
+        otherScreenDesc: "filas de traducción que ningún prefab de UI referencia directamente: nombres de enums y textos buscados por clave",
+        screenMeta: "{count} textos localizados · masters_translation.json",
+        boxesLegend: "cajas: elemento de texto",
+        noTranslation: "sin traducción (en blanco en el juego)",
+        outsideCanvas: "fuera del canvas (contenido con desplazamiento / layout group)",
+        noRowInMasters: "sin fila en masters_translation.json (en blanco en juego) - ejecuta scripts/generate_translations.py"
       },
       botAi: {
         heading: "¿Qué quieres que haga?",
+        subheading: "Elige el comportamiento principal del bot o ajusta parámetros individuales más abajo.",
         modeLabel: "Modo de juego",
         rosterTitle: "Kickers en este perfil",
         affectsLabel: "Afecta a: {names}",
@@ -221,7 +246,8 @@
           lowHpRetreat: "Umbral retirada por salud baja",
           crystalDeposit: "Cristales para depositar",
           crystalGreed: "Avaricia de cristales extra",
-          engagementDist: "Distancia de enganche de combate"
+          engagementDist: "Distancia de enganche de combate",
+          lockon: "Permitir fijar blanco"
         },
         behaviors: {
           moreFight: "Más prioridad a pelear",
@@ -245,8 +271,56 @@
           depositFaster: "Deposita cristales más rápido",
           depositLater: "Acumula más cristales antes de depositar",
           chaseDistant: "Persigue rivales desde más lejos",
-          chaseCloser: "Pelea solo a corta distancia"
-        }
+          chaseCloser: "Pelea solo a corta distancia",
+          skillAttackMoreFreq: "Habilidades de ataque más frecuentes",
+          skillAttackLessFreq: "Habilidades de ataque menos frecuentes",
+          skillHealMoreFreq: "Habilidades de curación más frecuentes",
+          skillHealLessFreq: "Habilidades de curación menos frecuentes",
+          skillBuffMoreFreq: "Habilidades de mejora más frecuentes",
+          skillBuffLessFreq: "Habilidades de mejora menos frecuentes",
+          skillTrapMoreFreq: "Habilidades de trampa más frecuentes",
+          skillTrapLessFreq: "Habilidades de trampa menos frecuentes",
+          skillWarpMoreFreq: "Habilidades de teletransporte más frecuentes",
+          skillWarpLessFreq: "Habilidades de teletransporte menos frecuentes",
+          lockonEnabled: "Fijar blanco activado",
+          lockonDisabled: "Fijar blanco desactivado",
+          healPreventive: "Curación más preventiva (se cura con menos daño)",
+          healGreedy: "Espera a recibir más daño para curarse",
+          depositMore: "Acumula más cristales antes de depositar",
+          depositLess: "Deposita cristales con mayor frecuencia"
+        },
+        intentChipPrefix: "Intención: ",
+        intentSubtitle: "Selecciona una intención para aplicar una recomendación rápida y editable:",
+        sharedDetailsSummary: "¿Por qué afecta a varios kickers?",
+        sharedDetailsDesc: "En KickFlight, los kickers de este rol comparten la misma plantilla de IA base. Cualquier ajuste realizado aquí se aplicará a todos ellos al jugar con bots.",
+        affectsPrefix: "Afecta a: ",
+        exclusivePrefix: "Personaje exclusivo: ",
+        editingPrefix: "Editando perfil: ",
+        draftModifiedBadge: "Borrador modificado",
+        profileSelectLabel: "Perfil a editar:",
+        profileSelectAria: "Seleccionar perfil de bot",
+        sidebarProfilesCount: "{count} perfiles ({mode})",
+        sidebarModifiedSuffix: " · {count} modificado(s)",
+        sidebarDraftDotTitle: "Borrador con cambios sin guardar",
+        sidebarLoading: "Cargando perfiles...",
+        sidebarError: "Error al cargar",
+        diffTableParam: "Parámetro",
+        diffTableOld: "Valor anterior",
+        diffTableNew: "Nuevo valor",
+        lockonHelp: "Habilita si el bot puede fijar la mira automáticamente en rivales.",
+        lowHpTitle: "Umbral de vida para huir / depositar",
+        lowHpVal: "35% (Fijo nativo)",
+        lowHpHelp: "⚠️ Límite nativo: El ejecutable cliente de KickFlight tiene este valor compilado estrictamente al 35%. No es modificable desde el servidor porque el cliente ignora valores distintos.",
+        applyDisclosureSummary: "ℹ️ ¿Cómo se aplican estos cambios?",
+        applyDisclosureP1: "Los cambios se guardan directamente en el servidor y se aplican a todas las nuevas partidas creadas a partir de ese momento.",
+        applyDisclosureP2: "El cliente del juego descarga automáticamente los parámetros de IA actualizados al iniciar partida. No es necesario reiniciar el servidor.",
+        advSummary: "⚙️ Parámetros técnicos nativos",
+        advParamId: "Identificador de parámetro: ",
+        advKickerId: "Kicker ID: ",
+        advCostumeId: "Disfraz ID: ",
+        advRank: "Rango: ",
+        advLowHpThreshold: "Umbral huida vida baja: ",
+        botAiNotFound: "No se encontró el perfil seleccionado en este modo."
       },
       latestInformation: {
         title: "Última información",
@@ -270,7 +344,11 @@
         savingBtn: "Guardando anuncio...",
         saveSuccess: "Anuncio guardado correctamente.",
         saveFailed: "Error al guardar anuncio: {err}",
-        loadFailed: "No se pudo cargar la página actual: {err}"
+        loadFailed: "No se pudo cargar la página actual: {err}",
+        sidebarDesc: "Avisos que se muestran en Última información dentro del juego",
+        savingPage: "guardando página ...",
+        pageSaved: "página guardada; aparecerá la próxima vez que se abra Última información",
+        failedStatus: "error: {err}"
       },
       health: {
         title: "Salud",
@@ -298,7 +376,51 @@
         statusFixtures: "Datos cargados",
         statusUptime: "Tiempo activo",
         noExceptions: "Sin excepciones registradas en este período.",
-        inspectLoading: "Cargando información del combate..."
+        inspectLoading: "Cargando información del combate...",
+        sidebarDesc: "Resultados, excepciones de clientes y desglose de combates",
+        matchOutcomes: "Resultados de partidas",
+        playerStatuses: "Estados de jugadores",
+        clientExceptions: "Excepciones de clientes por huella",
+        problemMatches: "Partidas con problemas",
+        telemetryWriter: "Escritor de telemetría",
+        howItReaches: "Cómo llega a la API",
+        drillDownBtn: "inspeccionar",
+        openById: "O abrir una partida por ID",
+        openBtn: "Abrir",
+        loadingTelemetry: "cargando telemetría...",
+        couldNotReadTelemetry: "no se pudo leer la telemetría: {err}",
+        noExceptionsInWindow: "sin reportes de error en esta ventana",
+        noProblemMatchesInWindow: "sin partidas con problemas en esta ventana",
+        thKind: "Tipo",
+        thCount: "Total",
+        thFingerprintSignature: "Huella / firma",
+        thUsers: "Usuarios",
+        thAppVersions: "Versiones",
+        thLast: "Última",
+        thBattle: "Partida",
+        thOutcome: "Resultado",
+        thRoster: "Plantilla",
+        thType: "Tipo",
+        thParticipants: "Participantes",
+        outcomes: {
+          clean: "limpia",
+          partial: "parcial",
+          abandoned: "abandonada",
+          neverStarted: "nunca iniciada",
+          running: "en curso",
+          matching: "emparejando"
+        },
+        statuses: {
+          completed: "completado",
+          reconnected: "reconectado",
+          reconnectFailed: "reconexión fallida",
+          droppedSilent: "desconexión silenciosa",
+          relaunched: "reiniciado",
+          matchingFailures: "fallos de emparejamiento",
+          matchingTimeouts: "tiempos agotados",
+          cancelled: "cancelado",
+          exceptions: "excepciones"
+        }
       },
       maintenance: {
         title: "Mantenimiento",
@@ -319,7 +441,11 @@
         applyingBtn: "Actualizando...",
         statusSuccess: "Mantenimiento actualizado.",
         statusFailed: "Error al actualizar mantenimiento: {err}",
-        readFailed: "No se pudo leer el estado: {err}"
+        readFailed: "No se pudo leer el estado: {err}",
+        sidebarDesc: "Modo de mantenimiento del servidor y texto de aviso",
+        settingMaintenance: "estableciendo mantenimiento a {mode} ...",
+        maintenanceIsNow: "el mantenimiento ahora es {mode}",
+        failedStatus: "error: {err}"
       },
       clientUpdate: {
         title: "Actualización de cliente",
@@ -337,7 +463,10 @@
         saveBtn: "Guardar configuración de actualización",
         savingBtn: "Guardando...",
         saveSuccess: "Configuración de actualización guardada.",
-        saveFailed: "Error al guardar configuración: {err}"
+        saveFailed: "Error al guardar configuración: {err}",
+        sidebarDesc: "Control de versión mínima de cliente por plataforma",
+        settingsSaved: "configuración de actualización guardada y persistida",
+        failedStatus: "error: {err}"
       },
       apiErrors: {
         unauthorized: "Sesión expirada o no autorizada. Por favor inicia sesión de nuevo.",
@@ -348,7 +477,10 @@
         internalError: "Error interno del servidor.",
         networkError: "Error de conexión con el servidor.",
         invalidCredentials: "Usuario o contraseña incorrectos.",
-        badRequest: "Solicitud no válida o datos mal formateados."
+        badRequest: "Solicitud no válida o datos mal formateados.",
+        tooManyRequests: "Inicio de sesión temporalmente no disponible por exceso de intentos. Intenta más tarde.",
+        serviceUnavailable: "Servicio no disponible temporalmente.",
+        unsupportedMediaType: "Tipo de medio no compatible."
       }
     },
     en: {
@@ -377,7 +509,11 @@
         english: "English",
         secondsUnit: "s",
         metersUnit: "m",
-        percentUnit: "%"
+        percentUnit: "%",
+        yes: "Yes",
+        no: "No",
+        screensCount: "{shown} of {total} screens",
+        itemsCount: "{shown} of {total} shown"
       },
       header: {
         title: "Kick-Flight Balance",
@@ -422,7 +558,21 @@
         appliedSuccess: "API restarted successfully.",
         applyFailed: "Restart failed: {err}",
         applyPending: "There are pending overrides to apply.",
-        applyUpToDate: "All overrides are applied and active."
+        applyUpToDate: "All overrides are applied and active.",
+        noTablesToSave: "Nothing to save",
+        savingTable: "Saving masters_{table}.json ...",
+        savedTableSuccess: "ok wrote override masters_{table}.json ({rows} rows)",
+        savedTableError: "fail masters_{table}.json: {err}",
+        savedToOverrideDir: "Saved to the override dir - click \"Restart API to apply\" to load them",
+        revertingMasters: "Reloading the masters ...",
+        revertedMastersSuccess: "Masters reloaded",
+        revertedMastersError: "Reload failed: {err}",
+        confirmRestart: "Restart the API to load the saved overrides?\n\nLive matches are dropped: players in a match disconnect or lose the battle state.\n\n{pending}Command:\n{cmd}",
+        pendingOverrides: "Pending override(s): {list}\n\n",
+        restartingApi: "Restarting the API: {cmd}",
+        restartedApiSuccess: "API restarted and healthy after {seconds}s ({probes} probe(s))",
+        stillPendingOverrides: "Still pending: {list}",
+        noPendingOverrides: "No pending overrides: the API has loaded every override"
       },
       login: {
         title: "Sign in · Kick-Flight Balance",
@@ -477,10 +627,17 @@
         searchPlaceholder: "Filter by key or text…",
         keyCol: "Key",
         valCol: "Screen text",
-        wireframeToggle: "Show wireframe"
+        wireframeToggle: "Show wireframe",
+        otherScreenDesc: "translation rows that no UI prefab references directly: enum names and texts looked up by key",
+        screenMeta: "{count} localized texts · masters_translation.json",
+        boxesLegend: "boxes: text element",
+        noTranslation: "no translation (blank in game)",
+        outsideCanvas: "outside the canvas (scroll content / layout group)",
+        noRowInMasters: "no row in masters_translation.json (blank in game) - run scripts/generate_translations.py"
       },
       botAi: {
         heading: "What do you want it to do?",
+        subheading: "Choose the primary bot behavior or fine-tune individual parameters below.",
         modeLabel: "Game mode",
         rosterTitle: "Kickers in this profile",
         affectsLabel: "Affects: {names}",
@@ -548,7 +705,8 @@
           lowHpRetreat: "Low HP retreat threshold",
           crystalDeposit: "Crystals to deposit",
           crystalGreed: "Extra crystal greed",
-          engagementDist: "Combat engagement distance"
+          engagementDist: "Combat engagement distance",
+          lockon: "Allow target lock-on"
         },
         behaviors: {
           moreFight: "Higher priority to fight",
@@ -572,8 +730,56 @@
           depositFaster: "Deposits crystals sooner",
           depositLater: "Hoards more crystals before depositing",
           chaseDistant: "Chases rivals from farther away",
-          chaseCloser: "Only fights at close range"
-        }
+          chaseCloser: "Only fights at close range",
+          skillAttackMoreFreq: "More frequent attack skills",
+          skillAttackLessFreq: "Less frequent attack skills",
+          skillHealMoreFreq: "More frequent healing skills",
+          skillHealLessFreq: "Less frequent healing skills",
+          skillBuffMoreFreq: "More frequent buff skills",
+          skillBuffLessFreq: "Less frequent buff skills",
+          skillTrapMoreFreq: "More frequent trap skills",
+          skillTrapLessFreq: "Less frequent trap skills",
+          skillWarpMoreFreq: "More frequent warp skills",
+          skillWarpLessFreq: "Less frequent warp skills",
+          lockonEnabled: "Target lock-on enabled",
+          lockonDisabled: "Target lock-on disabled",
+          healPreventive: "More preventive healing (heals with less damage taken)",
+          healGreedy: "Waits to take more damage before healing",
+          depositMore: "Hoards more crystals before depositing",
+          depositLess: "Deposits crystals more frequently"
+        },
+        intentChipPrefix: "Intent: ",
+        intentSubtitle: "Select an intent preset to apply a quick, editable recommendation:",
+        sharedDetailsSummary: "Why does this affect multiple kickers?",
+        sharedDetailsDesc: "In KickFlight, kickers with this role share the same base AI template. Any tuning done here applies to all of them in bot matches.",
+        affectsPrefix: "Affects: ",
+        exclusivePrefix: "Exclusive kicker: ",
+        editingPrefix: "Editing profile: ",
+        draftModifiedBadge: "Modified draft",
+        profileSelectLabel: "Profile to edit:",
+        profileSelectAria: "Select bot profile",
+        sidebarProfilesCount: "{count} profiles ({mode})",
+        sidebarModifiedSuffix: " · {count} modified",
+        sidebarDraftDotTitle: "Draft with unsaved changes",
+        sidebarLoading: "Loading profiles...",
+        sidebarError: "Error loading",
+        diffTableParam: "Parameter",
+        diffTableOld: "Previous value",
+        diffTableNew: "New value",
+        lockonHelp: "Enables whether the bot can automatically lock aim on rivals.",
+        lowHpTitle: "Low HP retreat / deposit threshold",
+        lowHpVal: "35% (Native hardcoded)",
+        lowHpHelp: "⚠️ Native limit: The KickFlight client binary has this value hardcoded to 35%. It cannot be altered by the server because the client ignores different values.",
+        applyDisclosureSummary: "ℹ️ How do these changes apply?",
+        applyDisclosureP1: "Changes are saved directly to the server and apply to all newly created matches from that moment on.",
+        applyDisclosureP2: "The game client automatically downloads updated AI parameters at match startup. No server restart is required.",
+        advSummary: "⚙️ Native technical parameters",
+        advParamId: "Parameter identifier: ",
+        advKickerId: "Kicker ID: ",
+        advCostumeId: "Costume ID: ",
+        advRank: "Rank: ",
+        advLowHpThreshold: "Low HP retreat threshold: ",
+        botAiNotFound: "Selected profile not found in this mode."
       },
       latestInformation: {
         title: "Latest information",
@@ -597,7 +803,11 @@
         savingBtn: "Saving announcement...",
         saveSuccess: "Announcement saved successfully.",
         saveFailed: "Failed to save announcement: {err}",
-        loadFailed: "Could not load current announcement: {err}"
+        loadFailed: "Could not load current announcement: {err}",
+        sidebarDesc: "Announcements shown in the in-game Latest Information screen",
+        savingPage: "saving page ...",
+        pageSaved: "page saved; it appears the next time Latest information is opened",
+        failedStatus: "failed: {err}"
       },
       health: {
         title: "Health",
@@ -625,7 +835,51 @@
         statusFixtures: "Fixtures loaded",
         statusUptime: "Uptime",
         noExceptions: "No exceptions recorded in this window.",
-        inspectLoading: "Loading battle details..."
+        inspectLoading: "Loading battle details...",
+        sidebarDesc: "Outcomes, client exceptions and a battle drill-down",
+        matchOutcomes: "Match outcomes",
+        playerStatuses: "Player statuses",
+        clientExceptions: "Client exceptions by fingerprint",
+        problemMatches: "Problem matches",
+        telemetryWriter: "Telemetry writer",
+        howItReaches: "How it reaches the API",
+        drillDownBtn: "drill down",
+        openById: "Or open a battle by id",
+        openBtn: "Open",
+        loadingTelemetry: "loading telemetry...",
+        couldNotReadTelemetry: "could not read telemetry: {err}",
+        noExceptionsInWindow: "no client error reports in this window",
+        noProblemMatchesInWindow: "no problem matches in this window",
+        thKind: "Kind",
+        thCount: "Count",
+        thFingerprintSignature: "Fingerprint / signature",
+        thUsers: "Users",
+        thAppVersions: "App versions",
+        thLast: "Last",
+        thBattle: "Battle",
+        thOutcome: "Outcome",
+        thRoster: "Roster",
+        thType: "Type",
+        thParticipants: "Participants",
+        outcomes: {
+          clean: "clean",
+          partial: "partial",
+          abandoned: "abandoned",
+          neverStarted: "never started",
+          running: "running",
+          matching: "matching"
+        },
+        statuses: {
+          completed: "completed",
+          reconnected: "reconnected",
+          reconnectFailed: "reconnect failed",
+          droppedSilent: "dropped silent",
+          relaunched: "relaunched",
+          matchingFailures: "matching failures",
+          matchingTimeouts: "matching timeouts",
+          cancelled: "cancelled",
+          exceptions: "exceptions"
+        }
       },
       maintenance: {
         title: "Maintenance",
@@ -646,7 +900,11 @@
         applyingBtn: "Updating...",
         statusSuccess: "Maintenance updated.",
         statusFailed: "Failed to update maintenance: {err}",
-        readFailed: "Could not read state: {err}"
+        readFailed: "Could not read state: {err}",
+        sidebarDesc: "Server maintenance mode and notice text",
+        settingMaintenance: "setting maintenance to {mode} ...",
+        maintenanceIsNow: "maintenance is now {mode}",
+        failedStatus: "failed: {err}"
       },
       clientUpdate: {
         title: "Client update",
@@ -664,7 +922,10 @@
         saveBtn: "Save update settings",
         savingBtn: "Saving...",
         saveSuccess: "Update settings saved.",
-        saveFailed: "Failed to save update settings: {err}"
+        saveFailed: "Failed to save update settings: {err}",
+        sidebarDesc: "Forced client update gate by platform",
+        settingsSaved: "client update settings saved and persisted",
+        failedStatus: "failed: {err}"
       },
       apiErrors: {
         unauthorized: "Session expired or unauthorized. Please sign in again.",
@@ -675,7 +936,10 @@
         internalError: "Internal server error.",
         networkError: "Network connection error.",
         invalidCredentials: "Sign in failed",
-        badRequest: "Bad request or invalid parameters."
+        badRequest: "Bad request or invalid parameters.",
+        tooManyRequests: "Sign in temporarily unavailable due to too many attempts. Please try again later.",
+        serviceUnavailable: "Service temporarily unavailable.",
+        unsupportedMediaType: "Unsupported media type."
       }
     }
   };
@@ -1055,17 +1319,35 @@
       if (!rawError) return BalanceI18n.t("apiErrors.internalError");
       const err = String(rawError).trim();
       const lower = err.toLowerCase();
-      if (lower.indexOf("unauthorized") !== -1 || lower.indexOf("session") !== -1 || lower.indexOf("401") !== -1) {
+      if (lower.indexOf("too many requests") !== -1 || lower.indexOf("429") !== -1 || lower.indexOf("temporarily unavailable") !== -1) {
+        return BalanceI18n.t("apiErrors.tooManyRequests");
+      }
+      if (lower.indexOf("unauthorized") !== -1 || lower.indexOf("session") !== -1 || lower.indexOf("401") !== -1 || lower.indexOf("authentication required") !== -1) {
         return BalanceI18n.t("apiErrors.unauthorized");
       }
       if (lower.indexOf("forbidden") !== -1 || lower.indexOf("host") !== -1 || lower.indexOf("origin") !== -1 || lower.indexOf("403") !== -1) {
         return BalanceI18n.t("apiErrors.forbidden");
       }
-      if (lower.indexOf("404") !== -1 || lower.indexOf("not found") !== -1) {
+      if (lower.indexOf("404") !== -1 || lower.indexOf("not found") !== -1 || lower.indexOf("no route") !== -1) {
         return BalanceI18n.t("apiErrors.notFound");
       }
-      if (lower.indexOf("409") !== -1 || lower.indexOf("conflict") !== -1 || lower.indexOf("modified externally") !== -1) {
+      if (lower.indexOf("405") !== -1 || lower.indexOf("method not allowed") !== -1) {
+        return BalanceI18n.t("apiErrors.methodNotAllowed");
+      }
+      if (lower.indexOf("415") !== -1 || lower.indexOf("unsupported media") !== -1) {
+        return BalanceI18n.t("apiErrors.unsupportedMediaType");
+      }
+      if (lower.indexOf("409") !== -1 || lower.indexOf("conflict") !== -1 || lower.indexOf("modified externally") !== -1 || lower.indexOf("concurrencia") !== -1) {
         return BalanceI18n.t("apiErrors.conflict");
+      }
+      if (lower.indexOf("400") !== -1 || lower.indexOf("bad request") !== -1) {
+        return BalanceI18n.t("apiErrors.badRequest");
+      }
+      if (lower.indexOf("500") !== -1 || lower.indexOf("internal server error") !== -1) {
+        return BalanceI18n.t("apiErrors.internalError");
+      }
+      if (lower.indexOf("503") !== -1 || lower.indexOf("database unavailable") !== -1) {
+        return BalanceI18n.t("apiErrors.serviceUnavailable");
       }
       if (lower.indexOf("sign in failed") !== -1 || lower.indexOf("credential") !== -1 || lower.indexOf("locked") !== -1 || lower.indexOf("username or password") !== -1 || lower.indexOf("login") !== -1) {
         return BalanceI18n.t("login.failed");
