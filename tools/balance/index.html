@@ -264,12 +264,265 @@
   #healthStatus .line.ok { color: var(--ok); }
   #healthStatus .line.err { color: var(--err); }
   #healthStatus .line.info { color: var(--fg2); }
+
+  /* ---------------- Bot AI Editor Styles ---------------- */
+  .bot-ai-container { max-width: 880px; margin: 0 auto; padding: 10px 12px 110px; }
+
+  /* Compact 3-column segmented control */
+  .bot-ai-modes-segmented {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: 4px; margin-bottom: 12px;
+  }
+  .bot-ai-mode-seg {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 8px 6px; border: 1px solid transparent; border-radius: 6px;
+    background: transparent; color: var(--fg2); cursor: pointer; text-align: center;
+    font-size: 13px; font-weight: 600; font-family: inherit; transition: all 0.15s ease;
+  }
+  .bot-ai-mode-seg:hover { background: var(--bg2); color: var(--fg); }
+  .bot-ai-mode-seg.active {
+    background: var(--bg2); color: var(--accent); border-color: var(--line);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  }
+
+  /* Profile Picker & Summary */
+  .bot-ai-mobile-picker {
+    display: none; margin-bottom: 12px; background: var(--bg2); border: 1px solid var(--line);
+    border-radius: 8px; padding: 10px 12px;
+  }
+  .bot-ai-picker-label {
+    font-size: 11px; font-weight: 600; color: var(--fg2); text-transform: uppercase;
+    letter-spacing: 0.5px; display: block; margin-bottom: 6px;
+  }
+  .bot-ai-picker-row { display: flex; align-items: center; gap: 10px; }
+  .bot-ai-select {
+    flex: 1; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--fg); font-size: 13px; font-weight: 500; font-family: inherit;
+  }
+
+  .bot-ai-profile-summary-header {
+    background: var(--bg2); border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px 14px; margin-bottom: 14px; display: flex; justify-content: space-between;
+    align-items: center; flex-wrap: wrap; gap: 10px;
+  }
+  .bot-ai-profile-title { font-size: 14px; font-weight: 600; color: var(--fg); }
+  .bot-ai-affects-label {
+    font-size: 12px; color: var(--accent); font-weight: 500; margin-top: 2px;
+  }
+  .bot-ai-shared-details {
+    font-size: 11px; color: var(--fg2); width: 100%; margin-top: 6px;
+  }
+  .bot-ai-shared-details summary { cursor: pointer; color: var(--fg2); font-weight: 500; }
+  .bot-ai-shared-details summary:hover { color: var(--fg); }
+  .bot-ai-shared-details p { margin: 6px 0 0; line-height: 1.4; color: var(--fg2); }
+
+  /* Heading & Subheading */
+  .bot-ai-heading-box { margin: 0 0 10px; }
+  .bot-ai-heading {
+    font-size: 17px; font-weight: 700; color: var(--fg); margin: 0 0 4px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .bot-ai-subheading { font-size: 12px; color: var(--fg2); margin: 0; }
+
+  /* Compact Colorful Intent Cards Grid */
+  .bot-ai-intent-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px; margin-bottom: 12px;
+  }
+  .bot-ai-intent-card {
+    display: flex; flex-direction: column; padding: 10px 12px; border-radius: 8px;
+    border: 1.5px solid var(--line); background: var(--bg2); cursor: pointer;
+    transition: all 0.15s ease; text-align: left; font-family: inherit; color: var(--fg);
+    position: relative; user-select: none;
+  }
+  .bot-ai-intent-card:hover {
+    transform: translateY(-1px); border-color: var(--card-accent, var(--accent));
+    box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+  }
+  .bot-ai-intent-card.selected {
+    border-color: var(--card-accent, var(--accent));
+    background: var(--card-bg, rgba(77, 163, 255, 0.1));
+    box-shadow: 0 0 0 1px var(--card-accent, var(--accent)), 0 4px 12px rgba(0,0,0,0.25);
+  }
+  .bot-ai-intent-card.theme-score {
+    --card-accent: #2ecc71; --card-bg: rgba(46, 204, 113, 0.12);
+  }
+  .bot-ai-intent-card.theme-fight {
+    --card-accent: #e74c3c; --card-bg: rgba(231, 76, 60, 0.12);
+  }
+  .bot-ai-intent-card.theme-defense {
+    --card-accent: #3498db; --card-bg: rgba(52, 152, 219, 0.12);
+  }
+  .bot-ai-intent-card.theme-support {
+    --card-accent: #9b59b6; --card-bg: rgba(155, 89, 182, 0.12);
+  }
+  .bot-ai-intent-card.theme-balanced {
+    --card-accent: #f39c12; --card-bg: rgba(243, 156, 18, 0.12);
+  }
+
+  .bot-ai-intent-top {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
+  }
+  .bot-ai-intent-icon-title { display: flex; align-items: center; gap: 8px; }
+  .bot-ai-intent-icon { font-size: 20px; line-height: 1; }
+  .bot-ai-intent-title { font-weight: 700; font-size: 13px; }
+  .bot-ai-intent-badge {
+    font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;
+    background: var(--card-accent, var(--accent)); color: #000;
+  }
+  .bot-ai-intent-summary {
+    font-size: 11px; color: var(--fg2); line-height: 1.35; flex: 1; margin-bottom: 4px;
+  }
+  .bot-ai-intent-subnote {
+    font-size: 10px; color: var(--fg2); border-top: 1px dashed var(--line);
+    padding-top: 4px; font-style: italic;
+  }
+
+  /* Preset Feedback */
+  .bot-ai-preset-feedback {
+    background: var(--bg2); border: 1px solid var(--line); border-left: 3px solid var(--accent);
+    border-radius: 6px; padding: 8px 12px; margin-bottom: 14px; font-size: 12px; line-height: 1.4;
+  }
+  .bot-ai-preset-feedback strong { color: var(--accent); }
+
+  /* Collapsible Details */
+  .bot-ai-custom-details, .bot-ai-disclosure, .bot-ai-advanced {
+    margin-bottom: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg2);
+  }
+  .bot-ai-custom-details summary, .bot-ai-disclosure summary, .bot-ai-advanced summary {
+    padding: 10px 14px; font-weight: 600; font-size: 12px; color: var(--fg2);
+    cursor: pointer; user-select: none;
+  }
+  .bot-ai-custom-details summary:hover, .bot-ai-disclosure summary:hover, .bot-ai-advanced summary:hover {
+    color: var(--fg);
+  }
+  .bot-ai-custom-body, .bot-ai-disclosure-body, .bot-ai-advanced-body {
+    padding: 14px; border-top: 1px solid var(--line); background: var(--bg3);
+  }
+
+  .bot-ai-notice {
+    padding: 10px 14px; border-radius: 6px; font-size: 12px; margin-bottom: 14px;
+    line-height: 1.5; display: flex; gap: 10px; align-items: flex-start;
+  }
+  .bot-ai-notice.info { background: rgba(77, 163, 255, 0.1); border: 1px solid rgba(77, 163, 255, 0.3); color: #8ec5fc; }
+  .bot-ai-notice.warn { background: rgba(255, 179, 71, 0.1); border: 1px solid rgba(255, 179, 71, 0.3); color: #ffd285; }
+
+  .bot-ai-card {
+    background: var(--bg2); border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px; margin-bottom: 14px;
+  }
+  .bot-ai-card h3 { margin: 0 0 10px; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+  .bot-ai-card .badge {
+    font-size: 11px; padding: 2px 7px; border-radius: 4px; background: var(--bg3);
+    color: var(--fg2); border: 1px solid var(--line); font-weight: 500;
+  }
+  .bot-ai-card .badge.dirty { background: rgba(255, 179, 71, 0.2); border-color: var(--dirty); color: var(--dirty); }
+
+  .bot-ai-controls-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;
+  }
+  .bot-ai-field {
+    background: var(--bg2); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--line);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .bot-ai-field-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .bot-ai-field-label { font-size: 12px; font-weight: 500; }
+  .bot-ai-field-val { font-size: 12px; font-weight: 600; font-family: ui-monospace, Consolas, monospace; color: var(--accent); }
+  .bot-ai-field-help { font-size: 11px; color: var(--fg2); line-height: 1.3; }
+  .bot-ai-slider {
+    width: 100%; accent-color: var(--accent); cursor: pointer; height: 6px;
+    background: var(--bg); border-radius: 3px;
+  }
+  .bot-ai-field.locked { opacity: 0.85; border-style: dashed; }
+  .bot-ai-field.locked .bot-ai-field-val { color: var(--dirty); }
+
+  .bot-ai-raw-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 11px;
+  }
+
+  /* Persistent Bottom Save Bar */
+  .bot-ai-action-bar {
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
+    gap: 12px; padding: 12px 16px; background: var(--bg2); border: 1px solid var(--line);
+    border-radius: 8px; position: sticky; bottom: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    z-index: 100; margin-top: 16px;
+  }
+  .bot-ai-btn {
+    padding: 8px 18px; border-radius: 6px; font-size: 13px; font-weight: 600;
+    cursor: pointer; border: 1px solid var(--line); font-family: inherit;
+    transition: all 0.15s ease;
+  }
+  .bot-ai-btn.primary { background: var(--accent); color: #06131f; border-color: var(--accent); }
+  .bot-ai-btn.primary:hover:not(:disabled) { filter: brightness(1.1); }
+  .bot-ai-btn.primary:disabled { opacity: 0.45; cursor: default; }
+  .bot-ai-btn.secondary { background: var(--bg3); color: var(--fg); }
+  .bot-ai-btn.secondary:hover:not(:disabled) { background: var(--bg); }
+  .bot-ai-btn.danger { background: rgba(255, 107, 107, 0.15); border-color: var(--err); color: var(--err); }
+  .bot-ai-btn.danger:hover { background: rgba(255, 107, 107, 0.25); }
+
+  .bot-ai-modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(2px);
+    display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px;
+  }
+  .bot-ai-modal {
+    background: var(--bg2); border: 1px solid var(--line); border-radius: 10px;
+    width: 100%; max-width: 620px; max-height: 85vh; display: flex; flex-direction: column;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  }
+  .bot-ai-modal-head {
+    padding: 14px 18px; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 15px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .bot-ai-modal-body { padding: 18px; overflow-y: auto; font-size: 13px; line-height: 1.5; }
+  .bot-ai-modal-foot {
+    padding: 14px 18px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end;
+    gap: 10px; background: var(--bg); border-bottom-left-radius: 10px; border-bottom-right-radius: 10px;
+  }
+
+  .bot-ai-sidebar-item {
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 6px;
+    cursor: pointer; border: 1px solid transparent; font-size: 12px; margin-bottom: 2px;
+  }
+  .bot-ai-sidebar-item:hover { background: var(--bg3); }
+  .bot-ai-sidebar-item.sel { background: rgba(77, 163, 255, 0.15); border-color: var(--accent); }
+  .bot-ai-sidebar-item .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--dirty); display: inline-block; margin-left: auto;
+  }
+
+  @media (max-width: 768px) {
+    #layout { flex-direction: column; height: auto; }
+    #sidebar { width: 100%; min-width: 0; height: auto; max-height: 320px; border-right: none; border-bottom: 1px solid var(--line); }
+    body.tab-bot-ai #sidebar #list { display: none; }
+    body.tab-bot-ai #sidebar { max-height: none; border-bottom: none; }
+    body.tab-bot-ai .bot-ai-container { padding: 6px 10px 110px; }
+    body.tab-bot-ai .bot-ai-mobile-picker { display: block; margin-bottom: 8px; padding: 6px 10px; }
+    .bot-ai-picker-label { font-size: 10px; margin-bottom: 4px; }
+    .bot-ai-select { padding: 6px 8px; font-size: 12px; }
+    .bot-ai-modes-segmented { grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 3px; margin-bottom: 8px; }
+    .bot-ai-mode-seg { padding: 6px 4px; font-size: 12px; }
+    .bot-ai-profile-summary-header { padding: 8px 10px; margin-bottom: 8px; gap: 6px; }
+    .bot-ai-profile-summary-header .bot-ai-profile-title { font-size: 13px; }
+    .bot-ai-profile-summary-header .bot-ai-affects-label { font-size: 11px; }
+    .bot-ai-shared-details { font-size: 10px; margin-top: 4px; }
+    .bot-ai-heading-box { margin: 0 0 8px; }
+    .bot-ai-heading { font-size: 15px; margin: 0 0 2px; }
+    .bot-ai-subheading { font-size: 11px; }
+    .bot-ai-intent-grid { grid-template-columns: 1fr; gap: 8px; margin-bottom: 10px; }
+    .bot-ai-intent-card { padding: 8px 10px; }
+    .bot-ai-intent-top { margin-bottom: 4px; }
+    .bot-ai-intent-title { font-size: 12.5px; }
+    .bot-ai-intent-desc { font-size: 11px; line-height: 1.3; }
+    .bot-ai-intent-summary { font-size: 11px; margin-top: 3px; }
+    .bot-ai-controls-grid { grid-template-columns: 1fr; }
+    .bot-ai-action-bar { position: sticky; bottom: 0; border-radius: 0; margin: 16px -10px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.4); }
+  }
 </style>
 </head>
 <body>
 <header id="top">
   <h1>Kick-Flight Balance</h1>
-  <span class="hint">saves write <code>.local/masters-overrides</code> (never <code>config/</code>) &mdash; restart the API to load them</span>
+  <span id="topHint" class="hint">saves write <code>.local/masters-overrides</code> (never <code>config/</code>) &mdash; restart the API to load them</span>
   <span id="currentUser" class="hint"></span>
   <button id="logout" type="button">Log out</button>
 </header>
@@ -280,6 +533,7 @@
       <button type="button" data-tab="kickers" class="on">Kickers</button>
       <button type="button" data-tab="discs">Discs</button>
       <button type="button" data-tab="text">Text</button>
+      <button type="button" data-tab="bot-ai">IA de bots</button>
       <button type="button" data-tab="latest-information">Latest information</button>
       <button type="button" data-tab="health">Health</button>
       <button type="button" data-tab="maintenance">Maintenance</button>
@@ -448,6 +702,19 @@ const state = {
   savingMaintenance: false,
   latestInformation: null,
   savingLatestInformation: false,
+  botAi: {
+    loading: false,
+    loaded: false,
+    error: null,
+    hash: null,
+    revision: null,
+    rawProfiles: [],
+    drafts: {},
+    activePresets: {},
+    selectedMode: "CrystalScramble",
+    selectedProfile: "carrier",
+    saving: false
+  },
   health: null,          /* {summary, exceptions, error} from /api/ops/* */
   healthWindow: "deploy",/* deploy (this release) / 24h / 7d */
   healthLoading: false,
@@ -718,6 +985,10 @@ function renderList() {
   }
   if (state.tab === "maintenance") {
     list.appendChild(el("li", { class: "count" }, "Server maintenance mode and notice text"));
+    return;
+  }
+  if (state.tab === "bot-ai") {
+    renderBotAiList();
     return;
   }
   const items = filteredItems();
@@ -1062,6 +1333,10 @@ function renderPanel() {
   }
   if (state.tab === "health") {
     renderHealthPanel(panel);
+    return;
+  }
+  if (state.tab === "bot-ai") {
+    renderBotAiPanel(panel);
     return;
   }
   if (state.tab === "text") {
@@ -2129,6 +2404,1232 @@ function renderHealthPanel(panel) {
   panel.appendChild(wrap);
 }
 
+/* ----------------------------------------------------------- bot AI editor */
+
+const BOT_AI_MODES = [
+  { id: "CrystalScramble", name: "Cristales", icon: "💎", fullName: "Batalla Scramble", desc: "Recolección y depósito de cristales en el guardián." },
+  { id: "FlagFlight", name: "Bandera", icon: "🚩", fullName: "Vuelo de Bandera", desc: "Captura y defensa de bandera. Sin guardianes ni depósitos." },
+  { id: "RapidBall", name: "Balón", icon: "⚽", fullName: "Balón Rápido", desc: "Control del balón y anotación en portería rival." }
+];
+
+const BOT_AI_ROLE_FAMILIES = {
+  carrier: {
+    title: "Transportador veloz",
+    roleKey: "carrier",
+    family: "Objetivo y Movilidad",
+    desc: "Especialista en recolección rápida de cristales y movilidad ágil.",
+    templateKicker: 8,
+    kickers: [
+      { id: 8, name: "Anna", role: "Velocista (Carrier)" },
+      { id: 1, name: "Tsubame", role: "Velocista (Carrier)" },
+      { id: 9, name: "Jay", role: "Velocista (Carrier)" }
+    ],
+    isSpecialized: false
+  },
+  tank_defender: {
+    title: "Defensor Tanque",
+    roleKey: "tank_defender",
+    family: "Defensa Pesada",
+    desc: "Tanque robusto para control de zona, intercepción y aguante bajo presión.",
+    templateKicker: 3,
+    kickers: [
+      { id: 3, name: "Coco", role: "Tanque (Anchor)" },
+      { id: 11, name: "Diatrius", role: "Tanque (Anchor)" },
+      { id: 12, name: "Buzzy Big", role: "Tanque (Anchor)" }
+    ],
+    isSpecialized: false
+  },
+  hunter: {
+    title: "Cazador / Asesino",
+    roleKey: "hunter",
+    family: "Combate y Bajas",
+    desc: "Enfocado en perseguir rivales, ganar duelos y mantener presión ofensiva.",
+    templateKicker: 4,
+    kickers: [
+      { id: 4, name: "Kite", role: "Ataque (Hunter)" },
+      { id: 6, name: "Pitophy", role: "Ataque (Hunter)" },
+      { id: 13, name: "Hitagi", role: "Ataque (Hunter)" }
+    ],
+    isSpecialized: false
+  },
+  objective_attacker: {
+    title: "Atacante de Objetivos",
+    roleKey: "objective_attacker",
+    family: "Presión Ofensiva",
+    desc: "Presiona objetivos y asegura zonas clave (Kickers ofensivos genéricos).",
+    templateKicker: 10,
+    kickers: [
+      { id: 10, name: "Kickers ofensivos generales", role: "Presión general (Yuyan tiene perfil dedicado)" }
+    ],
+    isSpecialized: false
+  },
+  healer: {
+    title: "Sanador de Apoyo",
+    roleKey: "healer",
+    family: "Soporte",
+    desc: "Soporte con habilidades curativas genérico (Ruriha tiene perfil dedicado).",
+    templateKicker: 2,
+    kickers: [
+      { id: 2, name: "Soporte curativo general", role: "Curación genérica" }
+    ],
+    isSpecialized: false
+  },
+  speed_support: {
+    title: "Apoyo de Velocidad",
+    roleKey: "speed_support",
+    family: "Soporte",
+    desc: "Soporte enfocado en movilidad y aceleración (Grenhawk tiene perfil dedicado).",
+    templateKicker: 7,
+    kickers: [
+      { id: 7, name: "Soporte móvil general", role: "Movilidad y aceleración" }
+    ],
+    isSpecialized: false
+  },
+  damage_support: {
+    title: "Apoyo de Daño",
+    roleKey: "damage_support",
+    family: "Soporte",
+    desc: "Soporte auxiliar que combina daño a distancia y utilidad (Sid tiene perfil dedicado).",
+    templateKicker: 14,
+    kickers: [
+      { id: 14, name: "Soporte de daño general", role: "Daño y control" }
+    ],
+    isSpecialized: false
+  },
+  trap_defender: {
+    title: "Defensor con Trampas",
+    roleKey: "trap_defender",
+    family: "Defensa y Control",
+    desc: "Zonificación y colocación de trampas defensivas (Owlbert tiene perfil dedicado).",
+    templateKicker: 5,
+    kickers: [
+      { id: 5, name: "Defensa táctica general", role: "Trampas genéricas" }
+    ],
+    isSpecialized: false
+  },
+  Yuyan: {
+    title: "Especialista: Yuyan",
+    roleKey: "Yuyan",
+    family: "Especialización Única",
+    desc: "Configuración dedicada exclusivamente a Yuyan como atacante de objetivos.",
+    templateKicker: 10,
+    kickers: [
+      { id: 10, name: "Yuyan", role: "Especialización exclusiva" }
+    ],
+    isSpecialized: true
+  },
+  Owlbert: {
+    title: "Especialista: Owlbert",
+    roleKey: "Owlbert",
+    family: "Especialización Única",
+    desc: "Configuración dedicada exclusivamente a Owlbert como trampero táctico.",
+    templateKicker: 5,
+    kickers: [
+      { id: 5, name: "Owlbert", role: "Especialización exclusiva" }
+    ],
+    isSpecialized: true
+  },
+  Ruriha: {
+    title: "Especialista: Ruriha",
+    roleKey: "Ruriha",
+    family: "Especialización Única",
+    desc: "Configuración dedicada exclusivamente a Ruriha como sanadora de soporte.",
+    templateKicker: 2,
+    kickers: [
+      { id: 2, name: "Ruriha", role: "Especialización exclusiva" }
+    ],
+    isSpecialized: true
+  },
+  Grenhawk: {
+    title: "Especialista: Grenhawk",
+    roleKey: "Grenhawk",
+    family: "Especialización Única",
+    desc: "Configuración dedicada exclusivamente a Grenhawk como soporte veloz.",
+    templateKicker: 7,
+    kickers: [
+      { id: 7, name: "Grenhawk", role: "Especialización exclusiva" }
+    ],
+    isSpecialized: true
+  },
+  Sid: {
+    title: "Especialista: Sid",
+    roleKey: "Sid",
+    family: "Especialización Única",
+    desc: "Configuración dedicada exclusivamente a Sid como soporte ofensivo.",
+    templateKicker: 14,
+    kickers: [
+      { id: 14, name: "Sid", role: "Especialización exclusiva" }
+    ],
+    isSpecialized: true
+  }
+};
+
+const BOT_AI_INTENT_PRESETS = [
+  {
+    id: "run_score",
+    icon: "🏃",
+    title: "Quiero que corra y puntúe",
+    theme: "theme-score",
+    behaviorDesc: "El bot prioriza recolectar y anotar con impulsos rápidos continuos.",
+    summaries: {
+      CrystalScramble: "Prioriza recolectar y depositar cristales rápidamente.",
+      FlagFlight: "Prioriza capturar la bandera y llevarla a la meta.",
+      RapidBall: "Prioriza tomar el balón y avanzar hacia la portería rival."
+    },
+    nativeLimit: "No altera la velocidad base del personaje, sino la frecuencia de impulsos.",
+    apply: function (prof, mode) {
+      prof.motivations.attack = 25;
+      prof.motivations.defense = 25;
+      prof.motivations.score = 90;
+      prof.dashIntervals.attack = 1.1;
+      prof.dashIntervals.defense = 0.9;
+      prof.dashIntervals.score = 0.7;
+      prof.skillIntervals.attack = 5.0;
+      prof.skillIntervals.heal = 3.5;
+      prof.skillIntervals.buff = 3.5;
+      prof.skillIntervals.trap = 6.0;
+      prof.skillIntervals.warp = 3.0;
+      prof.healDamageRate = 0.45;
+      prof.canLockon = true;
+      if (mode !== "FlagFlight") prof.scoreToDeposit = 4;
+    }
+  },
+  {
+    id: "fight",
+    icon: "⚔️",
+    title: "Quiero que busque pelea",
+    theme: "theme-fight",
+    behaviorDesc: "El bot presionará agresivamente a los rivales, buscando combates constantes con impulsos ofensivos rápidos.",
+    summaries: {
+      CrystalScramble: "Agresivo en combate y persecución continua de rivales.",
+      FlagFlight: "Combate activamente a los rivales para despejar la bandera.",
+      RapidBall: "Intercepta y ataca agresivamente a los oponentes."
+    },
+    nativeLimit: null,
+    apply: function (prof, mode) {
+      prof.motivations.attack = 90;
+      prof.motivations.defense = 20;
+      prof.motivations.score = 20;
+      prof.dashIntervals.attack = 0.6;
+      prof.dashIntervals.defense = 1.2;
+      prof.dashIntervals.score = 1.2;
+      prof.skillIntervals.attack = 2.5;
+      prof.skillIntervals.heal = 4.5;
+      prof.skillIntervals.buff = 4.0;
+      prof.skillIntervals.trap = 5.0;
+      prof.skillIntervals.warp = 5.0;
+      prof.healDamageRate = 0.60;
+      prof.canLockon = true;
+      if (mode !== "FlagFlight") prof.scoreToDeposit = 8;
+    }
+  },
+  {
+    id: "defend_base",
+    icon: "🛡️",
+    title: "Quiero que cuide la base",
+    theme: "theme-defense",
+    behaviorDesc: "El bot mantendrá la posición defensiva y protegerá el área clave con zonificación e impulsos defensivos.",
+    summaries: {
+      CrystalScramble: "Protege la zona del guardián y defiende los cristales.",
+      FlagFlight: "Vigila la bandera y protege el territorio propio.",
+      RapidBall: "Defiende la portería e intercepta a los atacantes."
+    },
+    nativeLimit: null,
+    apply: function (prof, mode) {
+      prof.motivations.attack = 35;
+      prof.motivations.defense = 85;
+      prof.motivations.score = 25;
+      prof.dashIntervals.attack = 1.0;
+      prof.dashIntervals.defense = 0.7;
+      prof.dashIntervals.score = 1.1;
+      prof.skillIntervals.attack = 4.5;
+      prof.skillIntervals.heal = 3.0;
+      prof.skillIntervals.buff = 3.5;
+      prof.skillIntervals.trap = 3.0;
+      prof.skillIntervals.warp = 4.0;
+      prof.healDamageRate = 0.40;
+      prof.canLockon = true;
+      if (mode !== "FlagFlight") prof.scoreToDeposit = 5;
+    }
+  },
+  {
+    id: "support_team",
+    icon: "🤝",
+    title: "Quiero que apoye al equipo",
+    theme: "theme-support",
+    behaviorDesc: "El bot prioriza el uso frecuente de habilidades curativas y de potenciación grupal.",
+    summaries: {
+      CrystalScramble: "Frecuencia alta de curación y potenciadores de apoyo.",
+      FlagFlight: "Proporciona soporte continuo con curaciones y mejoras.",
+      RapidBall: "Asiste a compañeros con curación y mejoras tácticas."
+    },
+    nativeLimit: "Límite nativo: Se cura a sí mismo al recibir daño; el juego no permite apuntar curación a distancia.",
+    apply: function (prof, mode) {
+      prof.motivations.attack = 25;
+      prof.motivations.defense = 55;
+      prof.motivations.score = 45;
+      prof.dashIntervals.attack = 1.1;
+      prof.dashIntervals.defense = 0.8;
+      prof.dashIntervals.score = 0.9;
+      prof.skillIntervals.attack = 5.0;
+      prof.skillIntervals.heal = 2.5;
+      prof.skillIntervals.buff = 3.0;
+      prof.skillIntervals.trap = 4.5;
+      prof.skillIntervals.warp = 4.0;
+      prof.healDamageRate = 0.35;
+      prof.canLockon = false;
+      if (mode !== "FlagFlight") prof.scoreToDeposit = 5;
+    }
+  },
+  {
+    id: "balanced",
+    icon: "⚖️",
+    title: "Quiero que sea equilibrado",
+    theme: "theme-balanced",
+    behaviorDesc: "El bot alterna equilibradamente entre combatir rivales, defender zonas y buscar objetivos.",
+    summaries: {
+      CrystalScramble: "Alterna de forma equilibrada entre combate, defensa y recolectar cristales.",
+      FlagFlight: "Equilibrio entre capturar la bandera y responder a amenazas.",
+      RapidBall: "Equilibrio entre avanzar con el balón y defender el terreno."
+    },
+    nativeLimit: null,
+    apply: function (prof, mode) {
+      prof.motivations.attack = 50;
+      prof.motivations.defense = 50;
+      prof.motivations.score = 50;
+      prof.dashIntervals.attack = 0.9;
+      prof.dashIntervals.defense = 0.9;
+      prof.dashIntervals.score = 0.9;
+      prof.skillIntervals.attack = 4.0;
+      prof.skillIntervals.heal = 3.5;
+      prof.skillIntervals.buff = 4.0;
+      prof.skillIntervals.trap = 5.0;
+      prof.skillIntervals.warp = 4.5;
+      prof.healDamageRate = 0.50;
+      prof.canLockon = true;
+      if (mode !== "FlagFlight") prof.scoreToDeposit = 5;
+    }
+  }
+];
+
+function getPresetSummary(pr, mode) {
+  if (pr.summaries && pr.summaries[mode]) return pr.summaries[mode];
+  return pr.summary || "";
+}
+
+function detectActivePreset(prof, mode, profKey) {
+  if (state.botAi.activePresets && state.botAi.activePresets[mode + "/" + profKey]) {
+    return state.botAi.activePresets[mode + "/" + profKey];
+  }
+  if (!prof || !prof.motivations) return "balanced";
+  const m = prof.motivations;
+  if (m.attack >= 80 && m.defense <= 30) return "fight";
+  if (m.score >= 80 && m.attack <= 35) return "run_score";
+  if (m.defense >= 80 && m.score <= 35) return "defend_base";
+  if (m.defense >= 50 && m.score >= 40 && m.attack <= 30) return "support_team";
+  return "balanced";
+}
+
+function showToast(message) {
+  let toast = document.getElementById("botAiToast");
+  if (!toast) {
+    toast = el("div", { id: "botAiToast" });
+    toast.style.position = "fixed";
+    toast.style.top = "16px";
+    toast.style.right = "16px";
+    toast.style.background = "var(--bg2)";
+    toast.style.color = "var(--ok)";
+    toast.style.border = "1px solid var(--ok)";
+    toast.style.padding = "10px 16px";
+    toast.style.borderRadius = "8px";
+    toast.style.boxShadow = "0 6px 20px rgba(0,0,0,0.5)";
+    toast.style.zIndex = "9999";
+    toast.style.fontSize = "13px";
+    toast.style.fontWeight = "500";
+    toast.style.transition = "opacity 0.3s ease";
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.style.opacity = "1";
+  toast.style.display = "block";
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(function () {
+    toast.style.opacity = "0";
+    setTimeout(function () { toast.style.display = "none"; }, 350);
+  }, 3500);
+}
+
+async function loadBotAiProfiles(force) {
+  if (!force && state.botAi.loaded) return;
+  state.botAi.loading = true;
+  state.botAi.error = null;
+  renderBotAiPanel(document.getElementById("panel"));
+  renderBotAiList();
+
+  try {
+    const data = await fetchJSON("/api/bot-ai/profiles", { cache: "no-store" });
+    state.botAi.rawProfiles = data.profiles || [];
+    state.botAi.hash = data.hash || null;
+    state.botAi.revision = data.revision || null;
+    state.botAi.loaded = true;
+    state.botAi.loading = false;
+  } catch (err) {
+    state.botAi.error = err.message || "Error al cargar perfiles de IA de bots";
+    state.botAi.loading = false;
+  }
+  renderBotAiList();
+  renderBotAiPanel(document.getElementById("panel"));
+}
+
+function getPristineBotAiProfile(mode, profileName) {
+  for (const p of state.botAi.rawProfiles) {
+    if (p.mode === mode && p.profile === profileName) {
+      return p;
+    }
+  }
+  return null;
+}
+
+function getActiveBotAiProfile(mode, profileName) {
+  const key = mode + "/" + profileName;
+  if (state.botAi.drafts[key]) {
+    return state.botAi.drafts[key];
+  }
+  const pristine = getPristineBotAiProfile(mode, profileName);
+  return pristine ? JSON.parse(JSON.stringify(pristine)) : null;
+}
+
+function isBotAiProfileDirty(mode, profileName) {
+  const key = mode + "/" + profileName;
+  return !!state.botAi.drafts[key];
+}
+
+function setBotAiField(mode, profileName, section, field, value) {
+  const key = mode + "/" + profileName;
+  if (!state.botAi.drafts[key]) {
+    const pristine = getPristineBotAiProfile(mode, profileName);
+    if (!pristine) return;
+    state.botAi.drafts[key] = JSON.parse(JSON.stringify(pristine));
+  }
+  const draft = state.botAi.drafts[key];
+  if (section) {
+    draft[section][field] = value;
+  } else {
+    draft[field] = value;
+  }
+
+  // Check if draft matches pristine
+  const pristine = getPristineBotAiProfile(mode, profileName);
+  if (JSON.stringify(draft) === JSON.stringify(pristine)) {
+    delete state.botAi.drafts[key];
+  }
+
+  // Update dirty badge & save button without full re-render
+  updateBotAiDirtyState();
+}
+
+function applyBotAiPreset(mode, profileName, presetId) {
+  const preset = BOT_AI_INTENT_PRESETS.find(p => p.id === presetId);
+  if (!preset) return;
+  const key = mode + "/" + profileName;
+  if (!state.botAi.drafts[key]) {
+    const pristine = getPristineBotAiProfile(mode, profileName);
+    if (!pristine) return;
+    state.botAi.drafts[key] = JSON.parse(JSON.stringify(pristine));
+  }
+  const draft = state.botAi.drafts[key];
+  preset.apply(draft, mode);
+  state.botAi.activePresets[key] = presetId;
+
+  const pristine = getPristineBotAiProfile(mode, profileName);
+  if (JSON.stringify(draft) === JSON.stringify(pristine)) {
+    delete state.botAi.drafts[key];
+  }
+
+  renderBotAiList();
+  renderBotAiPanel(document.getElementById("panel"));
+}
+
+function discardBotAiDraft(mode, profileName) {
+  const key = mode + "/" + profileName;
+  if (state.botAi.drafts[key]) {
+    delete state.botAi.drafts[key];
+    delete state.botAi.activePresets[key];
+    renderBotAiList();
+    renderBotAiPanel(document.getElementById("panel"));
+  }
+}
+
+function updateBotAiDirtyState() {
+  const dirtyCount = Object.keys(state.botAi.drafts).length;
+  const saveBtn = document.getElementById("botAiSaveBtn");
+  if (saveBtn) {
+    saveBtn.disabled = dirtyCount === 0 || state.botAi.saving;
+    saveBtn.textContent = state.botAi.saving ? "Guardando..." : "Guardar cambios" + (dirtyCount > 0 ? " (" + dirtyCount + ")" : "");
+  }
+  const dirtyBadge = document.getElementById("botAiProfileDirtyBadge");
+  if (dirtyBadge) {
+    const isCurDirty = isBotAiProfileDirty(state.botAi.selectedMode, state.botAi.selectedProfile);
+    dirtyBadge.style.display = isCurDirty ? "inline-block" : "none";
+  }
+  const discardBtn = document.getElementById("botAiDiscardBtn");
+  if (discardBtn) {
+    discardBtn.disabled = !isBotAiProfileDirty(state.botAi.selectedMode, state.botAi.selectedProfile);
+  }
+  renderBotAiList();
+}
+
+function deriveFriendlyBehaviors(draft, pristine, mode) {
+  const descriptions = [];
+
+  // 1. Motivations
+  if (draft.motivations.attack > pristine.motivations.attack) {
+    descriptions.push("Más prioridad a pelear");
+  } else if (draft.motivations.attack < pristine.motivations.attack) {
+    descriptions.push("Menos prioridad a pelear");
+  }
+
+  if (draft.motivations.defense > pristine.motivations.defense) {
+    descriptions.push("Más prioridad a defender");
+  } else if (draft.motivations.defense < pristine.motivations.defense) {
+    descriptions.push("Menos prioridad a defender");
+  }
+
+  if (draft.motivations.score > pristine.motivations.score) {
+    descriptions.push("Más prioridad a recoger");
+  } else if (draft.motivations.score < pristine.motivations.score) {
+    descriptions.push("Menos prioridad a recoger");
+  }
+
+  // 2. Dash Intervals (lower = faster = more frequent)
+  const dashProps = ["attack", "defense", "score"];
+  const dashFaster = dashProps.filter(p => draft.dashIntervals[p] < pristine.dashIntervals[p]);
+  const dashSlower = dashProps.filter(p => draft.dashIntervals[p] > pristine.dashIntervals[p]);
+
+  if (dashFaster.length > 0 && dashSlower.length === 0) {
+    if (dashFaster.length >= 2 || dashFaster.length === dashProps.length) {
+      descriptions.push("Impulsos más frecuentes");
+    } else {
+      const scopeMap = { attack: "en combate", defense: "al defender", score: "al recoger" };
+      descriptions.push("Impulsos más frecuentes " + scopeMap[dashFaster[0]]);
+    }
+  } else if (dashSlower.length > 0 && dashFaster.length === 0) {
+    if (dashSlower.length >= 2 || dashSlower.length === dashProps.length) {
+      descriptions.push("Impulsos menos frecuentes");
+    } else {
+      const scopeMap = { attack: "en combate", defense: "al defender", score: "al recoger" };
+      descriptions.push("Impulsos menos frecuentes " + scopeMap[dashSlower[0]]);
+    }
+  } else if (dashFaster.length > 0 || dashSlower.length > 0) {
+    if (dashFaster.includes("attack")) descriptions.push("Impulsos más frecuentes en combate");
+    if (dashSlower.includes("attack")) descriptions.push("Impulsos menos frecuentes en combate");
+    if (dashFaster.includes("defense")) descriptions.push("Impulsos más frecuentes al defender");
+    if (dashSlower.includes("defense")) descriptions.push("Impulsos menos frecuentes al defender");
+    if (dashFaster.includes("score")) descriptions.push("Impulsos más frecuentes al recoger");
+    if (dashSlower.includes("score")) descriptions.push("Impulsos menos frecuentes al recoger");
+  }
+
+  // 3. Skill Intervals (lower = faster = more frequent)
+  const skillProps = ["attack", "heal", "buff", "trap", "warp"];
+  const skillFaster = skillProps.filter(p => draft.skillIntervals[p] < pristine.skillIntervals[p]);
+  const skillSlower = skillProps.filter(p => draft.skillIntervals[p] > pristine.skillIntervals[p]);
+
+  if (skillFaster.length >= 3 && skillSlower.length === 0) {
+    descriptions.push("Uso de habilidades más frecuente");
+  } else if (skillSlower.length >= 3 && skillFaster.length === 0) {
+    descriptions.push("Uso de habilidades menos frecuente");
+  } else {
+    const skillLabels = { attack: "ataque", heal: "curación", buff: "mejora", trap: "trampa", warp: "teletransporte" };
+    for (const p of skillFaster) {
+      descriptions.push("Habilidades de " + skillLabels[p] + " más frecuentes");
+    }
+    for (const p of skillSlower) {
+      descriptions.push("Habilidades de " + skillLabels[p] + " menos frecuentes");
+    }
+  }
+
+  // 4. Heal damage rate (lower = heals sooner at less damage = more preventive)
+  if (draft.healDamageRate < pristine.healDamageRate) {
+    descriptions.push("Curación más preventiva (se cura con menos daño)");
+  } else if (draft.healDamageRate > pristine.healDamageRate) {
+    descriptions.push("Espera a recibir más daño para curarse");
+  }
+
+  // 5. Can Lockon
+  if (draft.canLockon !== pristine.canLockon) {
+    descriptions.push(draft.canLockon ? "Fijar blanco activado" : "Fijar blanco desactivado");
+  }
+
+  // 6. Score to deposit
+  if (mode !== "FlagFlight" && draft.scoreToDeposit !== pristine.scoreToDeposit) {
+    if (draft.scoreToDeposit > pristine.scoreToDeposit) {
+      descriptions.push("Acumula más cristales antes de depositar");
+    } else {
+      descriptions.push("Deposita cristales con mayor frecuencia");
+    }
+  }
+
+  return descriptions;
+}
+
+function getBotAiDiff() {
+  const diffs = [];
+  const fieldLabels = {
+    "motivations.attack": "Agresividad en combate (Ataque)",
+    "motivations.defense": "Instinto defensivo (Defensa)",
+    "motivations.score": "Enfoque en objetivos (Puntuación)",
+    "dashIntervals.attack": "Impulso dash en combate",
+    "dashIntervals.defense": "Impulso dash defensivo",
+    "dashIntervals.score": "Impulso dash objetivo",
+    "skillIntervals.attack": "Intervalo habilidad ataque",
+    "skillIntervals.heal": "Intervalo habilidad curación",
+    "skillIntervals.buff": "Intervalo habilidad mejora",
+    "skillIntervals.trap": "Intervalo habilidad trampa",
+    "skillIntervals.warp": "Intervalo habilidad warp",
+    "healDamageRate": "Umbral de daño para curar",
+    "canLockon": "Permitir fijar blanco",
+    "scoreToDeposit": "Cristales para depositar"
+  };
+
+  for (const key of Object.keys(state.botAi.drafts)) {
+    const [mode, profName] = key.split("/");
+    const draft = state.botAi.drafts[key];
+    const pristine = getPristineBotAiProfile(mode, profName);
+    if (!pristine) continue;
+
+    const changes = [];
+    for (const prop of ["attack", "defense", "score"]) {
+      if (draft.motivations[prop] !== pristine.motivations[prop]) {
+        changes.push({
+          label: fieldLabels["motivations." + prop],
+          oldVal: pristine.motivations[prop],
+          newVal: draft.motivations[prop]
+        });
+      }
+    }
+    for (const prop of ["attack", "defense", "score"]) {
+      if (draft.dashIntervals[prop] !== pristine.dashIntervals[prop]) {
+        changes.push({
+          label: fieldLabels["dashIntervals." + prop],
+          oldVal: pristine.dashIntervals[prop] + "s",
+          newVal: draft.dashIntervals[prop] + "s"
+        });
+      }
+    }
+    for (const prop of ["attack", "heal", "buff", "trap", "warp"]) {
+      if (draft.skillIntervals[prop] !== pristine.skillIntervals[prop]) {
+        changes.push({
+          label: fieldLabels["skillIntervals." + prop],
+          oldVal: pristine.skillIntervals[prop] + "s",
+          newVal: draft.skillIntervals[prop] + "s"
+        });
+      }
+    }
+    if (draft.healDamageRate !== pristine.healDamageRate) {
+      changes.push({
+        label: fieldLabels["healDamageRate"],
+        oldVal: Math.round(pristine.healDamageRate * 100) + "%",
+        newVal: Math.round(draft.healDamageRate * 100) + "%"
+      });
+    }
+    if (draft.canLockon !== pristine.canLockon) {
+      changes.push({
+        label: fieldLabels["canLockon"],
+        oldVal: pristine.canLockon ? "Sí" : "No",
+        newVal: draft.canLockon ? "Sí" : "No"
+      });
+    }
+    if (draft.scoreToDeposit !== pristine.scoreToDeposit) {
+      changes.push({
+        label: fieldLabels["scoreToDeposit"],
+        oldVal: pristine.scoreToDeposit,
+        newVal: draft.scoreToDeposit
+      });
+    }
+
+    if (changes.length > 0) {
+      const modeObj = BOT_AI_MODES.find(m => m.id === mode);
+      const roleMeta = BOT_AI_ROLE_FAMILIES[profName] || { title: profName };
+      diffs.push({
+        mode: modeObj ? modeObj.name : mode,
+        profile: roleMeta.title,
+        key: key,
+        changes: changes,
+        behaviors: deriveFriendlyBehaviors(draft, pristine, mode)
+      });
+    }
+  }
+  return diffs;
+}
+
+function showBotAiReviewModal() {
+  const diffs = getBotAiDiff();
+  if (diffs.length === 0) return;
+
+  const existing = document.getElementById("botAiReviewModal");
+  if (existing) existing.remove();
+
+  const backdrop = el("div", { id: "botAiReviewModal", class: "bot-ai-modal-backdrop" });
+  const modal = el("div", { class: "bot-ai-modal" });
+
+  const head = el("div", { class: "bot-ai-modal-head" });
+  head.appendChild(el("span", null, "📋 Guardar cambios en el servidor"));
+  const closeBtn = el("button", { type: "button", class: "mini" }, "✕");
+  closeBtn.addEventListener("click", function () { backdrop.remove(); });
+  head.appendChild(closeBtn);
+  modal.appendChild(head);
+
+  const body = el("div", { class: "bot-ai-modal-body" });
+  body.appendChild(el("p", { class: "bot-ai-notice info" },
+    "Revisa los cambios. Al guardar quedarán en el servidor para las nuevas partidas."));
+
+  for (const d of diffs) {
+    const card = el("div", { class: "bot-ai-card", style: "margin-bottom:12px; padding:12px;" });
+    const title = el("h4", { style: "margin:0 0 6px; font-size:13px; color:var(--accent);" },
+      d.mode + " · " + d.profile);
+    card.appendChild(title);
+
+    // Optionally selected intent
+    const activePresetId = state.botAi.activePresets && state.botAi.activePresets[d.key];
+    const activePreset = activePresetId ? BOT_AI_INTENT_PRESETS.find(p => p.id === activePresetId) : null;
+    if (activePreset) {
+      const intentBox = el("div", {
+        style: "display:inline-flex; align-items:center; gap:6px; font-size:11px; padding:3px 8px; border-radius:4px; background:var(--bg); border:1px solid var(--line); margin-bottom:8px; color:var(--fg2);"
+      });
+      intentBox.appendChild(el("span", null, activePreset.icon || "🎯"));
+      intentBox.appendChild(el("span", null, "Intención: "));
+      intentBox.appendChild(el("strong", { style: "color:var(--accent);" }, activePreset.title));
+      card.appendChild(intentBox);
+    }
+
+    // Default friendly per-profile behavior descriptions (derived from actual before/after)
+    if (d.behaviors && d.behaviors.length > 0) {
+      const behaviorList = el("ul", {
+        class: "bot-ai-review-behavior-list",
+        style: "margin:0 0 10px; padding-left:18px; font-size:12px; color:var(--fg); line-height:1.5;"
+      });
+      for (const b of d.behaviors) {
+        behaviorList.appendChild(el("li", null, b));
+      }
+      card.appendChild(behaviorList);
+    }
+
+    // Optional numeric detail disclosure: ALL raw numeric rows ONLY inside here!
+    const numDetails = el("details", { class: "bot-ai-modal-diff-details", style: "font-size:11px; margin-top:6px;" });
+    numDetails.appendChild(el("summary", { style: "cursor:pointer; color:var(--fg2); margin-bottom:6px; font-weight:500;" }, "Ver detalle de valores numéricos"));
+
+    const table = el("table", { class: "htable" });
+    const thead = el("thead");
+    const trh = el("tr");
+    trh.appendChild(el("th", null, "Parámetro"));
+    trh.appendChild(el("th", null, "Valor anterior"));
+    trh.appendChild(el("th", null, "Nuevo valor"));
+    thead.appendChild(trh);
+    table.appendChild(thead);
+
+    const tbody = el("tbody");
+    for (const c of d.changes) {
+      const tr = el("tr");
+      tr.appendChild(el("td", null, c.label));
+      tr.appendChild(el("td", { style: "color:var(--fg2);" }, String(c.oldVal)));
+      tr.appendChild(el("td", { style: "color:var(--ok); font-weight:600;" }, String(c.newVal)));
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    numDetails.appendChild(table);
+    card.appendChild(numDetails);
+
+    body.appendChild(card);
+  }
+  modal.appendChild(body);
+
+  const foot = el("div", { class: "bot-ai-modal-foot" });
+  const cancelBtn = el("button", { type: "button", class: "bot-ai-btn secondary" }, "Cancelar");
+  cancelBtn.addEventListener("click", function () { backdrop.remove(); });
+  foot.appendChild(cancelBtn);
+
+  const confirmBtn = el("button", { type: "button", class: "bot-ai-btn primary" }, "Guardar en servidor");
+  confirmBtn.addEventListener("click", async function () {
+    backdrop.remove();
+    await saveBotAiProfiles();
+  });
+  foot.appendChild(confirmBtn);
+
+  modal.appendChild(foot);
+  backdrop.appendChild(modal);
+  document.body.appendChild(backdrop);
+}
+
+function showBotAiConflictModal(errMessage) {
+  const existing = document.getElementById("botAiConflictModal");
+  if (existing) existing.remove();
+
+  const backdrop = el("div", { id: "botAiConflictModal", class: "bot-ai-modal-backdrop" });
+  const modal = el("div", { class: "bot-ai-modal" });
+
+  const head = el("div", { class: "bot-ai-modal-head", style: "border-color:var(--dirty);" });
+  head.appendChild(el("span", { style: "color:var(--dirty);" }, "⚠️ Conflicto de Concurrencia (409)"));
+  modal.appendChild(head);
+
+  const body = el("div", { class: "bot-ai-modal-body" });
+  body.appendChild(el("p", { class: "bot-ai-notice warn" },
+    errMessage || "El archivo de configuración fue modificado externamente en el disco por otro proceso o usuario. Para evitar sobrescribir cambios ajenos, tu guardado ha sido detenido."));
+  body.appendChild(el("p", null,
+    "Tus borradores locales se conservan en memoria. Puedes recargar la versión actual del servidor para actualizar la base manteniendo tus cambios pendientes."));
+  modal.appendChild(body);
+
+  const foot = el("div", { class: "bot-ai-modal-foot" });
+  const cancelBtn = el("button", { type: "button", class: "bot-ai-btn secondary" }, "Cerrar y conservar borrador");
+  cancelBtn.addEventListener("click", function () { backdrop.remove(); });
+  foot.appendChild(cancelBtn);
+
+  const reloadBtn = el("button", { type: "button", class: "bot-ai-btn primary" }, "Recargar del servidor");
+  reloadBtn.addEventListener("click", async function () {
+    backdrop.remove();
+    await loadBotAiProfiles(true);
+  });
+  foot.appendChild(reloadBtn);
+
+  modal.appendChild(foot);
+  backdrop.appendChild(modal);
+  document.body.appendChild(backdrop);
+}
+
+async function saveBotAiProfiles() {
+  const diffs = getBotAiDiff();
+  if (diffs.length === 0) return;
+
+  state.botAi.saving = true;
+  updateBotAiDirtyState();
+
+  const combined = state.botAi.rawProfiles.map(p => {
+    const key = p.mode + "/" + p.profile;
+    return state.botAi.drafts[key] ? JSON.parse(JSON.stringify(state.botAi.drafts[key])) : JSON.parse(JSON.stringify(p));
+  });
+
+  const payload = {
+    version: 1,
+    $schema: "./bot_ai_profiles.schema.json",
+    profiles: combined,
+    expectedHash: state.botAi.hash
+  };
+
+  try {
+    const res = await fetch(balanceUrl("/api/bot-ai/profiles"), {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.status === 409) {
+      const errJson = await res.json().catch(() => ({}));
+      state.botAi.saving = false;
+      showBotAiConflictModal(errJson.error);
+      return;
+    }
+
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson.error || ("HTTP " + res.status));
+    }
+
+    const result = await res.json();
+    state.botAi.hash = result.hash;
+    state.botAi.revision = result.revision;
+    state.botAi.rawProfiles = combined;
+    state.botAi.drafts = {};
+    state.botAi.saving = false;
+
+    showToast("✓ Configuración de IA de bots guardada exitosamente en el servidor.");
+    renderBotAiList();
+    renderBotAiPanel(document.getElementById("panel"));
+  } catch (err) {
+    state.botAi.saving = false;
+    alert("Error al guardar: " + err.message);
+    updateBotAiDirtyState();
+  }
+}
+
+function renderBotAiList() {
+  const list = document.getElementById("list");
+  if (!list) return;
+  clear(list);
+
+  if (state.botAi.loading) {
+    list.appendChild(el("li", { class: "count" }, "Cargando perfiles..."));
+    return;
+  }
+  if (state.botAi.error) {
+    list.appendChild(el("li", { class: "count", style: "color:var(--err);" }, "Error al cargar"));
+    return;
+  }
+
+  const dirtyCount = Object.keys(state.botAi.drafts).length;
+  const modeObj = BOT_AI_MODES.find(m => m.id === state.botAi.selectedMode);
+  const countText = "13 perfiles (" + (modeObj?.name || state.botAi.selectedMode) + ")" +
+    (dirtyCount > 0 ? " · " + dirtyCount + " modificado(s)" : "");
+  list.appendChild(el("li", { class: "count" }, countText));
+
+  for (const profKey of Object.keys(BOT_AI_ROLE_FAMILIES)) {
+    const meta = BOT_AI_ROLE_FAMILIES[profKey];
+    const isDirty = isBotAiProfileDirty(state.botAi.selectedMode, profKey);
+    const isSelected = state.botAi.selectedProfile === profKey;
+
+    const li = el("li", { class: "bot-ai-sidebar-item" + (isSelected ? " sel" : "") });
+    li.appendChild(iconFor("kicker", meta.templateKicker, 32));
+
+    const metaBox = el("div", { style: "flex:1; min-width:0;" });
+    const nm = el("div", { style: "font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" }, meta.title);
+    const sub = el("div", { class: "sub", style: "white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" },
+      meta.kickers.map(k => k.name).join(", "));
+    metaBox.appendChild(nm);
+    metaBox.appendChild(sub);
+    li.appendChild(metaBox);
+
+    if (isDirty) {
+      li.appendChild(el("span", { class: "dot", title: "Borrador con cambios sin guardar" }));
+    }
+
+    li.addEventListener("click", function () {
+      state.botAi.selectedProfile = profKey;
+      renderBotAiList();
+      renderBotAiPanel(document.getElementById("panel"));
+    });
+    list.appendChild(li);
+  }
+}
+
+function renderBotAiPanel(panel) {
+  clear(panel);
+
+  if (state.botAi.loading) {
+    panel.appendChild(el("p", { class: "empty" }, "Cargando perfiles de IA de bots desde el servidor..."));
+    return;
+  }
+  if (state.botAi.error) {
+    const errBox = el("div", { class: "bot-ai-container" });
+    errBox.appendChild(el("div", { class: "bot-ai-notice warn" }, "⚠️ " + state.botAi.error));
+    const retryBtn = el("button", { type: "button", class: "bot-ai-btn primary" }, "Reintentar carga");
+    retryBtn.addEventListener("click", function () { loadBotAiProfiles(true); });
+    errBox.appendChild(retryBtn);
+    panel.appendChild(errBox);
+    return;
+  }
+  if (!state.botAi.loaded) {
+    loadBotAiProfiles();
+    panel.appendChild(el("p", { class: "empty" }, "Iniciando editor de IA de bots..."));
+    return;
+  }
+
+  const container = el("div", { class: "bot-ai-container" });
+
+  // 1. Mode Selector: Compact 3-column segmented control (Cristales / Bandera / Balón)
+  const modeSeg = el("div", { class: "bot-ai-modes-segmented", role: "tablist", "aria-label": "Modo de juego" });
+  for (const m of BOT_AI_MODES) {
+    const isActive = state.botAi.selectedMode === m.id;
+    const btn = el("button", {
+      type: "button",
+      class: "bot-ai-mode-seg" + (isActive ? " active" : ""),
+      "aria-selected": isActive ? "true" : "false"
+    }, m.icon + " " + m.name);
+    btn.addEventListener("click", function () {
+      if (state.botAi.selectedMode !== m.id) {
+        state.botAi.selectedMode = m.id;
+        renderBotAiList();
+        renderBotAiPanel(panel);
+      }
+    });
+    modeSeg.appendChild(btn);
+  }
+  container.appendChild(modeSeg);
+
+  // Active Profile Data
+  const curMode = state.botAi.selectedMode;
+  const curProfKey = state.botAi.selectedProfile;
+  const roleMeta = BOT_AI_ROLE_FAMILIES[curProfKey] || { title: curProfKey, family: "General", desc: "", kickers: [] };
+  const profile = getActiveBotAiProfile(curMode, curProfKey);
+
+  if (!profile) {
+    container.appendChild(el("p", { class: "empty" }, "No se encontró el perfil seleccionado en este modo."));
+    panel.appendChild(container);
+    return;
+  }
+
+  const isDirty = isBotAiProfileDirty(curMode, curProfKey);
+
+  // 2. Profile Selection: Mobile Native Select Picker
+  const mobilePicker = el("div", { class: "bot-ai-mobile-picker" });
+  mobilePicker.appendChild(el("label", { for: "botAiProfileSelect", class: "bot-ai-picker-label" }, "Perfil a editar:"));
+  const pickerRow = el("div", { class: "bot-ai-picker-row" });
+  pickerRow.appendChild(iconFor("kicker", roleMeta.templateKicker, 32));
+  const select = el("select", { id: "botAiProfileSelect", class: "bot-ai-select", "aria-label": "Seleccionar perfil de bot" });
+  for (const pk of Object.keys(BOT_AI_ROLE_FAMILIES)) {
+    const meta = BOT_AI_ROLE_FAMILIES[pk];
+    const opt = el("option", { value: pk });
+    const isD = isBotAiProfileDirty(curMode, pk);
+    const names = meta.kickers.map(k => k.name).join(", ");
+    opt.textContent = meta.title + " (" + names + ")" + (isD ? " •" : "");
+    if (pk === curProfKey) opt.selected = true;
+    select.appendChild(opt);
+  }
+  select.addEventListener("change", function () {
+    state.botAi.selectedProfile = select.value;
+    renderBotAiList();
+    renderBotAiPanel(panel);
+  });
+  pickerRow.appendChild(select);
+  mobilePicker.appendChild(pickerRow);
+  container.appendChild(mobilePicker);
+
+  // Profile Header: Friendly sentence & compact Afecta a label with expandable explanation
+  const summaryHeader = el("div", { class: "bot-ai-profile-summary-header" });
+  const sumLeft = el("div", { style: "display:flex; align-items:center; gap:10px;" });
+  sumLeft.appendChild(iconFor("kicker", roleMeta.templateKicker, 38));
+  const sumTitles = el("div");
+  sumTitles.appendChild(el("div", { class: "bot-ai-profile-title" }, "Editando perfil: " + roleMeta.title));
+  const affectsNames = roleMeta.kickers.map(k => k.name).join(", ");
+  sumTitles.appendChild(el("div", { class: "bot-ai-affects-label" },
+    roleMeta.isSpecialized ? ("Personaje exclusivo: " + affectsNames) : ("Afecta a: " + affectsNames)));
+  sumLeft.appendChild(sumTitles);
+  summaryHeader.appendChild(sumLeft);
+
+  const dirtyBadge = el("span", { id: "botAiProfileDirtyBadge", class: "badge dirty", style: isDirty ? "" : "display:none;" }, "Borrador modificado");
+  summaryHeader.appendChild(dirtyBadge);
+
+  if (!roleMeta.isSpecialized) {
+    const sharedDetails = el("details", { class: "bot-ai-shared-details" });
+    sharedDetails.appendChild(el("summary", null, "¿Por qué afecta a varios kickers?"));
+    sharedDetails.appendChild(el("p", null, "En KickFlight, los kickers de este rol comparten la misma plantilla de IA base. Cualquier ajuste realizado aquí se aplicará a todos ellos al jugar con bots."));
+    summaryHeader.appendChild(sharedDetails);
+  }
+  container.appendChild(summaryHeader);
+
+  // 3. Heading & Subheading: "¿Qué quieres que haga?"
+  const headingBox = el("div", { class: "bot-ai-heading-box" });
+  headingBox.appendChild(el("h2", { class: "bot-ai-heading" }, "🎯 ¿Qué quieres que haga?"));
+  headingBox.appendChild(el("p", { class: "bot-ai-subheading" }, "Selecciona una intención para aplicar una recomendación rápida y editable:"));
+  container.appendChild(headingBox);
+
+  // 4. Intent Choices: 5 Compact, Colorful Intent Cards
+  const intentGrid = el("div", { class: "bot-ai-intent-grid" });
+  const activePresetId = detectActivePreset(profile, curMode, curProfKey);
+
+  for (const pr of BOT_AI_INTENT_PRESETS) {
+    const isSelected = activePresetId === pr.id;
+    const card = el("button", {
+      type: "button",
+      class: "bot-ai-intent-card " + pr.theme + (isSelected ? " selected" : ""),
+      "aria-pressed": isSelected ? "true" : "false"
+    });
+
+    const topRow = el("div", { class: "bot-ai-intent-top" });
+    const iconTitle = el("div", { class: "bot-ai-intent-icon-title" });
+    iconTitle.appendChild(el("span", { class: "bot-ai-intent-icon" }, pr.icon));
+    iconTitle.appendChild(el("span", { class: "bot-ai-intent-title" }, pr.title));
+    topRow.appendChild(iconTitle);
+
+    if (isSelected) {
+      topRow.appendChild(el("span", { class: "bot-ai-intent-badge" }, "✓ Activo"));
+    }
+    card.appendChild(topRow);
+
+    const summaryText = getPresetSummary(pr, curMode);
+    card.appendChild(el("div", { class: "bot-ai-intent-summary" }, summaryText));
+
+    if (pr.nativeLimit) {
+      card.appendChild(el("div", { class: "bot-ai-intent-subnote" }, pr.nativeLimit));
+    }
+
+    card.addEventListener("click", function () {
+      applyBotAiPreset(curMode, curProfKey, pr.id);
+    });
+    intentGrid.appendChild(card);
+  }
+  container.appendChild(intentGrid);
+
+  // Plain language behavior summary
+  const activeObj = BOT_AI_INTENT_PRESETS.find(p => p.id === activePresetId);
+  if (activeObj) {
+    const feedback = el("div", { class: "bot-ai-preset-feedback" });
+    feedback.innerHTML = "Comportamiento seleccionado: <strong>" + activeObj.title + "</strong> — " + activeObj.behaviorDesc;
+    container.appendChild(feedback);
+  }
+
+  // 5. Customization: Advanced collapsible includes numeric fields; beginners don't need sliders
+  const customDetails = el("details", { class: "bot-ai-custom-details" });
+  customDetails.appendChild(el("summary", null, "🛠️ Ajustes avanzados de comportamiento (opcional)"));
+  const customBody = el("div", { class: "bot-ai-custom-body" });
+  const grid = el("div", { class: "bot-ai-controls-grid" });
+
+  function createSlider(label, help, val, min, max, step, unit, onChange) {
+    const field = el("div", { class: "bot-ai-field" });
+    const fhead = el("div", { class: "bot-ai-field-head" });
+    fhead.appendChild(el("span", { class: "bot-ai-field-label" }, label));
+    const valDisplay = el("span", { class: "bot-ai-field-val" }, String(val) + (unit || ""));
+    fhead.appendChild(valDisplay);
+    field.appendChild(fhead);
+
+    const slider = el("input", {
+      type: "range",
+      class: "bot-ai-slider",
+      min: String(min),
+      max: String(max),
+      step: String(step),
+      value: String(val)
+    });
+    slider.addEventListener("input", function () {
+      const numVal = step < 1 ? parseFloat(slider.value) : parseInt(slider.value, 10);
+      valDisplay.textContent = String(numVal) + (unit || "");
+      onChange(numVal);
+    });
+    field.appendChild(slider);
+    field.appendChild(el("div", { class: "bot-ai-field-help" }, help));
+    return field;
+  }
+
+  // Motivations
+  grid.appendChild(createSlider("⚔️ Agresividad en combate (Ataque)", "¿Cuánto prioriza buscar y combatir rivales?",
+    profile.motivations.attack, 0, 100, 1, "", function (v) { setBotAiField(curMode, curProfKey, "motivations", "attack", v); }));
+
+  grid.appendChild(createSlider("🛡️ Instinto defensivo (Defensa)", "¿Cuánto prioriza replegarse o vigilar áreas?",
+    profile.motivations.defense, 0, 100, 1, "", function (v) { setBotAiField(curMode, curProfKey, "motivations", "defense", v); }));
+
+  grid.appendChild(createSlider("💎 Enfoque en objetivo (Puntuación)", "¿Cuánto prioriza recolectar cristales o avanzar con el balón?",
+    profile.motivations.score, 0, 100, 1, "", function (v) { setBotAiField(curMode, curProfKey, "motivations", "score", v); }));
+
+  // Dash Intervals
+  grid.appendChild(createSlider("Frecuencia impulso dash en ataque", "Segundos entre impulsos ofensivos (menor = más frecuente).",
+    profile.dashIntervals.attack, 0.3, 2.5, 0.1, "s", function (v) { setBotAiField(curMode, curProfKey, "dashIntervals", "attack", v); }));
+
+  grid.appendChild(createSlider("Frecuencia impulso dash en defensa", "Segundos entre impulsos defensivos.",
+    profile.dashIntervals.defense, 0.3, 2.5, 0.1, "s", function (v) { setBotAiField(curMode, curProfKey, "dashIntervals", "defense", v); }));
+
+  grid.appendChild(createSlider("Frecuencia impulso dash hacia objetivo", "Segundos entre impulsos hacia cristales o balón.",
+    profile.dashIntervals.score, 0.3, 2.5, 0.1, "s", function (v) { setBotAiField(curMode, curProfKey, "dashIntervals", "score", v); }));
+
+  // Skill Intervals
+  grid.appendChild(createSlider("Intervalo habilidad de ataque", "Enfriamiento entre usos de habilidades ofensivas.",
+    profile.skillIntervals.attack, 1.0, 10.0, 0.5, "s", function (v) { setBotAiField(curMode, curProfKey, "skillIntervals", "attack", v); }));
+
+  grid.appendChild(createSlider("Intervalo habilidad curativa", "Enfriamiento entre usos de curaciones.",
+    profile.skillIntervals.heal, 1.0, 10.0, 0.5, "s", function (v) { setBotAiField(curMode, curProfKey, "skillIntervals", "heal", v); }));
+
+  grid.appendChild(createSlider("Intervalo habilidad potenciadora (Buff)", "Enfriamiento entre potenciadores de equipo.",
+    profile.skillIntervals.buff, 1.0, 10.0, 0.5, "s", function (v) { setBotAiField(curMode, curProfKey, "skillIntervals", "buff", v); }));
+
+  grid.appendChild(createSlider("Intervalo habilidad de trampas", "Enfriamiento entre colocación de trampas.",
+    profile.skillIntervals.trap, 1.0, 10.0, 0.5, "s", function (v) { setBotAiField(curMode, curProfKey, "skillIntervals", "trap", v); }));
+
+  grid.appendChild(createSlider("Intervalo teletransporte (Warp)", "Enfriamiento entre saltos o transportes.",
+    profile.skillIntervals.warp, 1.0, 10.0, 0.5, "s", function (v) { setBotAiField(curMode, curProfKey, "skillIntervals", "warp", v); }));
+
+  // Health and Target Decision
+  grid.appendChild(createSlider("Umbral de daño para curar", "Porcentaje de vida perdida para activar curación personal.",
+    Math.round(profile.healDamageRate * 100), 10, 90, 5, "%", function (v) { setBotAiField(curMode, curProfKey, null, "healDamageRate", v / 100); }));
+
+  // Can Lockon
+  const lockonField = el("div", { class: "bot-ai-field" });
+  const lockonHead = el("div", { class: "bot-ai-field-head" });
+  lockonHead.appendChild(el("span", { class: "bot-ai-field-label" }, "Permitir fijar blanco"));
+  const lockonVal = el("span", { class: "bot-ai-field-val" }, profile.canLockon ? "Activado" : "Desactivado");
+  lockonHead.appendChild(lockonVal);
+  lockonField.appendChild(lockonHead);
+
+  const lockonCheck = el("input", { type: "checkbox", style: "width:18px; height:18px; cursor:pointer;" });
+  lockonCheck.checked = !!profile.canLockon;
+  lockonCheck.addEventListener("change", function () {
+    lockonVal.textContent = lockonCheck.checked ? "Activado" : "Desactivado";
+    setBotAiField(curMode, curProfKey, null, "canLockon", lockonCheck.checked);
+  });
+  lockonField.appendChild(lockonCheck);
+  lockonField.appendChild(el("div", { class: "bot-ai-field-help" }, "Habilita si el bot puede fijar la mira automáticamente en rivales."));
+  grid.appendChild(lockonField);
+
+  // Score to deposit (Hidden in FlagFlight)
+  if (curMode !== "FlagFlight") {
+    grid.appendChild(createSlider("Cristales para depositar", "Cantidad de cristales requerida para acudir al guardián.",
+      profile.scoreToDeposit, 1, 20, 1, "", function (v) { setBotAiField(curMode, curProfKey, null, "scoreToDeposit", v); }));
+  }
+
+  // Low HP Deposit Threshold (Read-only contextual note)
+  const lowHpField = el("div", { class: "bot-ai-field locked" });
+  const lowHpHead = el("div", { class: "bot-ai-field-head" });
+  lowHpHead.appendChild(el("span", { class: "bot-ai-field-label" }, "Umbral de vida para huir / depositar"));
+  lowHpHead.appendChild(el("span", { class: "bot-ai-field-val" }, "35% (Fijo nativo)"));
+  lowHpField.appendChild(lowHpHead);
+  lowHpField.appendChild(el("div", { class: "bot-ai-field-help", style: "color:#ffd285;" },
+    "⚠️ Límite nativo: El ejecutable cliente de KickFlight tiene este valor compilado estrictamente al 35%. No es modificable desde el servidor porque el cliente ignora valores distintos."));
+  grid.appendChild(lowHpField);
+
+  customBody.appendChild(grid);
+  customDetails.appendChild(customBody);
+  container.appendChild(customDetails);
+
+  // 6. How changes apply disclosure (Friendly language, no technical jargon)
+  const applyDisclosure = el("details", { class: "bot-ai-disclosure" });
+  applyDisclosure.appendChild(el("summary", null, "ℹ️ ¿Cómo se aplican estos cambios?"));
+  const applyBody = el("div", { class: "bot-ai-disclosure-body" });
+  applyBody.appendChild(el("p", { style: "margin:0 0 6px;" },
+    "Los cambios se guardan directamente en el servidor y se aplican a todas las nuevas partidas creadas a partir de ese momento."));
+  applyBody.appendChild(el("p", { style: "margin:0; font-size:11px; color:var(--fg2);" },
+    "El cliente del juego descarga automáticamente los parámetros de IA actualizados al iniciar partida. No es necesario reiniciar el servidor."));
+  applyDisclosure.appendChild(applyBody);
+  container.appendChild(applyDisclosure);
+
+  // 7. Technical parameters disclosure
+  const adv = el("details", { class: "bot-ai-advanced" });
+  adv.appendChild(el("summary", null, "⚙️ Parámetros técnicos nativos"));
+  const advBody = el("div", { class: "bot-ai-advanced-body" });
+  const rawGrid = el("div", { class: "bot-ai-raw-grid" });
+  rawGrid.appendChild(el("div", null, "Identificador de parámetro: " + profile.parameterId));
+  rawGrid.appendChild(el("div", null, "Kicker ID: " + profile.kickerId));
+  rawGrid.appendChild(el("div", null, "Disfraz ID: " + profile.kickerCostumeId));
+  rawGrid.appendChild(el("div", null, "Rango: " + profile.rank));
+  rawGrid.appendChild(el("div", null, "Umbral huida vida baja: " + profile.lowHpDepositThreshold));
+  advBody.appendChild(rawGrid);
+  adv.appendChild(advBody);
+  container.appendChild(adv);
+
+  // 8. Persistent Bottom Save Bar
+  const dirtyCount = Object.keys(state.botAi.drafts).length;
+  const actionBar = el("div", { class: "bot-ai-action-bar" });
+
+  const leftActions = el("div", { style: "display:flex; align-items:center; gap:10px;" });
+  const discardBtn = el("button", {
+    type: "button",
+    id: "botAiDiscardBtn",
+    class: "bot-ai-btn danger"
+  }, "Descartar cambios");
+  discardBtn.disabled = !isDirty;
+  discardBtn.addEventListener("click", function () {
+    discardBotAiDraft(curMode, curProfKey);
+  });
+  leftActions.appendChild(discardBtn);
+  actionBar.appendChild(leftActions);
+
+  const rightActions = el("div", { style: "display:flex; align-items:center; gap:12px;" });
+  if (dirtyCount > 0) {
+    rightActions.appendChild(el("span", { style: "font-size:12px; color:var(--dirty); font-weight:600;" },
+      dirtyCount + " perfil(es) modificado(s)"));
+  }
+  const saveBtn = el("button", {
+    type: "button",
+    id: "botAiSaveBtn",
+    class: "bot-ai-btn primary"
+  }, state.botAi.saving ? "Guardando..." : "Guardar cambios" + (dirtyCount > 0 ? " (" + dirtyCount + ")" : ""));
+  saveBtn.disabled = dirtyCount === 0 || state.botAi.saving;
+  saveBtn.addEventListener("click", function () {
+    showBotAiReviewModal();
+  });
+  rightActions.appendChild(saveBtn);
+  actionBar.appendChild(rightActions);
+
+  container.appendChild(actionBar);
+  panel.appendChild(container);
+}
+
+
 /* -------------------------------------------------------------------- boot */
 
 function wireEvents() {
@@ -2138,9 +3639,25 @@ function wireEvents() {
       state.tab = button.dataset.tab;
       for (const other of tabs) other.classList.toggle("on", other === button);
       document.getElementById("filters").style.display =
-        state.tab === "maintenance" || state.tab === "latest-information" || state.tab === "health" ? "none" : "flex";
+        state.tab === "maintenance" || state.tab === "latest-information" || state.tab === "health" || state.tab === "bot-ai" ? "none" : "flex";
       document.getElementById("discFilters").style.display =
         state.tab === "discs" ? "block" : "none";
+      const foot = document.getElementById("foot");
+      if (foot) {
+        foot.style.display = (state.tab === "kickers" || state.tab === "discs" || state.tab === "text") ? "block" : "none";
+      }
+      document.body.classList.toggle("tab-bot-ai", state.tab === "bot-ai");
+      const topHint = document.getElementById("topHint");
+      if (topHint) {
+        if (state.tab === "bot-ai") {
+          topHint.textContent = "Se guardan en el servidor para nuevas partidas.";
+        } else {
+          topHint.innerHTML = "saves write <code>.local/masters-overrides</code> (never <code>config/</code>) &mdash; restart the API to load them";
+        }
+      }
+      if (state.tab === "bot-ai" && !state.botAi.loaded && !state.botAi.loading) {
+        loadBotAiProfiles();
+      }
       renderList();
       renderPanel();
       refreshDirty();
