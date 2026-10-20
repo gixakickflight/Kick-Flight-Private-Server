@@ -318,7 +318,7 @@ if [[ -f "$app_dir/docs/updates-page.html" && -f "$release_dir/scripts/update-la
   python3 "$release_dir/scripts/update-latest-information.py" \
     --state-file "$app_dir/.local/maintenance/latest-information.json" \
     --source-docs "$app_dir/docs/updates-page.html" \
-    --article-id "v2-11-4" \
+    --article-id "v2-11-5" \
     --backup-dir "$app_dir/.local/updates-backups" \
     --record-backup-path "$ci_info_backup"
 fi
@@ -416,6 +416,14 @@ if [[ "$sync_site" == true ]]; then
     [[ "$actual_updates" == "$expected_updates" ]] || { echo "served standalone updates checksum does not match deploy/site/updates-2.11.4.html" >&2; exit 1; }
   fi
 
+  if [[ -f "$app_dir/deploy/site/updates-2.11.5.html" ]]; then
+    expected_updates=$(sha256sum "$app_dir/deploy/site/updates-2.11.5.html" | cut -d ' ' -f 1)
+    curl --fail --silent --show-error --max-time 30 "http://127.0.0.1:$http_port/updates-2.11.5.html" -o "$smoke_file"
+    actual_updates=$(sha256sum "$smoke_file" | cut -d ' ' -f 1)
+    rm -f -- "$smoke_file"
+    [[ "$actual_updates" == "$expected_updates" ]] || { echo "served standalone updates checksum does not match deploy/site/updates-2.11.5.html" >&2; exit 1; }
+  fi
+
   if [[ -f "$app_dir/.local/maintenance/latest-information.json" ]]; then
     python3 - "$http_port" <<'PY'
 import re
@@ -434,7 +442,7 @@ for path in ("/webview/information/index", "/updates"):
     masked = re.sub(r'<script\b[^>]*>[\s\S]*?</script>', lambda m: ' ' * len(m.group(0)), masked, flags=re.IGNORECASE)
     masked = re.sub(r'<style\b[^>]*>[\s\S]*?</style>', lambda m: ' ' * len(m.group(0)), masked, flags=re.IGNORECASE)
     visible_articles = re.findall(r'<article[^>]*\bid=["\']([^"\']+)["\']', masked)
-    expected_articles = ["v2-11-4", "matchmaking-roles-2026-10-19", "v2-11-3", "v2-11-2"]
+    expected_articles = ["v2-11-5", "v2-11-4", "matchmaking-roles-2026-10-19", "v2-11-3"]
     if not visible_articles or visible_articles[:4] != expected_articles:
         raise SystemExit(
             f"Smoke check failed on {path}: visible articles are {visible_articles}, expected starting with {expected_articles}"
