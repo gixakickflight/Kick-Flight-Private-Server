@@ -1,0 +1,75 @@
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> PROGRAM=libil2cpp.so
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> LANGUAGE=AARCH64:LE:64:v8A
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> IMAGE_BASE=00100000
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> ENTRY=01738520
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> RVA=1638520
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> GHIDRA_ADDRESS=01738520
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> FILE_OFFSET_EXPECTED=1638520
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> FUNCTION=Colorful_DiscParameterUtil_CalcCoefficient
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> FUNCTION_ENTRY=01738520
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> FUNCTION_BODY=[[01738520, 01738617]]
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738520 stp d11
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738524 stp d9
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738528 str x21
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 0173852c stp x20
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738530 stp x29
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738534 add x29
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738538 adrp x21
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 0173853c ldrb w8
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738540 mov x19
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738544 mov x20
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738548 tbnz w8
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 0173854c adrp x8
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738550 ldr x8
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738554 ldr w0
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738558 bl 0x012e9e10
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 0173855c mov w8
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738560 strb w8
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738564 cbz x19
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738568 cbz x20
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 0173856c ldp s10
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738570 mov v8.16B
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738574 b 0x017385c0
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738578 ldp x29
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 0173857c ldp x20
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738580 ldr x21
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738584 ldp d9
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738588 mov w0
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 0173858c ldp d11
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738590 ret <UNSUPPORTED>
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738594 mov x0
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738598 bl 0x013141ec
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 0173859c mov w20
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 017385a0 ldr s8
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 017385a4 mov x0
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 017385a8 bl 0x013141ec
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 017385ac mov w8
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 017385b0 ldr s9
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 017385b4 mov x0
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 017385b8 bl 0x013141ec
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 017385bc ldr s10
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 017385c0 adrp x8
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 017385c4 ldr x8
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 017385c8 ldr s11
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 017385cc ldr x0
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 017385d0 ldrb w8
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 017385d4 tbz w8
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 017385d8 ldr w8
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 017385dc cbnz w8
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 017385e0 bl 0x012f7160
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 017385e4 adrp x8
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 017385e8 ldr s0
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 017385ec fsub s1
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 017385f0 fmul s1
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 017385f4 ldp x29
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 017385f8 fdiv s0
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 017385fc fadd s0
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738600 ldp x20
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738604 ldr x21
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738608 ldp d9
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 0173860c mov x0
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738610 ldp d11
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> INSN 01738614 b 0x024e7d20
+2026-10-08 01:32:22 INFO  InspectCalcCoefficient.java> DIVISOR_ADDRESS=03326e40 BYTES=0000c842 FLOAT=100.0
+2026-10-08 01:32:23 INFO  InspectCalcCoefficient.java> DECOMPILE_COMPLETED=true
+2026-10-08 01:32:23 INFO  InspectCalcCoefficient.java> DECOMPILE_ERROR=

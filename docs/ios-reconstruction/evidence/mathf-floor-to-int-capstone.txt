@@ -1,0 +1,28 @@
+; UnityEngine.Mathf$$FloorToInt @ 0x23E7D20
+0x23E7D20  e80f1efc  str     d8, [sp, #-0x20]!
+0x23E7D24  f30700f9  str     x19, [sp, #8]
+0x23E7D28  fd7b01a9  stp     x29, x30, [sp, #0x10]
+0x23E7D2C  fd430091  add     x29, sp, #0x10
+0x23E7D30  73170190  adrp    x19, #0x46d3000
+0x23E7D34  680a4039  ldrb    w8, [x19, #2]
+0x23E7D38  081ca04e  mov     v8.16b, v0.16b
+0x23E7D3C  e8000037  tbnz    w8, #0, #0x23e7d58
+0x23E7D40  a80201d0  adrp    x8, #0x443d000
+0x23E7D44  08f941f9  ldr     x8, [x8, #0x3f0]    ; -> 0x443D3F0
+0x23E7D48  000140b9  ldr     w0, [x8]
+0x23E7D4C  3108b897  bl      #0x11e9e10
+0x23E7D50  e8030032  mov     w8, #1
+0x23E7D54  680a0039  strb    w8, [x19, #2]
+0x23E7D58  e80301f0  adrp    x8, #0x4466000
+0x23E7D5C  08fd47f9  ldr     x8, [x8, #0xff8]    ; -> 0x4466FF8
+0x23E7D60  000140f9  ldr     x0, [x8]
+0x23E7D64  089c4439  ldrb    w8, [x0, #0x127]
+0x23E7D68  88000836  tbz     w8, #1, #0x23e7d78
+0x23E7D6C  08d840b9  ldr     w8, [x0, #0xd8]
+0x23E7D70  48000035  cbnz    w8, #0x23e7d78
+0x23E7D74  fb3cb897  bl      #0x11f7160
+0x23E7D78  fd7b41a9  ldp     x29, x30, [sp, #0x10]
+0x23E7D7C  f30740f9  ldr     x19, [sp, #8]
+0x23E7D80  0001301e  fcvtms  w0, s8
+0x23E7D84  e80742fc  ldr     d8, [sp], #0x20
+0x23E7D88  c0035fd6  ret
