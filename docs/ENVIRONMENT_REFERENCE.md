@@ -121,8 +121,7 @@ idempotente. La versión aplicada queda en `schema_meta`.
 | --- | --- |
 | `schema_meta` | versiones de migración aplicadas; la API las aplica en orden, bajo advisory lock y dentro de transacciones |
 | `player_id_seq` | ids de jugador, empieza en **1000001** |
-| `players` | `id`, `uuid` (único), `display_name` (NULL hasta que elige nombre), kicker y disfraz activos, deck activo, las cuatro monedas, `state jsonb` (decks, discos, gears, objetos), timestamps |
-| `sessions` | `access_token` → `player_id` + `session_key`; por esto un reinicio ya no expulsa a todo el mundo |
+| `players` | `id`, `otomo_player_id` (único, la cuenta en otomo), `legacy_device_uuid`, `display_name` (NULL hasta que elige nombre), kicker y disfraz activos, deck activo, las cuatro monedas, `state jsonb` (decks, discos, gears, objetos), timestamps |
 | `player_ranks` | por `(player_id, battle_rule_type)`: puntos de batalla y rango |
 | `player_follows` | aristas dirigidas `(follower_id, followed_id)`, fecha y lectura del aviso de nuevo seguidor; FK con borrado en cascada y sin auto-seguimiento |
 | `real_friend_tokens` | un token opaco, estable y reusable por jugador para vincular amistades reales; único por dueño y por valor |

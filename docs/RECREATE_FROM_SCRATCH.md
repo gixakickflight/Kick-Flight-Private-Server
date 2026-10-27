@@ -296,8 +296,9 @@ docker compose -f docker-compose.nas.yml up -d
 docker compose -f docker-compose.nas.yml logs -f api
 ```
 
-El esquema se crea solo en el primer arranque (tablas `players`, `sessions`,
-`player_ranks`, `schema_meta` y la secuencia `player_id_seq`). Compruébalo:
+El esquema se crea solo en el primer arranque (tablas `players`,
+`player_ranks`, `schema_meta` y la secuencia `player_id_seq`; no hay tabla de
+sesiones: la identidad está en otomo, ver `docs/OTOMO_IDENTITY.md`). Compruébalo:
 
 ```bash
 docker compose -f docker-compose.nas.yml exec postgres \
