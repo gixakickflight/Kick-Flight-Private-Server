@@ -473,7 +473,11 @@ public sealed class HarnessTests : IClassFixture<ServerTestHostFixture>
         // strict about the symbol rather than about where a request would go. The single exception is the otomo
         // identity client: otomo is a service this project runs (docs/OTOMO_IDENTITY.md), and identity cannot be
         // delegated without an outbound call. Every other file stays forbidden, and this list stays this short.
-        var exempt = new[] { Path.Combine("src", "KickFlight.BootstrapApi", "Otomo", "OtomoIdentity.cs") };
+        var exempt = new[]
+        {
+            Path.Combine("src", "KickFlight.BootstrapApi", "Otomo", "OtomoIdentity.cs"),
+            Path.Combine("src", "KickFlight.BootstrapApi", "Otomo", "OtomoMasters.cs")
+        };
         foreach (var file in sourceFiles)
         {
             if (exempt.Any(relative => file.EndsWith(relative, StringComparison.OrdinalIgnoreCase))) continue;

@@ -1,0 +1,448 @@
+#!/usr/bin/env python3
+"""Push this repository's master tables into otomo config namespaces.
+
+The adapter serves its master tables to the client from memory; this script is how those
+tables become data an operator can edit in otomo's admin UI instead of files on disk.
+
+One namespace per master file: ``config/masters_<table>.json`` becomes namespace
+``kf.masters.<table>`` whose document is ``{"rows": [...]}`` — the array the file holds,
+under a ``rows`` key so otomo's table editor renders it as a table. ``kf`` is this game's
+tenant slug; otomo never parses it, and the schema beside it belongs to this repository
+(``masters/otomo/schema/``), not to otomo.
+
+Nothing here is game-specific on the otomo side: the script speaks otomo's ordinary staff
+API — create namespace, replace schema, save draft, cut version, publish release.
+
+Usage (inside a network that can reach otomo's admin-auth and config services):
+
+    export OTOMO_ADMIN_EMAIL=root@otomo.internal
+    export OTOMO_ADMIN_PASSWORD=...            # or pass --password-file
+    python3 scripts/otomo/sync_masters.py schema          # regenerate the schemas, commit them
+    python3 scripts/otomo/sync_masters.py push            # namespaces + schemas + drafts + versions
+    python3 scripts/otomo/sync_masters.py push --publish --channel staging --message "seed"
+
+``push`` is idempotent in both directions: a table whose published version already matches
+the file produces no new version, and a namespace whose draft an operator has changed is
+left alone (a draft is someone's work in progress; publishing reads versions, never drafts).
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import sys
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+TENANT = "kf"
+NAMESPACE_PREFIX = f"{TENANT}.masters"
+SCHEMA_DIR = Path("masters/otomo/schema")
+MANIFEST = Path("masters/otomo/namespaces.json")
+TABLE_RE = re.compile(r"^masters_(?P<table>[a-z0-9_]+)\.json$")
+
+
+# --- repository side --------------------------------------------------------
+
+
+def repo_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def discover(root: Path) -> list[dict]:
+    """Every master table in the repository, in a stable order."""
+    config = root / "config"
+    tables = []
+    for path in sorted(config.glob("masters_*.json")):
+        match = TABLE_RE.match(path.name)
+        if not match:
+            continue
+        table = match.group("table")
+        rows = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(rows, list):
+            raise SystemExit(f"{path}: a master table must be a JSON array, found {type(rows).__name__}")
+        tables.append(
+            {
+                "namespace": f"{NAMESPACE_PREFIX}.{table}",
+                "table": table,
+                "file": f"config/{path.name}",
+                "rows": rows,
+            }
+        )
+    if not tables:
+        raise SystemExit(f"no config/masters_*.json under {config}")
+    return tables
+
+
+def _jtype(value) -> str:
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, (int, float)):
+        return "number"
+    if isinstance(value, str):
+        return "string"
+    if value is None:
+        return "null"
+    if isinstance(value, list):
+        return "array"
+    return "object"
+
+
+def infer_schema(table: dict) -> dict:
+    """A JSON Schema for one table, inferred from the rows it currently holds.
+
+    Inferred rather than hand-written because the tables come from the client's own
+    masters: 62 of them, hundreds of columns, and a hand-written schema would be a second
+    copy of the data that drifts. What it buys is that a draft with a misspelled column, a
+    row without its id, or a string where a number belongs is refused at version time
+    instead of reaching a client. Adding a column is therefore a schema change — that is
+    the point: a schema version bump is a reviewed act, and a typo is not.
+    """
+    rows = table["rows"]
+    columns: dict[str, set[str]] = {}
+    present_in_all = set(rows[0].keys()) if rows else set()
+    for row in rows:
+        for key, value in row.items():
+            columns.setdefault(key, set()).add(_jtype(value))
+        present_in_all &= set(row.keys())
+
+    properties = {}
+    for name in sorted(columns):
+        types = sorted(columns[name])
+        properties[name] = {"type": types[0] if len(types) == 1 else types}
+
+    items: dict = {"type": "object"}
+    if properties:
+        items["properties"] = properties
+        items["additionalProperties"] = False
+        required = sorted(present_in_all)
+        if required:
+            items["required"] = required
+
+    return {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": f"{table['namespace']} rows",
+        "description": (
+            f"Tenant {TENANT}: the {table['table']} master table, as this repository's "
+            f"{table['file']} holds it. Generated by scripts/otomo/sync_masters.py."
+        ),
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["rows"],
+        "properties": {"rows": {"type": "array", "items": items}},
+    }
+
+
+def write_schemas(root: Path, tables: list[dict]) -> None:
+    schema_dir = root / SCHEMA_DIR
+    schema_dir.mkdir(parents=True, exist_ok=True)
+    manifest = []
+    for table in tables:
+        schema = infer_schema(table)
+        path = schema_dir / f"{table['namespace']}.json"
+        path.write_text(json.dumps(schema, indent=1, sort_keys=False, ensure_ascii=False) + "\n", encoding="utf-8")
+        manifest.append(
+            {
+                "namespace": table["namespace"],
+                "audience": "server",
+                "table": table["table"],
+                "source": table["file"],
+                "schema": str(SCHEMA_DIR / f"{table['namespace']}.json"),
+                "rows": len(table["rows"]),
+            }
+        )
+    (root / MANIFEST).write_text(
+        json.dumps(
+            {
+                "tenant": TENANT,
+                "namespace_prefix": NAMESPACE_PREFIX,
+                "document": '{"rows": [...]}',
+                "note": (
+                    "One namespace per master table. Seeded and published by "
+                    "scripts/otomo/sync_masters.py; the schemas beside this file are this "
+                    "repository's, and otomo only stores them."
+                ),
+                "namespaces": manifest,
+            },
+            indent=1,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    print(f"wrote {len(tables)} schemas under {SCHEMA_DIR} and {MANIFEST}")
+
+
+# --- otomo side -------------------------------------------------------------
+
+
+class Api:
+    """The two otomo endpoints this script needs: staff login, then config's staff API."""
+
+    def __init__(self, admin_base: str, config_base: str, token: str):
+        self.admin_base = admin_base.rstrip("/")
+        self.config_base = config_base.rstrip("/")
+        self.token = token
+
+    @classmethod
+    def login(cls, admin_base: str, config_base: str, email: str, password: str) -> "Api":
+        body = json.dumps({"email": email, "password": password}).encode()
+        req = urllib.request.Request(
+            admin_base.rstrip("/") + "/admin-auth/login",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=15) as response:
+            payload = json.load(response)
+        return cls(admin_base, config_base, payload["access_token"])
+
+    def call(self, method: str, path: str, body=None, headers=None):
+        data = None if body is None else json.dumps(body).encode()
+        all_headers = {"Authorization": "Bearer " + self.token}
+        if data is not None:
+            all_headers["Content-Type"] = "application/json"
+        all_headers.update(headers or {})
+        req = urllib.request.Request(self.config_base + path, data=data, headers=all_headers, method=method)
+        try:
+            with urllib.request.urlopen(req, timeout=30) as response:
+                raw = response.read()
+                return response.status, (json.loads(raw) if raw else None)
+        except urllib.error.HTTPError as error:
+            raw = error.read()
+            try:
+                payload = json.loads(raw) if raw else None
+            except ValueError:
+                payload = raw.decode("utf-8", "replace")
+            return error.code, payload
+
+    # Convenience wrappers, each one route of otomo's staff API.
+    def namespaces(self):
+        status, payload = self.call("GET", "/api/admin/config/namespaces")
+        if status != 200:
+            raise SystemExit(f"list namespaces: HTTP {status} {payload}")
+        return {item["name"]: item for item in payload["namespaces"]}
+
+    def create_namespace(self, name: str, description: str):
+        return self.call(
+            "POST",
+            "/api/admin/config/namespaces",
+            {"name": name, "audience": "server", "description": description},
+        )
+
+    def schema(self, name: str):
+        return self.call("GET", f"/api/admin/config/namespaces/{name}/schema")
+
+    def put_schema(self, name: str, schema: dict, if_match: int):
+        return self.call(
+            "PUT",
+            f"/api/admin/config/namespaces/{name}/schema",
+            schema,
+            {"If-Match": str(if_match)},
+        )
+
+    def draft(self, name: str):
+        return self.call("GET", f"/api/admin/config/namespaces/{name}/draft")
+
+    def put_draft(self, name: str, document: dict, revision: int):
+        return self.call(
+            "PUT",
+            f"/api/admin/config/namespaces/{name}/draft",
+            {"document": document, "revision": revision},
+        )
+
+    def create_version(self, name: str, message: str, revision: int):
+        return self.call(
+            "POST",
+            f"/api/admin/config/namespaces/{name}/versions",
+            {"message": message, "revision": revision},
+        )
+
+    def version(self, name: str, number: int):
+        return self.call("GET", f"/api/admin/config/namespaces/{name}/versions/{number}")
+
+    def releases(self, channel: str):
+        status, payload = self.call("GET", f"/api/admin/config/channels/{channel}/releases?limit=1")
+        if status != 200:
+            raise SystemExit(f"list releases on {channel}: HTTP {status} {payload}")
+        return payload
+
+    def publish(self, channel: str, base_release_id: int, versions: list[dict], message: str,
+                min_client_version: str):
+        return self.call(
+            "POST",
+            f"/api/admin/config/channels/{channel}/releases",
+            {
+                "base_release_id": base_release_id,
+                "versions": versions,
+                # Every publish states the floor it was tested against; otomo requires the
+                # x.y.z form, and "no floor" is 0.0.0 rather than an empty string.
+                "min_client_version": min_client_version,
+                "packs": [],
+                "message": message,
+            },
+        )
+
+
+def _equal(a, b) -> bool:
+    """Structural equality for JSON values, order-insensitive on object members."""
+    return json.dumps(a, sort_keys=True, ensure_ascii=False) == json.dumps(b, sort_keys=True, ensure_ascii=False)
+
+
+def ensure_namespace(api: Api, table: dict, existing: dict, apply: bool) -> str:
+    name = table["namespace"]
+    if name in existing:
+        return "exists"
+    if not apply:
+        print(f"  would create {name}")
+        return "created"
+    status, payload = api.create_namespace(name, f"Tenant {TENANT}: master table {table['table']}")
+    if status not in (200, 201):
+        raise SystemExit(f"create namespace {name}: HTTP {status} {payload}")
+    print(f"  created {name}")
+    return "created"
+
+
+def ensure_schema(api: Api, table: dict, schema: dict, apply: bool) -> None:
+    name = table["namespace"]
+    status, payload = api.schema(name)
+    if status == 200:
+        current_version = payload.get("schema_version", 0)
+        if _equal(payload.get("schema"), schema):
+            return
+    elif status == 404:
+        current_version = 0
+    else:
+        raise SystemExit(f"read schema {name}: HTTP {status} {payload}")
+
+    if not apply:
+        print(f"  would replace schema of {name} (from v{current_version})")
+        return
+    status, payload = api.put_schema(name, schema, current_version)
+    if status != 200:
+        raise SystemExit(f"replace schema {name} (If-Match v{current_version}): HTTP {status} {payload}")
+    print(f"  schema {name} -> v{payload.get('schema_version')}")
+
+
+def ensure_version(api: Api, table: dict, document: dict, message: str, apply: bool) -> tuple[int | None, bool]:
+    """Make sure the published version holds `document`; return (version to publish, created).
+
+    A namespace whose latest version already equals the document is left completely alone:
+    its draft may be someone's unsaved work, and publishing reads versions. Only when the
+    document differs does this save the draft and cut a version.
+
+    "Equals" is decided by otomo, not by this script's own comparison, for the second half of
+    the check: otomo stores a version as canonical JSON, so a float that the file spells 1.0
+    comes back as 1 and a byte comparison would cut a new version of an unchanged table on
+    every run. The `no_changes` refusal to POST /versions is the server saying "the draft is
+    identical to the version", and it is treated as success with no new version.
+    """
+    name = table["namespace"]
+    latest = table.get("latest_version")
+    if latest:
+        status, payload = api.version(name, latest)
+        if status == 200 and _equal(payload.get("document"), document):
+            return latest, False
+
+    if not apply:
+        print(f"  would save draft and cut a version of {name}")
+        return latest, False
+
+    status, payload = api.draft(name)
+    if status != 200:
+        raise SystemExit(f"read draft {name}: HTTP {status} {payload}")
+    revision = payload["revision"]
+    if not _equal(payload.get("document"), document):
+        status, payload = api.put_draft(name, document, revision)
+        if status != 200:
+            raise SystemExit(f"save draft {name} at r{revision}: HTTP {status} {payload}")
+        revision = payload["revision"]
+
+    status, payload = api.create_version(name, message, revision)
+    if status == 409 and isinstance(payload, dict) and payload.get("error", {}).get("code") == "no_changes":
+        return latest, False
+    if status not in (200, 201):
+        raise SystemExit(f"create version {name} at r{revision}: HTTP {status} {payload}")
+    number = payload["version"]
+    print(f"  version {name} -> v{number}")
+    return number, True
+
+
+def main(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("command", choices=["schema", "push"])
+    parser.add_argument("--admin-base", default=os.environ.get("OTOMO_ADMIN_BASE", "http://admin-auth:8080"))
+    parser.add_argument("--config-base", default=os.environ.get("OTOMO_CONFIG_BASE", "http://config:8080"))
+    parser.add_argument("--email", default=os.environ.get("OTOMO_ADMIN_EMAIL", ""))
+    parser.add_argument("--password", default=os.environ.get("OTOMO_ADMIN_PASSWORD", ""))
+    parser.add_argument("--password-file", default="")
+    parser.add_argument("--channel", default="staging")
+    parser.add_argument("--message", default="")
+    parser.add_argument("--publish", action="store_true")
+    parser.add_argument("--min-client-version", default="0.0.0")
+    parser.add_argument("--dry-run", action="store_true")
+    args = parser.parse_args(argv)
+
+    root = repo_root()
+    tables = discover(root)
+
+    if args.command == "schema":
+        write_schemas(root, tables)
+        return 0
+
+    password = args.password
+    if args.password_file:
+        password = Path(args.password_file).read_text(encoding="utf-8").strip()
+    if not args.email or not password:
+        raise SystemExit("set OTOMO_ADMIN_EMAIL and OTOMO_ADMIN_PASSWORD (or --password-file)")
+
+    apply = not args.dry_run
+    api = Api.login(args.admin_base, args.config_base, args.email, password)
+    existing = api.namespaces()
+    print(f"{len(tables)} tables, {len(existing)} namespaces already on otomo")
+
+    versions: list[dict] = []
+    changed = False
+    for table in tables:
+        schema_path = root / SCHEMA_DIR / f"{table['namespace']}.json"
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        table["latest_version"] = (existing.get(table["namespace"]) or {}).get("latest_version")
+        print(f"{table['namespace']} ({len(table['rows'])} rows)")
+        ensure_namespace(api, table, existing, apply)
+        ensure_schema(api, table, schema, apply)
+        number, created = ensure_version(
+            api, table, {"rows": table["rows"]}, args.message or "Seed from the repository", apply
+        )
+        if created:
+            changed = True
+        if number is not None:
+            versions.append({"namespace": table["namespace"], "version": number})
+
+    if not apply:
+        print("dry run: nothing written")
+        return 0
+
+    if args.publish:
+        history = api.releases(args.channel)
+        head = history["head_release_id"]
+        head_item = next((item for item in history["releases"] if item["release_id"] == head), None)
+        needs_publish = changed or not head_item or not head_item.get("server_manifest_sha256")
+        if not needs_publish:
+            print(f"channel {args.channel} already serves this content (release {head}); nothing to publish")
+            return 0
+        status, payload = api.publish(
+            args.channel, head, versions, args.message or "Seed master tables from the repository",
+            args.min_client_version,
+        )
+        if status not in (200, 201):
+            raise SystemExit(f"publish {args.channel} on base {head}: HTTP {status} {payload}")
+        print(
+            f"published {args.channel} release {payload['release_id']} "
+            f"({len(versions)} namespaces, server manifest {payload.get('server_manifest_sha256')})"
+        )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
