@@ -3,20 +3,24 @@ using System.Text.Json;
 
 namespace KickFlight.BootstrapApi.PlayerStore;
 
-// The original on-disk store: one <player id>.json per player under <content root>/data/users, plus an
-// identity index so a device uuid keeps its player id across restarts.
+// The original on-disk store: one <player id>.json per player under <content root>/data/users, plus an index so
+// an otomo account keeps the same local row id across restarts.
 //
 // This is the fallback, selected when no connection string is configured, so that local runs and the test
 // suite work with no database. The deployment uses PostgresPlayerStore.
 //
-// Sessions are held in memory here, and deliberately: what has to survive a restart is the *identity* (so a
-// returning device is not handed a different player), and that is on disk. A client whose token is lost
-// re-authenticates on next launch and, because the uuid -> id mapping is durable, gets its own player back.
+// Identity is not this store's job any more: otomo owns the account, and what is remembered here is only which
+// numeric row in this directory belongs to which otomo player (ResolveGamePlayer). A client whose token is lost
+// re-authenticates through otomo on next launch and, because the account id is stable, gets its own row back.
 public sealed class JsonPlayerStore : IPlayerStore
 {
     // The index file names are prefixed so they cannot collide with a save file, whose name is always a
     // bare player id. They are also excluded from the glob the deploy script uses to report user counts.
-    private const string IdentityIndexFile = "_identities.json";
+    //
+    // _identities.json is the pre-otomo index (device uuid -> player id). It is read, never written: it is what
+    // lets an existing player's row be adopted by the otomo account that presents that device.
+    private const string LegacyIdentityIndexFile = "_identities.json";
+    private const string OtomoIndexFile = "_otomo-players.json";
     private const string SocialStateFile = "_social.json";
     private const string FirstPlayerId = "1000001";
 
@@ -33,9 +37,9 @@ public sealed class JsonPlayerStore : IPlayerStore
     private readonly ILogger<JsonPlayerStore> _logger;
     private readonly object _identityLock;
     private readonly object _socialLock;
-    private readonly Dictionary<string, long> _playerIdByUuid = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, byte[]> _keysByAccessToken = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, long> _playerIdByToken = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, long> _playerIdByOtomoPlayer = new(StringComparer.Ordinal);
+    // The pre-otomo index, loaded only so an existing row can be adopted by the account that presents its device.
+    private readonly Dictionary<string, long> _legacyPlayerIdByDevice = new(StringComparer.Ordinal);
 
     public JsonPlayerStore(ILogger<JsonPlayerStore> logger, IWebHostEnvironment environment)
     {
@@ -44,36 +48,42 @@ public sealed class JsonPlayerStore : IPlayerStore
         _identityLock = IdentityLocksByDirectory.GetOrAdd(Path.GetFullPath(_usersDirectory), _ => new object());
         _socialLock = SocialLocksByDirectory.GetOrAdd(Path.GetFullPath(_usersDirectory), _ => new object());
         Directory.CreateDirectory(_usersDirectory);
-        lock (_identityLock) LoadIdentityIndex();
+        lock (_identityLock) LoadPlayerIndex();
     }
 
-    private void LoadIdentityIndex()
+    private void LoadPlayerIndex()
     {
-        var path = Path.Combine(_usersDirectory, IdentityIndexFile);
+        ReadIndex(OtomoIndexFile, _playerIdByOtomoPlayer);
+        ReadIndex(LegacyIdentityIndexFile, _legacyPlayerIdByDevice);
+    }
+
+    private void ReadIndex(string fileName, Dictionary<string, long> target)
+    {
+        var path = Path.Combine(_usersDirectory, fileName);
         if (!File.Exists(path)) return;
         try
         {
             var index = JsonSerializer.Deserialize<Dictionary<string, long>>(File.ReadAllText(path));
             if (index is null) return;
-            foreach (var (uuid, playerId) in index) _playerIdByUuid[uuid] = playerId;
-            _logger.LogInformation("Loaded {Count} device identities from {Path}", _playerIdByUuid.Count, path);
+            foreach (var (key, playerId) in index) target[key] = playerId;
+            _logger.LogInformation("Loaded {Count} entries from {Path}", target.Count, path);
         }
         catch (Exception ex)
         {
-            // Losing the index is recoverable (a returning device gets a new id) but never silent: the whole
-            // point of the store is to not do that.
-            _logger.LogError(ex, "Could not read the identity index at {Path}; returning devices will be re-created", path);
+            // Losing the index is recoverable (a returning player gets a new row) but never silent: the whole
+            // point of it is to not do that.
+            _logger.LogError(ex, "Could not read the player index at {Path}; returning players will be re-created", path);
         }
     }
 
-    private void PersistIdentityIndex()
+    private void PersistPlayerIndex()
     {
         try
         {
-            var path = Path.Combine(_usersDirectory, IdentityIndexFile);
-            var json = JsonSerializer.Serialize(_playerIdByUuid, new JsonSerializerOptions { WriteIndented = true });
+            var path = Path.Combine(_usersDirectory, OtomoIndexFile);
+            var json = JsonSerializer.Serialize(_playerIdByOtomoPlayer, new JsonSerializerOptions { WriteIndented = true });
             // Write-then-rename: a crash mid-write must not leave a truncated index, which would silently
-            // re-issue identities to every device that then connects.
+            // re-issue rows to every player that then connects.
             // Stores over this directory share the identity lock, while the unique suffix also avoids
             // collisions with another process writing the same index.
             var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
@@ -82,23 +92,38 @@ public sealed class JsonPlayerStore : IPlayerStore
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Could not write the identity index; this mapping will be lost on restart");
+            _logger.LogError(ex, "Could not write the player index; this mapping will be lost on restart");
         }
     }
 
-    public long ResolvePlayerId(string uuid)
+    public long ResolveGamePlayer(string otomoPlayerId, string legacyDeviceUuid)
     {
+        if (string.IsNullOrWhiteSpace(otomoPlayerId)) throw new ArgumentException("An otomo player id is required.", nameof(otomoPlayerId));
         lock (_identityLock)
         {
             // Each instance has its own dictionary. Refresh under the directory-wide lock so a second
-            // store cannot persist an older snapshot and erase identities just added by the first.
-            LoadIdentityIndex();
-            if (_playerIdByUuid.TryGetValue(uuid, out var existing)) return existing;
+            // store cannot persist an older snapshot and erase entries just added by the first.
+            LoadPlayerIndex();
+            if (_playerIdByOtomoPlayer.TryGetValue(otomoPlayerId, out var existing)) return existing;
 
-            var playerId = NextPlayerId();
-            _playerIdByUuid[uuid] = playerId;
-            PersistIdentityIndex();
-            _logger.LogInformation("New device {Uuid} assigned player {PlayerId}", uuid, playerId);
+            // The device this adapter used to key on: if a row was created for it, that row becomes this
+            // account's row, so the player keeps their name, rank, inventory and friends.
+            long playerId;
+            if (!string.IsNullOrEmpty(legacyDeviceUuid) &&
+                _legacyPlayerIdByDevice.TryGetValue(legacyDeviceUuid, out var adopted))
+            {
+                playerId = adopted;
+                _logger.LogInformation("otomo player {OtomoPlayerId} adopted the existing row {PlayerId} of device {Device}",
+                    otomoPlayerId, playerId, legacyDeviceUuid);
+            }
+            else
+            {
+                playerId = NextPlayerId();
+                _logger.LogInformation("otomo player {OtomoPlayerId} assigned game row {PlayerId}", otomoPlayerId, playerId);
+            }
+
+            _playerIdByOtomoPlayer[otomoPlayerId] = playerId;
+            PersistPlayerIndex();
             return playerId;
         }
     }
@@ -109,7 +134,7 @@ public sealed class JsonPlayerStore : IPlayerStore
         lock (IdLock)
         {
             long highest = Math.Max(_idHighWaterMark, long.Parse(FirstPlayerId));
-            foreach (var candidate in _playerIdByUuid.Values)
+            foreach (var candidate in _playerIdByOtomoPlayer.Values.Concat(_legacyPlayerIdByDevice.Values))
             {
                 if (candidate > highest) highest = candidate;
             }
@@ -148,7 +173,7 @@ public sealed class JsonPlayerStore : IPlayerStore
         }
     }
 
-    public void Save(SessionState state, string? uuid = null)
+    public void Save(SessionState state)
     {
         if (state.PlayerId == 0)
         {
@@ -157,24 +182,6 @@ public sealed class JsonPlayerStore : IPlayerStore
         }
         try
         {
-            if (uuid is not null)
-            {
-                lock (_identityLock)
-                {
-                    LoadIdentityIndex();
-                    if (_playerIdByUuid.TryGetValue(uuid, out var known) && known != state.PlayerId)
-                    {
-                        _logger.LogWarning("Device {Uuid} maps to {Known} but is saving {Actual}; keeping the mapping",
-                            uuid, known, state.PlayerId);
-                    }
-                    else if (!_playerIdByUuid.ContainsKey(uuid))
-                    {
-                        _playerIdByUuid[uuid] = state.PlayerId;
-                        PersistIdentityIndex();
-                    }
-                }
-            }
-
             var file = Path.Combine(_usersDirectory, $"{state.PlayerId}.json");
             var json = JsonSerializer.Serialize(state, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(file, json);
@@ -184,17 +191,6 @@ public sealed class JsonPlayerStore : IPlayerStore
             _logger.LogWarning("Error saving user state for {PlayerId}: {Error}", state.PlayerId, ex.Message);
         }
     }
-
-    public void SaveSession(string accessToken, long playerId, byte[] key)
-    {
-        _keysByAccessToken[accessToken] = key;
-        _playerIdByToken[accessToken] = playerId;
-    }
-
-    public SessionRecord? FindSession(string accessToken) =>
-        _keysByAccessToken.TryGetValue(accessToken, out var key) && _playerIdByToken.TryGetValue(accessToken, out var playerId)
-            ? new SessionRecord(playerId, key)
-            : null;
 
     // Rank is not persisted in this store: it belongs to the deployment, and the fallback keeps it in memory
     // so local runs and tests see a stable value instead of the starting rank on every read.

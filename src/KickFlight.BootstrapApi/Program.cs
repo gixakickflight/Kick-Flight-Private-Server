@@ -1,6 +1,7 @@
 using System.Security.Cryptography.X509Certificates;
 using KickFlight.BootstrapApi;
 using KickFlight.BootstrapApi.Ops;
+using KickFlight.BootstrapApi.Otomo;
 using KickFlight.BootstrapApi.PlayerStore;
 using Microsoft.Extensions.Options;
 
@@ -29,6 +30,16 @@ builder.Services.AddSingleton<BattleReplayService>();
 builder.Services.AddSingleton<OpenMatchFrontendService>();
 // Player state: PostgreSQL when a connection string is configured, the per-user JSON files otherwise.
 builder.Services.AddSingleton<IPlayerStore>(services => PlayerStoreFactory.Create(services, builder.Configuration));
+// Identity: otomo owns every account (see docs/OTOMO_IDENTITY.md). This adapter's client for it is a singleton
+// because its per-device token cache is the only session state in the process.
+builder.Services.Configure<OtomoOptions>(builder.Configuration.GetSection(OtomoOptions.SectionName));
+builder.Services.AddSingleton(services => new KfAccessTokenCodec(
+    builder.Configuration[$"{OtomoOptions.SectionName}:TokenSecret"],
+    services.GetRequiredService<ILogger<KfAccessTokenCodec>>()));
+builder.Services.AddSingleton<IOtomoIdentity>(services => OtomoIdentity.Create(
+    services.GetRequiredService<IOptions<OtomoOptions>>(),
+    services.GetRequiredService<TimeProvider>(),
+    services.GetRequiredService<ILogger<OtomoIdentity>>()));
 // Ops telemetry (Ops/OpsTelemetryService): the Record* calls are made by DemoSessionApi and the matchmaking room
 // events; the same singleton is the background batch writer and 60 s status sweep.
 builder.Services.AddSingleton<OpsTelemetryService>();

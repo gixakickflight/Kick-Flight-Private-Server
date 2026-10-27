@@ -58,22 +58,34 @@ public sealed class PostgresSocialMigrationTests
         Assert.Equal(3, Assert.Single(store.ListRanks(4, new[] { carol }, 0, 10)).Position);
 
         var restarted = NewStore(connectionString);
-        Assert.Equal(2, ReadSchemaVersion(connectionString));
+        Assert.Equal(3, ReadSchemaVersion(connectionString));
         Assert.Equal(token, restarted.GetOrCreateRealFriendToken(alice));
         Assert.True(restarted.AreRealFriends(alice, carol));
         Assert.Equal(1, restarted.CountFollowing(alice));
 
+        // Migration 3 is the identity move: the sessions table is gone and a player row carries otomo's account id.
         using (var connection = new NpgsqlConnection(connectionString))
         {
             connection.Open();
-            using var insertFutureVersion = new NpgsqlCommand("insert into schema_meta(version) values (3)", connection);
+            using var sessionsTable = new NpgsqlCommand("select to_regclass('public.sessions') is null", connection);
+            Assert.True(Convert.ToBoolean(sessionsTable.ExecuteScalar()));
+            using var identityColumn = new NpgsqlCommand(
+                "select count(*) from information_schema.columns where table_name = 'players' and column_name = 'otomo_player_id'",
+                connection);
+            Assert.Equal(1, Convert.ToInt32(identityColumn.ExecuteScalar()));
+        }
+
+        using (var connection = new NpgsqlConnection(connectionString))
+        {
+            connection.Open();
+            using var insertFutureVersion = new NpgsqlCommand("insert into schema_meta(version) values (4)", connection);
             insertFutureVersion.ExecuteNonQuery();
         }
         Assert.Throws<InvalidOperationException>(() => NewStore(connectionString));
         using (var connection = new NpgsqlConnection(connectionString))
         {
             connection.Open();
-            using var removeFutureVersion = new NpgsqlCommand("delete from schema_meta where version = 3", connection);
+            using var removeFutureVersion = new NpgsqlCommand("delete from schema_meta where version = 4", connection);
             removeFutureVersion.ExecuteNonQuery();
         }
     }
@@ -83,7 +95,7 @@ public sealed class PostgresSocialMigrationTests
 
     private static long CreatePlayer(PostgresPlayerStore store, string name)
     {
-        var id = store.ResolvePlayerId($"social-test-{Guid.NewGuid():N}");
+        var id = store.ResolveGamePlayer($"social-player-{Guid.NewGuid()}", $"social-test-{Guid.NewGuid():N}");
         store.Save(new SessionState { UserId = id.ToString(), UserName = name });
         return id;
     }

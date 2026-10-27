@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using KickFlight.BootstrapApi.Ops;
+using KickFlight.BootstrapApi.Otomo;
 using KickFlight.BootstrapApi.PlayerStore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
@@ -19,7 +20,6 @@ public sealed partial class DemoSessionApi
     // a SHA-256 over every served table (see the end of the constructor). Editing any config/masters_*.json
     // and restarting the server therefore makes the client re-download on its next launch.
     public string MasterVersion { get; private set; } = "demo-master-v27";
-    private const string AccessToken = "demo-access-token-0000000000000000000000000000";
 
     // Rank is per player and persisted now (player_ranks, via IPlayerStore); the table it indexes into, the
     // range that renders, and the per-battle delta live in RankProgression.
@@ -52,15 +52,11 @@ public sealed partial class DemoSessionApi
     private readonly string _contentRoot;
     private readonly int _grpcPort;
     private readonly MasterOverrides _mastersOverrides;
-    // A live session, key and state together. One dictionary rather than two parallel ones so the two can
-    // never disagree about which tokens are known.
-    //
-    // This is a cache, not the record: the record is the store's sessions table. A token that is not here may
-    // still be valid - it was issued before a restart - so a miss is resolved against the store, and only a
-    // miss in both is a rejection.
-    private sealed record CachedSession(byte[] Key, SessionState State);
-
-    private readonly ConcurrentDictionary<string, CachedSession> _sessions = new(StringComparer.Ordinal);
+    // The state of a player this process has already loaded, keyed by the game row id. It is only a cache: the row
+    // itself is the store's, and an evicted entry is reloaded from there on the next request.
+    private readonly ConcurrentDictionary<long, SessionState> _statesByPlayer = new();
+    private readonly IOtomoIdentity _identity;
+    private readonly KfAccessTokenCodec _accessTokens;
     private readonly IPlayerStore _playerStore;
     private readonly Dictionary<string, byte[]> _encryptedMasters = new(StringComparer.Ordinal);
     private readonly Dictionary<int, int> _battleRuleTypeById = [];
@@ -86,6 +82,7 @@ public sealed partial class DemoSessionApi
 
     public DemoSessionApi(ILogger<DemoSessionApi> logger, IWebHostEnvironment environment,
         BattleMatchmakingService matchmaking, BattleReplayService replays, IPlayerStore playerStore,
+        IOtomoIdentity identity, KfAccessTokenCodec accessTokens,
         IConfiguration configuration, MaintenanceState maintenance, ClientUpdateState clientUpdate,
         TimeProvider timeProvider, OpsTelemetryService ops, IOptions<HarnessOptions> harnessOptions)
     {
@@ -97,6 +94,8 @@ public sealed partial class DemoSessionApi
         _clientUpdate = clientUpdate;
         _timeProvider = timeProvider;
         _playerStore = playerStore;
+        _identity = identity;
+        _accessTokens = accessTokens;
         _harnessOptions = harnessOptions.Value;
         _contentRoot = environment.ContentRootPath;
         _grpcPort = configuration.GetValue("GrpcPort", 18081);
@@ -865,7 +864,7 @@ public sealed partial class DemoSessionApi
         return state;
     }
 
-    private void SaveUserState(SessionState state, string? uuid = null) => _playerStore.Save(state, uuid);
+    private void SaveUserState(SessionState state) => _playerStore.Save(state);
 
     // Gym-mode bots use KickerAiParameter row id 100 + kickerId (BattleMatchmakingService.GymAiParameterBase): a copy
     // of the kicker's real row with every motivation at 0, no lock-on and very long skill/dash intervals, so even a
@@ -1011,27 +1010,24 @@ public sealed partial class DemoSessionApi
         var accessToken = context.Request.Headers["x-app-access-token"].ToString();
         if (string.IsNullOrEmpty(accessToken)) return null;
 
-        // The access token decides whose state this is, and there is deliberately no fallback: the previous
-        // behaviour, handing an unrecognised token the most recently issued session key, meant a stale or
-        // forged token read and wrote another player's state. A token the store does not know is a rejection.
-        if (!_sessions.TryGetValue(accessToken, out var cached))
+        // Fail closed when there is no identity provider: the stack still boots without otomo (masters, fixtures,
+        // health, the CDN), but no player request is served under an identity this server cannot vouch for.
+        if (!_identity.Enabled) return IdentityUnavailable(context, path);
+
+        // The token decides whose state this is, and it is verified rather than looked up: it is signed by this
+        // server, and its payload names the otomo account the device signed in as. There is deliberately no
+        // fallback - a token this server did not sign is a rejection, never a licence to read another player's
+        // state, which is what "hand an unknown token the most recent key" used to do.
+        if (!_accessTokens.TryRead(accessToken, out var ticket))
         {
-            var session = _playerStore.FindSession(accessToken);
-            if (session is null)
-            {
-                _logger.LogWarning("Rejecting unknown access token {Token}", accessToken);
-                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                context.Response.Headers["x-app-status-code"] = "1";
-                return Results.Empty;
-            }
-            // Issued before this process started, which is why the player id comes from the session row rather
-            // than from anything in memory: that is what makes a client's identity survive a redeploy.
-            cached = new CachedSession(session.Key, GetOrCreateUserState(session.PlayerId));
-            cached = _sessions.GetOrAdd(accessToken, cached);
+            _logger.LogWarning("Rejecting an access token this server did not sign ({Path})", path);
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            context.Response.Headers["x-app-status-code"] = "1";
+            return Results.Empty;
         }
 
-        var key = cached.Key;
-        var state = cached.State;
+        var key = ticket.Key;
+        var state = _statesByPlayer.GetOrAdd(ticket.GamePlayerId, GetOrCreateUserState);
         _onlineActivityByPlayer[state.PlayerId] = _timeProvider.GetUtcNow();
         // The x-app-* device headers of the player's latest request, for the telemetry of its matches.
         _ops.TouchClient(state.UserId, OpsClientInfo.FromRequest(context));
@@ -1801,29 +1797,39 @@ public sealed partial class DemoSessionApi
 
             var uuid = root.TryGetProperty("uuid", out var uuidProp) ? uuidProp.GetString() ?? "default-user" : "default-user";
 
-            // The device uuid's player, created on first contact and the same one forever after. This is what
-            // used to be an in-memory counter, which re-issued 1000002 to whichever device authenticated first
-            // after a restart.
-            var playerId = _playerStore.ResolvePlayerId(uuid);
-            var state = GetOrCreateUserState(playerId);
+            // otomo decides who this device is: one login per device, cached in the adapter, and nothing is
+            // created here. The numeric row id is only where this player's game state is filed.
+            OtomoSession session;
+            long playerId;
+            try
+            {
+                session = await _identity.GetSessionAsync(uuid, context.RequestAborted);
+                playerId = _playerStore.ResolveGamePlayer(session.PlayerId, uuid);
+            }
+            catch (OtomoIdentityException exception)
+            {
+                return IdentityUnavailable(context, "/auth/index", exception, uuid);
+            }
+
+            var state = _statesByPlayer.GetOrAdd(playerId, GetOrCreateUserState);
 
             // No name is invented here. An empty name is what puts the client on the name-entry window; a
             // name is only ever set by the player, through POST /tutorial/end.
 
             var key = Encoding.ASCII.GetBytes(hash);
-            var sessionToken = $"demo-token-{playerId}-{Guid.NewGuid():N}";
-            _sessions[sessionToken] = new CachedSession(key, state);
-            _sessions[AccessToken] = new CachedSession(key, state);
-            _playerStore.SaveSession(sessionToken, playerId, key);
-            _playerStore.SaveSession(AccessToken, playerId, key);
+            // This is the token the client keeps and echoes as x-app-access-token. It is signed rather than
+            // stored, and it carries the otomo device id and account, so every later request is attributed
+            // without asking otomo again and a logout can revoke exactly this device's family.
+            var accessToken = _accessTokens.Issue(
+                new KfIdentityTicket(OtomoDeviceId.FromDeviceUuid(uuid), session.PlayerId, playerId, key));
 
             context.Response.Headers["x-app-status-code"] = "0";
             context.Response.Headers["x-app-user-id"] = playerId.ToString();
-            context.Response.Headers["x-app-access-token"] = sessionToken;
+            context.Response.Headers["x-app-access-token"] = accessToken;
             context.Response.Headers["x-kickflight-fixture"] = "dynamic-demo-auth";
             context.Response.Headers["x-app-datetime"] = DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
-            _logger.LogInformation("Created session for player {PlayerId} (name {UserName:l}) with token {Token}",
-                playerId, state.HasName ? state.UserName : "<unset>", sessionToken);
+            _logger.LogInformation("Signed in otomo player {OtomoPlayerId} as game row {PlayerId} (name {UserName:l})",
+                session.PlayerId, playerId, state.HasName ? state.UserName : "<unset>");
             _ops.RecordAuth(state.UserId, OpsClientInfo.FromRequest(context));
             return BinaryJson("{}", key);
         }
@@ -1832,6 +1838,38 @@ public sealed partial class DemoSessionApi
             _logger.LogWarning("Could not decode local demo authentication request: {Error}", exception.Message);
             return null;
         }
+    }
+
+    // The identity client's failures, answered in the game's contract rather than as a 500.
+    //
+    // The body is PLAINTEXT JSON with a non-zero x-app-status-code, for the same reason the name-rejection answer
+    // is: NetworkManager.GetResponseErrorFromResponse JsonUtility-parses downloadHandler.text without D2C-decoding
+    // it, so an encrypted body reads as an empty code and the client shows its generic network error with nothing
+    // an operator can act on.
+    //
+    // A refusal - otomo will not admit this device, or it revoked the session - is this client's 401. Everything
+    // else is a 503: the caller's identity is unknown rather than refused, and the same request works once otomo
+    // answers again. Both are logged once, with the device masked: a device id is a credential.
+    private IResult IdentityUnavailable(HttpContext context, string path,
+        OtomoIdentityException? failure = null, string? deviceUuid = null)
+    {
+        var reason = failure?.Failure ?? OtomoIdentityFailure.Disabled;
+        var detail = failure?.Message ?? "Otomo:Enabled is false";
+        if (deviceUuid is null)
+        {
+            _logger.LogError("Refusing {Path}: identity {Reason} ({Detail})", path, reason, detail);
+        }
+        else
+        {
+            _logger.LogError("Refusing {Path} for device {Device}: identity {Reason} ({Detail})",
+                path, OtomoDeviceId.Mask(OtomoDeviceId.FromDeviceUuid(deviceUuid)), reason, detail);
+        }
+
+        context.Response.Headers["x-app-status-code"] = "1";
+        var rejected = reason == OtomoIdentityFailure.Rejected;
+        return Results.Json(
+            new { error = rejected ? "identity-rejected" : "identity-unavailable", reason = reason.ToString() },
+            statusCode: rejected ? StatusCodes.Status401Unauthorized : StatusCodes.Status503ServiceUnavailable);
     }
 
     // The name-entry window's submit, and the only place a new account gets a name. It persists before

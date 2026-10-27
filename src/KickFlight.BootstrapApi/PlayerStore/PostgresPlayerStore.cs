@@ -12,11 +12,15 @@ namespace KickFlight.BootstrapApi.PlayerStore;
 // written as a whole (the API loads a player, mutates, saves), so normalising them would buy nothing and cost
 // a mapping layer plus the chance of a half-applied save. See deploy/README.md.
 //
+// The identity column is otomo's player id, not a device and not a password: this schema holds no account of its
+// own and no session at all (migration 3 dropped the sessions table). `id` is only the numeric handle the KF
+// client's protocol requires.
+//
 // Migrations are embedded rather than run by hand so a fresh database reaches the current schema by starting
 // the API once. `schema_meta` records which have been applied, so applying is idempotent and additive.
 public sealed class PostgresPlayerStore : IPlayerStore
 {
-    private const int SchemaVersion = 2;
+    private const int SchemaVersion = 3;
 
     private static readonly (int Version, string Sql)[] Migrations =
     [
@@ -90,6 +94,24 @@ public sealed class PostgresPlayerStore : IPlayerStore
             );
 
             create index player_real_friends_high_idx on player_real_friends (player_high_id, player_low_id);
+            """),
+        (3, """
+            -- Identity moves to otomo: the adapter stops creating accounts and stops storing sessions, and a
+            -- player becomes an otomo player id plus game-side state.
+            --
+            -- uuid was the device this adapter keyed players by. It is kept, renamed for what it now is, because
+            -- it is the only thing an existing row can be matched on: otomo's account id is a uuid that otomo
+            -- assigns and indexes by an HMAC of the device id under a pepper this process never sees, so the
+            -- account id of an existing player cannot be computed here. Those rows are adopted instead, in
+            -- ResolveGamePlayer: the first otomo account that presents the device takes the row over, keeping its
+            -- name, rank, inventory and friends. A player who never connects again stays unmapped - reported by
+            -- the query in docs/OTOMO_IDENTITY.md, never guessed.
+            alter table players rename column uuid to legacy_device_uuid;
+            alter table players add column otomo_player_id text unique;
+
+            -- The sessions table is dropped rather than left behind: the access token handed to the client is
+            -- signed, and the device's refresh family lives in otomo. A table here would only look authoritative.
+            drop table sessions;
             """)
     ];
 
@@ -170,40 +192,93 @@ public sealed class PostgresPlayerStore : IPlayerStore
         }
     }
 
-    public long ResolvePlayerId(string uuid)
+    public long ResolveGamePlayer(string otomoPlayerId, string legacyDeviceUuid)
     {
+        if (string.IsNullOrWhiteSpace(otomoPlayerId))
+            throw new ArgumentException("An otomo player id is required.", nameof(otomoPlayerId));
+
         using var connection = _dataSource.OpenConnection();
+        using var transaction = connection.BeginTransaction();
 
-        // The whole identity guarantee, in one statement: insert-if-absent then read back, so a uuid that is
-        // already known keeps its player id no matter how many devices race here or how often the API
-        // restarts. nextval is evaluated before the conflict is detected, so a lost race burns an id - that is
-        // the intended trade, since ids need only be unique, not contiguous.
-        using var command = connection.CreateCommand();
-        command.CommandText = """
-            insert into players (
-                id, uuid, kicker_id, kicker_costume_id, active_deck_number,
-                item_jet_coins, item_paid_jet_coins, item_disc_force, item_kick_points, state)
-            values (nextval('player_id_seq'), $1, $2, $3, $4, $5, $6, $7, $8, '{}'::jsonb)
-            on conflict (uuid) do nothing
-            returning id
-            """;
-        command.Parameters.AddWithValue(uuid);
+        // 1. The account already has a row: that is the answer, whichever device it arrives from.
+        if (FindPlayerId(connection, transaction, "select id from players where otomo_player_id = $1",
+                command => command.Parameters.AddWithValue(otomoPlayerId)) is { } known)
+        {
+            transaction.Commit();
+            return known;
+        }
+
+        // 2. A pre-otomo row for this device is adopted by the account presenting it, so an existing player keeps
+        //    their name, rank, inventory and friends. Only a row that has no account yet can be adopted, which is
+        //    what keeps two accounts from taking over the same row.
+        if (!string.IsNullOrEmpty(legacyDeviceUuid) &&
+            FindPlayerId(connection, transaction,
+                "update players set otomo_player_id = $1 where legacy_device_uuid = $2 and otomo_player_id is null returning id",
+                command =>
+                {
+                    command.Parameters.AddWithValue(otomoPlayerId);
+                    command.Parameters.AddWithValue(legacyDeviceUuid);
+                }) is { } adopted)
+        {
+            _logger.LogInformation("otomo player {OtomoPlayerId} adopted the existing row {PlayerId}", otomoPlayerId, adopted);
+            transaction.Commit();
+            return adopted;
+        }
+
+        // 3. A new account: one new row. `on conflict do nothing` covers the two writers that can race here - the
+        //    same account on two requests, and a device that two accounts somehow present at once.
         var defaults = new SessionState();
-        command.Parameters.AddWithValue(defaults.KickerId);
-        command.Parameters.AddWithValue(defaults.KickerCostumeId);
-        command.Parameters.AddWithValue(defaults.ActiveDeckNumber);
-        command.Parameters.AddWithValue(defaults.ItemJetCoins);
-        command.Parameters.AddWithValue(defaults.ItemPaidJetCoins);
-        command.Parameters.AddWithValue(defaults.ItemDiscForce);
-        command.Parameters.AddWithValue(defaults.ItemKickPoints);
+        var inserted = FindPlayerId(connection, transaction, """
+            insert into players (
+                id, otomo_player_id, legacy_device_uuid, kicker_id, kicker_costume_id, active_deck_number,
+                item_jet_coins, item_paid_jet_coins, item_disc_force, item_kick_points, state)
+            values (nextval('player_id_seq'), $1, $2, $3, $4, $5, $6, $7, $8, $9, '{}'::jsonb)
+            on conflict do nothing
+            returning id
+            """,
+            command =>
+            {
+                command.Parameters.AddWithValue(otomoPlayerId);
+                command.Parameters.AddWithValue(string.IsNullOrEmpty(legacyDeviceUuid) ? DBNull.Value : legacyDeviceUuid);
+                command.Parameters.AddWithValue(defaults.KickerId);
+                command.Parameters.AddWithValue(defaults.KickerCostumeId);
+                command.Parameters.AddWithValue(defaults.ActiveDeckNumber);
+                command.Parameters.AddWithValue(defaults.ItemJetCoins);
+                command.Parameters.AddWithValue(defaults.ItemPaidJetCoins);
+                command.Parameters.AddWithValue(defaults.ItemDiscForce);
+                command.Parameters.AddWithValue(defaults.ItemKickPoints);
+            });
+        if (inserted is { } created)
+        {
+            _logger.LogInformation("otomo player {OtomoPlayerId} assigned game row {PlayerId}", otomoPlayerId, created);
+            transaction.Commit();
+            return created;
+        }
 
-        var inserted = command.ExecuteScalar();
-        if (inserted is not null and not DBNull) return Convert.ToInt64(inserted);
+        // 4. Another request for this account won the insert: read the row it made.
+        if (FindPlayerId(connection, transaction, "select id from players where otomo_player_id = $1",
+                command => command.Parameters.AddWithValue(otomoPlayerId)) is { } raced)
+        {
+            transaction.Commit();
+            return raced;
+        }
 
-        using var read = connection.CreateCommand();
-        read.CommandText = "select id from players where uuid = $1";
-        read.Parameters.AddWithValue(uuid);
-        return Convert.ToInt64(read.ExecuteScalar());
+        transaction.Rollback();
+        throw new InvalidOperationException(
+            $"No game row for otomo player {otomoPlayerId}, and one could not be created: its legacy device is already " +
+            "attached to another account.");
+    }
+
+    // One statement, one row id: the shared shape of the lookups and the two writes above.
+    private static long? FindPlayerId(NpgsqlConnection connection, NpgsqlTransaction transaction, string sql,
+        Action<NpgsqlCommand> bind)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = sql;
+        bind(command);
+        var result = command.ExecuteScalar();
+        return result is null or DBNull ? null : Convert.ToInt64(result);
     }
 
     public SessionState? TryLoad(long playerId)
@@ -257,7 +332,7 @@ public sealed class PostgresPlayerStore : IPlayerStore
         }
     }
 
-    public void Save(SessionState state, string? uuid = null)
+    public void Save(SessionState state)
     {
         if (state.PlayerId == 0)
         {
@@ -266,8 +341,8 @@ public sealed class PostgresPlayerStore : IPlayerStore
         }
 
         // The document excludes nothing today, but the columns above are the ones services read, so they are
-        // written from the state and the document keeps the rest. uuid is only ever set at creation, and is
-        // left alone here: a device that reconnects must not be able to move a player to another uuid.
+        // written from the state and the document keeps the rest. Neither identity column is written here: the
+        // account a row belongs to is decided once, in ResolveGamePlayer, and a later save must not move it.
         var document = JsonSerializer.Serialize(state);
 
         using var connection = _dataSource.OpenConnection();
@@ -303,30 +378,6 @@ public sealed class PostgresPlayerStore : IPlayerStore
         {
             _logger.LogWarning("Save for player {PlayerId} matched no row", state.PlayerId);
         }
-    }
-
-    public void SaveSession(string accessToken, long playerId, byte[] key)
-    {
-        using var connection = _dataSource.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = """
-            insert into sessions (access_token, player_id, session_key) values ($1, $2, $3)
-            on conflict (access_token) do update set player_id = excluded.player_id, session_key = excluded.session_key
-            """;
-        command.Parameters.AddWithValue(accessToken);
-        command.Parameters.AddWithValue(playerId);
-        command.Parameters.AddWithValue(key);
-        command.ExecuteNonQuery();
-    }
-
-    public SessionRecord? FindSession(string accessToken)
-    {
-        using var connection = _dataSource.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = "select player_id, session_key from sessions where access_token = $1";
-        command.Parameters.AddWithValue(accessToken);
-        using var reader = command.ExecuteReader();
-        return reader.Read() ? new SessionRecord(reader.GetInt64(0), reader.GetFieldValue<byte[]>(1)) : null;
     }
 
     public RankState LoadRank(long playerId, int battleRuleType)
