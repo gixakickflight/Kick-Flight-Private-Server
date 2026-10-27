@@ -469,8 +469,14 @@ public sealed class HarnessTests : IClassFixture<ServerTestHostFixture>
         var root = FindRepositoryRoot();
         var sourceFiles = Directory.GetFiles(Path.Combine(root, "src"), "*.cs", SearchOption.AllDirectories);
         var forbidden = new[] { "HttpClient", "SocketsHttpHandler", "WebRequest.Create", "TcpClient" };
+        // The policy this pins is that production code never proxies to the defunct upstream, which is why it is
+        // strict about the symbol rather than about where a request would go. The single exception is the otomo
+        // identity client: otomo is a service this project runs (docs/OTOMO_IDENTITY.md), and identity cannot be
+        // delegated without an outbound call. Every other file stays forbidden, and this list stays this short.
+        var exempt = new[] { Path.Combine("src", "KickFlight.BootstrapApi", "Otomo", "OtomoIdentity.cs") };
         foreach (var file in sourceFiles)
         {
+            if (exempt.Any(relative => file.EndsWith(relative, StringComparison.OrdinalIgnoreCase))) continue;
             var source = File.ReadAllText(file);
             foreach (var symbol in forbidden) Assert.DoesNotContain(symbol, source);
         }

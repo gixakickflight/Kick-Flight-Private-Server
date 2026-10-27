@@ -15,6 +15,10 @@
     <Protobuf Include="Protos/openmatch.proto" GrpcServices="Server" />
   </ItemGroup>
   <ItemGroup>
+    <!-- The suite derives otomo device ids the same way the adapter does, so it can count logins per device. -->
+    <InternalsVisibleTo Include="KickFlight.BootstrapApi.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <None Update="catalog-ios-12346.json;boot-index-ios-platform-2.json"
           CopyToOutputDirectory="PreserveNewest"
           CopyToPublishDirectory="PreserveNewest" />

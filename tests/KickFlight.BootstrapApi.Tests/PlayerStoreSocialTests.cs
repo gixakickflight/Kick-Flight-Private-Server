@@ -16,7 +16,8 @@ public sealed class PlayerStoreSocialTests : IDisposable
 
     private long CreatePlayer(JsonPlayerStore store, string uuid, string name)
     {
-        var id = store.ResolvePlayerId(uuid);
+        // Identity is otomo's; the store only files the row. Each name gets its own account and device.
+        var id = store.ResolveGamePlayer($"otomo-{uuid}", uuid);
         store.Save(new SessionState
         {
             UserId = id.ToString(),

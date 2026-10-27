@@ -1,8 +1,5 @@
 namespace KickFlight.BootstrapApi.PlayerStore;
 
-// A resolved session token: which player it belongs to, and the key their bodies are encrypted with.
-public sealed record SessionRecord(long PlayerId, byte[] Key);
-
 // A player's standing in one battle rule. Rank is what the client renders as a league badge.
 public sealed record RankState(int BattlePoint, int Rank);
 
@@ -17,34 +14,37 @@ public sealed record FollowedProfile(PlayerProfile Profile, DateTimeOffset Follo
 // filtered to a set of followed players.
 public sealed record RankedPlayer(PlayerProfile Profile, int BattlePoint, int Rank, long Position);
 
-// Where player state lives.
+// Where game-side player state lives.
 //
 // Two implementations, chosen by whether a connection string is configured (see PlayerStoreFactory):
 // PostgresPlayerStore for the deployment, JsonPlayerStore for local runs and the test suite, which must not
 // need a database to be reachable.
+//
+// Identity is not here. otomo owns every account: it decides who a device is, issues the tokens, and revokes them.
+// This store keeps what a player has in *this game* - the save document, ranks, follows - and the one thing the
+// KF protocol forces it to keep, the numeric id under which that state is filed (see ResolveGamePlayer).
 //
 // Everything here is deliberately synchronous. The callers are the existing synchronous request handlers,
 // reached from ~13 call sites, and Npgsql has first-class sync methods; making this async would convert a
 // large part of DemoSessionApi for no benefit at this scale.
 public interface IPlayerStore
 {
-    // The device uuid's player, created on first contact. This is the identity guarantee the store exists
-    // for: the same uuid must resolve to the same player id forever, across restarts and redeploys.
-    long ResolvePlayerId(string uuid);
+    // The numeric row id for an otomo account, minted once and stable thereafter.
+    //
+    // The number is not an account: it is the handle the KF client insists on, because it parses x-app-user-id
+    // with long.TryParse and renders "Player NNNN" from it. Nothing is authenticated by it - the signed access
+    // token carries the otomo identity, and this is looked up from there.
+    //
+    // legacyDeviceUuid is the device id players were keyed by before otomo owned identity. A row with no otomo id
+    // that carries that device is adopted by the account presenting it, so an existing player keeps their name,
+    // rank, inventory and friends instead of starting over.
+    long ResolveGamePlayer(string otomoPlayerId, string legacyDeviceUuid);
 
     // The player's state, or null if that id has never been seen.
     SessionState? TryLoad(long playerId);
 
-    // Upsert. Also records the uuid -> player id mapping when the state carries one (see SessionState).
-    void Save(SessionState state, string? uuid = null);
-
-    // Session tokens outlive the process: a restart must not drop every logged-in client and re-issue them
-    // a different identity.
-    void SaveSession(string accessToken, long playerId, byte[] key);
-
-    // The session for a token, or null. A null result is a rejection, not a licence to guess: the caller
-    // must not fall back to another player's session.
-    SessionRecord? FindSession(string accessToken);
+    // Upsert of the state document and its columns.
+    void Save(SessionState state);
 
     // Rank per battle rule type. Absent rows read as the starting rank, so a new player needs no seeding.
     RankState LoadRank(long playerId, int battleRuleType);
