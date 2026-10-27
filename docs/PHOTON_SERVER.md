@@ -218,3 +218,20 @@ observación contradice que el parche actual haya resuelto el síntoma de extrem
 explican ni reparan por sí solos ese estancamiento. El siguiente diagnóstico requiere logs del intercambio Photon para
 separar una respuesta de JoinGame ausente/rechazada de una respuesta exitosa cuya dirección o conexión GameServer no
 progresa. Esta revisión fue estática: no se usó ADB ni se hizo build.
+
+## Puertos anunciados: cada uno debe ser alcanzable
+
+`config.yml` admite varias entradas por rol, y el NameServer elige una direccion de MasterServer
+**al azar** (`get_random_server_address`, `handler_nameserver.cpp`), no la primera. Por eso una lista
+con puertos que nadie reenvia convierte aproximadamente la mitad de los joins en un silencio: el
+cliente recibe un `host:puerto` que no responde, espera ~5 s, se desconecta del NameServer sin haber
+intentado el MasterServer, y la pantalla de titulo muestra su dialogo de error vacio.
+
+Regla: **o se publican todos los puertos que aparecen en `config.yml`, o se recortan los que no**.
+Un despliegue que solo reenvia 5055/5056/5058 debe usar una plantilla con una unica entrada por rol;
+el VPS, que si publica 27000-27002, puede mantener las dos. La plantilla del repo
+(`deploy/photon/config.yml.template`) trae las dos entradas, asi que recortarla es parte del
+despliegue, no del cliente.
+
+Comprobacion: `ss -lun` dentro del huesped debe mostrar exactamente los puertos de la lista, y el
+log de arranque un `Setting up <rol> on port <p>` por entrada.
