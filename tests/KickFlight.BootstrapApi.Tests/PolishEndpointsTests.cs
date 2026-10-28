@@ -514,8 +514,9 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
         var items = (await PostAsync(session, "/startup/index", null)).GetProperty("userItemList");
 
         var open = await PostAsync(session, "/capsule/immediateOpen", new { slotNumber = 1 });
-        Assert.Equal(4, open.GetProperty("userItemList").GetArrayLength());
-        for (var i = 0; i < 4; i++)
+        // The client's eight Item master rows, exactly as the startup payload carries them.
+        Assert.Equal(8, open.GetProperty("userItemList").GetArrayLength());
+        for (var i = 0; i < 8; i++)
         {
             Assert.Equal(items[i].GetProperty("itemId").GetInt32(), open.GetProperty("userItemList")[i].GetProperty("itemId").GetInt32());
             Assert.Equal(items[i].GetProperty("amount").GetInt32(), open.GetProperty("userItemList")[i].GetProperty("amount").GetInt32());

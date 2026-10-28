@@ -75,11 +75,28 @@ public sealed class OtomoIdentity : IOtomoIdentity, IDisposable
 
     public int CachedDeviceCount => _sessions.Count;
 
-    public async ValueTask<OtomoSession> GetSessionAsync(string deviceUuid, CancellationToken cancellationToken)
+    public ValueTask<OtomoSession> GetSessionAsync(string deviceUuid, CancellationToken cancellationToken)
     {
         EnsureEnabled();
         if (string.IsNullOrWhiteSpace(deviceUuid)) deviceUuid = "default-user";
-        var deviceId = OtomoDeviceId.FromDeviceUuid(deviceUuid);
+        return GetSessionForDeviceIdAsync(OtomoDeviceId.FromDeviceUuid(deviceUuid), cancellationToken);
+    }
+
+    // The same session for a device id that has already been derived. The two are separate entry points because the
+    // inputs are different things: GetSessionAsync takes the client's own device uuid and derives otomo's id from
+    // it, while this takes otomo's id as it stands - which is what a verified access token carries. Hashing the
+    // latter again would be a different account, not the same one.
+    public async ValueTask<OtomoSession> GetSessionForDeviceIdAsync(string otomoDeviceId,
+        CancellationToken cancellationToken)
+    {
+        EnsureEnabled();
+        if (string.IsNullOrWhiteSpace(otomoDeviceId))
+        {
+            throw new OtomoIdentityException(OtomoIdentityFailure.Rejected,
+                "a session was asked for with an empty otomo device id");
+        }
+
+        var deviceId = otomoDeviceId;
         var entry = _sessions.GetOrAdd(deviceId, _ => new DeviceEntry());
 
         await entry.Gate.WaitAsync(cancellationToken).ConfigureAwait(false);

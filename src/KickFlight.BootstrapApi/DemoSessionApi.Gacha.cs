@@ -1,34 +1,37 @@
 using System.Text.Json;
+using KickFlight.BootstrapApi.Otomo;
 
 namespace KickFlight.BootstrapApi;
 
-// Round C, part 2: the two gachas the shop screen offers. There is no economy design here - the player owns a fixed
-// stock of tickets (SessionState.ItemAmounts, 9999 by default) and a draw simply spends one of them, so the drop
-// tables are uniform over the whole master (masters_lottery_drop_disc.json / masters_lottery_drop_kicker.json are
-// generated with dropRate = 1/N per row) and no rarity weighting is applied.
+// The shop screen's two gachas, served by otomo's economy.
 //
-// Retention point for the ShopDiscScroller crash (round C, item 4): the disc tab's scroller
-// (Colorful.ShopDiscScroller) is driven by the HOME payload, not by these endpoints -
-//   HomeResponseData.discGachaGroupList / kickerGachaGroupList (ResponseGachaGroup[])
-//     -> GachaGroupListInfo..ctor(ResponseGachaGroup[]) and GachaGroupListInfo.UpdateData(ResponseGachaGroup[])
-//     -> ShopDisplayView.Initialize(GachaGroupListInfo discGachaInfo, GachaGroupListInfo kickerGachaInfo, ...)
-//     -> ShopDiscScroller.Initialize(GachaGroupListInfo info), which fills 'private List<GachaGroupInfo> _data'
-//     -> EnhancedScroller delegate calls: GetNumberOfCells / GetCellViewSize / GetCellView, and
-//        ShopDiscScroller.GetCellHeight(int dataIndex) does '_data[dataIndex]'.
-// Both lists used to be served empty, so the scroller ended up with a data list shorter than the cell range
-// EnhancedScroller._Resize() walks, and GetCellHeight threw ArgumentOutOfRangeException from List<T>.get_Item.
-// BuildHomeJson now emits one group per list (see BuildHomeGachaGroupJson), which is what makes it consistent.
+// The kicker gacha is a pool: economy's `cosmetic.standard` decides what a draw costs, what it can drop and how a
+// duplicate is handled, and the adapter asks for one roll per accepted request (POST /api/player/economy/gacha/roll)
+// with the player's own token. It holds no drop table of its own and no ticket counter: the ticket is an item in
+// economy's inventory, and "you cannot afford this" is economy's refusal, not a number this process keeps.
+//
+// The disc gacha is retired. Discs do not come from gacha any more - the economy models them as possessions, and a
+// disc you own is level 10 - so /gacha/discDraw answers the neutral shape it always could (no drops, the DTO's
+// fields all present) and says in the log that it is retired. The home screen still gets a disc group, with a
+// drawableCount of 0: ShopDiscScroller is filled from that list and an empty one is what made GetCellHeight throw
+// (see the note this file used to carry), so the banner stays and the button does not.
+//
+// Retention point for the ShopDiscScroller crash (round C, item 4) is unchanged: HomeResponseData.discGachaGroupList
+// and kickerGachaGroupList feed GachaGroupListInfo -> ShopDisplayView -> ShopDiscScroller.Initialize, whose
+// GetCellHeight(int) indexes _data[dataIndex]. Both lists must carry a group and a non-empty gachaList.
 public sealed partial class DemoSessionApi
 {
-    // ResponseGachaGroup dates and the "unlimited" drawable count every gacha is served with.
+    // ResponseGachaGroup dates and the "unlimited" drawable count a served gacha used to carry.
     public const string GachaStartDatetime = "2019-01-01 00:00:00";
     public const string GachaEndDatetime = "2030-01-01 23:59:59";
     private const int GachaDrawableCount = 9999;
 
-    // GachaGroup master row ids; they are also the ids the client sends back in GachaDiscDrawRequestData.gachaId
-    // (through ResponseGacha.id) and in the *Information requests (as gachaGroupId).
+    // The GachaGroup master rows: 1 is the disc tab (retired), 2 the kicker tab (economy's cosmetic pool).
     private const int DiscGachaGroupId = 1;
     private const int KickerGachaGroupId = 2;
+
+    // Economy's MaxRollCount: one roll moves at most ten draws, so the adapter does not ask for more.
+    private const int MaxRollCount = 10;
 
     private sealed record GachaGroupRow(int Id, string Name, int GachaType, string BannerImageFilename,
         string StartDatetime, string EndDatetime, string InformationText, string NoticeText);
@@ -145,14 +148,20 @@ public sealed partial class DemoSessionApi
             _logger.LogWarning("Error parsing gacha master json: {Error}", ex.Message);
         }
 
-        if (_lotteryDropDisc.Count == 0 || _lotteryDropKicker.Count == 0 || _discGachaById.Count == 0 || _kickerGachaById.Count == 0)
+        if (_kickerGachaById.Count == 0)
         {
-            _logger.LogWarning("Gacha masters are incomplete ({DiscDrops} disc drops, {KickerDrops} kicker drops, {DiscGachas} disc gachas, {KickerGachas} kicker gachas) - draws will be rejected",
-                _lotteryDropDisc.Count, _lotteryDropKicker.Count, _discGachaById.Count, _kickerGachaById.Count);
+            _logger.LogWarning("Kicker gacha master is empty: the home screen will serve no cosmetic banner");
+        }
+        if (EconomyCatalog.KickerGachas.All(row => !_kickerGachaById.ContainsKey(row.GachaId)))
+        {
+            _logger.LogError(
+                "No served KickerGacha row matches the economy pool mapping ({Mappings}); no kicker draw can be given a pool",
+                string.Join(", ", EconomyCatalog.KickerGachas.Select(row => $"{row.GachaId}={row.PoolId}")));
         }
     }
 
-    private async Task<IResult?> TryHandleGachaAsync(string path, HttpContext context, SessionState state, byte[] key)
+    private async Task<IResult?> TryHandleGachaAsync(string path, HttpContext context, KfIdentityTicket ticket,
+        SessionState state, byte[] key)
     {
         switch (path)
         {
@@ -169,10 +178,10 @@ public sealed partial class DemoSessionApi
                 return await HandleGachaKickerInformationAsync(context, key);
 
             case "/gacha/discDraw":
-                return await HandleGachaDiscDrawAsync(context, state, key);
+                return await HandleRetiredDiscDrawAsync(context, ticket, state, key);
 
             case "/gacha/kickerDraw":
-                return await HandleGachaKickerDrawAsync(context, state, key);
+                return await HandleGachaKickerDrawAsync(context, ticket, state, key);
 
             default:
                 return null;
@@ -198,7 +207,8 @@ public sealed partial class DemoSessionApi
             return StatusError(context, key);
         }
 
-        // ResponseDiscGachaGroupInformation: one entry per DiscGacha row of the requested group.
+        // ResponseDiscGachaGroupInformation: one entry per DiscGacha row of the requested group. Kept because the
+        // tab still exists in the client and its detail screen must render; it advertises nothing drawable.
         var groups = new List<object>();
         foreach (var gacha in _discGachaById.Values.Where(g => g.GachaGroupId == gachaGroupId).OrderBy(g => g.Id))
         {
@@ -270,79 +280,34 @@ public sealed partial class DemoSessionApi
         return BinaryJson(JsonSerializer.Serialize(response), key);
     }
 
-    private async Task<IResult?> HandleGachaDiscDrawAsync(HttpContext context, SessionState state, byte[] key)
+    // /gacha/discDraw is retired. The DTO's every field is still present, so the result screen renders; the drop
+    // list is empty, which is the truth, and completedDisplayFlag says the banner is finished. The item counters
+    // are repeated because the screen refreshes them from this answer.
+    private async Task<IResult?> HandleRetiredDiscDrawAsync(HttpContext context, KfIdentityTicket ticket,
+        SessionState state, byte[] key)
     {
-        var body = await ReadBodyAsync(context.Request);
-        var gachaId = _discGachaById.Keys.OrderBy(id => id).FirstOrDefault();
-        // GachaDiscDrawRequestData declares only gachaId; a "count" is read when the caller sends one anyway.
-        var count = 1;
-        try
-        {
-            if (body.Length > 0)
-            {
-                var plaintext = D2CCodec.Decode(body, key);
-                using var document = JsonDocument.Parse(plaintext);
-                gachaId = IntOf(document.RootElement, "gachaId", gachaId);
-                count = IntOf(document.RootElement, "count", 1);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning("Could not decode gacha disc draw request: {Error}", ex.Message);
-            return StatusError(context, key);
-        }
+        _logger.LogWarning(
+            "gacha/discDraw is retired: discs are owned, not drawn, and a disc's level is economy's. Answering no drops");
 
-        if (!_discGachaById.TryGetValue(gachaId, out var gacha) || _lotteryDropDisc.Count == 0 || count < 1)
-        {
-            _logger.LogWarning("Rejected gacha/discDraw for gacha {GachaId} x{Count} ({Drops} disc drops in master)", gachaId, count, _lotteryDropDisc.Count);
-            return StatusError(context, key);
-        }
-        count = Math.Min(count, 10);
+        var economy = await ReadPlayerEconomyAsync(ticket, EconomyRead.Balances | EconomyRead.Inventory,
+            "/gacha/discDraw", context.RequestAborted);
+        var snapshot = economy.Snapshot ?? EconomySnapshot.None;
+        var gacha = _discGachaById.Values.OrderBy(g => g.Id).FirstOrDefault();
 
-        var drawn = new List<LotteryDropDiscRow>();
-        for (var i = 0; i < count; i++) drawn.Add(_lotteryDropDisc[Random.Shared.Next(_lotteryDropDisc.Count)]);
-
-        var receivedDiscs = new List<object>();
-        foreach (var discId in drawn.Select(d => d.DiscId).Distinct())
-        {
-            if (!state.Discs.TryGetValue(discId, out var discState))
-            {
-                // A disc the save has never held: level 1 with a single copy.
-                discState = new UserDiscState { DiscId = discId, Level = 1, Amount = 0 };
-                state.Discs[discId] = discState;
-            }
-            discState.Amount += drawn.Count(d => d.DiscId == discId);
-            receivedDiscs.Add(new
-            {
-                discId = discState.DiscId,
-                amount = discState.Amount,
-                level = discState.Level,
-                registerDatetime = "2026-09-01 00:00:00"
-            });
-        }
-
-        // A draw is paid with the ticket LotteryCost names for the gacha's cost id; running out is not refused,
-        // the counter just stops at zero (there is no economy design).
-        var ticketItemId = TicketItemId(gacha.LotteryCostId, fallback: 8);
-        SpendItem(state, ticketItemId, count * Math.Max(gacha.LotteryCostAmount, 1));
-
-        SaveUserState(state);
-
-        var groupName = _gachaGroupById.TryGetValue(gacha.GachaGroupId, out var groupRow) ? groupRow.Name : "";
         var response = new
         {
-            dropDiscList = drawn.Select(d => new { discId = d.DiscId, amount = 1, discForceAmount = 0 }).ToArray(),
-            receivedUserDiscList = receivedDiscs.ToArray(),
+            dropDiscList = Array.Empty<object>(),
+            receivedUserDiscList = Array.Empty<object>(),
             receivedUserItemList = Array.Empty<object>(),
-            userItemList = BuildUserItemList(state),
+            userItemList = Payloads(state).BuildUserItemList(snapshot),
             gachaDropCountRewardList = Array.Empty<object>(),
-            modelId = gacha.ModelId,
-            effectTopImageFilename = gacha.EffectTopImageFilename,
-            effectBottomImageFilename = gacha.EffectBottomImageFilename,
+            modelId = gacha?.ModelId ?? 0,
+            effectTopImageFilename = gacha?.EffectTopImageFilename ?? "",
+            effectBottomImageFilename = gacha?.EffectBottomImageFilename ?? "",
             capsuleEffectType = 1,
-            drawableCount = GachaDrawableCount,
-            drawableDatetime = GachaGroupEnd(gacha.GachaGroupId),
-            completedDisplayFlag = false,
+            drawableCount = 0,
+            drawableDatetime = GachaGroupEnd(DiscGachaGroupId),
+            completedDisplayFlag = true,
             userPresentList = Array.Empty<object>(),
             userMissionProgressList = Array.Empty<object>(),
             userDailyRandomMissionTaskList = Array.Empty<object>(),
@@ -351,13 +316,15 @@ public sealed partial class DemoSessionApi
         };
 
         context.Response.Headers["x-app-status-code"] = "0";
-        context.Response.Headers["x-kickflight-fixture"] = "dynamic-gacha-disc-draw";
-        _logger.LogInformation("Disc gacha {GachaId} ({Group}) drew {Count} disc(s) for user {UserId}: {Discs}; item {Ticket} is now {Left}",
-            gachaId, groupName, count, state.UserId, string.Join(",", drawn.Select(d => d.DiscId)), ticketItemId, StockAmount(state, ticketItemId));
+        context.Response.Headers["x-kickflight-fixture"] = "dynamic-gacha-disc-draw-retired";
         return BinaryJson(JsonSerializer.Serialize(response), key);
     }
 
-    private async Task<IResult?> HandleGachaKickerDrawAsync(HttpContext context, SessionState state, byte[] key)
+    // The kicker draw: one roll on economy's cosmetic pool. The gacha id the client quotes is mapped to a pool id in
+    // EconomyCatalog; the drops, the duplicate policy and the price are economy's answers, and the counters this
+    // payload repeats are read back from economy after the roll.
+    private async Task<IResult?> HandleGachaKickerDrawAsync(HttpContext context, KfIdentityTicket ticket,
+        SessionState state, byte[] key)
     {
         var body = await ReadBodyAsync(context.Request);
         var gachaId = _kickerGachaById.Keys.OrderBy(id => id).FirstOrDefault();
@@ -378,38 +345,51 @@ public sealed partial class DemoSessionApi
             return StatusError(context, key);
         }
 
-        if (!_kickerGachaById.TryGetValue(gachaId, out var gacha) || _lotteryDropKicker.Count == 0 || count < 1)
+        var poolId = EconomyCatalog.PoolIdForGachaId(gachaId);
+        if (poolId is null || count < 1 || !_kickerGachaById.TryGetValue(gachaId, out var gacha))
         {
-            _logger.LogWarning("Rejected gacha/kickerDraw for gacha {GachaId} x{Count} ({Drops} costume drops in master)", gachaId, count, _lotteryDropKicker.Count);
+            _logger.LogWarning("Rejected gacha/kickerDraw for gacha {GachaId} x{Count}: no economy pool is mapped to it",
+                gachaId, count);
             return StatusError(context, key);
         }
-        count = Math.Min(count, 10);
+        count = Math.Clamp(count, 1, MaxRollCount);
 
-        var drawn = new List<LotteryDropKickerRow>();
-        for (var i = 0; i < count; i++) drawn.Add(_lotteryDropKicker[Random.Shared.Next(_lotteryDropKicker.Count)]);
+        string accessToken;
+        EconomyRoll roll;
+        try
+        {
+            accessToken = (await _identity.GetSessionForDeviceIdAsync(ticket.DeviceId, context.RequestAborted)).AccessToken;
+            roll = await _economy.RollAsync(accessToken, poolId, count, Guid.NewGuid().ToString(),
+                context.RequestAborted);
+        }
+        catch (OtomoIdentityException ex)
+        {
+            return EconomyUnavailable(context, "/gacha/kickerDraw", ex);
+        }
+        catch (OtomoEconomyException ex) when (ex.Failure == OtomoEconomyFailure.Refused)
+        {
+            // economy refused the roll - not enough of the pool's cost, the pool is closed, nothing to draw. The
+            // client's shape for that is a non-zero x-app-status-code; the reason is in the log.
+            _logger.LogWarning("gacha/kickerDraw pool {Pool} x{Count} was refused by economy: {Status} {Code}",
+                poolId, count, ex.StatusCode, ex.Code);
+            return StatusError(context, key);
+        }
+        catch (OtomoEconomyException ex)
+        {
+            return EconomyUnavailable(context, "/gacha/kickerDraw", ex);
+        }
 
-        var ticketItemId = TicketItemId(gacha.LotteryCostId, fallback: 7);
-        SpendItem(state, ticketItemId, count * Math.Max(gacha.LotteryCostAmount, 1));
-        SaveUserState(state);
-
-        // Every costume is already owned (the startup payload hands the whole master out), so the "received" list
-        // repeats the costume that was drawn - the client uses it to replay the reveal animation.
-        var receivedKickers = drawn
-            .Select(k => _costumeKicker.TryGetValue(k.KickerCostumeId, out var owner) ? owner : 0)
-            .Where(kickerId => kickerId != 0)
-            .Distinct()
-            .Select(kickerId => BuildUserKicker(state, kickerId))
-            .ToArray();
+        var economy = await ReadPlayerEconomyAsync(ticket, EconomyRead.Balances | EconomyRead.Inventory,
+            "/gacha/kickerDraw", context.RequestAborted);
+        var snapshot = economy.Snapshot ?? SnapshotFromRoll(roll);
+        var payloads = Payloads(state);
 
         var response = new
         {
-            dropKickerCostumeList = drawn.Select(k => new
-            {
-                kickerId = _costumeKicker.TryGetValue(k.KickerCostumeId, out var owner) ? owner : 0,
-                kickerCostumeId = k.KickerCostumeId
-            }).ToArray(),
-            receivedUserKickerList = receivedKickers,
-            userItemList = BuildUserItemList(state),
+            dropKickerCostumeList = payloads.BuildDropKickerCostumes(roll.Draws),
+            receivedUserKickerList = payloads.BuildReceivedUserKickerList(roll.Draws, snapshot,
+                state.KickerId, state.KickerCostumeId),
+            userItemList = payloads.BuildUserItemList(snapshot),
             effectTopImageFilename = gacha.EffectTopImageFilename,
             effectBottomImageFilename = gacha.EffectBottomImageFilename,
             userPresentList = Array.Empty<object>(),
@@ -421,50 +401,78 @@ public sealed partial class DemoSessionApi
 
         context.Response.Headers["x-app-status-code"] = "0";
         context.Response.Headers["x-kickflight-fixture"] = "dynamic-gacha-kicker-draw";
-        _logger.LogInformation("Kicker gacha {GachaId} drew {Count} costume(s) for user {UserId}: {Costumes}; item {Ticket} is now {Left}",
-            gachaId, count, state.UserId, string.Join(",", drawn.Select(k => k.KickerCostumeId)), ticketItemId, StockAmount(state, ticketItemId));
+        _logger.LogInformation(
+            "Kicker gacha {GachaId} (pool {Pool}) drew {Count} for user {UserId} via economy: {Items}; pity {Pity}{Replayed}",
+            gachaId, poolId, count, state.UserId,
+            string.Join(",", (roll.Draws ?? []).Select(draw => draw.Item)), roll.Pity,
+            roll.Replayed ? " (replay)" : "");
         return BinaryJson(JsonSerializer.Serialize(response), key);
     }
 
-    // ResponseUserKicker, the same shape BuildStartupJson serves: the costume list carries the gear slots so the
-    // reveal card can draw them.
-    private object BuildUserKicker(SessionState state, int kickerId)
+    // The disc tab's banner: present, because the scroller needs a group and a row, and not drawable
+    // (drawableCount 0, completedDisplayFlag true), because the disc gacha is retired.
+    private object[] BuildHomeDiscGachaGroupList()
     {
-        var costumes = _costumesByKicker.GetValueOrDefault(kickerId, []);
-        return new
-        {
-            kickerId,
-            kickerCostumeId = costumes.Count > 0 ? costumes[0] : 0,
-            userKickerCostumeList = costumes.Select(c =>
+        if (!_gachaGroupById.TryGetValue(DiscGachaGroupId, out var group)) return [];
+
+        var gachaList = _discGachaById.Values
+            .Where(g => g.GachaGroupId == DiscGachaGroupId)
+            .OrderBy(g => g.Id)
+            .Select(gacha => BuildResponseGacha(gacha.Id, gacha.LotteryCostId, gacha.LotteryCostAmount, 0,
+                gacha.EffectTopImageFilename, gacha.EffectBottomImageFilename))
+            .ToArray();
+
+        return
+        [
+            new
             {
-                var slots = GearSlots(state, c);
-                return new { kickerCostumeId = c, gearId1 = slots[0], gearId2 = slots[1], gearId3 = slots[2] };
-            }).ToArray()
-        };
+                gachaGroupId = group.Id,
+                name = group.Name,
+                gachaType = group.GachaType,
+                bannerImageFilename = group.BannerImageFilename,
+                startDatetime = group.StartDatetime,
+                endDatetime = group.EndDatetime,
+                boxFlag = false,
+                stepFlag = false,
+                newFlag = false,
+                completedDisplayFlag = true,
+                remainingTimeDisplayFlag = false,
+                gachaList,
+                gachaDropCountRewardList = Array.Empty<object>()
+            }
+        ];
     }
 
-    // ResponseGachaGroup for the home payload. ShopDiscScroller/ShopKickerScroller are fed from exactly this list,
-    // so it must not be empty while the shop screen is open (see the note at the top of this file).
-    private object[] BuildHomeGachaGroupList(int gachaGroupId)
+    // The kicker tab, one ResponseGacha row per served KickerGacha master row whose pool economy reports. The price
+    // shown is the pool's own cost, so the client cannot advertise a price the purchase would not charge.
+    private object[] BuildHomeKickerGachaGroupList(EconomySnapshot economy)
     {
-        if (!_gachaGroupById.TryGetValue(gachaGroupId, out var group)) return [];
+        if (!_gachaGroupById.TryGetValue(KickerGachaGroupId, out var group)) return [];
 
         var gachaList = new List<object>();
-        if (gachaGroupId == DiscGachaGroupId)
+        foreach (var gacha in _kickerGachaById.Values.Where(g => g.GachaGroupId == KickerGachaGroupId).OrderBy(g => g.Id))
         {
-            foreach (var gacha in _discGachaById.Values.Where(g => g.GachaGroupId == gachaGroupId).OrderBy(g => g.Id))
+            var poolId = EconomyCatalog.PoolIdForGachaId(gacha.Id);
+            var pool = poolId is null ? null : economy.Pools.FirstOrDefault(p => p.Id == poolId);
+            if (poolId is null)
             {
-                gachaList.Add(BuildResponseGacha(gacha.Id, gacha.LotteryCostId, gacha.LotteryCostAmount,
-                    gacha.EffectTopImageFilename, gacha.EffectBottomImageFilename));
+                _logger.LogWarning("Kicker gacha {GachaId} has no economy pool mapped to it: served as not drawable", gacha.Id);
             }
-        }
-        else
-        {
-            foreach (var gacha in _kickerGachaById.Values.Where(g => g.GachaGroupId == gachaGroupId).OrderBy(g => g.Id))
+            else if (pool is null)
             {
-                gachaList.Add(BuildResponseGacha(gacha.Id, gacha.LotteryCostId, gacha.LotteryCostAmount,
-                    gacha.EffectTopImageFilename, gacha.EffectBottomImageFilename));
+                _logger.LogWarning("Kicker gacha {GachaId} names economy pool {Pool}, which the shop does not report", gacha.Id, poolId);
             }
+
+            var poolCost = PoolCost(pool);
+            if (poolCost is null)
+            {
+                var (masterGoodsType, masterGoodsId) = CostOf(gacha.LotteryCostId);
+                poolCost = (masterGoodsType, masterGoodsId, gacha.LotteryCostAmount);
+            }
+            var (costGoodsType, costGoodsId, costAmount) = poolCost.Value;
+            gachaList.Add(BuildResponseGacha(gacha.Id, costGoodsType, costGoodsId, costAmount,
+                pool is { Open: true } ? GachaDrawableCount : 0,
+                gacha.EffectTopImageFilename, gacha.EffectBottomImageFilename));
         }
 
         return
@@ -488,24 +496,43 @@ public sealed partial class DemoSessionApi
         ];
     }
 
-    private object BuildResponseGacha(int gachaId, int lotteryCostId, int lotteryCostAmount, string effectTop, string effectBottom)
+    // The pool's price as the client's three fields: goodsType/GoodsId name the Item master row, costAmount is how
+    // many of it one draw costs.
+    private static (int GoodsType, int GoodsId, int Amount)? PoolCost(EconomyPool? pool)
     {
-        _lotteryCostById.TryGetValue(lotteryCostId, out var cost);
-        return new
-        {
-            id = gachaId,
-            dropAmount = 1,
-            drawableCount = GachaDrawableCount,
-            drawableDatetime = GachaEndDatetime,
-            costGoodsType = cost?.GoodsType ?? 0,
-            costGoodsId = cost?.GoodsId ?? 0,
-            costAmount = lotteryCostAmount,
-            gachaBoxStatus = new { acquiredAmount = 0, totalAmount = 0 },
-            stepNumber = 0,
-            effectTopImageFilename = effectTop,
-            effectBottomImageFilename = effectBottom
-        };
+        var cost = pool?.Cost?.FirstOrDefault(grant => grant.Currency is not null && grant.Amount > 0);
+        if (cost is null) return null;
+        if (!EconomyCatalog.TryItemIdForCurrency(cost.Currency, out var itemId)) return null;
+        if (!EconomyCatalog.TryGoodsTypeForItemId(itemId, out var goodsType)) return null;
+        return (goodsType, itemId, (int)Math.Clamp(cost.Amount, 0, int.MaxValue));
     }
+
+    // The LotteryCost master row's goodsType/goodsId, for a gacha economy has no pool for: display only.
+    private (int GoodsType, int GoodsId) CostOf(int lotteryCostId) =>
+        _lotteryCostById.TryGetValue(lotteryCostId, out var cost) ? (cost.GoodsType, cost.GoodsId) : (0, 0);
+
+    private object BuildResponseGacha(int gachaId, int lotteryCostId, int lotteryCostAmount, int drawableCount,
+        string effectTop, string effectBottom)
+    {
+        var (goodsType, goodsId) = CostOf(lotteryCostId);
+        return BuildResponseGacha(gachaId, goodsType, goodsId, lotteryCostAmount, drawableCount, effectTop, effectBottom);
+    }
+
+    private object BuildResponseGacha(int gachaId, int costGoodsType, int costGoodsId, int costAmount,
+        int drawableCount, string effectTop, string effectBottom) => new
+    {
+        id = gachaId,
+        dropAmount = 1,
+        drawableCount,
+        drawableDatetime = GachaEndDatetime,
+        costGoodsType,
+        costGoodsId,
+        costAmount,
+        gachaBoxStatus = new { acquiredAmount = 0, totalAmount = 0 },
+        stepNumber = 0,
+        effectTopImageFilename = effectTop,
+        effectBottomImageFilename = effectBottom
+    };
 
     private string GachaGroupText(int gachaGroupId, bool information) =>
         _gachaGroupById.TryGetValue(gachaGroupId, out var group)
@@ -516,14 +543,6 @@ public sealed partial class DemoSessionApi
         _gachaGroupById.TryGetValue(gachaGroupId, out var group) && !string.IsNullOrEmpty(group.EndDatetime)
             ? group.EndDatetime
             : GachaEndDatetime;
-
-    // LotteryCost rows name the ticket in goodsType/goodsId; the Item master maps that goodsType to the item id the
-    // client counts (402 disc ticket -> item 8, 401 kicker ticket -> item 7).
-    private int TicketItemId(int lotteryCostId, int fallback)
-    {
-        if (!_lotteryCostById.TryGetValue(lotteryCostId, out var cost)) return fallback;
-        return _itemIdByGoodsType.TryGetValue(cost.GoodsType, out var itemId) ? itemId : fallback;
-    }
 
     private static int IntOf(JsonElement element, string name, int fallback = 0) =>
         element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.Number

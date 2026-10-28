@@ -1,22 +1,32 @@
 using System.Text.Json;
+using KickFlight.BootstrapApi.Otomo;
 
 namespace KickFlight.BootstrapApi;
 
-// Round C, part 1 and 3: the item stocks the gear screen counts stamps from, and the goods shop that trades JetCoin
-// for them. As with the gacha there is no economy design - a fresh save reads every stock item as
-// DefaultStockAmount (9999) and a purchase only has to stay above zero, so nothing here models scarcity.
+// The goods shop: the four products the client's shop screen offers, priced and granted by otomo's economy.
+//
+// Nothing here holds a stock. Whether a product is on the shelf and what it costs come from the shop document
+// economy publishes; the purchase itself is POST /api/player/economy/shop/purchase with the player's own token, and
+// the counters the answer repeats are read back from economy afterwards. The adapter's whole job is translation:
+// the client's goodsShopProductId to an offer id (EconomyCatalog), and economy's item names back to the client's
+// Item master ids.
 public sealed partial class DemoSessionApi
 {
-    // ids 5-8 of the Item master: gear stamps, disc fragments and the two gacha tickets. A save written before
-    // round C has no entry for them and reads as this default.
-    public const int DefaultStockAmount = 9999;
-    private const int GoodsShopPurchasableCount = 9999;
+    // ResponseGoodsShopProduct.purchasableCount is a display field - the client shows it, and the real limit is the
+    // offer's own, which economy enforces on purchase. A product economy sells keeps the number the client has
+    // always been served, so no screen changes; one economy does not sell says 0, which is what leaves its button
+    // dead without the player finding out through a failed purchase.
+    private const int GoodsShopAvailableCount = 9999;
+
+    // Economy's MaxPurchaseQuantity: one purchase moves at most this many.
+    private const int MaxPurchaseQuantity = 100;
 
     private sealed record GoodsShopProductRow(int Id, int GoodsShopType, string Name, int CostGoodsType, int CostGoodsId,
         int CostAmount, int GoodsType, int GoodsId, int GoodsAmount);
 
     // goodsShopType follows GoodsShopType in the dump (1 = DiscForce, 2 = Exchange). The Disc Force product is the
-    // DiscForce tab; the three JetCoin exchanges live in the Exchange tab.
+    // DiscForce tab; the three JetCoin exchanges live in the Exchange tab. The cost and grant here are the client's
+    // display values and the mapping is atmosphere; what a purchase charges is the offer's price, from economy.
     private static readonly GoodsShopProductRow[] GoodsShopProducts =
     [
         new(1, 2, "Disc Gacha Ticket", 101, 1, 100, 402, 8, 1),
@@ -25,92 +35,51 @@ public sealed partial class DemoSessionApi
         new(4, 1, "Disc Force x1000", 101, 1, 100, 302, 3, 1000),
     ];
 
-    // goodsType -> Item master id, so a GoodsType the shop or a lottery rewards is turned into the itemId the client
-    // counts without a second table.
-    private readonly Dictionary<int, int> _itemIdByGoodsType = [];
-
-    private void ParseItemMaster(string itemJson)
-    {
-        try
-        {
-            foreach (var el in JsonDocument.Parse(itemJson).RootElement.EnumerateArray())
-            {
-                _itemIdByGoodsType[IntOf(el, "goodsType")] = IntOf(el, "id");
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning("Error parsing item master json: {Error}", ex.Message);
-        }
-    }
-
-    // ResponseUserItem for the whole Item master: ids 1-4 are the legacy counters, 5-8 the round C stocks.
-    public static object[] BuildUserItemList(SessionState state) =>
-    [
-        new { itemId = 1, amount = StockAmount(state, 1) },
-        new { itemId = 2, amount = StockAmount(state, 2) },
-        new { itemId = 3, amount = StockAmount(state, 3) },
-        new { itemId = 4, amount = StockAmount(state, 4) },
-        new { itemId = 5, amount = StockAmount(state, 5) },
-        new { itemId = 6, amount = StockAmount(state, 6) },
-        new { itemId = 7, amount = StockAmount(state, 7) },
-        new { itemId = 8, amount = StockAmount(state, 8) },
-    ];
-
-    public static int StockAmount(SessionState state, int itemId) => itemId switch
-    {
-        1 => state.ItemJetCoins,
-        2 => state.ItemPaidJetCoins,
-        3 => state.ItemDiscForce,
-        4 => state.ItemKickPoints,
-        >= 5 and <= 8 => state.ItemAmounts.TryGetValue(itemId, out var amount) ? amount : DefaultStockAmount,
-        _ => 0
-    };
-
-    private static void SetStockAmount(SessionState state, int itemId, int amount)
-    {
-        amount = Math.Max(0, amount);
-        switch (itemId)
-        {
-            case 1: state.ItemJetCoins = amount; break;
-            case 2: state.ItemPaidJetCoins = amount; break;
-            case 3: state.ItemDiscForce = amount; break;
-            case 4: state.ItemKickPoints = amount; break;
-            case >= 5 and <= 8: state.ItemAmounts[itemId] = amount; break;
-        }
-    }
-
-    // Drawing or buying never drives a counter below zero: there is no "not enough" state to model for the gacha,
-    // and the goods shop refuses the purchase before it gets here.
-    private static void SpendItem(SessionState state, int itemId, int amount) =>
-        SetStockAmount(state, itemId, StockAmount(state, itemId) - amount);
-
-    private static void GrantItem(SessionState state, int itemId, int amount) =>
-        SetStockAmount(state, itemId, StockAmount(state, itemId) + amount);
-
     // ResponseGoodsShopProduct, field for field (goodsShopProductGoodsList carries exactly one grant here).
-    private object[] BuildGoodsShopProducts() => GoodsShopProducts.Select(p => (object)new
-    {
-        id = p.Id,
-        goodsShopType = p.GoodsShopType,
-        name = p.Name,
-        costGoodsType = p.CostGoodsType,
-        costGoodsId = p.CostGoodsId,
-        costAmount = p.CostAmount,
-        resetType = 0,
-        startDatetime = GachaStartDatetime,
-        endDatetime = GachaEndDatetime,
-        resetDatetime = "",
-        limitedCount = 0,
-        purchasableCount = GoodsShopPurchasableCount,
-        newFlag = false,
-        goodsShopProductGoodsList = new[]
+    private object[] BuildGoodsShopProducts(EconomySnapshot economy) =>
+        GoodsShopProducts.Select(product =>
         {
-            new { goodsType = p.GoodsType, goodsId = p.GoodsId, amount = p.GoodsAmount }
-        }
-    }).ToArray();
+            var offer = OfferFor(economy, product.Id);
+            var cost = offer?.Cost?.FirstOrDefault(grant =>
+                grant.Currency is not null && grant.Amount > 0 &&
+                EconomyCatalog.TryItemIdForCurrency(grant.Currency, out var itemId) && itemId == 1);
 
-    private async Task<IResult?> TryHandleShopAsync(string path, HttpContext context, SessionState state, byte[] key)
+            // The price the client shows is the offer's, so the shop cannot advertise one price and charge another;
+            // the static row's price stands when economy does not sell the product at all.
+            var costAmount = cost is { Amount: > 0 } priced
+                ? (int)Math.Clamp(priced.Amount, 0, int.MaxValue)
+                : product.CostAmount;
+
+            return (object)new
+            {
+                id = product.Id,
+                goodsShopType = product.GoodsShopType,
+                name = product.Name,
+                costGoodsType = product.CostGoodsType,
+                costGoodsId = product.CostGoodsId,
+                costAmount,
+                resetType = 0,
+                startDatetime = GachaStartDatetime,
+                endDatetime = GachaEndDatetime,
+                resetDatetime = "",
+                limitedCount = offer is null ? 0 : (int)Math.Clamp(offer.Limit?.Count ?? 0, 0, int.MaxValue),
+                purchasableCount = offer is { Available: true } ? GoodsShopAvailableCount : 0,
+                newFlag = false,
+                goodsShopProductGoodsList = new[]
+                {
+                    new { goodsType = product.GoodsType, goodsId = product.GoodsId, amount = product.GoodsAmount }
+                }
+            };
+        }).ToArray();
+
+    private static EconomyOffer? OfferFor(EconomySnapshot economy, int productId)
+    {
+        var offerId = EconomyCatalog.OfferIdForProduct(productId);
+        return offerId is null ? null : economy.Offers.FirstOrDefault(offer => offer.Id == offerId);
+    }
+
+    private async Task<IResult?> TryHandleShopAsync(string path, HttpContext context, KfIdentityTicket ticket,
+        SessionState state, byte[] key)
     {
         switch (path)
         {
@@ -121,16 +90,24 @@ public sealed partial class DemoSessionApi
                 return BinaryJson("{}", key);
 
             case "/goodsShop/buy":
-                return await HandleGoodsShopBuyAsync(context, state, key);
+                return await HandleGoodsShopBuyAsync(context, ticket, state, key);
 
             case "/goodsShop/reset":
+            {
+                // The reset screen shows the counters and the shelf, so both are read for this request.
+                var economy = await ReadPlayerEconomyAsync(ticket, EconomyRead.Balances | EconomyRead.Inventory | EconomyRead.Shop,
+                    path, context.RequestAborted);
+                if (economy.Snapshot is null) return EconomyUnavailable(context, path, economy.Error);
+                var snapshot = economy.Snapshot!;
+
                 context.Response.Headers["x-app-status-code"] = "0";
                 context.Response.Headers["x-kickflight-fixture"] = "dynamic-goods-shop-reset";
                 return BinaryJson(JsonSerializer.Serialize(new
                 {
-                    userItemList = BuildUserItemList(state),
-                    goodsShopProductList = BuildGoodsShopProducts()
+                    userItemList = Payloads(state).BuildUserItemList(snapshot),
+                    goodsShopProductList = BuildGoodsShopProducts(snapshot)
                 }), key);
+            }
 
             case "/shop/option":
             case "/shop/birthday":
@@ -161,7 +138,10 @@ public sealed partial class DemoSessionApi
         }
     }
 
-    private async Task<IResult?> HandleGoodsShopBuyAsync(HttpContext context, SessionState state, byte[] key)
+    // A purchase is economy's: the offer is looked up from the product id, the price is the shop document's, and
+    // the items granted are what economy says moved. The adapter never decides that a product costs anything.
+    private async Task<IResult?> HandleGoodsShopBuyAsync(HttpContext context, KfIdentityTicket ticket,
+        SessionState state, byte[] key)
     {
         var body = await ReadBodyAsync(context.Request);
         var productId = 0;
@@ -180,29 +160,54 @@ public sealed partial class DemoSessionApi
             return StatusError(context, key);
         }
 
-        var product = GoodsShopProducts.FirstOrDefault(p => p.Id == productId);
-        if (product is null || count < 1)
+        var product = GoodsShopProducts.FirstOrDefault(row => row.Id == productId);
+        var offerId = product is null ? null : EconomyCatalog.OfferIdForProduct(product.Id);
+        if (product is null || offerId is null || count < 1)
         {
             _logger.LogWarning("Rejected goodsShop/buy for unknown product {ProductId} x{Count}", productId, count);
             return StatusError(context, key);
         }
-        count = Math.Min(count, GoodsShopPurchasableCount);
+        count = Math.Clamp(count, 1, MaxPurchaseQuantity);
 
-        var costItemId = _itemIdByGoodsType.GetValueOrDefault(product.CostGoodsType, 0);
-        var cost = product.CostAmount * count;
-        var owned = costItemId == 0 ? 0 : StockAmount(state, costItemId);
-        if (costItemId == 0 || owned < cost)
+        EconomyPurchase purchase;
+        try
         {
-            _logger.LogWarning("goodsShop/buy of product {ProductId} x{Count} needs {Cost} of item {CostItem} but the user has {Owned}",
-                productId, count, cost, costItemId, owned);
+            var accessToken = (await _identity.GetSessionForDeviceIdAsync(ticket.DeviceId, context.RequestAborted)).AccessToken;
+            // A fresh key per accepted request: economy answers a replay for a key it has seen, and this decision has
+            // not been made before. What the key protects is the adapter's own resend of *this* request, which
+            // OtomoEconomy does with the same key (see its retry).
+            purchase = await _economy.PurchaseAsync(accessToken, offerId, count, Guid.NewGuid().ToString(),
+                context.RequestAborted);
+        }
+        catch (OtomoIdentityException ex)
+        {
+            return EconomyUnavailable(context, "/goodsShop/buy", ex);
+        }
+        catch (OtomoEconomyException ex) when (ex.Failure == OtomoEconomyFailure.Refused)
+        {
+            // economy said no: not enough of the cost, the offer's limit is reached, its window closed, or the
+            // adapter asked for an offer the shop does not have. The client's shape for that is a non-zero
+            // x-app-status-code; the reason goes to the log for the operator.
+            _logger.LogWarning("goodsShop/buy of product {ProductId} (offer {Offer}) x{Count} was refused by economy: {Status} {Code}",
+                productId, offerId, count, ex.StatusCode, ex.Code);
             return StatusError(context, key);
         }
+        catch (OtomoEconomyException ex)
+        {
+            return EconomyUnavailable(context, "/goodsShop/buy", ex);
+        }
 
-        SpendItem(state, costItemId, cost);
-
-        var grantedItemId = _itemIdByGoodsType.GetValueOrDefault(product.GoodsType, 0);
-        if (grantedItemId != 0) GrantItem(state, grantedItemId, product.GoodsAmount * count);
-        SaveUserState(state);
+        var economy = await ReadPlayerEconomyAsync(ticket, EconomyRead.Balances | EconomyRead.Inventory,
+            "/goodsShop/buy", context.RequestAborted);
+        // The purchase has already moved the value, so its answer is served either way: a counter read that failed
+        // after a successful purchase must not turn into an error the player would answer by buying again.
+        var snapshot = economy.Snapshot ?? SnapshotFromPurchase(purchase);
+        if (economy.Snapshot is null)
+        {
+            _logger.LogError("goodsShop/buy for player {PlayerId} succeeded but the counters could not be re-read; " +
+                "answering from the purchase's own result", state.UserId);
+        }
+        var payloads = Payloads(state);
 
         var response = new
         {
@@ -211,19 +216,20 @@ public sealed partial class DemoSessionApi
             receivedUserCapsuleList = Array.Empty<object>(),
             receivedUserDiscList = Array.Empty<object>(),
             receivedUserHonorList = Array.Empty<object>(),
-            receivedUserItemList = grantedItemId == 0
-                ? Array.Empty<object>()
-                : new object[] { new { itemId = grantedItemId, amount = StockAmount(state, grantedItemId) } },
+            receivedUserItemList = payloads.BuildReceivedUserItemList(purchase.Items),
             receivedUserStampList = Array.Empty<object>(),
-            userItemList = BuildUserItemList(state),
+            userItemList = payloads.BuildUserItemList(snapshot),
             userPresentList = Array.Empty<object>(),
             receivedRewardList = Array.Empty<object>()
         };
 
         context.Response.Headers["x-app-status-code"] = "0";
         context.Response.Headers["x-kickflight-fixture"] = "dynamic-goods-shop-buy";
-        _logger.LogInformation("goodsShop/buy product {ProductId} x{Count} for user {UserId}: -{Cost} of item {CostItem}, +{Granted} of item {GrantedItem}",
-            productId, count, state.UserId, cost, costItemId, product.GoodsAmount * count, grantedItemId);
+        _logger.LogInformation(
+            "goodsShop/buy product {ProductId} (offer {Offer}) x{Count} for user {UserId} via economy: granted {Items}{Replayed}",
+            productId, offerId, count, state.UserId,
+            string.Join(",", (purchase.Items ?? []).Select(move => $"{move.Item}+{move.Qty}")),
+            purchase.Replayed ? " (replay)" : "");
         return BinaryJson(JsonSerializer.Serialize(response), key);
     }
 }

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using KickFlight.BootstrapApi.Otomo;
 using KickFlight.BootstrapApi.PlayerStore;
 
 namespace KickFlight.BootstrapApi;
@@ -25,7 +26,8 @@ public sealed partial class DemoSessionApi
     // unconditionally and NullReferenceExceptions on an array that is missing, not merely empty. So the payloads
     // below are the DTO's full field list (../Kick-Flight-Assets/server_revival_analysis/il2cpp/dump.cs) filled with
     // neutral values - nothing here is real data.
-    private async Task<IResult?> TryHandleStubAsync(string path, HttpContext context, SessionState state, byte[] key)
+    private async Task<IResult?> TryHandleStubAsync(string path, HttpContext context, KfIdentityTicket ticket,
+        SessionState state, byte[] key)
     {
         switch (path)
         {
@@ -111,10 +113,13 @@ public sealed partial class DemoSessionApi
                 return OkJson(context, key, "{}");
 
             case "/capsule/immediateOpen":
+            {
                 // Only this one repeats userItemList: the client refreshes the item counters from it without
-                // re-fetching the startup payload.
+                // re-fetching the startup payload. The counters are economy's, so this is one more read of them.
+                var itemListJson = await BuildUserItemListJsonAsync(ticket, state, context);
                 return OkJson(context, key,
-                    $$"""{"dropDiscList":[],"receivedUserDiscList":[],"receivedUserItemList":[],"userItemList":{{BuildUserItemListJson(state)}},"capsuleEffectType":0,"userPresentList":[],"userMissionProgressList":[],"userDailyRandomMissionTaskList":[],"receivedRewardList":[],"premiumFlag":false}""");
+                    $$"""{"dropDiscList":[],"receivedUserDiscList":[],"receivedUserItemList":[],"userItemList":{{itemListJson}},"capsuleEffectType":0,"userPresentList":[],"userMissionProgressList":[],"userDailyRandomMissionTaskList":[],"receivedRewardList":[],"premiumFlag":false}""");
+            }
             case "/capsule/open":
                 return OkJson(context, key,
                     """{"dropDiscList":[],"receivedUserDiscList":[],"receivedUserItemList":[],"capsuleEffectType":0,"userPresentList":[],"userMissionProgressList":[],"userDailyRandomMissionTaskList":[],"receivedRewardList":[],"premiumFlag":false}""");
@@ -293,9 +298,9 @@ public sealed partial class DemoSessionApi
         }
 
         var discIds = Enumerable.Range(0, 4).Select(DiscAt).ToArray();
-        int LevelOf(int discId) => state.Discs.TryGetValue(discId, out var disc) && disc.Level > 0
-            ? disc.Level
-            : 10;
+        // A disc's level is economy's, and this route describes *another* player, whose inventory this process has
+        // no token for: a disc either player owns is level 10 (EconomyPayloads.OwnedDiscLevel).
+        static int LevelOf(int discId) => EconomyPayloads.OwnedDiscLevel;
 
         json = JsonSerializer.Serialize(new
         {
@@ -309,16 +314,6 @@ public sealed partial class DemoSessionApi
         });
         return true;
     }
-
-    // Same four rows BuildStartupJson emits, built from the live counters.
-    private static string BuildUserItemListJson(SessionState state) =>
-        JsonSerializer.Serialize(new[]
-        {
-            new { itemId = 1, amount = state.ItemJetCoins },
-            new { itemId = 2, amount = state.ItemPaidJetCoins },
-            new { itemId = 3, amount = state.ItemDiscForce },
-            new { itemId = 4, amount = state.ItemKickPoints }
-        });
 
     private static IResult OkJson(HttpContext context, byte[] key, string json)
     {

@@ -476,7 +476,8 @@ public sealed class HarnessTests : IClassFixture<ServerTestHostFixture>
         var exempt = new[]
         {
             Path.Combine("src", "KickFlight.BootstrapApi", "Otomo", "OtomoIdentity.cs"),
-            Path.Combine("src", "KickFlight.BootstrapApi", "Otomo", "OtomoMasters.cs")
+            Path.Combine("src", "KickFlight.BootstrapApi", "Otomo", "OtomoMasters.cs"),
+            Path.Combine("src", "KickFlight.BootstrapApi", "Otomo", "OtomoEconomy.cs")
         };
         foreach (var file in sourceFiles)
         {
@@ -590,10 +591,15 @@ public sealed class HarnessTests : IClassFixture<ServerTestHostFixture>
         var startupBytes = await startupResponse.Content.ReadAsByteArrayAsync();
         var startupDecrypted = D2CCodec.Decode(startupBytes, sessionKeyBytes);
         using var startupDoc = JsonDocument.Parse(startupDecrypted);
+        // Ownership is economy's, and a fresh otomo account owns nothing: the startup payload carries the one kicker
+        // the save says is selected (identity, not value) and no discs at all. That the masters still carry every
+        // kicker, costume and disc is asserted through /download/master above and below, which is the catalogue's
+        // own contract - a player owning rows of it is a different question, and economy answers it.
         var userKickerList = startupDoc.RootElement.GetProperty("userKickerList");
-        Assert.Equal(14, userKickerList.GetArrayLength());
+        Assert.Equal(1, userKickerList.GetArrayLength());
+        Assert.Equal(1, userKickerList[0].GetProperty("kickerId").GetInt32());
         var userDiscList = startupDoc.RootElement.GetProperty("userDiscList");
-        Assert.Equal(131, userDiscList.GetArrayLength());   // every disc in masters_disc.json
+        Assert.Empty(userDiscList.EnumerateArray());
 
         // 7. Request POST /home/index (initial kickerId = 1, 5 decks)
         using var homeRequest = new HttpRequestMessage(HttpMethod.Post, "/home/index")
