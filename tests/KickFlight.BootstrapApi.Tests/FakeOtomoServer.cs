@@ -55,6 +55,10 @@ public sealed class FakeOtomoServer : IAsyncDisposable
 
     public int LoginsFor(string otomoDeviceId) => _loginsByDevice.GetValueOrDefault(otomoDeviceId);
 
+    // The otomo account a device id resolves to, or null before it has logged in. A test that needs to seed the
+    // fake economy for "this session's player" has only the device it minted, which is what this turns into one.
+    public string? AccountFor(string otomoDeviceId) => _accountByDevice.GetValueOrDefault(otomoDeviceId);
+
     public int RefreshesFor(string otomoDeviceId) => _refreshesByDevice.GetValueOrDefault(otomoDeviceId);
 
     public int LogoutsFor(string otomoDeviceId) => _logoutsByDevice.GetValueOrDefault(otomoDeviceId);
@@ -209,8 +213,13 @@ public sealed class FakeOtomoServer : IAsyncDisposable
 public static class OtomoTestEnvironment
 {
     private static readonly Lazy<FakeOtomoServer> LazyServer = new(FakeOtomoServer.Start);
+    private static readonly Lazy<FakeOtomoEconomy> LazyEconomy = new(FakeOtomoEconomy.Start);
 
     public static FakeOtomoServer Server => LazyServer.Value;
+
+    // The economy every host in this suite reads its values from: the adapter holds none of its own, so a test host
+    // without one could not serve a startup payload at all.
+    public static FakeOtomoEconomy Economy => LazyEconomy.Value;
 
     [ModuleInitializer]
     internal static void Initialize()
@@ -218,5 +227,8 @@ public static class OtomoTestEnvironment
         Environment.SetEnvironmentVariable("Otomo__Enabled", "true");
         Environment.SetEnvironmentVariable("Otomo__BaseUrl", Server.BaseUrl);
         Environment.SetEnvironmentVariable("Otomo__TokenSecret", "kickflight-test-signing-secret");
+        Environment.SetEnvironmentVariable("Otomo__Economy__Enabled", "true");
+        Environment.SetEnvironmentVariable("Otomo__Economy__BaseUrl", Economy.BaseUrl);
+        Environment.SetEnvironmentVariable("Otomo__Economy__Timeout", "00:00:10");
     }
 }

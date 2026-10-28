@@ -613,10 +613,12 @@ Response:
 
 ## Server coverage (src/KickFlight.BootstrapApi, checked 2026-10-20)
 Route strings (all 31 present in stringliteral.json): handled where noted.
-- /gacha/read, discInformation, kickerInformation, discDraw, kickerDraw: real handlers (DemoSessionApi.Gacha.cs TryHandleGachaAsync).
-- /goodsShop/read (empty {}), /goodsShop/buy (real, HandleGoodsShopBuyAsync), /goodsShop/reset (userItemList + goodsShopProductList): DemoSessionApi.Shop.cs.
+- /gacha/read, discInformation, kickerInformation, discDraw, kickerDraw: handlers in DemoSessionApi.Gacha.cs (TryHandleGachaAsync). Since the economy port (docs/OTOMO_ECONOMY.md): kickerDraw is one roll on economy's `cosmetic.standard` pool, and discDraw is **retired** - it answers the full DTO with no drops, drawableCount 0 and completedDisplayFlag true, and logs that it is retired.
+- /goodsShop/read (empty {}), /goodsShop/buy (one economy purchase: offer id from EconomyCatalog, the price from the shop document, the receipt from the purchase result), /goodsShop/reset (userItemList + goodsShopProductList, both read from economy): DemoSessionApi.Shop.cs.
 - /shop/option, /shop/birthday: "{}". /shop/prepare, /shop/verify: neutral payloads (no purchase possible). DemoSessionApi.Shop.cs.
-- /disc/buildup: real handler (DemoSessionApi.cs HandleDiscBuildupAsync).
+- /disc/buildup: **retired** - the request is read and validated, then the disc is answered as it stands at level 10 with nothing spent (DemoSessionApi.cs HandleDiscBuildupAsync).
+
+Nothing above holds a value: every `userItemList`, `userDiscList`, `userKickerList`, `goodsShopProductList` and gacha banner is assembled per request from otomo's economy (docs/OTOMO_ECONOMY.md).
 - /capsule/open, /capsule/immediateOpen: static empty stubs (DemoSessionApi.Stubs.cs); immediateOpen also returns userItemList.
 - /mission/index, read, tweet: one shared empty stub {userMissionProgressList:[],userDailyRandomMissionTaskList:[]}; /mission/receipt: empty stub; /mission/change: NeutralDailyRandomMissionTask stub.
   Note: /mission/tweet's real response has ONLY userMissionProgressList (stub sends an extra field, harmless).

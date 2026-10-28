@@ -34,14 +34,6 @@ public sealed class SessionState
         [4] = [3010013, 3010014, 3010020, 3010022],
         [5] = [3010023, 3010024, 3010029, 3010030]
     };
-    public Dictionary<int, UserDiscState> Discs { get; set; } = new();
-    public int ItemJetCoins { get; set; } = 208754;
-    public int ItemPaidJetCoins { get; set; } = 10000;
-    public int ItemDiscForce { get; set; } = 999999;
-    public int ItemKickPoints { get; set; } = 50000;
-    // Item master ids 5-8: gear stamps (202), disc fragments (303) and the two gacha tickets (401/402). An
-    // absent entry reads as DefaultStockAmount, so a session saved before round C starts with a full stock.
-    public Dictionary<int, int> ItemAmounts { get; set; } = new();
     // costume row id -> three gear slots (0 = empty), the shape the client reads back as gearId1..3.
     public Dictionary<int, int[]> CostumeGears { get; set; } = new();
     // The gear rolled by gear/create and not yet equipped or discarded. gearId 0 = nothing pending.
@@ -52,13 +44,6 @@ public sealed class SessionState
 
     // The primary key as a number. 0 means UserId was not numeric, which no store should ever see.
     public long PlayerId => long.TryParse(UserId, out var id) ? id : 0;
-}
-
-public sealed class UserDiscState
-{
-    public int DiscId { get; set; }
-    public int Level { get; set; } = 10;
-    public int Amount { get; set; } = 99;
 }
 
 public sealed class PendingGearState
