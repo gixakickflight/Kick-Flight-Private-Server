@@ -355,7 +355,7 @@ public sealed partial class DemoSessionApi
             effectBottomImageFilename = gacha?.EffectBottomImageFilename ?? "",
             capsuleEffectType = 1,
             drawableCount = 0,
-            drawableDatetime = GachaGroupEnd(DiscGachaGroupId),
+            drawableDatetime = GachaGroupStart(DiscGachaGroupId),
             completedDisplayFlag = true,
             userPresentList = Array.Empty<object>(),
             userMissionProgressList = Array.Empty<object>(),
@@ -596,6 +596,14 @@ public sealed partial class DemoSessionApi
         _gachaGroupById.TryGetValue(gachaGroupId, out var group) && !string.IsNullOrEmpty(group.EndDatetime)
             ? group.EndDatetime
             : GachaEndDatetime;
+
+    // The date a gacha became drawable. ShopKickerCellView.CheckDrawable (0x140FC14) treats drawableDatetime as
+    // "not yet drawable while this is in the future", so the start of the window is the only correct value here for
+    // either tab; the close is the group's EndDatetime.
+    private string GachaGroupStart(int gachaGroupId) =>
+        _gachaGroupById.TryGetValue(gachaGroupId, out var group) && !string.IsNullOrEmpty(group.StartDatetime)
+            ? group.StartDatetime
+            : GachaStartDatetime;
 
     private static int IntOf(JsonElement element, string name, int fallback = 0) =>
         element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.Number
