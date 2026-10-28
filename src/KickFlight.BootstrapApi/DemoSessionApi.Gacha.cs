@@ -573,7 +573,11 @@ public sealed partial class DemoSessionApi
         id = gachaId,
         dropAmount = 1,
         drawableCount,
-        drawableDatetime = GachaEndDatetime,
+        // When this gacha *becomes* drawable, not when it closes. ShopKickerCellView.CheckDrawable (0x140FC14)
+        // enables the Scout button only when GetRemainTime(drawableDatetime) <= 0 && drawableCount > 0, so a
+        // future value here disables every row until 2030 however affordable the draw is. The window's close is
+        // the group's own endDatetime.
+        drawableDatetime = GachaStartDatetime,
         costGoodsType,
         costGoodsId,
         costAmount,
