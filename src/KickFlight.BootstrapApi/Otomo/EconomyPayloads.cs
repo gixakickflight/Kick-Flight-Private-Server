@@ -14,7 +14,8 @@ namespace KickFlight.BootstrapApi.Otomo;
 //     I own".
 //   * A kicker is owned when a costume of it is. The active kicker and kicker 1's tutorial costume are always
 //     included: they are the player's own selection (SessionState keeps that, and it is not a value), and a client
-//     that is handed no kicker cannot render the player at all.
+//     that is handed no kicker cannot render the player at all. Kicker 2's first costume is always included too:
+//     it stands in for the tutorial's kicker draw, which the name-entry step assumes has happened.
 public sealed class EconomyPayloads
 {
     // What the economy says a possessed disc is worth, in the client's level column.
@@ -24,6 +25,14 @@ public sealed class EconomyPayloads
     // (TutorialUtil.KICKER_COSTUME_ID) and the one a fresh account starts on.
     private const int TutorialKickerId = 1;
     private const int TutorialCostumeId = 2010101;
+
+    // Kicker 2's first costume: the kicker the tutorial's kicker gacha would have handed out. An account without a
+    // name is sent tutorialProgressStatus 206 (KickerChange, "the drawn kicker is selected"), and at that step
+    // KickerDisplayPresenter.UpdateView (0x15303EC) preselects the first unlocked kicker whose id is not 1 and
+    // dereferences it without a null check. With kicker 1 alone the home dies there with a NullReferenceException
+    // before the name window opens. Kicker 2 is the one the client picked when every kicker was served.
+    private const int TutorialDrawKickerId = 2;
+    private const int TutorialDrawCostumeId = 2020101;
 
     private readonly IReadOnlyDictionary<int, int> _costumeKicker;
     private readonly Func<int, int[]> _gearSlots;
@@ -199,6 +208,10 @@ public sealed class EconomyPayloads
         if (_costumeKicker.TryGetValue(TutorialCostumeId, out var tutorialOwner) && tutorialOwner == TutorialKickerId)
         {
             Add(TutorialCostumeId);
+        }
+        if (_costumeKicker.TryGetValue(TutorialDrawCostumeId, out var drawOwner) && drawOwner == TutorialDrawKickerId)
+        {
+            Add(TutorialDrawCostumeId);
         }
 
         foreach (var list in owned.Values) list.Sort();

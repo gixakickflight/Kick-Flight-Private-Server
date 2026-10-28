@@ -41,6 +41,10 @@ public sealed partial class DemoSessionApi
     // window. So: 206 while the player has no name, 207 once they do. Never 0 - that starts the long tutorial
     // at TapSlot, whose capsuleOpen / discBuildup / gachaDraw steps would each need a real inventory.
     //
+    // 206 is TutorialProgressStatus.KickerChange: it tells the client the tutorial's kicker draw (205) and the switch
+    // to that kicker are done, so the name step preselects the first owned kicker other than kicker 1 and throws if
+    // there is none. EconomyPayloads always serves one (kicker 2) for that reason.
+    //
     // Verified by decompiling the client; no client modification is involved.
     public const int TutorialStatusInputName = 206;
     public const int TutorialStatusComplete = 207;
