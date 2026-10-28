@@ -1,0 +1,1649 @@
+{
+  "currencies": [
+    "jetcoin",
+    "kicker_ticket",
+    "shard",
+    "event_coin"
+  ],
+  "items": [
+    {
+      "id": "disc:3010001",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010002",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010003",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010004",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010005",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010006",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010007",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010008",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010009",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010010",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010011",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010012",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010013",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010014",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010015",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010016",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010017",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010018",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010019",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010020",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010021",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010022",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010023",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010024",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010025",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010026",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010027",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010028",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010029",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010030",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010031",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010032",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010033",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010034",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010035",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010036",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010037",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010038",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010039",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010040",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010041",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010042",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010043",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010044",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010045",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010046",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010047",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010048",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010049",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010050",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010051",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010052",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010053",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010055",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010056",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010057",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010058",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010059",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010060",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010061",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010062",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010063",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010064",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010065",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010066",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010067",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010068",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010069",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010070",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010071",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010072",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010073",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010074",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010075",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010076",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010077",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010078",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010079",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010080",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010081",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010082",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010083",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010084",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010085",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010086",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010087",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010088",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010089",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010090",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010091",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010092",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010093",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010094",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010095",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010096",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010097",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010098",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010101",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010102",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010103",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010104",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010105",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010106",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010107",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010108",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010109",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010110",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010111",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010112",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010113",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010114",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010115",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010116",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010117",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010118",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010119",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010120",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010122",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010123",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010124",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010125",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010127",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010128",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010129",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010131",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010132",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010133",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010134",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010135",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010136",
+      "stackable": false
+    },
+    {
+      "id": "disc:3010138",
+      "stackable": false
+    },
+    {
+      "id": "skin:2010101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2010201",
+      "stackable": false
+    },
+    {
+      "id": "skin:2010301",
+      "stackable": false
+    },
+    {
+      "id": "skin:2010401",
+      "stackable": false
+    },
+    {
+      "id": "skin:2010501",
+      "stackable": false
+    },
+    {
+      "id": "skin:2010601",
+      "stackable": false
+    },
+    {
+      "id": "skin:2010701",
+      "stackable": false
+    },
+    {
+      "id": "skin:2012201",
+      "stackable": false
+    },
+    {
+      "id": "skin:2012301",
+      "stackable": false
+    },
+    {
+      "id": "skin:2020101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2020201",
+      "stackable": false
+    },
+    {
+      "id": "skin:2020301",
+      "stackable": false
+    },
+    {
+      "id": "skin:2020401",
+      "stackable": false
+    },
+    {
+      "id": "skin:2020501",
+      "stackable": false
+    },
+    {
+      "id": "skin:2020601",
+      "stackable": false
+    },
+    {
+      "id": "skin:2020701",
+      "stackable": false
+    },
+    {
+      "id": "skin:2022201",
+      "stackable": false
+    },
+    {
+      "id": "skin:2022301",
+      "stackable": false
+    },
+    {
+      "id": "skin:2030101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2030201",
+      "stackable": false
+    },
+    {
+      "id": "skin:2030301",
+      "stackable": false
+    },
+    {
+      "id": "skin:2030401",
+      "stackable": false
+    },
+    {
+      "id": "skin:2030501",
+      "stackable": false
+    },
+    {
+      "id": "skin:2030601",
+      "stackable": false
+    },
+    {
+      "id": "skin:2030701",
+      "stackable": false
+    },
+    {
+      "id": "skin:2032201",
+      "stackable": false
+    },
+    {
+      "id": "skin:2032301",
+      "stackable": false
+    },
+    {
+      "id": "skin:2035101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2035201",
+      "stackable": false
+    },
+    {
+      "id": "skin:2040101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2040201",
+      "stackable": false
+    },
+    {
+      "id": "skin:2040301",
+      "stackable": false
+    },
+    {
+      "id": "skin:2040401",
+      "stackable": false
+    },
+    {
+      "id": "skin:2040501",
+      "stackable": false
+    },
+    {
+      "id": "skin:2040601",
+      "stackable": false
+    },
+    {
+      "id": "skin:2040701",
+      "stackable": false
+    },
+    {
+      "id": "skin:2045101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2050101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2050201",
+      "stackable": false
+    },
+    {
+      "id": "skin:2050301",
+      "stackable": false
+    },
+    {
+      "id": "skin:2050401",
+      "stackable": false
+    },
+    {
+      "id": "skin:2050501",
+      "stackable": false
+    },
+    {
+      "id": "skin:2050601",
+      "stackable": false
+    },
+    {
+      "id": "skin:2050701",
+      "stackable": false
+    },
+    {
+      "id": "skin:2052101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2060101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2060201",
+      "stackable": false
+    },
+    {
+      "id": "skin:2060301",
+      "stackable": false
+    },
+    {
+      "id": "skin:2060401",
+      "stackable": false
+    },
+    {
+      "id": "skin:2060501",
+      "stackable": false
+    },
+    {
+      "id": "skin:2060601",
+      "stackable": false
+    },
+    {
+      "id": "skin:2060701",
+      "stackable": false
+    },
+    {
+      "id": "skin:2062201",
+      "stackable": false
+    },
+    {
+      "id": "skin:2065101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2070101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2070201",
+      "stackable": false
+    },
+    {
+      "id": "skin:2070301",
+      "stackable": false
+    },
+    {
+      "id": "skin:2070401",
+      "stackable": false
+    },
+    {
+      "id": "skin:2070501",
+      "stackable": false
+    },
+    {
+      "id": "skin:2070601",
+      "stackable": false
+    },
+    {
+      "id": "skin:2070701",
+      "stackable": false
+    },
+    {
+      "id": "skin:2075101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2075201",
+      "stackable": false
+    },
+    {
+      "id": "skin:2080101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2080201",
+      "stackable": false
+    },
+    {
+      "id": "skin:2080301",
+      "stackable": false
+    },
+    {
+      "id": "skin:2080401",
+      "stackable": false
+    },
+    {
+      "id": "skin:2080501",
+      "stackable": false
+    },
+    {
+      "id": "skin:2080601",
+      "stackable": false
+    },
+    {
+      "id": "skin:2080701",
+      "stackable": false
+    },
+    {
+      "id": "skin:2082101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2085101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2085201",
+      "stackable": false
+    },
+    {
+      "id": "skin:2090101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2090201",
+      "stackable": false
+    },
+    {
+      "id": "skin:2090301",
+      "stackable": false
+    },
+    {
+      "id": "skin:2090401",
+      "stackable": false
+    },
+    {
+      "id": "skin:2090501",
+      "stackable": false
+    },
+    {
+      "id": "skin:2090601",
+      "stackable": false
+    },
+    {
+      "id": "skin:2090701",
+      "stackable": false
+    },
+    {
+      "id": "skin:2092101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2095101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2100101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2100201",
+      "stackable": false
+    },
+    {
+      "id": "skin:2100301",
+      "stackable": false
+    },
+    {
+      "id": "skin:2100401",
+      "stackable": false
+    },
+    {
+      "id": "skin:2100501",
+      "stackable": false
+    },
+    {
+      "id": "skin:2100601",
+      "stackable": false
+    },
+    {
+      "id": "skin:2100701",
+      "stackable": false
+    },
+    {
+      "id": "skin:2102101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2102301",
+      "stackable": false
+    },
+    {
+      "id": "skin:2105101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2110101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2110201",
+      "stackable": false
+    },
+    {
+      "id": "skin:2110301",
+      "stackable": false
+    },
+    {
+      "id": "skin:2110401",
+      "stackable": false
+    },
+    {
+      "id": "skin:2110501",
+      "stackable": false
+    },
+    {
+      "id": "skin:2110601",
+      "stackable": false
+    },
+    {
+      "id": "skin:2110701",
+      "stackable": false
+    },
+    {
+      "id": "skin:2112101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2115101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2120101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2120201",
+      "stackable": false
+    },
+    {
+      "id": "skin:2120301",
+      "stackable": false
+    },
+    {
+      "id": "skin:2120401",
+      "stackable": false
+    },
+    {
+      "id": "skin:2120501",
+      "stackable": false
+    },
+    {
+      "id": "skin:2120601",
+      "stackable": false
+    },
+    {
+      "id": "skin:2120701",
+      "stackable": false
+    },
+    {
+      "id": "skin:2122201",
+      "stackable": false
+    },
+    {
+      "id": "skin:2130101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2130201",
+      "stackable": false
+    },
+    {
+      "id": "skin:2130301",
+      "stackable": false
+    },
+    {
+      "id": "skin:2130401",
+      "stackable": false
+    },
+    {
+      "id": "skin:2130701",
+      "stackable": false
+    },
+    {
+      "id": "skin:2140101",
+      "stackable": false
+    },
+    {
+      "id": "skin:2140201",
+      "stackable": false
+    },
+    {
+      "id": "skin:2140301",
+      "stackable": false
+    },
+    {
+      "id": "skin:2145101",
+      "stackable": false
+    },
+    {
+      "id": "fragment",
+      "stackable": true,
+      "max_stack": 9999
+    }
+  ],
+  "classes": {
+    "match.casual": [
+      {
+        "currency": "jetcoin",
+        "amount": 120
+      }
+    ],
+    "match.ranked": [
+      {
+        "currency": "jetcoin",
+        "amount": 200
+      }
+    ],
+    "mission.daily.small": [
+      {
+        "currency": "jetcoin",
+        "amount": 100
+      }
+    ],
+    "mission.daily.large": [
+      {
+        "currency": "jetcoin",
+        "amount": 300
+      }
+    ],
+    "mission.weekly": [
+      {
+        "currency": "jetcoin",
+        "amount": 900
+      },
+      {
+        "currency": "kicker_ticket",
+        "amount": 1
+      }
+    ],
+    "mission.lifetime": [
+      {
+        "currency": "jetcoin",
+        "amount": 500
+      }
+    ],
+    "season.end": [
+      {
+        "currency": "jetcoin",
+        "amount": 1500
+      }
+    ],
+    "event.grant": [
+      {
+        "currency": "event_coin",
+        "amount": 200
+      }
+    ],
+    "rankup.c": [
+      {
+        "currency": "jetcoin",
+        "amount": 300
+      },
+      {
+        "item": "disc:3010004",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010005",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010006",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010011",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010012",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010014",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010017",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010018",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010019",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010022",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010023",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010024",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010034",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010035",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010038",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010039",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010040",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010060",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010062",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010070",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010072",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010078",
+        "amount": 1
+      }
+    ],
+    "rankup.b": [
+      {
+        "currency": "jetcoin",
+        "amount": 500
+      },
+      {
+        "item": "disc:3010003",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010008",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010016",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010021",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010029",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010030",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010033",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010037",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010041",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010044",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010046",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010049",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010051",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010052",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010056",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010058",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010061",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010064",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010067",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010073",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010079",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010081",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010090",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010091",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010095",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010104",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010105",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010111",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010118",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010122",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010132",
+        "amount": 1
+      }
+    ],
+    "rankup.a": [
+      {
+        "currency": "jetcoin",
+        "amount": 800
+      },
+      {
+        "item": "disc:3010002",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010007",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010013",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010015",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010026",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010027",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010028",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010032",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010043",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010047",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010048",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010050",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010059",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010063",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010066",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010068",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010069",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010076",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010077",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010084",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010086",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010088",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010089",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010092",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010093",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010094",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010096",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010098",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010103",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010107",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010110",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010116",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010117",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010125",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010127",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010129",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010131",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010136",
+        "amount": 1
+      }
+    ],
+    "rankup.s": [
+      {
+        "currency": "jetcoin",
+        "amount": 1200
+      },
+      {
+        "item": "disc:3010001",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010009",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010010",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010020",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010025",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010031",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010036",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010042",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010045",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010053",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010055",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010057",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010065",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010071",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010074",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010075",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010080",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010082",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010083",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010085",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010087",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010097",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010101",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010102",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010106",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010108",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010109",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010112",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010113",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010114",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010115",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010119",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010120",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010123",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010124",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010128",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010133",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010134",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010135",
+        "amount": 1
+      },
+      {
+        "item": "disc:3010138",
+        "amount": 1
+      },
+      {
+        "currency": "kicker_ticket",
+        "amount": 5
+      }
+    ]
+  },
+  "ceilings": [
+    {
+      "faucet": "match.casual",
+      "currency": "jetcoin",
+      "amount": 3000,
+      "window": "24h"
+    },
+    {
+      "faucet": "match.ranked",
+      "currency": "jetcoin",
+      "amount": 5000,
+      "window": "24h"
+    },
+    {
+      "faucet": "*",
+      "currency": "jetcoin",
+      "amount": 20000,
+      "window": "24h"
+    },
+    {
+      "faucet": "*",
+      "currency": "kicker_ticket",
+      "amount": 20,
+      "window": "24h"
+    },
+    {
+      "faucet": "*",
+      "currency": "event_coin",
+      "amount": 2000,
+      "window": "24h"
+    }
+  ]
+}
