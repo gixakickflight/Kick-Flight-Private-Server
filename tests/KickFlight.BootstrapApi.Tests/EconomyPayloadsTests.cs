@@ -39,13 +39,11 @@ public sealed class EconomyPayloadsTests
         var snapshot = new EconomySnapshot(
             [
                 new EconomyBalance("jetcoin", 250),
-                new EconomyBalance("jetcoin.paid", 7),
-                new EconomyBalance("discforce", 1100),
-                new EconomyBalance("kickpoint", 900)
+                new EconomyBalance("kicker_ticket", 3),
+                new EconomyBalance("shard", 1100)
             ],
             [
-                new EconomyItem("stamp.gear", 12, true, null, null),
-                new EconomyItem("ticket.kicker", 3, true, null, null),
+                new EconomyItem("fragment", 12, true, null, null),
                 // Neither of these is a counter on this screen, and one is not a name the adapter knows at all.
                 new EconomyItem("skin:2010101", 1, false, null, null),
                 new EconomyItem("mystery.item", 5, true, null, null)
@@ -57,13 +55,13 @@ public sealed class EconomyPayloadsTests
         Assert.Equal(8, rows.Count);
         Assert.Equal(new[] { 1, 2, 3, 4, 5, 6, 7, 8 }, rows.Select(row => row.GetProperty("itemId").GetInt32()).ToArray());
         Assert.Equal(250, Amount(rows, 1));
-        Assert.Equal(7, Amount(rows, 2));
-        Assert.Equal(1100, Amount(rows, 3));
-        Assert.Equal(900, Amount(rows, 4));
-        Assert.Equal(12, Amount(rows, 5));
-        Assert.Equal(0, Amount(rows, 6));
+        Assert.Equal(12, Amount(rows, 6));
         Assert.Equal(3, Amount(rows, 7));
-        Assert.Equal(0, Amount(rows, 8));
+        // Rows 2, 3, 4, 5 and 8 have no faucet left on this server, and shards are not a counter on this screen.
+        foreach (var unmapped in new[] { 2, 3, 4, 5, 8 })
+        {
+            Assert.Equal(0, Amount(rows, unmapped));
+        }
         Assert.All(rows, row => Assert.Equal(new[] { "itemId", "amount" }, row.EnumerateObject().Select(p => p.Name).ToArray()));
     }
 
@@ -71,7 +69,7 @@ public sealed class EconomyPayloadsTests
     public void A_currency_the_adapter_has_no_row_for_is_left_out_rather_than_guessed()
     {
         var snapshot = new EconomySnapshot(
-            [new EconomyBalance("shard", 4000), new EconomyBalance("jetcoin", 1)], [], [], []);
+            [new EconomyBalance("event_coin", 4000), new EconomyBalance("jetcoin", 1)], [], [], []);
 
         var rows = Payload(Build().BuildUserItemList(snapshot)).EnumerateArray().ToList();
 
@@ -150,7 +148,7 @@ public sealed class EconomyPayloadsTests
     {
         var moves = new[]
         {
-            new EconomyItemMove("stamp.gear", 10, 25),
+            new EconomyItemMove("fragment", 10, 25),
             new EconomyItemMove("skin:2010101", 1, 1),
             new EconomyItemMove("mystery.item", 1, 1)
         };
@@ -158,7 +156,7 @@ public sealed class EconomyPayloadsTests
         var rows = Payload(Build().BuildReceivedUserItemList(moves)).EnumerateArray().ToList();
 
         var only = Assert.Single(rows);
-        Assert.Equal(5, only.GetProperty("itemId").GetInt32());
+        Assert.Equal(6, only.GetProperty("itemId").GetInt32());
         Assert.Equal(25, only.GetProperty("amount").GetInt32());
     }
 

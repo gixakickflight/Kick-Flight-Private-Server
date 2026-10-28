@@ -113,15 +113,13 @@ public sealed class FakeOtomoEconomy : IAsyncDisposable
 
     public sealed record Grant(string? Currency, string? Item, long Amount);
 
-    // The catalogue a deployment publishes, as far as this suite needs it: the four goods-shop offers and one
-    // cosmetic pool. The ids are the adapter's own mapping table (EconomyCatalog), which is the point - economy
-    // knows them only as strings.
+    // The catalogue a deployment publishes, as far as this suite needs it: the one goods-shop offer with something
+    // behind it, the skin shop, and the cosmetic pool. The ids are the same strings the published namespace files
+    // carry (otomo/namespaces/economy), which is the point - economy knows them only as strings.
     private static readonly Dictionary<string, (Grant[] Cost, Grant[] Grants)> Offers = new(StringComparer.Ordinal)
     {
-        ["kf.goods.disc-ticket"] = ([new Grant("jetcoin", null, 100)], [new Grant(null, "ticket.disc", 1)]),
-        ["kf.goods.kicker-ticket"] = ([new Grant("jetcoin", null, 300)], [new Grant(null, "ticket.kicker", 1)]),
-        ["kf.goods.gear-stamp.10"] = ([new Grant("jetcoin", null, 100)], [new Grant(null, "stamp.gear", 10)]),
-        ["kf.goods.disc-force.1000"] = ([new Grant("jetcoin", null, 100)], [new Grant(null, "discforce", 1000)])
+        ["ticket.single"] = ([new Grant("jetcoin", null, 100)], [new Grant("kicker_ticket", null, 1)]),
+        ["shard.skin.2010101"] = ([new Grant("shard", null, 60)], [new Grant(null, "skin:2010101", 1)])
     };
 
     public const string CosmeticPoolId = "cosmetic.standard";
@@ -152,7 +150,7 @@ public sealed class FakeOtomoEconomy : IAsyncDisposable
                 {
                     item = pair.Key,
                     qty = pair.Value,
-                    stackable = pair.Key is "stamp.gear" or "fragment.disc" or "ticket.kicker" or "ticket.disc",
+                    stackable = pair.Key is "fragment",
                     acquired_at = "2026-10-01T12:00:00Z",
                     updated_at = "2026-10-01T12:00:00Z"
                 }).ToArray()

@@ -30,19 +30,24 @@ public sealed class EconomyEndToEndTests : IClassFixture<ServerTestHostFixture>
     {
         var session = await CreateSessionAsync();
         _economy.Seed(session.Account,
-            balances: [("jetcoin", 500), ("jetcoin.paid", 25), ("discforce", 1100)],
-            items: [("stamp.gear", 7), ("disc:3010001", 2), ("skin:2010201", 1)]);
+            balances: [("jetcoin", 500), ("kicker_ticket", 25), ("shard", 1100)],
+            items: [("fragment", 7), ("disc:3010001", 2), ("skin:2010201", 1)]);
 
         var startup = await PostAsync(session, "/startup/index", null);
 
         var items = startup.GetProperty("userItemList").EnumerateArray().ToList();
         Assert.Equal(8, items.Count);
+        // Row 1 is the coin, row 7 the kicker ticket (economy holds it as a currency), row 6 the fragments.
         Assert.Equal(500, ItemAmount(items, 1));
-        Assert.Equal(25, ItemAmount(items, 2));
-        Assert.Equal(1100, ItemAmount(items, 3));
+        Assert.Equal(25, ItemAmount(items, 7));
+        Assert.Equal(7, ItemAmount(items, 6));
+        // Rows nothing pays any more answer zero rather than a name invented for them, and shards are not a
+        // counter on this screen at all.
+        Assert.Equal(0, ItemAmount(items, 2));
+        Assert.Equal(0, ItemAmount(items, 3));
         Assert.Equal(0, ItemAmount(items, 4));
-        Assert.Equal(7, ItemAmount(items, 5));
-        Assert.Equal(0, ItemAmount(items, 6));
+        Assert.Equal(0, ItemAmount(items, 5));
+        Assert.Equal(0, ItemAmount(items, 8));
 
         var disc = Assert.Single(startup.GetProperty("userDiscList").EnumerateArray().ToList());
         Assert.Equal(3010001, disc.GetProperty("discId").GetInt32());
@@ -78,12 +83,18 @@ public sealed class EconomyEndToEndTests : IClassFixture<ServerTestHostFixture>
 
         var home = await PostAsync(session, "/home/index", null);
 
+        // The client's four product rows are still served; only the kicker ticket has an offer behind it, and the
+        // shelf says so rather than showing a demo stock of 9999.
         var products = home.GetProperty("goodsShopProductList").EnumerateArray().ToList();
         Assert.Equal(4, products.Count);
-        Assert.All(products, product => Assert.Equal(9999, product.GetProperty("purchasableCount").GetInt32()));
-        var stamps = products.Single(product => product.GetProperty("id").GetInt32() == 3);
-        Assert.Equal(101, stamps.GetProperty("costGoodsType").GetInt32());
-        Assert.Equal(100, stamps.GetProperty("costAmount").GetInt32());
+        var ticket = products.Single(product => product.GetProperty("id").GetInt32() == 2);
+        Assert.True(ticket.GetProperty("purchasableCount").GetInt32() > 0);
+        Assert.Equal(101, ticket.GetProperty("costGoodsType").GetInt32());
+        Assert.Equal(100, ticket.GetProperty("costAmount").GetInt32());
+        foreach (var retired in products.Where(product => product.GetProperty("id").GetInt32() != 2))
+        {
+            Assert.Equal(0, retired.GetProperty("purchasableCount").GetInt32());
+        }
 
         var kickerGroup = Assert.Single(home.GetProperty("kickerGachaGroupList").EnumerateArray().ToList());
         Assert.Equal(2, kickerGroup.GetProperty("gachaGroupId").GetInt32());
@@ -108,22 +119,22 @@ public sealed class EconomyEndToEndTests : IClassFixture<ServerTestHostFixture>
         var session = await CreateSessionAsync();
         _economy.Seed(session.Account, balances: [("jetcoin", 500)]);
 
-        var buy = await PostAsync(session, "/goodsShop/buy", new { goodsShopProductId = 3 });
+        var buy = await PostAsync(session, "/goodsShop/buy", new { goodsShopProductId = 2 });
 
         var items = buy.GetProperty("userItemList").EnumerateArray().ToList();
         Assert.Equal(400, ItemAmount(items, 1));
-        Assert.Equal(10, ItemAmount(items, 5));
-        var received = Assert.Single(buy.GetProperty("receivedUserItemList").EnumerateArray().ToList());
-        Assert.Equal(5, received.GetProperty("itemId").GetInt32());
-        Assert.Equal(10, received.GetProperty("amount").GetInt32());
+        Assert.Equal(1, ItemAmount(items, 7));
+        // A ticket is a currency in economy, so the purchase answers a balance rather than an item movement: the
+        // received list is empty and the new balance is what arrives in userItemList.
+        Assert.Empty(buy.GetProperty("receivedUserItemList").EnumerateArray());
 
         // The value moved in economy, not in this process.
         Assert.Equal(400, _economy.BalanceOf(session.Account, "jetcoin"));
-        Assert.Equal(10, _economy.ItemsOf(session.Account, "stamp.gear"));
+        Assert.Equal(1, _economy.BalanceOf(session.Account, "kicker_ticket"));
 
         var purchase = Assert.Single(CallsFor(session.Account, "/api/player/economy/shop/purchase"));
         using var body = JsonDocument.Parse(purchase.Body!);
-        Assert.Equal("kf.goods.gear-stamp.10", body.RootElement.GetProperty("offer_id").GetString());
+        Assert.Equal("ticket.single", body.RootElement.GetProperty("offer_id").GetString());
         Assert.Equal(1, body.RootElement.GetProperty("quantity").GetInt64());
         Assert.Equal(36, body.RootElement.GetProperty("idempotency_key").GetString()!.Length);
         // The player's own token: a purchase is the player's act, on the player plane.
@@ -135,11 +146,11 @@ public sealed class EconomyEndToEndTests : IClassFixture<ServerTestHostFixture>
     {
         var session = await CreateSessionAsync();
 
-        var buy = await PostAsync(session, "/goodsShop/buy", new { goodsShopProductId = 3 }, expectStatusZero: false);
+        var buy = await PostAsync(session, "/goodsShop/buy", new { goodsShopProductId = 2 }, expectStatusZero: false);
 
         Assert.Equal(JsonValueKind.Object, buy.ValueKind);
         Assert.Equal(0, _economy.BalanceOf(session.Account, "jetcoin"));
-        Assert.Equal(0, _economy.ItemsOf(session.Account, "stamp.gear"));
+        Assert.Equal(0, _economy.BalanceOf(session.Account, "kicker_ticket"));
         // It really asked: the refusal came from economy, not from a local guess.
         Assert.Single(CallsFor(session.Account, "/api/player/economy/shop/purchase"));
     }

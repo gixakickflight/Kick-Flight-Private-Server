@@ -8,16 +8,27 @@ namespace KickFlight.BootstrapApi.Otomo;
 // client's own ids (the Item master's 1-8, the GoodsType values, the KickerCostume row ids) stay exactly what the
 // client already expects.
 //
-// The names below are what a deployment must publish in economy's rules document (economy.rules) for the client's
-// counters to mean anything:
+// The names below are the ones otomo publishes for Kick-Flight (otomo/namespaces/economy in the game repo, PR #60),
+// so the two halves agree by construction. A deployment must publish exactly these for the client's counters to
+// mean anything:
 //
-//   currencies  jetcoin (JetCoinFree, 101)   jetcoin.paid (JetCoinPaid, 102)
-//               discforce (DiscForce, 302)   kickpoint (KickPoint, 701)
-//   items       stamp.gear (GearMaterial, 202)      fragment.disc (DiscFragment, 303)
-//               ticket.kicker (KickerGachaTicket, 401)  ticket.disc (DiscGachaTicket, 402)
+//   currencies  jetcoin         the earned coin; the client's Item row 1 (JetCoinFree, 101)
+//               kicker_ticket   the cosmetic pull's price; the client's Item row 7 (KickerGachaTicket, 401)
+//               shard           cosmetic duplicates convert into it, and it buys a missing skin
+//               event_coin      carried over between events
+//   items       fragment        disc fragments; the client's Item row 6 (DiscFragment, 303)
 //               disc:<discId>       a disc the player owns; owning it is level 10
 //               skin:<costumeId>    a kicker costume, keyed by the KickerCostume master's ROW id;
 //                                   owning a costume owns its kicker
+//
+// Five of the client's eight Item rows are served as a constant zero, because nothing pays them any more and a
+// constant is the honest answer rather than a name invented for a counter that has no faucet:
+//
+//   row 2  JetCoinPaid       no IAP on this server: there is no paid coin
+//   row 3  DiscForce         disc build-up is not ported: a disc is owned at level 10 or not at all
+//   row 4  KickPoint          retired with the pre-EOS battle rewards
+//   row 5  GearMaterial      the gear roll is still the adapter's own (SessionState.PendingGear)
+//   row 8  DiscGachaTicket   the disc gacha is retired, so nothing earns or spends it
 //
 // Anything the economy holds that is not named here is not shown to the client: an unmapped item is logged and
 // skipped rather than guessed at, because a wrong itemId puts a wrong number on a real screen.
@@ -28,9 +39,9 @@ public static class EconomyCatalog
     public static readonly (string Currency, int ItemId)[] CurrencyRows =
     [
         ("jetcoin", 1),
-        ("jetcoin.paid", 2),
-        ("discforce", 3),
-        ("kickpoint", 4)
+        // The kicker ticket is economy's currency rather than an item because a gacha pool is priced in
+        // currencies; the client has always shown it as an Item row, so it is rendered as one.
+        ("kicker_ticket", 7)
     ];
 
     // Stackable items, by the client's Item master row: the gear stamps the gear screen counts, the disc fragments,
@@ -38,10 +49,7 @@ public static class EconomyCatalog
     // gacha that spent it is retired, so nothing spends it any more.
     public static readonly (string Item, int ItemId)[] ItemRows =
     [
-        ("stamp.gear", 5),
-        ("fragment.disc", 6),
-        ("ticket.kicker", 7),
-        ("ticket.disc", 8)
+        ("fragment", 6)
     ];
 
     // The client's Item master has exactly these eight rows, and the startup payload has always carried all eight
@@ -58,12 +66,13 @@ public static class EconomyCatalog
     // The goods shop's products (GoodsShopProductRow in DemoSessionApi.Shop.cs) and the economy offer each one buys.
     // The product id is the client's - it sends it in GoodsShopBuyRequestData.goodsShopProductId - and the offer id
     // is economy's; this table is the only place the two are related.
+    // Only one of the four has an offer behind it. The other three sold what the economy design stopped selling:
+    // a disc ticket (the disc gacha is retired), gear stamps and disc force (neither is ported). They stay in the
+    // client's product list and answer "not for sale", which is the truth - the alternative, inventing offers so the
+    // shelf looks full, would put four unpriced goods on a live screen.
     public static readonly (int ProductId, string OfferId)[] GoodsShopOffers =
     [
-        (1, "kf.goods.disc-ticket"),
-        (2, "kf.goods.kicker-ticket"),
-        (3, "kf.goods.gear-stamp.10"),
-        (4, "kf.goods.disc-force.1000")
+        (2, "ticket.single")
     ];
 
     // The one cosmetic pool in use, and the GachaKicker row id the client quotes back in

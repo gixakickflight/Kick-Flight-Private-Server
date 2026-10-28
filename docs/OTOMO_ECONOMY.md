@@ -52,16 +52,16 @@ Kick-Flight vocabulary appears upstream. `EconomyCatalog` is the only place the 
 | Economy name | Client meaning |
 |---|---|
 | `jetcoin` (currency) | Item 1, `GoodsType.JetCoinFree` (101) |
-| `jetcoin.paid` (currency) | Item 2, `JetCoinPaid` (102) |
-| `discforce` (currency) | Item 3, `DiscForce` (302) |
-| `kickpoint` (currency) | Item 4, `KickPoint` (701) |
-| `stamp.gear` (item) | Item 5, `GearMaterial` (202) |
-| `fragment.disc` (item) | Item 6, `DiscFragment` (303) |
-| `ticket.kicker` (item) | Item 7, `KickerGachaTicket` (401) |
-| `ticket.disc` (item) | Item 8, `DiscGachaTicket` (402) |
+| `(not published: no IAP)` (currency) | Item 2, `JetCoinPaid` (102) |
+| `(not published: disc build-up not ported)` (currency) | Item 3, `DiscForce` (302) |
+| `(not published: retired)` (currency) | Item 4, `KickPoint` (701) |
+| `fragment` (item) | Item 5, `GearMaterial` (202) |
+| `fragment` (item) | Item 6, `DiscFragment` (303) |
+| `kicker_ticket` (item) | Item 7, `KickerGachaTicket` (401) |
+| `(not published: disc gacha retired)` (item) | Item 8, `DiscGachaTicket` (402) |
 | `disc:<discId>` (item) | a disc in `userDiscList`; owning it is level 10 |
 | `skin:<kickerCostumeId>` (item) | a costume in `userKickerList`; owning one owns its kicker |
-| `kf.goods.disc-ticket`, `kf.goods.kicker-ticket`, `kf.goods.gear-stamp.10`, `kf.goods.disc-force.1000` (offers) | goods-shop products 1-4 |
+| `(no offer)`, `ticket.single`, `(no offer)`, `(no offer)` (offers) | goods-shop products 1-4 |
 | `cosmetic.standard` (pool) | the kicker gacha (`ResponseGacha.id` 1) |
 
 The startup payload always carries all eight Item rows, in id order, whether or not the player holds any - the
