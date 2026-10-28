@@ -196,7 +196,7 @@ public sealed partial class DemoSessionApi
                 return await HandleGachaDiscInformationAsync(context, key);
 
             case "/gacha/kickerInformation":
-                return await HandleGachaKickerInformationAsync(context, key);
+                return await HandleGachaKickerInformationAsync(context, ticket, key);
 
             case "/gacha/discDraw":
                 return await HandleRetiredDiscDrawAsync(context, ticket, state, key);
@@ -263,7 +263,7 @@ public sealed partial class DemoSessionApi
         return BinaryJson(JsonSerializer.Serialize(response), key);
     }
 
-    private async Task<IResult?> HandleGachaKickerInformationAsync(HttpContext context, byte[] key)
+    private async Task<IResult?> HandleGachaKickerInformationAsync(HttpContext context, KfIdentityTicket ticket, byte[] key)
     {
         var body = await ReadBodyAsync(context.Request);
         var gachaGroupId = KickerGachaGroupId;
@@ -283,6 +283,37 @@ public sealed partial class DemoSessionApi
         }
 
         var gacha = _kickerGachaById.Values.FirstOrDefault(g => g.GachaGroupId == gachaGroupId);
+
+        // The rate screen renders `dropRate` from this response and reads no master at all (docs/OTOMO_PHASE0_FINDINGS
+        // 9.6): a percentage, 100 x weight / sum(weights), with a value <= 0 hiding that row. LotteryDropKicker's own
+        // dropRatio is 1 on every row and the client never reads it, so serving the master here printed 0% on all
+        // 118 rows. The weights the adapter actually rolls are economy's pool entries, so those are what it sends.
+        var dropList = new List<object>();
+        var economy = await ReadPlayerEconomyAsync(ticket, EconomyRead.Pools, "/gacha/kickerInformation",
+            context.RequestAborted);
+        var pool = economy.Snapshot?.Pools?.FirstOrDefault(p =>
+            string.Equals(p.Id, EconomyCatalog.CosmeticPoolId, StringComparison.Ordinal));
+        if (pool?.Entries is { Count: > 0 } entries)
+        {
+            var total = pool.TotalWeight > 0 ? pool.TotalWeight : entries.Sum(entry => entry.Weight);
+            foreach (var entry in entries)
+            {
+                if (!EconomyCatalog.TryCostumeId(entry.Item, out var costumeId)) continue;
+                dropList.Add(new
+                {
+                    kickerCostumeId = costumeId,
+                    pickupFlag = false,
+                    newFlag = false,
+                    dropRate = total > 0 ? Math.Round(100.0 * entry.Weight / total, 3) : 0.0
+                });
+            }
+        }
+        if (dropList.Count == 0)
+        {
+            dropList.AddRange(_lotteryDropKicker.OrderBy(k => k.SortOrder)
+                .Select(k => (object)new { kickerCostumeId = k.KickerCostumeId, pickupFlag = false, newFlag = false, dropRate = 0.0 }));
+        }
+
         var response = new
         {
             informationText = GachaGroupText(gachaGroupId, information: true),
@@ -290,10 +321,7 @@ public sealed partial class DemoSessionApi
             boxFlag = gacha?.BoxFlag ?? false,
             sideBySideFlag = gacha?.SideBySideFlag ?? false,
             pickupFlag = false,
-            lotteryDropKickerList = _lotteryDropKicker
-                .OrderBy(k => k.SortOrder)
-                .Select(k => new { kickerCostumeId = k.KickerCostumeId, pickupFlag = false, newFlag = false, dropRate = k.DropRate })
-                .ToArray()
+            lotteryDropKickerList = dropList.ToArray()
         };
 
         context.Response.Headers["x-app-status-code"] = "0";
