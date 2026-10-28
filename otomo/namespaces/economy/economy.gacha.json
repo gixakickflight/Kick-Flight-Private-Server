@@ -1,0 +1,615 @@
+{
+  "pools": [
+    {
+      "id": "cosmetic.standard",
+      "cost": [
+        {
+          "currency": "kicker_ticket",
+          "amount": 1
+        }
+      ],
+      "entries": [
+        {
+          "item": "skin:2010101",
+          "weight": 20,
+          "rarity": "standard"
+        },
+        {
+          "item": "skin:2010201",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2010301",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2010401",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2010501",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2010601",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2010701",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2012201",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2012301",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2020101",
+          "weight": 20,
+          "rarity": "standard"
+        },
+        {
+          "item": "skin:2020201",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2020301",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2020401",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2020501",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2020601",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2020701",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2022201",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2022301",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2030101",
+          "weight": 20,
+          "rarity": "standard"
+        },
+        {
+          "item": "skin:2030201",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2030301",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2030401",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2030501",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2030601",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2030701",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2032201",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2032301",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2035101",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2035201",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2040101",
+          "weight": 20,
+          "rarity": "standard"
+        },
+        {
+          "item": "skin:2040201",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2040301",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2040401",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2040501",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2040601",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2040701",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2045101",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2050101",
+          "weight": 20,
+          "rarity": "standard"
+        },
+        {
+          "item": "skin:2050201",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2050301",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2050401",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2050501",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2050601",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2050701",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2052101",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2060101",
+          "weight": 20,
+          "rarity": "standard"
+        },
+        {
+          "item": "skin:2060201",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2060301",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2060401",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2060501",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2060601",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2060701",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2062201",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2065101",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2070101",
+          "weight": 20,
+          "rarity": "standard"
+        },
+        {
+          "item": "skin:2070201",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2070301",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2070401",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2070501",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2070601",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2070701",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2075101",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2075201",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2080101",
+          "weight": 20,
+          "rarity": "standard"
+        },
+        {
+          "item": "skin:2080201",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2080301",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2080401",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2080501",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2080601",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2080701",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2082101",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2085101",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2085201",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2090101",
+          "weight": 20,
+          "rarity": "standard"
+        },
+        {
+          "item": "skin:2090201",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2090301",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2090401",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2090501",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2090601",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2090701",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2092101",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2095101",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2100101",
+          "weight": 20,
+          "rarity": "standard"
+        },
+        {
+          "item": "skin:2100201",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2100301",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2100401",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2100501",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2100601",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2100701",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2102101",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2102301",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2105101",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2110101",
+          "weight": 20,
+          "rarity": "standard"
+        },
+        {
+          "item": "skin:2110201",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2110301",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2110401",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2110501",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2110601",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2110701",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2112101",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2115101",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2120101",
+          "weight": 20,
+          "rarity": "standard"
+        },
+        {
+          "item": "skin:2120201",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2120301",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2120401",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2120501",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2120601",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2120701",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2122201",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2130101",
+          "weight": 20,
+          "rarity": "standard"
+        },
+        {
+          "item": "skin:2130201",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2130301",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2130401",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2130701",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2140101",
+          "weight": 20,
+          "rarity": "standard"
+        },
+        {
+          "item": "skin:2140201",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2140301",
+          "weight": 2,
+          "rarity": "variant"
+        },
+        {
+          "item": "skin:2145101",
+          "weight": 2,
+          "rarity": "variant"
+        }
+      ],
+      "pity": {
+        "after": 80,
+        "rarity": "variant"
+      },
+      "duplicates": {
+        "policy": "currency",
+        "currency": "shard",
+        "amount": 15
+      },
+      "window": {}
+    }
+  ]
+}
