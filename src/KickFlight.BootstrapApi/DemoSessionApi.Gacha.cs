@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using KickFlight.BootstrapApi.Otomo;
 
@@ -160,6 +162,25 @@ public sealed partial class DemoSessionApi
         }
     }
 
+
+    // The client does not use one key for every body. The session key (the ASCII "hash" the client chose at
+    // login) is what most authenticated requests arrive with, but /gacha/kickerInformation on 2.11.5 arrives
+    // encrypted with the common code, and decoding that with the session key throws
+    // "Padding is invalid and cannot be removed" - which reached the client as x-app-status-code 1 and an empty
+    // body, so the gacha information sheet never opened and the banner looked dead. Try the ticket's key first,
+    // then the common code: a wrong key fails on the padding, so this cannot mis-read a body.
+    private static byte[] DecodeEitherKey(byte[] body, byte[] key)
+    {
+        try
+        {
+            return D2CCodec.Decode(body, key);
+        }
+        catch (CryptographicException)
+        {
+            return D2CCodec.Decode(body, Encoding.ASCII.GetBytes(CommonCode));
+        }
+    }
+
     private async Task<IResult?> TryHandleGachaAsync(string path, HttpContext context, KfIdentityTicket ticket,
         SessionState state, byte[] key)
     {
@@ -196,7 +217,7 @@ public sealed partial class DemoSessionApi
         {
             if (body.Length > 0)
             {
-                var plaintext = D2CCodec.Decode(body, key);
+                var plaintext = DecodeEitherKey(body, key);
                 using var document = JsonDocument.Parse(plaintext);
                 gachaGroupId = IntOf(document.RootElement, "gachaGroupId", DiscGachaGroupId);
             }
@@ -250,7 +271,7 @@ public sealed partial class DemoSessionApi
         {
             if (body.Length > 0)
             {
-                var plaintext = D2CCodec.Decode(body, key);
+                var plaintext = DecodeEitherKey(body, key);
                 using var document = JsonDocument.Parse(plaintext);
                 gachaGroupId = IntOf(document.RootElement, "gachaGroupId", KickerGachaGroupId);
             }
@@ -333,7 +354,7 @@ public sealed partial class DemoSessionApi
         {
             if (body.Length > 0)
             {
-                var plaintext = D2CCodec.Decode(body, key);
+                var plaintext = DecodeEitherKey(body, key);
                 using var document = JsonDocument.Parse(plaintext);
                 gachaId = IntOf(document.RootElement, "gachaId", gachaId);
                 count = IntOf(document.RootElement, "count", 1);
