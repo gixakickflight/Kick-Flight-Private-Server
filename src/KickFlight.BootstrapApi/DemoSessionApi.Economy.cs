@@ -193,6 +193,10 @@ public sealed partial class DemoSessionApi
         return result;
     }
 
+    // Paid once per account, before the name step. Order matters only for the log.
+    private static readonly string[] StarterClasses =
+        ["starter.discs", "starter.jetcoin", StarterDiscForceClass];
+
     private const string StarterDiscForceClass = "starter.disc_force";
 
     // The starter Disc Force, once per account, for an account still in onboarding (no name yet): what a new player
@@ -205,9 +209,16 @@ public sealed partial class DemoSessionApi
         if (state.HasName || state.StarterDiscForcePaid) return;
         try
         {
-            var grant = await GrantClassAsync(ticket, StarterDiscForceClass,
-                $"{StarterDiscForceClass}:{ticket.OtomoPlayerId}", "starter", path, cancellationToken);
-            if (grant is null) return;
+            // Everything a brand-new player must hold before the tutorial's first screen: the whole
+            // starting deck, the coin the tutorial spends, and the force its level-up lesson needs. A
+            // client with no discs dereferences an empty deck the moment the tutorial battle starts, so
+            // this is paid before the name step rather than alongside the tutorial rewards.
+            foreach (var starterClass in StarterClasses)
+            {
+                var grant = await GrantClassAsync(ticket, starterClass,
+                    $"{starterClass}:{ticket.OtomoPlayerId}", "starter", path, cancellationToken);
+                if (grant is null) return;
+            }
         }
         catch (OtomoEconomyException ex)
         {
