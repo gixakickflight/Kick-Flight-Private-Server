@@ -351,6 +351,158 @@ public sealed class FakeOtomoEconomy : IAsyncDisposable
             if (account is null) return failure;
             return Error(context, StatusCodes.Status409Conflict, "not_claimable", "track not claimable");
         });
+
+        // The internal plane: the caller names the player and authenticates with the game-server key. Both routes
+        // are idempotent on `key` - a replay answers the first call's body with replayed = true and moves nothing -
+        // which is the property the adapter's retries and the level-up's double-tap guard depend on.
+        _app.MapPost("/internal/economy/grants", async (HttpContext context) =>
+        {
+            var (root, failure) = await InternalAsync(context);
+            if (root is null) return failure;
+            var playerId = root.Value.GetProperty("player_id").GetString() ?? "";
+            var key = root.Value.GetProperty("key").GetString() ?? "";
+            var grantClass = root.Value.GetProperty("class").GetString() ?? "";
+            if (!Classes.TryGetValue(grantClass, out var grants))
+            {
+                return Error(context, StatusCodes.Status404NotFound, "unknown_class", "no such grant class");
+            }
+
+            lock (_lock)
+            {
+                if (_internalReplies.TryGetValue(key, out var first)) return Replay(first);
+                var player = _players.GetOrAdd(playerId, _ => new PlayerEconomy());
+                var entries = new List<object>();
+                var moved = new List<object>();
+                foreach (var grant in grants)
+                {
+                    if (grant.Currency is not null)
+                    {
+                        player.Balances[grant.Currency] = player.Balances.GetValueOrDefault(grant.Currency) + grant.Amount;
+                        entries.Add(new { owner_kind = "player", currency = grant.Currency, delta = grant.Amount });
+                    }
+                    if (grant.Item is not null)
+                    {
+                        player.Items[grant.Item] = player.Items.GetValueOrDefault(grant.Item) + grant.Amount;
+                        moved.Add(new { item = grant.Item, qty = grant.Amount, total = player.Items[grant.Item] });
+                    }
+                }
+                return Remember(key, new
+                {
+                    player_id = playerId,
+                    key,
+                    @class = grantClass,
+                    balances = player.Balances.Select(pair => new { currency = pair.Key, balance = pair.Value }).ToArray(),
+                    entries,
+                    items = moved,
+                    duplicates = Array.Empty<object>()
+                });
+            }
+        });
+
+        _app.MapPost("/internal/economy/consume", async (HttpContext context) =>
+        {
+            var (root, failure) = await InternalAsync(context);
+            if (root is null) return failure;
+            var playerId = root.Value.GetProperty("player_id").GetString() ?? "";
+            var key = root.Value.GetProperty("key").GetString() ?? "";
+            var items = root.Value.GetProperty("items").EnumerateArray()
+                .Select(row => (Item: row.GetProperty("item").GetString()!, Qty: row.GetProperty("qty").GetInt64())).ToList();
+            var currencies = root.Value.GetProperty("currencies").EnumerateArray()
+                .Select(row => (Currency: row.GetProperty("currency").GetString()!, Amount: row.GetProperty("amount").GetInt64()))
+                .ToList();
+
+            lock (_lock)
+            {
+                if (_internalReplies.TryGetValue(key, out var first)) return Replay(first);
+                var player = _players.GetOrAdd(playerId, _ => new PlayerEconomy());
+                foreach (var (item, qty) in items)
+                {
+                    var held = player.Items.GetValueOrDefault(item);
+                    if (held < qty)
+                    {
+                        return Error(context, StatusCodes.Status409Conflict, "insufficient_items",
+                            $"{item}: holds {held}, needs {qty}");
+                    }
+                }
+                foreach (var (currency, amount) in currencies)
+                {
+                    if (player.Balances.GetValueOrDefault(currency) < amount)
+                    {
+                        return Error(context, StatusCodes.Status409Conflict, "insufficient_funds", "insufficient funds");
+                    }
+                }
+
+                var moved = new List<object>();
+                foreach (var (item, qty) in items)
+                {
+                    var total = player.Items.GetValueOrDefault(item) - qty;
+                    if (total == 0) player.Items.Remove(item);
+                    else player.Items[item] = total;
+                    moved.Add(new { item, qty, total });
+                }
+                foreach (var (currency, amount) in currencies)
+                {
+                    player.Balances[currency] = player.Balances.GetValueOrDefault(currency) - amount;
+                }
+                return Remember(key, new
+                {
+                    player_id = playerId,
+                    key,
+                    items = moved,
+                    balances = currencies
+                        .Select(cost => new { currency = cost.Currency, balance = player.Balances[cost.Currency] }).ToArray(),
+                    consumed = new { items = items.Count, currencies = currencies.Count }
+                });
+            }
+        });
+    }
+
+    // What the published classes pay, as far as this suite needs them (otomo/namespaces/economy, release 18).
+    private static readonly Dictionary<string, Grant[]> Classes = new(StringComparer.Ordinal)
+    {
+        ["starter.disc_force"] = [new Grant("disc_force", null, StarterDiscForce)],
+        ["tutorial.disc"] = [new Grant(null, "disc:3010013", 1)],
+        ["tutorial.kicker"] = [new Grant(null, "skin:2010201", 1)]
+    };
+
+    public const long StarterDiscForce = 300;
+
+    private readonly Dictionary<string, JsonElement> _internalReplies = new(StringComparer.Ordinal);
+
+    private IResult Remember(string key, object reply)
+    {
+        var element = JsonSerializer.SerializeToElement(reply);
+        _internalReplies[key] = element;
+        return Results.Json(WithReplayed(element, false));
+    }
+
+    private static IResult Replay(JsonElement first) => Results.Json(WithReplayed(first, true));
+
+    private static Dictionary<string, JsonElement> WithReplayed(JsonElement reply, bool replayed)
+    {
+        var body = reply.EnumerateObject().ToDictionary(property => property.Name, property => property.Value.Clone());
+        body["replayed"] = JsonSerializer.SerializeToElement(replayed);
+        return body;
+    }
+
+    // Records an internal-plane request and parses its body. The game-server key is required but not checked
+    // against a value: which key a deployment holds is configuration, not something this suite is testing.
+    private async Task<(JsonElement? Root, IResult Failure)> InternalAsync(HttpContext context)
+    {
+        using var reader = new StreamReader(context.Request.Body, Encoding.UTF8);
+        var body = await reader.ReadToEndAsync();
+        var authorization = context.Request.Headers.Authorization.ToString();
+        _requests.Enqueue(new RecordedRequest(context.Request.Method, context.Request.Path.Value ?? "", authorization, body));
+        if (!authorization.StartsWith("Bearer ", StringComparison.Ordinal) || authorization.Length <= "Bearer ".Length)
+        {
+            return (null, Error(context, StatusCodes.Status401Unauthorized, "invalid_key", "a service key is required"));
+        }
+        if (Interlocked.Decrement(ref _failures) >= 0)
+        {
+            return (null, Error(context, StatusCodes.Status503ServiceUnavailable, "internal_error", "internal server error"));
+        }
+        using var document = JsonDocument.Parse(body);
+        return (document.RootElement.Clone(), Results.Empty);
     }
 
     // Identifies the caller the way the service does - from the token - and records the request. The body is read

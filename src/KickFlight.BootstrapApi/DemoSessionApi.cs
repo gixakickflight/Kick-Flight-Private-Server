@@ -36,8 +36,8 @@ public sealed partial class DemoSessionApi
 
     // Onboarding status: TutorialUtil.IsTutorial is literally "tutorialProgressStatus != 207".
     //
-    // A fresh account (no name, no progress) is sent Start (1), which runs the client's own tutorial from the
-    // beginning: /tutorial/start, the scripted battle (battleProgress 101-112, battleEnd 113), then capsuleOpen
+    // With the ladder on (below), a fresh account (no name, no progress) is sent Start (1), which runs the client's
+    // own tutorial from the beginning: /tutorial/start, the scripted battle (battleProgress 101-112, battleEnd 113), then capsuleOpen
     // (202), discBuildup (203), gachaDiscDraw (204), gachaKickerDraw (205), kickerChange (206) and the name (end,
     // 207). Each step the client reports advances SessionState.TutorialProgress, so a player who quits half way
     // resumes where they stopped (GetTutorialInitialSubStep maps the status to the step). The disc and kicker steps
@@ -48,21 +48,44 @@ public sealed partial class DemoSessionApi
     // gave and still holds. 206 is TutorialProgressStatus.KickerChange: the name step preselects the first owned
     // kicker other than kicker 1 and throws if there is none, which is why EconomyPayloads always serves kicker 2.
     //
-    // Tutorial:Ladder = false puts a nameless account straight on 206, the short onboarding this replaced. It is
-    // the rollback switch for a client build whose long tutorial does not finish against this server.
+    // The ladder is off unless Tutorial:Ladder = true. Off, a nameless account goes straight to 206, the short
+    // onboarding that is known to work on devices; the long tutorial has not been walked to the end on one.
+    //
+    // On, it is still only offered to an account that can finish it. The build-up lesson (203) greys its button out
+    // unless the player's Disc Force (Item row 3, from the startup) covers the lesson disc's EnhanceCost
+    // (DiscDisplayPresenter.<Initialize>b__5_0 0x162C268: force >= cost), and the tutorial's pointer has nothing
+    // else to press, so a player short of it is stuck after the capsule with no way forward. The lesson disc is the
+    // client's own (TutorialUtil.DISC_ID_LIST[0], 3010003) at its default level, priced by the served DiscBuildup
+    // master (_tutorialLessonCost). An account below that, which has not passed the lesson yet, is put on the name
+    // window instead.
     //
     // Verified by decompiling the client; no client modification is involved.
     public const int TutorialStatusStart = 1;
+    public const int TutorialStatusDiscBuildup = 203;
     public const int TutorialStatusInputName = 206;
     public const int TutorialStatusComplete = 207;
 
-    private int TutorialStatus(SessionState state)
+    // TutorialUtil.DISC_ID_LIST (global-metadata 0x8323D5): the four placeholder discs the client builds the
+    // tutorial's deck and disc list from. The first is the one the build-up lesson raises.
+    public static readonly int[] TutorialDeckDiscIds = [3010003, 3010024, 3010070, 3010013];
+
+    private int TutorialStatus(SessionState state, EconomySnapshot economy)
     {
         if (state.HasName) return TutorialStatusComplete;
         if (!_tutorialLadder) return TutorialStatusInputName;
+        if (state.TutorialProgress < TutorialStatusDiscBuildup && DiscForceOf(economy) < _tutorialLessonCost)
+        {
+            _logger.LogInformation("Tutorial: user {UserId} holds {Force} disc_force, below the build-up lesson's " +
+                "{Cost}; serving the name window instead of the ladder", state.UserId, DiscForceOf(economy),
+                _tutorialLessonCost);
+            return TutorialStatusInputName;
+        }
         // Without a name the furthest the ladder goes is the name window itself.
         return Math.Clamp(state.TutorialProgress, TutorialStatusStart, TutorialStatusInputName);
     }
+
+    private static long DiscForceOf(EconomySnapshot economy) =>
+        economy.Balances.FirstOrDefault(balance => balance.Currency == EconomyCatalog.DiscForceCurrency)?.Balance ?? 0;
 
     // The three rule types have separate ranked standings. Casual results continue using the existing regular ladder.
     public const int RegularBattleRuleType = 1;
@@ -117,6 +140,11 @@ public sealed partial class DemoSessionApi
     private readonly bool _tutorialLadder;
     // discId -> RarityType, from the served Disc master: what a disc's start level is read from.
     private readonly Dictionary<int, int> _discRarity = [];
+    // The served DiscBuildup master, read the way the client prices its build-up button (Otomo/EconomyDiscLevels.cs).
+    private EconomyDiscLevels _discLevels = EconomyDiscLevels.Empty;
+    // The Disc Force the tutorial's build-up lesson asks for (TutorialStatus). int.MaxValue when the masters do
+    // not price it, which keeps every account off the ladder rather than guessing.
+    private long _tutorialLessonCost = int.MaxValue;
 
     public DemoSessionApi(ILogger<DemoSessionApi> logger, IWebHostEnvironment environment,
         BattleMatchmakingService matchmaking, BattleReplayService replays, IPlayerStore playerStore,
@@ -142,7 +170,8 @@ public sealed partial class DemoSessionApi
         _grpcPort = configuration.GetValue("GrpcPort", 18081);
         _tuning = EconomyTuning.Load(configuration[$"{OtomoEconomyOptions.SectionName}:TuningFile"],
             environment.ContentRootPath, logger);
-        _tutorialLadder = configuration.GetValue("Tutorial:Ladder", true);
+        BattleMatchmakingService.UnchosenDeckDiscLevel = _tuning.CasualDiscLevel;
+        _tutorialLadder = configuration.GetValue("Tutorial:Ladder", false);
         _mastersOverrides = new MasterOverrides(configuration[MasterOverrides.ConfigurationKey], environment.ContentRootPath);
         InitializeMasters(environment.ContentRootPath);
         // A publish replaces a table under the running process: re-encrypt it and recompute the version the client
@@ -622,6 +651,20 @@ public sealed partial class DemoSessionApi
         {
             for (var i = 3010001; i <= 3010135; i++) _discIdList.Add(i);
         }
+
+        // Parsed from the same bytes the client is sent below, so the price /disc/buildup charges is the one the
+        // client's button shows.
+        _discLevels = EconomyDiscLevels.Parse(discBuildupJson, _logger);
+        _logger.LogInformation("DiscBuildup master: {Rows} level-up rows", _discLevels.Count);
+
+        // The lesson raises the tutorial's first disc from the level the client builds it at.
+        var lessonDisc = TutorialDeckDiscIds[0];
+        var lessonStep = _discRarity.TryGetValue(lessonDisc, out var lessonRarity)
+            ? _discLevels.Next(lessonRarity, EconomyDiscLevels.ClientDefaultLevel(lessonRarity))
+            : null;
+        _tutorialLessonCost = lessonStep?.DiscForce ?? int.MaxValue;
+        _logger.LogInformation("Tutorial build-up lesson: disc {DiscId} to level {Level} costs {Cost} disc_force",
+            lessonDisc, lessonStep?.TargetLevel, lessonStep is null ? "(unpriced)" : lessonStep.DiscForce);
 
         try
         {
@@ -1203,6 +1246,9 @@ public sealed partial class DemoSessionApi
         // rather than answering zeroes the client would believe.
         if (path == "/startup/index")
         {
+            // Paid before the read, so the counters this startup sends already hold it: the client prices the
+            // tutorial's build-up button from them, and nothing later in onboarding repeats the item list.
+            await PayStarterDiscForceAsync(ticket, state, path, context.RequestAborted);
             var economy = await ReadPlayerEconomyAsync(ticket,
                 EconomyRead.Balances | EconomyRead.Inventory | EconomyRead.Tasks, path, context.RequestAborted);
             if (economy.Snapshot is null) return EconomyUnavailable(context, path, economy.Error);
@@ -1457,24 +1503,28 @@ public sealed partial class DemoSessionApi
         }
     }
 
-    // /disc/buildup: a real level-up needs the duplicate discs and the Disc Force the DiscBuildup master asks for
-    // (necessaryDiscForceAmount, totalDiscAmount per rarity and level) to be taken from the player, and economy
-    // cannot do that yet. Its player plane spends a currency only as the price of a shop offer or a gacha pool, and
-    // it has no route that takes an item back: discs are non-stackable possessions, so "the duplicates" are not
-    // even held as a count. Raising the stored level without that spend would hand out the progression for free, so
-    // the route is refused in the game's error contract and nothing is changed. The request is still read, so a
-    // malformed body fails the way it did.
+    // /disc/buildup {discId}: one level, paid for in one economy transaction.
     //
-    // TODO(economy: consume primitive): once economy has a player-plane consume, this becomes one call with the
-    // player's token and a key per (disc, target level), then SessionState.DiscLevels[discId] = level + 1:
-    //   POST /api/player/economy/consume
-    //   { "items": [{ "item": "disc:<discId>", "qty": <totalDiscAmount> }],
-    //     "currencies": [{ "currency": "disc_force", "amount": <necessaryDiscForceAmount> }],
-    //     "key": "disc.buildup:<discId>:<level + 1>" }
-    // and the answer's balances/items become userDisc and userItem below.
+    // The price is the served DiscBuildup master's, read the way the client reads it (Otomo/EconomyDiscLevels.cs):
+    // going from L to L + 1 costs row L + 1's Disc Force and total(L + 1) - total(L) duplicate copies of this same
+    // disc. Both leave through POST /internal/economy/consume in a single call - copies and Disc Force together or
+    // neither - keyed by the disc and the level it reaches (level-up:<player>:<disc>:<level>). Two requests that
+    // both read level L, such as the adapter's own resend or a retry racing its original, name the same fact, and
+    // economy answers the second with the first's result instead of spending again.
+    //
+    // A retry that arrives after the new level is stored reads L + 1, so the key alone would price it as the next
+    // level-up. The client marks a retry itself: it resends a request whose answer it lost with the same
+    // x-app-response-cache-id (NetworkManager.SendRequestAsync threads cacheId into AddRequestHeaderResponseCache),
+    // and the save keeps the id of the request that raised each disc last. A match is answered with the disc as it
+    // now stands and spends nothing. A new tap carries a new id and is a new level-up at its own price.
+    //
+    // Economy checks that the player holds enough; the one thing it cannot check is that the disc itself survives
+    // (it deletes an item at zero), so the base copy is checked here against a fresh read before anything is sent.
+    // Every refusal is the game's error dialog, and only an unreachable economy is a 503.
     private async Task<IResult?> HandleDiscBuildupAsync(HttpContext context, KfIdentityTicket ticket,
         SessionState state, byte[] key)
     {
+        const string path = "/disc/buildup";
         var body = await ReadBodyAsync(context.Request);
         int discId;
         try
@@ -1486,25 +1536,131 @@ public sealed partial class DemoSessionApi
         catch (Exception ex)
         {
             _logger.LogWarning("Could not decode disc buildup request: {Error}", ex.Message);
-            return null;
+            return BuildupRefused(context, "This disc cannot be levelled up.");
         }
 
-        _logger.LogWarning(
-            "disc/buildup refused for user {UserId}: disc {DiscId} stays at level {Level}, because economy has no " +
-            "primitive to consume the duplicates and Disc Force a level-up costs",
-            state.UserId, discId, StoredDiscLevel(state, discId));
-        return FeatureUnavailable(context, "Disc level-up", "Levelling up discs is not available yet.");
+        if (!_discRarity.TryGetValue(discId, out var rarity))
+        {
+            _logger.LogWarning("{Path} for user {UserId}: disc {DiscId} is not in the served Disc master", path,
+                state.UserId, discId);
+            return BuildupRefused(context, "This disc cannot be levelled up.");
+        }
+
+        var economy = await ReadPlayerEconomyAsync(ticket,
+            EconomyRead.Balances | EconomyRead.Inventory | EconomyRead.Tasks, path, context.RequestAborted);
+        if (economy.Snapshot is null) return EconomyUnavailable(context, path, economy.Error);
+        var snapshot = economy.Snapshot;
+        var discItem = $"disc:{discId}";
+        var owned = snapshot.Items.FirstOrDefault(item => item.Item == discItem);
+        var held = owned?.Qty ?? 0;
+
+        // DiscBuildupResponseData. The stats are not in it: the client recomputes attack, HP and cool time from
+        // the DiscGrow master at the level it is handed (DiscParameterUtil.CalcGrowParameter).
+        IResult Answer(long heldNow, long discForceNow) => OkJson(context, key, JsonSerializer.Serialize(new
+        {
+            userDisc = EconomyPayloads.BuildUserDisc(discId, heldNow, DiscStandingOf(state, discId), owned?.AcquiredAt),
+            userItem = new
+            {
+                itemId = EconomyCatalog.DiscForceItemId, amount = (int)Math.Clamp(discForceNow, 0, int.MaxValue)
+            },
+            userMissionProgressList = Payloads(state).BuildMissionProgressList(snapshot.Tracks)
+        }));
+
+        var cacheId = context.Request.Headers["x-app-response-cache-id"].ToString();
+        if (cacheId.Length > 0 && state.DiscBuildupRequests.TryGetValue(discId, out var lastCacheId) &&
+            lastCacheId == cacheId)
+        {
+            _logger.LogInformation("{Path}: user {UserId} resent the level-up of disc {DiscId} (cache id {CacheId}); " +
+                "answering level {Level} without a second spend", path, state.UserId, discId, cacheId,
+                StoredDiscLevel(state, discId));
+            return Answer(held, DiscForceOf(snapshot));
+        }
+
+        var level = StoredDiscLevel(state, discId);
+        var step = _discLevels.Next(rarity, level);
+        if (step is null)
+        {
+            _logger.LogInformation("{Path} for user {UserId}: disc {DiscId} (rarity {Rarity}) at level {Level} has no " +
+                "next level in the DiscBuildup master (cap {Cap})", path, state.UserId, discId, rarity, level,
+                _discLevels.MaxLevel(rarity));
+            return BuildupRefused(context, "This disc is already at its highest level.");
+        }
+        if (held < step.Copies + 1)
+        {
+            _logger.LogInformation("{Path} for user {UserId}: disc {DiscId} level {Level} -> {Target} needs {Copies} " +
+                "duplicate(s) and the disc itself; economy holds {Held}", path, state.UserId, discId, level,
+                step.TargetLevel, step.Copies, held);
+            return BuildupRefused(context, held < 1
+                ? "You do not own this disc."
+                : "You do not have enough copies of this disc to level it up.");
+        }
+
+        var consumeKey = EconomyDiscLevels.Key(ticket.OtomoPlayerId, discId, step.TargetLevel);
+        EconomyConsumeResult spent;
+        try
+        {
+            spent = await _economy.ConsumeAsync(new EconomyConsumeRequest(
+                    ticket.OtomoPlayerId, consumeKey, "disc level-up", ProgressKeyPart($"disc-buildup:{discId}"),
+                    step.Copies > 0 ? [new EconomyItemCost(discItem, step.Copies)] : [],
+                    [new EconomyCurrencyCost(EconomyCatalog.DiscForceCurrency, step.DiscForce)]),
+                context.RequestAborted);
+        }
+        catch (OtomoEconomyException ex) when (ex.Failure == OtomoEconomyFailure.Refused)
+        {
+            // insufficient_funds or insufficient_items: nothing has moved, and the level stays where it was.
+            _logger.LogInformation("{Path} for user {UserId}: economy refused disc {DiscId} level {Level} -> {Target} " +
+                "({Copies} copies, {Force} disc_force): {Status} {Code}", path, state.UserId, discId, level,
+                step.TargetLevel, step.Copies, step.DiscForce, ex.StatusCode, ex.Code);
+            return BuildupRefused(context, ex.Code == "insufficient_items"
+                ? "You do not have enough copies of this disc to level it up."
+                : "You do not have enough Disc Force to level up this disc.");
+        }
+        catch (OtomoEconomyException ex)
+        {
+            return EconomyUnavailable(context, path, ex);
+        }
+
+        // The spend is done, so the level is stored whatever else happens. It only ever moves up: a replayed key
+        // answered for a tap that raced this one names the same target, and must not lower a level already stored.
+        lock (state)
+        {
+            if (StoredDiscLevel(state, discId) < step.TargetLevel) state.DiscLevels[discId] = step.TargetLevel;
+            if (cacheId.Length > 0) state.DiscBuildupRequests[discId] = cacheId;
+            SaveUserState(state);
+        }
+
+        // The answer's own totals; a consume that answered without them is what was read before, less the price.
+        var heldAfter = spent.Items?.FirstOrDefault(move => move.Item == discItem)?.Total ?? held - step.Copies;
+        var discForce = spent.Balances?.FirstOrDefault(balance => balance.Currency == EconomyCatalog.DiscForceCurrency)?.Balance
+                        ?? Math.Max(0, DiscForceOf(snapshot) - step.DiscForce);
+        _logger.LogInformation("{Path}: user {UserId} raised disc {DiscId} from level {Level} to {Target}, spending " +
+            "{Copies} copies and {Force} disc_force under {Key}{Replayed}; holds {Held} copies and {DiscForce} disc_force",
+            path, state.UserId, discId, level, step.TargetLevel, step.Copies, step.DiscForce, consumeKey,
+            spent.Replayed ? " (replayed)" : "", heldAfter, discForce);
+        return Answer(heldAfter, discForce);
     }
 
-    // "This screen works but this action is not available yet", in the game's error contract: HTTP 200, a non-zero
-    // x-app-status-code, and a PLAINTEXT {"error":{code,title,message}} body, for the same reason NameRejected's is
-    // plaintext. 2002 is one of the codes known to open the generic error dialog (see NameRejected) rather than
-    // send the player back to the title; whether that dialog prints this title and message is not verified.
-    private static IResult FeatureUnavailable(HttpContext context, string title, string message)
+    // The client has no ErrorType for "cannot afford": its build-up button is greyed out by its own check
+    // (CalcBuildupParameter against the counters it was sent), so this answer is for a client whose counters were
+    // stale. It is the game's error contract - HTTP 200, a non-zero x-app-status-code and a PLAINTEXT
+    // {"error":{code,title,message}} body, because NetworkManager.GetResponseErrorFromResponse (0x31B2AE0) reads it
+    // without D2C-decoding. 2502 (GoodsUnreceivable) is not one of the codes NetworkManager.OpenErrorWindowOnFailed
+    // (0x31B7F98) special-cases, so the dialog prints this title and message. 2002-2004 would not do: that function
+    // replaces their text with the localized name-rule messages.
+    private static IResult BuildupRefused(HttpContext context, string message)
     {
-        context.Response.Headers["x-app-status-code"] = "2002";
-        var body = JsonSerializer.Serialize(new { error = new { code = "2002", title, message } });
+        const string code = "2502";
+        context.Response.Headers["x-app-status-code"] = code;
+        var body = JsonSerializer.Serialize(new { error = new { code, title = "Disc level-up", message } });
         return Results.Text(body, "application/json", Encoding.UTF8, StatusCodes.Status200OK);
+    }
+
+    // A disc as the client is to be shown it: the save's level, and the copies that level has already spent.
+    private DiscStanding DiscStandingOf(SessionState state, int discId)
+    {
+        var rarity = _discRarity.GetValueOrDefault(discId);
+        var level = StoredDiscLevel(state, discId);
+        return new DiscStanding(level, _discLevels.CopiesSpent(rarity, level, _tuning.StartLevel(rarity)));
     }
 
     // The level the save holds for a disc, or its rarity's start level when the player has never raised it.
@@ -1652,7 +1808,7 @@ public sealed partial class DemoSessionApi
         }).ToArray();
 
         // The discs the player owns, from the inventory's disc:<discId> items, at the level the save holds for each.
-        var userDiscList = Payloads(state).BuildUserDiscList(economy, discId => StoredDiscLevel(state, discId));
+        var userDiscList = Payloads(state).BuildUserDiscList(economy, discId => DiscStandingOf(state, discId));
 
         var data = new
         {
@@ -1677,7 +1833,7 @@ public sealed partial class DemoSessionApi
             userPremium = new { premiumId = 0, startDatetime = "", endDatetime = "" },
             userSeasonPass = new { seasonPassId = 1, startDatetime = "2019-01-01 00:00:00", endDatetime = "2030-01-01 23:59:59" },
             userFestivalTeam = new { battleRuleId = 5, festivalTeamId = 1, festivalPoint = 0 },
-            tutorialProgressStatus = TutorialStatus(state),
+            tutorialProgressStatus = TutorialStatus(state, economy),
             birthdayConfirmFlag = true,
             dataUsageAgreementConfirmFlag = true,
             dataUsageAgreementAvailableFlag = false,

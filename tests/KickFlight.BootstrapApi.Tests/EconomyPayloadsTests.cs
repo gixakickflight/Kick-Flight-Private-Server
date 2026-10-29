@@ -79,7 +79,7 @@ public sealed class EconomyPayloadsTests
     }
 
     [Fact]
-    public void Disc_list_serves_owned_discs_at_level_ten_and_drops_ids_the_client_has_no_master_row_for()
+    public void Disc_list_serves_owned_discs_at_their_standing_and_drops_ids_the_client_has_no_master_row_for()
     {
         var snapshot = Snapshot(items:
         [
@@ -88,12 +88,17 @@ public sealed class EconomyPayloadsTests
             ("disc:9999999", 1)
         ]);
 
-        var rows = Payload(Build().BuildUserDiscList(snapshot)).EnumerateArray().ToList();
+        // 3010001 has been raised twice and those levels spent 4 copies: the client counts them back in.
+        var rows = Payload(Build().BuildUserDiscList(snapshot,
+                discId => discId == 3010001 ? new DiscStanding(6, 4) : new DiscStanding(3, 0)))
+            .EnumerateArray().ToList();
 
         Assert.Equal(2, rows.Count);
         Assert.Equal(3010001, rows[0].GetProperty("discId").GetInt32());
-        Assert.Equal(2, rows[0].GetProperty("amount").GetInt32());
-        Assert.Equal(10, rows[0].GetProperty("level").GetInt32());
+        Assert.Equal(6, rows[0].GetProperty("amount").GetInt32());
+        Assert.Equal(6, rows[0].GetProperty("level").GetInt32());
+        Assert.Equal(1, rows[1].GetProperty("amount").GetInt32());
+        Assert.Equal(3, rows[1].GetProperty("level").GetInt32());
         Assert.Equal(0, rows[0].GetProperty("exp").GetInt32());
         Assert.Equal(new[] { "discId", "amount", "level", "exp", "registerDatetime" },
             rows[0].EnumerateObject().Select(property => property.Name).ToArray());

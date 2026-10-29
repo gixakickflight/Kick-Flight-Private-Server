@@ -220,6 +220,65 @@ public sealed class OtomoEconomyTests
         Assert.Empty(handler.Calls);
     }
 
+    [Fact]
+    public async Task A_consume_sends_the_items_and_currencies_in_one_internal_call_with_the_service_key()
+    {
+        var (economy, handler) = Build(progress: true, serviceKey: "game-server-key");
+        handler.Queue(HttpStatusCode.OK, """{"player_id":"6f1d","key":"level-up:6f1d:3010003:4","items":[{"item":"disc:3010003","qty":4,"total":1}],"balances":[{"currency":"disc_force","balance":120}],"consumed":{"item":"disc:3010003","qty":4,"total":1}}""");
+
+        var result = await economy.ConsumeAsync(new EconomyConsumeRequest("6f1d", "level-up:6f1d:3010003:4",
+                "disc level-up", "disc-buildup:3010003", [new EconomyItemCost("disc:3010003", 4)],
+                [new EconomyCurrencyCost("disc_force", 1200)]),
+            CancellationToken.None);
+
+        var call = Assert.Single(handler.Calls);
+        Assert.Equal("POST", call.Method);
+        Assert.Equal("/internal/economy/consume", call.Path);
+        Assert.Equal("Bearer game-server-key", call.Authorization);
+        using var body = JsonDocument.Parse(call.Body!);
+        var root = body.RootElement;
+        Assert.Equal("6f1d", root.GetProperty("player_id").GetString());
+        Assert.Equal("level-up:6f1d:3010003:4", root.GetProperty("key").GetString());
+        Assert.Equal("disc-buildup:3010003", root.GetProperty("ref").GetString());
+        var item = Assert.Single(root.GetProperty("items").EnumerateArray().ToList());
+        Assert.Equal("disc:3010003", item.GetProperty("item").GetString());
+        Assert.Equal(4, item.GetProperty("qty").GetInt64());
+        var currency = Assert.Single(root.GetProperty("currencies").EnumerateArray().ToList());
+        Assert.Equal("disc_force", currency.GetProperty("currency").GetString());
+        Assert.Equal(1200, currency.GetProperty("amount").GetInt64());
+
+        Assert.Equal(1, Assert.Single(result.Items!).Total);
+        Assert.Equal(120, Assert.Single(result.Balances!).Balance);
+    }
+
+    [Fact]
+    public async Task A_refused_consume_carries_economys_code_and_is_not_retried()
+    {
+        var (economy, handler) = Build(progress: true, serviceKey: "game-server-key");
+        handler.Queue(HttpStatusCode.Conflict, """{"error":{"code":"insufficient_items","message":"holds 1, needs 2"}}""");
+
+        var failure = await Assert.ThrowsAsync<OtomoEconomyException>(() =>
+            economy.ConsumeAsync(new EconomyConsumeRequest("6f1d", "k", "disc level-up", "r",
+                [new EconomyItemCost("disc:3010003", 2)], []), CancellationToken.None));
+
+        Assert.Equal(OtomoEconomyFailure.Refused, failure.Failure);
+        Assert.Equal("insufficient_items", failure.Code);
+        Assert.Single(handler.Calls);
+    }
+
+    [Fact]
+    public async Task Without_the_internal_plane_a_consume_is_disabled_and_sends_nothing()
+    {
+        var (economy, handler) = Build(progress: false, serviceKey: "game-server-key");
+
+        var failure = await Assert.ThrowsAsync<OtomoEconomyException>(() =>
+            economy.ConsumeAsync(new EconomyConsumeRequest("6f1d", "k", "disc level-up", "r", [], []),
+                CancellationToken.None));
+
+        Assert.Equal(OtomoEconomyFailure.Disabled, failure.Failure);
+        Assert.Empty(handler.Calls);
+    }
+
     private static (OtomoEconomy Economy, RecordingHandler Handler) Build(bool enabled = true, bool progress = false,
         string? serviceKey = null)
     {

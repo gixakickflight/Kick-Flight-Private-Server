@@ -25,6 +25,12 @@ public sealed class BattleMatchmakingService
     // still-cached Photon room from the previous process.
     private int _battleCounter = (int)(DateTimeOffset.UtcNow.ToUnixTimeSeconds() % 1_000_000_000);
 
+    // What a human's disc fights at when the entry carried no levels for the deck it ends up playing (the fallback
+    // deck below). The adapter sets it to the tuning's casual level (EconomyTuning.CasualDiscLevel) at boot; the
+    // initial value is that level's published default, for a matchmaker built without the adapter. Static like the
+    // gym switches, because the roster builders that read it are.
+    public static int UnchosenDeckDiscLevel { get; set; } = EconomyTuning.Defaults.CasualDiscLevel;
+
     public BattleMatchmakingService(ILogger<BattleMatchmakingService> logger, IPhotonServerManager photonManager,
         MaintenanceState? maintenance = null, IWebHostEnvironment? environment = null)
     {
@@ -81,7 +87,8 @@ public sealed class BattleMatchmakingService
         public int? BattleRuleType { get; set; }
         public List<int> DeckDiscs { get; set; } = [];
         // The level each DeckDiscs slot fights at, chosen by the adapter when it issued the entry (casual flat,
-        // ranked stored: DemoSessionApi.DeckLevelsFor). Empty means "not chosen", which fights at the bots' level.
+        // ranked stored: DemoSessionApi.DeckLevelsFor). Empty means "not chosen", which fights at
+        // UnchosenDeckDiscLevel.
         public List<int> DeckDiscLevels { get; set; } = [];
         /// <summary>Stable matchmaking party identity. Null means the player queues alone.</summary>
         public string? PartyId { get; set; }
@@ -1076,10 +1083,10 @@ public sealed class BattleMatchmakingService
             }
 
             var discs = p.DeckDiscs.Count >= 4 ? p.DeckDiscs : [3010001, 3010002, 3010003, 3010004];
-            // The levels belong to the deck they were chosen for; a fallback deck has none and fights at the
-            // default, exactly as every human did before levels were threaded through.
+            // The levels belong to the deck they were chosen for; a fallback deck has none and fights at the flat
+            // level, because nobody's save stands behind it.
             var levels = p.DeckDiscs.Count >= 4 && p.DeckDiscLevels.Count >= 4 ? p.DeckDiscLevels : null;
-            int LevelAt(int slot) => levels is null ? EconomyPayloads.OwnedDiscLevel : levels[slot];
+            int LevelAt(int slot) => levels is null ? UnchosenDeckDiscLevel : levels[slot];
             entries.Add(new MatchingPlayerBattleInfo
             {
                 userId = p.UserId,

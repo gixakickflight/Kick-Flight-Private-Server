@@ -9,7 +9,7 @@ namespace KickFlight.BootstrapApi;
 //   /tutorial/battleProgress    101+  the scripted battle reports its sub-steps; stored as sent (101-113)
 //   /tutorial/battleEnd         113
 //   /tutorial/capsuleOpen       202   the tutorial capsule: pays class tutorial.disc
-//   /tutorial/discBuildup       203   shows the disc; nothing is spent and no level changes
+//   /tutorial/discBuildup       203   the lesson on the client's placeholder disc; nothing is spent or stored
 //   /tutorial/gachaDiscDraw     204   the disc draw: the same tutorial.disc grant, so it shows that disc
 //   /tutorial/gachaKickerDraw   205   pays class tutorial.kicker
 //   /tutorial/kickerChange      206   switches to the kicker the player picked; the name window is next
@@ -135,7 +135,6 @@ public sealed partial class DemoSessionApi
         AdvanceTutorial(state, draw ? 204 : 202);
 
         var payloads = Payloads(state);
-        int LevelOf(int discId) => StoredDiscLevel(state, discId);
         var moved = grant!.Items ?? [];
         var dropDiscList = moved.Where(move => EconomyCatalog.TryDiscId(move.Item, out _))
             .Select(move =>
@@ -143,7 +142,7 @@ public sealed partial class DemoSessionApi
                 EconomyCatalog.TryDiscId(move.Item, out var discId);
                 return (object)new { discId, amount = 1, discForceAmount = 0 };
             }).ToArray();
-        var receivedUserDiscList = payloads.BuildReceivedUserDiscList(moved, LevelOf);
+        var receivedUserDiscList = payloads.BuildReceivedUserDiscList(moved, discId => DiscStandingOf(state, discId));
         var receivedRewardList = payloads.BuildReceivedRewards(grant.Entries, moved);
 
         if (!draw)
@@ -177,9 +176,20 @@ public sealed partial class DemoSessionApi
         }));
     }
 
-    // /tutorial/discBuildup {discId}: the build-up screen's lesson. It answers the disc as it stands - its stored
-    // level and the player's Disc Force - and changes nothing: a level is progression the player pays for, and the
-    // paid route is gated until economy can take the cost (HandleDiscBuildupAsync).
+    // /tutorial/discBuildup {discId}: the build-up screen's lesson, on a disc that is the client's own.
+    //
+    // During the tutorial the client does not show the player's discs: at startup it replaces its disc list and
+    // deck with TutorialUtil.GetUserDiscListInfo (0x14799A0), four placeholder discs (TutorialDeckDiscIds) at
+    // CommonUtil.GetDefaultDiscLevel with the DiscBuildup row's totalDiscAmount as their amount. The lesson taps
+    // deck slot 0 (HomeSkillSelectView.<TutorialTapDiscAsync> 0x159CE7C), so the disc it sends is 3010003, which the
+    // player does not own. The answer goes into that same list (SkillDescriptionWindow.<EnhanceExecuteCorutine>
+    // b__66_0 0x183E898: UserDiscListInfo.UpdateData(userDisc), UserItemListInfo.UpdateData(userItem)) and the
+    // enhance screen then animates from the old row to it.
+    //
+    // So the answer is the row the client itself builds for that disc once the lesson is done (status >= 203: one
+    // level up, amount = totalDiscAmount at that level), which is what a client resuming at 203 shows anyway. Nothing
+    // is spent and nothing is stored: the level belongs to a placeholder, and keeping it would raise a real copy of
+    // that disc for free if the player ever got one. userItem is the player's real Disc Force, unchanged.
     private async Task<IResult?> HandleTutorialDiscBuildupAsync(HttpContext context, KfIdentityTicket ticket,
         SessionState state, byte[] key)
     {
@@ -188,23 +198,40 @@ public sealed partial class DemoSessionApi
         var economy = await ReadPlayerEconomyAsync(ticket, EconomyRead.Balances | EconomyRead.Inventory, path,
             context.RequestAborted);
         if (economy.Snapshot is null) return EconomyUnavailable(context, path, economy.Error);
-        AdvanceTutorial(state, 203);
+        AdvanceTutorial(state, TutorialStatusDiscBuildup);
 
-        var owned = economy.Snapshot.Items.FirstOrDefault(item =>
-            EconomyCatalog.TryDiscId(item.Item, out var ownedDiscId) && ownedDiscId == discId);
-        var discForce = economy.Snapshot.Balances.FirstOrDefault(balance =>
-            EconomyCatalog.TryItemIdForCurrency(balance.Currency, out var itemId) && itemId == 3)?.Balance ?? 0;
-        return OkJson(context, key, JsonSerializer.Serialize(new
+        object userDisc;
+        var placeholder = Array.IndexOf(TutorialDeckDiscIds, discId);
+        if (placeholder >= 0 && _discRarity.TryGetValue(discId, out var rarity))
         {
+            var level = EconomyDiscLevels.ClientDefaultLevel(rarity) + (placeholder == 0 ? 1 : 0);
             userDisc = new
             {
                 discId,
-                amount = (int)Math.Clamp(owned?.Qty ?? 0, 0, int.MaxValue),
-                level = StoredDiscLevel(state, discId),
-                exp = 0,
-                registerDatetime = EconomyPayloads.Stamp(owned?.AcquiredAt)
-            },
-            userItem = new { itemId = 3, amount = (int)Math.Clamp(discForce, 0, int.MaxValue) }
+                amount = _discLevels.TotalDiscs(rarity, level) ?? 1,
+                level,
+                registerDatetime = EconomyPayloads.Stamp(DateTimeOffset.UtcNow)
+            };
+        }
+        else
+        {
+            // Not one of the tutorial's discs: the player's own, as it stands.
+            _logger.LogWarning("{Path} for user {UserId}: disc {DiscId} is not a tutorial disc; answering it as owned",
+                path, state.UserId, discId);
+            var owned = economy.Snapshot.Items.FirstOrDefault(item =>
+                EconomyCatalog.TryDiscId(item.Item, out var ownedDiscId) && ownedDiscId == discId);
+            userDisc = EconomyPayloads.BuildUserDisc(discId, owned?.Qty ?? 0, DiscStandingOf(state, discId),
+                owned?.AcquiredAt);
+        }
+
+        return OkJson(context, key, JsonSerializer.Serialize(new
+        {
+            userDisc,
+            userItem = new
+            {
+                itemId = EconomyCatalog.DiscForceItemId,
+                amount = (int)Math.Clamp(DiscForceOf(economy.Snapshot), 0, int.MaxValue)
+            }
         }));
     }
 

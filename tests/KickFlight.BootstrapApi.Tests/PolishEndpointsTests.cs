@@ -401,7 +401,6 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
     [InlineData("/present/receipt", "unreceivedUserPresentList")]
     [InlineData("/mission/index", "userMissionProgressList")]
     [InlineData("/mission/read", "userDailyRandomMissionTaskList")]
-    [InlineData("/mission/receipt", "receivedRewardList")]
     [InlineData("/mission/change", "userDailyRandomMissionTask")]
     [InlineData("/mission/tweet", "userMissionProgressList")]
     [InlineData("/battleReplay/index", "battleReplayChannelList")]
@@ -415,8 +414,6 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
     [InlineData("/battleSummary/season", "userBattleSummarySeasonList")]
     [InlineData("/battleSummary/festival", "festivalMatchResultList")]
     [InlineData("/chatRoomComment/write", null)]
-    [InlineData("/capsule/immediateOpen", "userItemList")]
-    [InlineData("/capsule/open", "capsuleEffectType")]
     public async Task Stub_endpoints_answer_status_zero_with_a_schema_complete_object(string path, string? expectedMember)
     {
         var session = await CreateSessionAsync();
@@ -507,20 +504,29 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
         Assert.Equal("Tanuki", home.GetProperty("userPlayer").GetProperty("name").GetString());
     }
 
-    [Fact]
-    public async Task Capsule_open_repeats_the_startup_item_counters()
+    // A capsule is only opened from a slot a battle result filled, and a mission is only claimed when economy says
+    // it is claimable: anything else is refused in the error contract rather than answered as a free stub.
+    [Theory]
+    [InlineData("/capsule/open")]
+    [InlineData("/capsule/immediateOpen")]
+    public async Task Capsule_open_on_an_empty_slot_is_refused(string path)
     {
         var session = await CreateSessionAsync();
-        var items = (await PostAsync(session, "/startup/index", null)).GetProperty("userItemList");
 
-        var open = await PostAsync(session, "/capsule/immediateOpen", new { slotNumber = 1 });
-        // The client's eight Item master rows, exactly as the startup payload carries them.
-        Assert.Equal(8, open.GetProperty("userItemList").GetArrayLength());
-        for (var i = 0; i < 8; i++)
-        {
-            Assert.Equal(items[i].GetProperty("itemId").GetInt32(), open.GetProperty("userItemList")[i].GetProperty("itemId").GetInt32());
-            Assert.Equal(items[i].GetProperty("amount").GetInt32(), open.GetProperty("userItemList")[i].GetProperty("amount").GetInt32());
-        }
+        var open = await PostAsync(session, path, new { slotNumber = 1 }, expectStatusZero: false);
+
+        Assert.Equal(JsonValueKind.Object, open.ValueKind);
+    }
+
+    [Fact]
+    public async Task Mission_receipt_for_an_unknown_task_is_refused()
+    {
+        var session = await CreateSessionAsync();
+
+        var receipt = await PostAsync(session, "/mission/receipt", new { missionTaskId = 999999, loopCount = 0 },
+            expectStatusZero: false);
+
+        Assert.Equal(JsonValueKind.Object, receipt.ValueKind);
     }
 
     [Theory]

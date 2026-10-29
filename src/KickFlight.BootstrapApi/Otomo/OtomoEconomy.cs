@@ -172,6 +172,39 @@ public sealed class OtomoEconomy : IOtomoEconomy, IDisposable
                    "economy answered the grant with an empty body");
     }
 
+    // POST /internal/economy/consume. The same plane, key and switch again: a sink is no less a trust decision than
+    // a faucet. The retry in SendAsync resends the same key, which economy answers as a replay rather than a second
+    // spend - the property the level-up depends on.
+    public async Task<EconomyConsumeResult> ConsumeAsync(EconomyConsumeRequest consume,
+        CancellationToken cancellationToken)
+    {
+        if (!Enabled) throw Disabled();
+        var key = ReadServiceKey();
+        if (!_options.ProgressEnabled || string.IsNullOrEmpty(key) || _internalBase is null)
+        {
+            throw new OtomoEconomyException(OtomoEconomyFailure.Disabled,
+                "internal consumes are off: set Otomo:Economy:ProgressEnabled and a gameserver service key");
+        }
+
+        var url = new Uri(_internalBase, "internal/economy/consume");
+        var payload = new Dictionary<string, object?>
+        {
+            ["player_id"] = consume.PlayerId,
+            ["key"] = consume.Key,
+            ["reason"] = consume.Reason,
+            ["ref"] = consume.Reference,
+            ["items"] = consume.Items.Select(item => new { item = item.Item, qty = item.Qty }).ToArray(),
+            ["currencies"] = consume.Currencies
+                .Select(cost => new { currency = cost.Currency, amount = cost.Amount }).ToArray()
+        };
+
+        var element = await SendAsync(url, HttpMethod.Post, payload, bearer: null, serviceKey: key,
+            operation: "consume", cancellationToken).ConfigureAwait(false);
+        return element.Deserialize<EconomyConsumeResult>(JsonOptions)
+               ?? throw new OtomoEconomyException(OtomoEconomyFailure.Unavailable,
+                   "economy answered the consume with an empty body");
+    }
+
     private Uri Player(string relative) =>
         _playerBase is null
             ? throw new OtomoEconomyException(OtomoEconomyFailure.Unavailable,

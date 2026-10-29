@@ -53,13 +53,13 @@ Kick-Flight vocabulary appears upstream. `EconomyCatalog` is the only place the 
 |---|---|
 | `jetcoin` (currency) | Item 1, `GoodsType.JetCoinFree` (101) |
 | `(not published: no IAP)` (currency) | Item 2, `JetCoinPaid` (102) |
-| `(not published: disc build-up not ported)` (currency) | Item 3, `DiscForce` (302) |
+| `disc_force` (currency) | Item 3, `DiscForce` (302) |
 | `(not published: retired)` (currency) | Item 4, `KickPoint` (701) |
 | `fragment` (item) | Item 5, `GearMaterial` (202) |
 | `fragment` (item) | Item 6, `DiscFragment` (303) |
 | `kicker_ticket` (item) | Item 7, `KickerGachaTicket` (401) |
 | `(not published: disc gacha retired)` (item) | Item 8, `DiscGachaTicket` (402) |
-| `disc:<discId>` (item) | a disc in `userDiscList`; owning it is level 10 |
+| `disc:<discId>` (item) | a disc in `userDiscList`, at the save's level (`SessionState.DiscLevels`, default the rarity's start level) |
 | `skin:<kickerCostumeId>` (item) | a costume in `userKickerList`; owning one owns its kicker |
 | `(no offer)`, `ticket.single`, `(no offer)`, `(no offer)` (offers) | goods-shop products 1-4 |
 | `cosmetic.standard` (pool) | the kicker gacha (`ResponseGacha.id` 1) |
@@ -73,7 +73,7 @@ item economy holds that has no row here is logged and skipped; it is never folde
 | Client field | Source |
 |---|---|
 | `userItemList` | `wallet.balances` + `inventory.items`, mapped by `EconomyCatalog` |
-| `userDiscList` | `inventory.items` with the `disc:` prefix, level 10, filtered to the served Disc master |
+| `userDiscList` | `inventory.items` with the `disc:` prefix at the save's level, filtered to the served Disc master; `amount` is held + copies the level already spent (see below) |
 | `userKickerList` / `userKickerCostumeList` | `inventory.items` with the `skin:` prefix, grouped by kicker, **plus** the save's active costume and kicker 1's tutorial costume |
 | `goodsShopProductList` | the adapter's four product rows, priced and gated by the matching shop offer |
 | `kickerGachaGroupList` | the served `KickerGacha` row, priced from the matching pool, drawable only while that pool is open |
@@ -85,8 +85,43 @@ Two deliberate additions: the active costume and kicker 1's tutorial costume are
 inventory says nothing, because they are the player's own selection from the save (identity, not value) and a client
 handed no kicker cannot render the player at all.
 
-A disc the player owns is level **10**. The economy models possession, not per-disc levels, and the two things that
-used to raise a level - the disc gacha and `/disc/buildup` - are gone.
+A disc's level is the player's own progress, kept in the save (`SessionState.DiscLevels`); a disc with no entry is
+at its rarity's start level (`economy-tuning.json` `startLevels`). Casual battles fight at the tuning's flat level
+(5), ranked ones at the stored level.
+
+**`/disc/buildup`** raises one level per call through `POST /internal/economy/consume` (game-server key):
+
+- The price is the served `DiscBuildup` master, read the way the client reads it
+  (`DiscParameterUtil.CalcBuildupParameter` 0x1638624): the step from L to L+1 costs row L+1's
+  `necessaryDiscForceAmount` and `totalDiscAmount(L+1) - totalDiscAmount(L)` duplicate copies of the same disc.
+  `totalDiscAmount` is cumulative in the client, so `userDisc.amount` is served as held copies plus the copies the
+  current level already spent (`Otomo/EconomyDiscLevels.cs`).
+- Copies and Disc Force leave in one call, keyed `level-up:<playerId>:<discId>:<targetLevel>`; a resend or a racing
+  tap at the same level is economy's replay. The base copy is never spent (checked against a fresh inventory read).
+- A client retry of a request whose answer it lost carries the same `x-app-response-cache-id`; the save keeps the id
+  of the request that last raised each disc (`SessionState.DiscBuildupRequests`), and a match is answered with the
+  disc as it stands, spending nothing. A new tap has a new id and is the next level at its own price.
+- A refusal (not enough copies or Disc Force, max level) is the plaintext error contract with code **2502**, which
+  the client shows in its generic dialog with the server's text; an unreachable economy is a 503.
+- With economy release 17 every `disc:*` item is non-stackable, so a player never holds a duplicate: only the steps
+  that cost Disc Force alone (R 2->3, SR 3->4, UR 4->5) can succeed until discs are made stackable.
+
+## Onboarding
+
+- **Starter Disc Force.** The first `/startup/index` of an account that has no name yet pays class
+  `starter.disc_force` (economy release 18: 300) on the internal plane, keyed `starter.disc_force:<playerId>`, before
+  the wallet is read; `SessionState.StarterDiscForcePaid` saves the call afterwards. A failed grant is logged and
+  retried on the next startup; the startup still answers.
+- **Short onboarding by default.** `Tutorial:Ladder` defaults to `false`: a nameless account is sent status 206 (the
+  name window), the path known to work on devices.
+- **The ladder** (`Tutorial:Ladder=true`) is only offered to an account that can finish it. The tutorial's build-up
+  lesson raises the client's own placeholder disc 3010003 (rarity 1) from level 2 to 3, and the client greys the
+  button out unless Item row 3 covers that step's `necessaryDiscForceAmount` (400 in the served master); the tutorial
+  has nothing else to press. An account below that which has not passed the lesson is sent 206 instead. With release
+  18's 300 starter, every new account therefore takes the short onboarding even with the flag on; the ladder needs a
+  starter of at least 400. RE notes: `docs/re-notes/tutorial-onboarding.md`.
+- `/tutorial/discBuildup` answers the placeholder disc the way the client builds it after the lesson (one level up,
+  `amount` = that level's `totalDiscAmount`) and spends and stores nothing: the player does not own that disc.
 
 ## Retired features
 
@@ -94,9 +129,6 @@ used to raise a level - the disc gacha and `/disc/buildup` - are gone.
   true, and logs that it is retired. Discs are possessions of the economy now; nothing draws them. The route stays
   in the switch rather than disappearing, because a missing route is a network error on a screen that otherwise
   works.
-- **`/disc/buildup`** reads and validates its request, then answers the disc as it stands at level 10 with the
-  player's Disc Force unchanged, and logs that it is retired. There is no per-disc level to raise and no
-  player-plane route that would debit Disc Force for one.
 
 Both keep the fields the client deserializes, because the client is a binary nobody can recompile.
 
@@ -173,7 +205,7 @@ it still carries the old keys, which are ignored on read and gone on the next wr
 - `OtomoEconomyTests` - the client against a scripted handler: exact path, bearer token, body field set, retry once
   on a 5xx with the same key, no retry on a 4xx, transport failures, the disabled switch, and the internal progress
   body including `ref`.
-- `EconomyPayloadsTests` - the payload builders against a state written by hand: the eight rows, discs at level 10,
+- `EconomyPayloadsTests` - the payload builders against a state written by hand: the eight rows, discs at their standing,
   costumes grouped by kicker, draws turned back into costume rows, totals as economy returned them.
 - `EconomyEndToEndTests` - the adapter's routes against `FakeOtomoEconomy` over real HTTP: startup, home, a purchase,
   a roll, a refusal, the retired disc draw, and a startup that fails closed when the economy is unreachable.

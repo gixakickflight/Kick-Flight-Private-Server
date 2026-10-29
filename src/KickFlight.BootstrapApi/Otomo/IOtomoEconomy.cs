@@ -216,6 +216,27 @@ public sealed record EconomyGrantResult(
 // battle, the tutorial step) rather than the moment, so a retry pays once.
 public sealed record EconomyGrantRequest(string PlayerId, string Class, string Key, string Reason, string Reference);
 
+// POST /internal/economy/consume: what a sink took from one player under the caller's key, in one transaction - the
+// items and the currencies leave together or not at all. `items` carries what each item totals afterwards (an item
+// at zero is gone from the inventory), `balances` what each currency stands at. A replayed key answers the first
+// call's result and moves nothing.
+public sealed record EconomyConsumeResult(
+    [property: JsonPropertyName("player_id")] string PlayerId,
+    [property: JsonPropertyName("key")] string Key,
+    [property: JsonPropertyName("items")] IReadOnlyList<EconomyItemMove>? Items,
+    [property: JsonPropertyName("balances")] IReadOnlyList<EconomyBalance>? Balances,
+    [property: JsonPropertyName("replayed")] bool Replayed = false);
+
+public sealed record EconomyItemCost(string Item, long Qty);
+
+public sealed record EconomyCurrencyCost(string Currency, long Amount);
+
+// One consume to make. Unlike a grant, the amounts are the caller's: a sink has no class to read them from, which is
+// why only the game-server key may call it. The key names the fact (this disc reaching this level), so a retry of
+// the same decision spends once.
+public sealed record EconomyConsumeRequest(string PlayerId, string Key, string Reason, string Reference,
+    IReadOnlyList<EconomyItemCost> Items, IReadOnlyList<EconomyCurrencyCost> Currencies);
+
 // One track's counter value after a progress report.
 public sealed record EconomyTrackProgress(
     [property: JsonPropertyName("track_id")] string TrackId,
@@ -257,9 +278,9 @@ public sealed record EconomySnapshot(
 // id is implied by the token: none of these calls takes one, so there is no argument a caller could change to
 // reach another player's wallet.
 //
-// The two exceptions are ReportProgressAsync and GrantAsync, which are the internal plane by design: they name a
-// player and take the game-server key, which is why they are optional and off by default
-// (OtomoEconomyOptions.ProgressEnabled is the one switch for both).
+// The exceptions are ReportProgressAsync, GrantAsync and ConsumeAsync, which are the internal plane by design: they
+// name a player and take the game-server key, which is why they are optional and off by default
+// (OtomoEconomyOptions.ProgressEnabled is the one switch for all three).
 public interface IOtomoEconomy
 {
     // False when Otomo:Economy is off. Callers fail closed rather than serve a value they do not have.
@@ -295,8 +316,11 @@ public interface IOtomoEconomy
     Task<EconomyProgress> ReportProgressAsync(EconomyProgressReport report, CancellationToken cancellationToken);
 
     // Pays one configured class on the internal plane: a battle's capsule token, a tutorial step's disc or skin.
-    // Same switch and key as the progress report; Disabled when either is missing. There is no consume
-    // counterpart: economy's player plane can spend a currency (shop, gacha) but has no route that takes an item
-    // back, which is why /disc/buildup is gated (DemoSessionApi.HandleDiscBuildupAsync).
+    // Same switch and key as the progress report; Disabled when either is missing.
     Task<EconomyGrantResult> GrantAsync(EconomyGrantRequest grant, CancellationToken cancellationToken);
+
+    // Takes items and currencies from one player on the internal plane, atomically: a disc level-up spending its
+    // duplicates and its Disc Force. Same switch and key as the grant. Refused (409 insufficient_items or
+    // insufficient_funds) when the player does not hold enough, and then nothing has moved.
+    Task<EconomyConsumeResult> ConsumeAsync(EconomyConsumeRequest consume, CancellationToken cancellationToken);
 }

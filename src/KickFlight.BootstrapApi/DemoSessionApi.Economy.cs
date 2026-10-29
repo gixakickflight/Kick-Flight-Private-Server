@@ -193,6 +193,36 @@ public sealed partial class DemoSessionApi
         return result;
     }
 
+    private const string StarterDiscForceClass = "starter.disc_force";
+
+    // The starter Disc Force, once per account, for an account still in onboarding (no name yet): what a new player
+    // walks the tutorial's build-up lesson with. The key is the player, so a retry, a lost save flag or a second
+    // device is economy's replay and pays nothing more. A grant that cannot be made is logged and tried again on the
+    // next startup; the startup itself still answers, because the wallet read after this is what it shows.
+    private async Task PayStarterDiscForceAsync(KfIdentityTicket ticket, SessionState state, string path,
+        CancellationToken cancellationToken)
+    {
+        if (state.HasName || state.StarterDiscForcePaid) return;
+        try
+        {
+            var grant = await GrantClassAsync(ticket, StarterDiscForceClass,
+                $"{StarterDiscForceClass}:{ticket.OtomoPlayerId}", "starter", path, cancellationToken);
+            if (grant is null) return;
+        }
+        catch (OtomoEconomyException ex)
+        {
+            _logger.LogWarning("{Path}: {Class} for user {UserId} not paid ({Failure} {Status} {Code}); retried on " +
+                "the next startup", path, StarterDiscForceClass, state.UserId, ex.Failure, ex.StatusCode, ex.Code);
+            return;
+        }
+
+        lock (state)
+        {
+            state.StarterDiscForcePaid = true;
+            SaveUserState(state);
+        }
+    }
+
     // The player's own access token, for a player-plane call outside ReadPlayerEconomyAsync (a roll, a claim).
     private async Task<string> PlayerTokenAsync(KfIdentityTicket ticket, CancellationToken cancellationToken) =>
         (await _identity.GetSessionForDeviceIdAsync(ticket.DeviceId, cancellationToken)).AccessToken;

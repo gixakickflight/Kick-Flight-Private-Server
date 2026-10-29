@@ -244,8 +244,10 @@ public sealed class SocialRankingEndpointsTests
         var targetKickerId = targetState.KickerId;
         var targetCostumeId = targetState.KickerCostumeId;
         var activeDeck = new[] { 3010005, 3010006, 3010007, 3010008 };
+        var raisedLevels = new[] { 7, 6, 9, 8 };
         targetState.ActiveDeckNumber = 3;
         targetState.Decks[3] = activeDeck.ToList();
+        for (var slot = 0; slot < activeDeck.Length; slot++) targetState.DiscLevels[activeDeck[slot]] = raisedLevels[slot];
         store.Save(targetState);
 
         var detail = await PostAsync(viewer, "/user/detail", new
@@ -264,9 +266,8 @@ public sealed class SocialRankingEndpointsTests
         for (var slot = 0; slot < activeDeck.Length; slot++)
         {
             Assert.Equal(activeDeck[slot], battle.GetProperty($"discId{slot + 1}").GetInt32());
-            // A disc's level is economy's, and this route describes another player, whose inventory this process has
-            // no token for: a disc either player owns is level 10 (EconomyPayloads.OwnedDiscLevel).
-            Assert.Equal(EconomyPayloads.OwnedDiscLevel, battle.GetProperty($"discLevel{slot + 1}").GetInt32());
+            // A disc's level is the target's save, which this route has: the card shows what they raised it to.
+            Assert.Equal(raisedLevels[slot], battle.GetProperty($"discLevel{slot + 1}").GetInt32());
         }
 
         targetState.ActiveDeckNumber = 99;

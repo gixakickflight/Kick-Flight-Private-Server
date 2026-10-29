@@ -48,6 +48,15 @@ public sealed class SessionState
     // economy because economy models possession, not levels; ranked battles send it, casual ones do not.
     public Dictionary<int, int> DiscLevels { get; set; } = new();
 
+    // discId -> the x-app-response-cache-id of the last /disc/buildup that raised it. The client sends the same id
+    // again when it retries a request whose answer it lost, so a match is that retry and is answered without a
+    // second spend (DemoSessionApi.HandleDiscBuildupAsync).
+    public Dictionary<int, string> DiscBuildupRequests { get; set; } = new();
+
+    // True once economy has paid this account's starter Disc Force (class starter.disc_force). The grant is keyed
+    // per player, so this only saves the call on later startups; a lost flag pays nothing twice.
+    public bool StarterDiscForcePaid { get; set; }
+
     // The capsules a battle has handed out and the player has not opened yet, one per client slot. The token that
     // pays for each one's roll is already in the player's wallet (see DemoSessionApi.Capsules.cs); this is only
     // which slot shows which capsule, and when it may be opened.

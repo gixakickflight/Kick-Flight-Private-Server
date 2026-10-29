@@ -35,12 +35,17 @@ namespace KickFlight.BootstrapApi.Otomo;
 // skipped rather than guessed at, because a wrong itemId puts a wrong number on a real screen.
 public static class EconomyCatalog
 {
+    // Disc Force by name, because two routes spend or show it on their own: /disc/buildup pays a level with it and
+    // answers its remaining balance as a single userItem.
+    public const string DiscForceCurrency = "disc_force";
+    public const int DiscForceItemId = 3;
+
     // Currencies, by the client's Item master row. These four are the legacy counters the startup payload has
     // always carried first.
     public static readonly (string Currency, int ItemId)[] CurrencyRows =
     [
         ("jetcoin", 1),
-        ("disc_force", 3),
+        (DiscForceCurrency, DiscForceItemId),
         // The kicker ticket is economy's currency rather than an item because a gacha pool is priced in
         // currencies; the client has always shown it as an Item row, so it is rendered as one.
         ("kicker_ticket", 7)

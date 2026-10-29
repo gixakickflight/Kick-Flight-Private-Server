@@ -113,7 +113,7 @@ public sealed partial class DemoSessionApi
         var response = new
         {
             receivedUserCapsuleList = Array.Empty<object>(),
-            receivedUserDiscList = payloads.BuildReceivedUserDiscList(claim.Items, discId => StoredDiscLevel(state, discId)),
+            receivedUserDiscList = payloads.BuildReceivedUserDiscList(claim.Items, discId => DiscStandingOf(state, discId)),
             receivedUserHonorList = Array.Empty<object>(),
             receivedUserItemList = payloads.BuildReceivedCounters(claim.Balances, claim.Entries, claim.Items),
             receivedUserStampList = Array.Empty<object>(),

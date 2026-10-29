@@ -10,17 +10,19 @@ namespace KickFlight.BootstrapApi.Otomo;
 // Two rules about what is *not* owned:
 //
 //   * A disc's level is not economy's. Economy models possession; the level is the player's own progress, kept in
-//     the save (SessionState.DiscLevels) and handed in here as a function, so this class never decides it.
+//     the save (SessionState.DiscLevels) and handed in here as a function, so this class never decides it. The
+//     same function says how many copies those levels spent, which the client counts back into the disc's amount
+//     (EconomyDiscLevels explains why).
 //   * A kicker is owned when a costume of it is. The active kicker and kicker 1's tutorial costume are always
 //     included: they are the player's own selection (SessionState keeps that, and it is not a value), and a client
 //     that is handed no kicker cannot render the player at all. Kicker 2's first costume is always included too:
 //     it stands in for the tutorial's kicker draw, which the name-entry step assumes has happened.
+// A disc as the save and the build-up table describe it: the level it is at, and how many duplicate copies its
+// levels have already spent (EconomyDiscLevels.CopiesSpent).
+public readonly record struct DiscStanding(int Level, int CopiesSpent);
+
 public sealed class EconomyPayloads
 {
-    // The level a disc fights at when no player's save stands behind it: the bots' decks, which have no owner to
-    // have raised them. A player's own disc is at its stored or start level (EconomyTuning, SessionState.DiscLevels).
-    public const int OwnedDiscLevel = 10;
-
     // Kicker 1's first costume: the id the client hardcodes for the tutorial's placeholder player
     // (TutorialUtil.KICKER_COSTUME_ID) and the one a fresh account starts on.
     private const int TutorialKickerId = 1;
@@ -83,11 +85,10 @@ public sealed class EconomyPayloads
             .ToArray();
     }
 
-    // ResponseUserDisc[]: the discs the player owns, by Disc master row id, at the level levelOf says. Without a
-    // levelOf there is no save to read a level from, which is the OwnedDiscLevel case.
-    public object[] BuildUserDiscList(EconomySnapshot snapshot, Func<int, int>? levelOf = null)
+    // ResponseUserDisc[]: the discs the player owns, by Disc master row id, as standingOf says they stand. The
+    // amount is the client's cumulative count: what economy holds plus what the disc's levels spent.
+    public object[] BuildUserDiscList(EconomySnapshot snapshot, Func<int, DiscStanding> standingOf)
     {
-        levelOf ??= _ => OwnedDiscLevel;
         var rows = new List<object>();
         foreach (var item in snapshot.Items)
         {
@@ -99,36 +100,34 @@ public sealed class EconomyPayloads
                 _logger.LogWarning("Economy holds disc {DiscId}, which is not in the served Disc master", discId);
                 continue;
             }
-            rows.Add(new
-            {
-                discId,
-                amount = ToClientAmount(item.Qty),
-                level = levelOf(discId),
-                exp = 0,
-                registerDatetime = Stamp(item.AcquiredAt)
-            });
+            rows.Add(BuildUserDisc(discId, item.Qty, standingOf(discId), item.AcquiredAt));
         }
         return rows.ToArray();
     }
 
     // ResponseUserDisc[] for a receipt: the discs a call moved into the inventory, one row each.
-    public object[] BuildReceivedUserDiscList(IReadOnlyList<EconomyItemMove>? moves, Func<int, int> levelOf)
+    public object[] BuildReceivedUserDiscList(IReadOnlyList<EconomyItemMove>? moves, Func<int, DiscStanding> standingOf)
     {
         var rows = new List<object>();
         foreach (var move in moves ?? [])
         {
             if (!EconomyCatalog.TryDiscId(move.Item, out var discId) || !_knownDiscIds.Contains(discId)) continue;
-            rows.Add(new
-            {
-                discId,
-                amount = ToClientAmount(move.Total),
-                level = levelOf(discId),
-                exp = 0,
-                registerDatetime = Stamp(DateTimeOffset.UtcNow)
-            });
+            rows.Add(BuildUserDisc(discId, move.Total, standingOf(discId), DateTimeOffset.UtcNow));
         }
         return rows.ToArray();
     }
+
+    // One ResponseUserDisc. held is what economy says the player has now; the copies the disc's levels spent are
+    // added back because the client's amount counts every copy the disc ever collected.
+    public static object BuildUserDisc(int discId, long held, DiscStanding standing, DateTimeOffset? acquiredAt) =>
+        new
+        {
+            discId,
+            amount = ToClientAmount(held + standing.CopiesSpent),
+            level = standing.Level,
+            exp = 0,
+            registerDatetime = Stamp(acquiredAt)
+        };
 
     // ResponseDropDisc[]: what each draw landed on, in draw order. A draw on a disc the player already had is a
     // duplicate; when the pool converts it to Disc Force the amount is shown in discForceAmount, which is the

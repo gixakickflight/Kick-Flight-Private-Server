@@ -209,9 +209,8 @@ public sealed partial class DemoSessionApi
         }
 
         var payloads = Payloads(state);
-        int LevelOf(int discId) => StoredDiscLevel(state, discId);
         var dropDiscList = payloads.BuildDropDiscList(roll.Draws);
-        var receivedUserDiscList = payloads.BuildReceivedUserDiscList(roll.Items, LevelOf);
+        var receivedUserDiscList = payloads.BuildReceivedUserDiscList(roll.Items, discId => DiscStandingOf(state, discId));
         var receivedUserItemList = payloads.BuildReceivedCounters(roll.Balances, roll.Entries, roll.Items);
         var receivedRewardList = payloads.BuildReceivedRewards(roll.Entries, roll.Items);
         var effect = CapsuleEffectOf(roll.Draws);

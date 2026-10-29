@@ -616,7 +616,7 @@ Route strings (all 31 present in stringliteral.json): handled where noted.
 - /gacha/read, discInformation, kickerInformation, discDraw, kickerDraw: handlers in DemoSessionApi.Gacha.cs (TryHandleGachaAsync). Since the economy port (docs/OTOMO_ECONOMY.md): kickerDraw is one roll on economy's `cosmetic.standard` pool, and discDraw is **retired** - it answers the full DTO with no drops, drawableCount 0 and completedDisplayFlag true, and logs that it is retired.
 - /goodsShop/read (empty {}), /goodsShop/buy (one economy purchase: offer id from EconomyCatalog, the price from the shop document, the receipt from the purchase result), /goodsShop/reset (userItemList + goodsShopProductList, both read from economy): DemoSessionApi.Shop.cs.
 - /shop/option, /shop/birthday: "{}". /shop/prepare, /shop/verify: neutral payloads (no purchase possible). DemoSessionApi.Shop.cs.
-- /disc/buildup: **retired** - the request is read and validated, then the disc is answered as it stands at level 10 with nothing spent (DemoSessionApi.cs HandleDiscBuildupAsync).
+- /disc/buildup: one level per call, paid through economy's internal consume (duplicates + disc_force, one transaction, keyed per disc and target level); refusals answer plaintext error 2502 (DemoSessionApi.cs HandleDiscBuildupAsync, docs/OTOMO_ECONOMY.md).
 
 Nothing above holds a value: every `userItemList`, `userDiscList`, `userKickerList`, `goodsShopProductList` and gacha banner is assembled per request from otomo's economy (docs/OTOMO_ECONOMY.md).
 - /capsule/open, /capsule/immediateOpen: static empty stubs (DemoSessionApi.Stubs.cs); immediateOpen also returns userItemList.
@@ -624,7 +624,7 @@ Nothing above holds a value: every `userItemList`, `userDiscList`, `userKickerLi
   Note: /mission/tweet's real response has ONLY userMissionProgressList (stub sends an extra field, harmless).
 - /present/index, /present/receipt: empty stubs. Stub receipt omits nothing required; extra-field-free.
 - /item/exchange: NO HANDLER at all (no case, no grep hit in src/). Request class ItemExchangeRequest exists in the client (HomeUIManager.ItemExchangeCoroutine). Falls through to the unhandled path.
-- /tutorial/* (incl. capsuleOpen, discBuildup, gachaDiscDraw, gachaKickerDraw): generic "{}" stub, except /tutorial/end which is real.
+- /tutorial/*: the ladder steps (DemoSessionApi.Tutorial.cs); capsuleOpen/gachaDiscDraw pay tutorial.disc, gachaKickerDraw pays tutorial.kicker, discBuildup answers the client's placeholder disc and spends nothing (docs/OTOMO_ECONOMY.md "Onboarding").
 - /webview/information/gacha and /webview/shop/*: GET pages; only /webview/information/index is real, rest = catch-all HTML (Program.cs).
 - debug/* routes: not handled (intentionally not catalogued here).
 
