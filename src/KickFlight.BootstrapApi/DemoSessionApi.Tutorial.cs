@@ -169,6 +169,10 @@ public sealed partial class DemoSessionApi
             receivedUserDiscList,
             receivedUserItemList = Array.Empty<object>(),
             userItemList = payloads.BuildUserItemList(economy.Snapshot),
+            // GachaDiscDrawResponseData declares this list and the draw screen reads it after the effect
+            // animation; answering without it leaves the screen waiting on a collection that never arrives,
+            // which the client answers by re-sending /tutorial/gachaDiscDraw.
+            gachaDropCountRewardList = Array.Empty<object>(),
             modelId = gacha?.ModelId ?? 0,
             capsuleEffectType = 1,
             userPresentList = Array.Empty<object>(),
