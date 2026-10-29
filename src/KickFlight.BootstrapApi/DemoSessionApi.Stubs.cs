@@ -83,13 +83,8 @@ public sealed partial class DemoSessionApi
                 return OkJson(context, key,
                     """{"receivedUserCapsuleList":[],"receivedUserDiscList":[],"receivedUserHonorList":[],"receivedUserItemList":[],"unreceivedUserPresentList":[],"userPresentHistoryList":[],"userMissionProgressList":[]}""");
 
-            case "/mission/index":
-            case "/mission/read":
-            case "/mission/tweet":
-                return OkJson(context, key, """{"userMissionProgressList":[],"userDailyRandomMissionTaskList":[]}""");
-            case "/mission/receipt":
-                return OkJson(context, key,
-                    """{"receivedUserCapsuleList":[],"receivedUserDiscList":[],"receivedUserHonorList":[],"receivedUserItemList":[],"receivedUserStampList":[],"userPresentList":[],"userMissionProgressList":[],"receivedRewardList":[]}""");
+            // /mission/index, read, tweet and receipt are economy's tracks (DemoSessionApi.Missions.cs). The daily
+            // random missions are not ported, so change hands back the neutral task the DTO requires.
             case "/mission/change":
                 return OkJson(context, key, $$"""{"userDailyRandomMissionTask":{{NeutralDailyRandomMissionTask}}}""");
 
@@ -111,18 +106,6 @@ public sealed partial class DemoSessionApi
 
             case "/chatRoomComment/write":
                 return OkJson(context, key, "{}");
-
-            case "/capsule/immediateOpen":
-            {
-                // Only this one repeats userItemList: the client refreshes the item counters from it without
-                // re-fetching the startup payload. The counters are economy's, so this is one more read of them.
-                var itemListJson = await BuildUserItemListJsonAsync(ticket, state, context);
-                return OkJson(context, key,
-                    $$"""{"dropDiscList":[],"receivedUserDiscList":[],"receivedUserItemList":[],"userItemList":{{itemListJson}},"capsuleEffectType":0,"userPresentList":[],"userMissionProgressList":[],"userDailyRandomMissionTaskList":[],"receivedRewardList":[],"premiumFlag":false}""");
-            }
-            case "/capsule/open":
-                return OkJson(context, key,
-                    """{"dropDiscList":[],"receivedUserDiscList":[],"receivedUserItemList":[],"capsuleEffectType":0,"userPresentList":[],"userMissionProgressList":[],"userDailyRandomMissionTaskList":[],"receivedRewardList":[],"premiumFlag":false}""");
 
             default:
                 return null;
@@ -235,7 +218,7 @@ public sealed partial class DemoSessionApi
 
     // A name is only ever set by the player, through /tutorial/end. Until then the profile screens still have to
     // render something, so they get "Player" plus the low four digits of the id. It is display only: the stored
-    // name stays empty, which is what keeps tutorialProgressStatus at 206 and the player on the name window.
+    // name stays empty, which is what keeps tutorialProgressStatus below 207 and the player in the tutorial.
     private static string CurrentUserName(SessionState state) =>
         state.HasName ? state.UserName : $"Player {DefaultNameSuffix(state.UserId)}";
 
@@ -298,9 +281,9 @@ public sealed partial class DemoSessionApi
         }
 
         var discIds = Enumerable.Range(0, 4).Select(DiscAt).ToArray();
-        // A disc's level is economy's, and this route describes *another* player, whose inventory this process has
-        // no token for: a disc either player owns is level 10 (EconomyPayloads.OwnedDiscLevel).
-        static int LevelOf(int discId) => EconomyPayloads.OwnedDiscLevel;
+        // A disc's level is the save's (SessionState.DiscLevels), and this route has the target's save, so the card
+        // shows the levels that player has raised - the ones they fight at in ranked.
+        int LevelOf(int discId) => StoredDiscLevel(state, discId);
 
         json = JsonSerializer.Serialize(new
         {

@@ -31,11 +31,16 @@ public sealed class OtomoEconomyOptions
     // answer, and repeating a refused purchase would only repeat the refusal.
     public TimeSpan RetryDelay { get; set; } = TimeSpan.FromMilliseconds(100);
 
-    // The battle-result progress report. It is the one call here that is not on the player plane: POST
-    // /internal/economy/progress takes the game-server service key and names a player id, so it is a trust
-    // decision, and it stays off unless this is true *and* a key is configured. Off, the adapter simply reports
-    // nothing and /battle/result is unchanged.
+    // The internal plane: the battle-result progress report (POST /internal/economy/progress) and the class grants
+    // a battle's capsule and the tutorial's disc and kicker steps pay (POST /internal/economy/grants). Both take
+    // the game-server service key and name a player id, so this is a trust decision, and it stays off unless this
+    // is true *and* a key is configured. Off, the adapter reports nothing, a battle hands out no capsule and the
+    // tutorial's reward steps answer the economy-unavailable error.
     public bool ProgressEnabled { get; set; }
+
+    // The capsule odds, timers and disc levels (EconomyTuning). Relative paths resolve against the repository root;
+    // empty means config/economy-tuning.json, and a missing file means the published defaults.
+    public string TuningFile { get; set; } = "";
 
     // File holding the gameserver service key, read on every report so rotating the key needs no restart. Key is
     // the inline alternative, for a test or a local run; a deployment uses the file.

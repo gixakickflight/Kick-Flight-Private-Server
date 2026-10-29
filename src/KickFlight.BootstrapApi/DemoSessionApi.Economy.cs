@@ -18,15 +18,17 @@ namespace KickFlight.BootstrapApi;
 public sealed partial class DemoSessionApi
 {
     // Which slices of a player's economy state one request needs. Every request asks for what it uses and nothing
-    // else: the startup payload needs balances and inventory, the home payload needs the shop and the pools, and a
-    // purchase receipt needs the balances and inventory again *after* the purchase.
+    // else: the startup payload needs balances, inventory and the mission tracks, the home payload needs the shop,
+    // the pools and the tracks (for the badge), and a purchase receipt needs the balances and inventory again
+    // *after* the purchase.
     [Flags]
     private enum EconomyRead
     {
         Balances = 1,
         Inventory = 2,
         Shop = 4,
-        Pools = 8
+        Pools = 8,
+        Tasks = 16
     }
 
     private sealed record EconomyLoad(EconomySnapshot? Snapshot, Exception? Error);
@@ -58,6 +60,7 @@ public sealed partial class DemoSessionApi
             IReadOnlyList<EconomyItem> items = [];
             IReadOnlyList<EconomyOffer> offers = [];
             IReadOnlyList<EconomyPool> pools = [];
+            IReadOnlyList<EconomyTrack>? tracks = null;
 
             if (reads.HasFlag(EconomyRead.Balances))
             {
@@ -75,8 +78,12 @@ public sealed partial class DemoSessionApi
             {
                 pools = (await _economy.GetPoolsAsync(accessToken, cancellationToken)).Pools ?? [];
             }
+            if (reads.HasFlag(EconomyRead.Tasks))
+            {
+                tracks = (await _economy.GetTasksAsync(accessToken, cancellationToken)).Tracks ?? [];
+            }
 
-            return new EconomyLoad(new EconomySnapshot(balances, items, offers, pools), null);
+            return new EconomyLoad(new EconomySnapshot(balances, items, offers, pools, tracks), null);
         }
         catch (Exception exception) when (exception is OtomoIdentityException or OtomoEconomyException)
         {
@@ -164,6 +171,31 @@ public sealed partial class DemoSessionApi
             }
         }
     }
+
+    // One class paid on the internal plane, keyed by the fact it pays for. Null when the internal plane is off (the
+    // caller decides what "nothing to pay with" means for its route); the economy's failure is thrown as it came,
+    // so a caller can tell an outage (answer 503) from a refusal (answer the error contract).
+    private async Task<EconomyGrantResult?> GrantClassAsync(KfIdentityTicket ticket, string grantClass, string key,
+        string reason, string reference, CancellationToken cancellationToken)
+    {
+        if (!_economy.ProgressEnabled)
+        {
+            _logger.LogWarning("Class {Class} for player {PlayerId} not paid: the internal plane is off " +
+                               "(Otomo:Economy:ProgressEnabled and a gameserver key)", grantClass, ticket.OtomoPlayerId);
+            return null;
+        }
+
+        var result = await _economy.GrantAsync(
+            new EconomyGrantRequest(ticket.OtomoPlayerId, grantClass, ProgressKeyPart(key), reason, ProgressKeyPart(reference)),
+            cancellationToken);
+        _logger.LogInformation("Paid {Class} to player {PlayerId} under {Key}{Replayed}",
+            grantClass, ticket.OtomoPlayerId, key, result.Replayed ? " (replayed)" : "");
+        return result;
+    }
+
+    // The player's own access token, for a player-plane call outside ReadPlayerEconomyAsync (a roll, a claim).
+    private async Task<string> PlayerTokenAsync(KfIdentityTicket ticket, CancellationToken cancellationToken) =>
+        (await _identity.GetSessionForDeviceIdAsync(ticket.DeviceId, cancellationToken)).AccessToken;
 
     // A progress key is 1-128 characters of [A-Za-z0-9._:-] on economy's side and a battle entry id is opaque, so it
     // is mapped rather than trusted.

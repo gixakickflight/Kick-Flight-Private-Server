@@ -39,6 +39,20 @@ public sealed class SessionState
     // The gear rolled by gear/create and not yet equipped or discarded. gearId 0 = nothing pending.
     public PendingGearState PendingGear { get; set; } = new();
 
+    // The furthest TutorialProgressStatus the client has reported through a /tutorial/* step. 0 = none yet, which
+    // a fresh account reads as Start (1); the name ends it at 207 regardless (see DemoSessionApi.TutorialStatus).
+    public int TutorialProgress { get; set; }
+
+    // discId -> the level this player has raised it to. A disc with no entry is at its rarity's start level
+    // (EconomyTuning.StartLevel). It is a choice of the player's own, like a deck, and lives here rather than in
+    // economy because economy models possession, not levels; ranked battles send it, casual ones do not.
+    public Dictionary<int, int> DiscLevels { get; set; } = new();
+
+    // The capsules a battle has handed out and the player has not opened yet, one per client slot. The token that
+    // pays for each one's roll is already in the player's wallet (see DemoSessionApi.Capsules.cs); this is only
+    // which slot shows which capsule, and when it may be opened.
+    public List<PendingCapsule> Capsules { get; set; } = [];
+
     // True once the player has chosen a name, which is also what ends onboarding.
     public bool HasName => !string.IsNullOrEmpty(UserName);
 
@@ -50,4 +64,21 @@ public sealed class PendingGearState
 {
     public int KickerId { get; set; }
     public int GearId { get; set; }
+}
+
+public sealed class PendingCapsule
+{
+    // The client's slot, 1..EconomyTuning.CapsuleSlots.
+    public int SlotNumber { get; set; }
+    // The Capsule master row the slot renders (EconomyTuning.CapsuleType.CapsuleId).
+    public int CapsuleId { get; set; }
+    // The tuning's type name: wooden, standard or golden. It names the economy currency, class and pool.
+    public string Type { get; set; } = "";
+    // How many discs the open draws, chosen when the capsule was handed out; it is also how many tokens were paid.
+    public int DiscCount { get; set; }
+    public DateTimeOffset GrantedAt { get; set; }
+    public DateTimeOffset UnlockAt { get; set; }
+    // The battle entry the capsule came from. Every economy key for this capsule derives from it, so a retried
+    // result, a retried grant and a retried open all name the same fact.
+    public string Source { get; set; } = "";
 }

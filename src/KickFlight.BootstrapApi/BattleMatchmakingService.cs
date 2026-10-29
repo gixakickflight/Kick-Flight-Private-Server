@@ -4,6 +4,7 @@ using System.Text.Json;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using OpenMatch;
+using KickFlight.BootstrapApi.Otomo;
 using KickFlight.BootstrapApi.PlayerStore;
 
 namespace KickFlight.BootstrapApi;
@@ -79,6 +80,9 @@ public sealed class BattleMatchmakingService
         public int? BattleMatchType { get; set; }
         public int? BattleRuleType { get; set; }
         public List<int> DeckDiscs { get; set; } = [];
+        // The level each DeckDiscs slot fights at, chosen by the adapter when it issued the entry (casual flat,
+        // ranked stored: DemoSessionApi.DeckLevelsFor). Empty means "not chosen", which fights at the bots' level.
+        public List<int> DeckDiscLevels { get; set; } = [];
         /// <summary>Stable matchmaking party identity. Null means the player queues alone.</summary>
         public string? PartyId { get; set; }
         /// <summary>
@@ -114,13 +118,13 @@ public sealed class BattleMatchmakingService
 
     public TeamMemberEntry CreateTeam(
         string userId, string userName, int kickerId, int costumeId, int battleRuleId, List<int> deck, string code,
-        bool isDiag = false, int? matchType = null, int? battleRuleType = null)
+        bool isDiag = false, int? matchType = null, int? battleRuleType = null, List<int>? deckLevels = null)
     {
         lock (_teamLock)
         {
             var teamId = $"team-{Guid.NewGuid():N}"[..21];
             var member = RegisterTeamMember(userId, userName, kickerId, costumeId, battleRuleId, deck, teamId,
-                isDiag, matchType, battleRuleType);
+                isDiag, matchType, battleRuleType, deckLevels);
             var team = new TeamLobby
             {
                 MatchmakingTeamId = teamId,
@@ -136,8 +140,10 @@ public sealed class BattleMatchmakingService
         }
     }
 
+    // deckLevels is asked with the team's match type, because the joiner's levels depend on what the team plays.
     public TeamMemberEntry? JoinTeam(
-        string teamId, string userId, string userName, int kickerId, int costumeId, List<int> deck, bool isDiag = false)
+        string teamId, string userId, string userName, int kickerId, int costumeId, List<int> deck, bool isDiag = false,
+        Func<int?, List<int>>? deckLevels = null)
     {
         lock (_teamLock)
         {
@@ -147,7 +153,7 @@ public sealed class BattleMatchmakingService
             if (team.MembersByUserId.Count >= MaxPerTeam) return null;
 
             var member = RegisterTeamMember(userId, userName, kickerId, costumeId, team.BattleRuleId, deck, teamId,
-                isDiag, team.BattleMatchType, team.BattleRuleType);
+                isDiag, team.BattleMatchType, team.BattleRuleType, deckLevels?.Invoke(team.BattleMatchType));
             team.MembersByUserId.Add(userId, member);
             return new TeamMemberEntry(member.BattleEntryId, member.TicketId, team.MatchmakingTeamId);
         }
@@ -298,16 +304,17 @@ public sealed class BattleMatchmakingService
 
     public (string battleEntryId, string ticketId) RegisterEntry(
         string userId, string userName, int kickerId, int costumeId, int battleRuleId, List<int> deck,
-        string? partyId = null, bool isDiag = false, int? matchType = null, int? battleRuleType = null)
+        string? partyId = null, bool isDiag = false, int? matchType = null, int? battleRuleType = null,
+        List<int>? deckLevels = null)
     {
         var session = RegisterTeamMember(userId, userName, kickerId, costumeId, battleRuleId, deck, partyId,
-            isDiag, matchType, battleRuleType);
+            isDiag, matchType, battleRuleType, deckLevels);
         return (session.BattleEntryId, session.TicketId);
     }
 
     private BattleEntrySession RegisterTeamMember(
         string userId, string userName, int kickerId, int costumeId, int battleRuleId, List<int> deck, string? partyId,
-        bool isDiag = false, int? matchType = null, int? battleRuleType = null)
+        bool isDiag = false, int? matchType = null, int? battleRuleType = null, List<int>? deckLevels = null)
     {
         var entryId = $"be-{Guid.NewGuid():N}"[..12];
         var ticketId = $"ticket-{Guid.NewGuid():N}"[..16];
@@ -324,6 +331,7 @@ public sealed class BattleMatchmakingService
             BattleMatchType = matchType,
             BattleRuleType = battleRuleType,
             DeckDiscs = deck,
+            DeckDiscLevels = deckLevels ?? [],
             PartyId = string.IsNullOrWhiteSpace(partyId) ? null : partyId.Trim(),
             IsDiag = isDiag
         };
@@ -1068,6 +1076,10 @@ public sealed class BattleMatchmakingService
             }
 
             var discs = p.DeckDiscs.Count >= 4 ? p.DeckDiscs : [3010001, 3010002, 3010003, 3010004];
+            // The levels belong to the deck they were chosen for; a fallback deck has none and fights at the
+            // default, exactly as every human did before levels were threaded through.
+            var levels = p.DeckDiscs.Count >= 4 && p.DeckDiscLevels.Count >= 4 ? p.DeckDiscLevels : null;
+            int LevelAt(int slot) => levels is null ? EconomyPayloads.OwnedDiscLevel : levels[slot];
             entries.Add(new MatchingPlayerBattleInfo
             {
                 userId = p.UserId,
@@ -1083,10 +1095,10 @@ public sealed class BattleMatchmakingService
                 kickerAiDiscDeckId = 0,  // Human
                 languageCode = "es",
                 frameId = 1,
-                discId1 = discs[0], discLevel1 = 10,
-                discId2 = discs[1], discLevel2 = 10,
-                discId3 = discs[2], discLevel3 = 10,
-                discId4 = discs[3], discLevel4 = 10
+                discId1 = discs[0], discLevel1 = LevelAt(0),
+                discId2 = discs[1], discLevel2 = LevelAt(1),
+                discId3 = discs[2], discLevel3 = LevelAt(2),
+                discId4 = discs[3], discLevel4 = LevelAt(3)
             });
         }
 

@@ -143,6 +143,35 @@ public sealed class OtomoEconomy : IOtomoEconomy, IDisposable
                    "economy answered the progress report with an empty body");
     }
 
+    // POST /internal/economy/grants. The same plane, key and switch as the progress report: one trust decision,
+    // stated once. The body names a class and never an amount; economy refuses an `amount` field outright.
+    public async Task<EconomyGrantResult> GrantAsync(EconomyGrantRequest grant, CancellationToken cancellationToken)
+    {
+        if (!Enabled) throw Disabled();
+        var key = ReadServiceKey();
+        if (!_options.ProgressEnabled || string.IsNullOrEmpty(key) || _internalBase is null)
+        {
+            throw new OtomoEconomyException(OtomoEconomyFailure.Disabled,
+                "internal grants are off: set Otomo:Economy:ProgressEnabled and a gameserver service key");
+        }
+
+        var url = new Uri(_internalBase, "internal/economy/grants");
+        var payload = new Dictionary<string, object?>
+        {
+            ["player_id"] = grant.PlayerId,
+            ["key"] = grant.Key,
+            ["reason"] = grant.Reason,
+            ["ref"] = grant.Reference,
+            ["class"] = grant.Class
+        };
+
+        var element = await SendAsync(url, HttpMethod.Post, payload, bearer: null, serviceKey: key,
+            operation: "grant", cancellationToken).ConfigureAwait(false);
+        return element.Deserialize<EconomyGrantResult>(JsonOptions)
+               ?? throw new OtomoEconomyException(OtomoEconomyFailure.Unavailable,
+                   "economy answered the grant with an empty body");
+    }
+
     private Uri Player(string relative) =>
         _playerBase is null
             ? throw new OtomoEconomyException(OtomoEconomyFailure.Unavailable,

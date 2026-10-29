@@ -34,23 +34,35 @@ public sealed partial class DemoSessionApi
     // Rank is per player and persisted now (player_ranks, via IPlayerStore); the table it indexes into, the
     // range that renders, and the per-battle delta live in RankProgression.
 
-    // Onboarding status, which is how the player is made to choose a name.
+    // Onboarding status: TutorialUtil.IsTutorial is literally "tutorialProgressStatus != 207".
     //
-    // TutorialUtil.IsTutorial is literally "tutorialProgressStatus != 207", and GetTutorialInitialSubStep maps
-    // 206 to sub-step 16 (InputName), which HomeCharacterSelectView.RefreshTutorial opens as the name-entry
-    // window. So: 206 while the player has no name, 207 once they do. Never 0 - that starts the long tutorial
-    // at TapSlot, whose capsuleOpen / discBuildup / gachaDraw steps would each need a real inventory.
+    // A fresh account (no name, no progress) is sent Start (1), which runs the client's own tutorial from the
+    // beginning: /tutorial/start, the scripted battle (battleProgress 101-112, battleEnd 113), then capsuleOpen
+    // (202), discBuildup (203), gachaDiscDraw (204), gachaKickerDraw (205), kickerChange (206) and the name (end,
+    // 207). Each step the client reports advances SessionState.TutorialProgress, so a player who quits half way
+    // resumes where they stopped (GetTutorialInitialSubStep maps the status to the step). The disc and kicker steps
+    // pay their rewards through economy (DemoSessionApi.Tutorial.cs).
     //
-    // 206 is TutorialProgressStatus.KickerChange: it tells the client the tutorial's kicker draw (205) and the switch
-    // to that kicker are done, so the name step preselects the first owned kicker other than kicker 1 and throws if
-    // there is none. EconomyPayloads always serves one (kicker 2) for that reason.
+    // A name always ends it at 207, and an account that has reached 206 without one is on the name window
+    // (GetTutorialInitialSubStep maps 206 to sub-step 16, InputName), which is the guarantee the short onboarding
+    // gave and still holds. 206 is TutorialProgressStatus.KickerChange: the name step preselects the first owned
+    // kicker other than kicker 1 and throws if there is none, which is why EconomyPayloads always serves kicker 2.
+    //
+    // Tutorial:Ladder = false puts a nameless account straight on 206, the short onboarding this replaced. It is
+    // the rollback switch for a client build whose long tutorial does not finish against this server.
     //
     // Verified by decompiling the client; no client modification is involved.
+    public const int TutorialStatusStart = 1;
     public const int TutorialStatusInputName = 206;
     public const int TutorialStatusComplete = 207;
 
-    private static int TutorialStatus(SessionState state) =>
-        state.HasName ? TutorialStatusComplete : TutorialStatusInputName;
+    private int TutorialStatus(SessionState state)
+    {
+        if (state.HasName) return TutorialStatusComplete;
+        if (!_tutorialLadder) return TutorialStatusInputName;
+        // Without a name the furthest the ladder goes is the name window itself.
+        return Math.Clamp(state.TutorialProgress, TutorialStatusStart, TutorialStatusInputName);
+    }
 
     // The three rule types have separate ranked standings. Casual results continue using the existing regular ladder.
     public const int RegularBattleRuleType = 1;
@@ -100,6 +112,11 @@ public sealed partial class DemoSessionApi
     private readonly TimeProvider _timeProvider;
     private readonly OpsTelemetryService _ops;
     private readonly HarnessOptions _harnessOptions;
+    // Capsule odds and timers, disc start levels and the casual level (Otomo/EconomyTuning.cs). Read once at boot.
+    private readonly EconomyTuning _tuning;
+    private readonly bool _tutorialLadder;
+    // discId -> RarityType, from the served Disc master: what a disc's start level is read from.
+    private readonly Dictionary<int, int> _discRarity = [];
 
     public DemoSessionApi(ILogger<DemoSessionApi> logger, IWebHostEnvironment environment,
         BattleMatchmakingService matchmaking, BattleReplayService replays, IPlayerStore playerStore,
@@ -123,6 +140,9 @@ public sealed partial class DemoSessionApi
         _harnessOptions = harnessOptions.Value;
         _contentRoot = environment.ContentRootPath;
         _grpcPort = configuration.GetValue("GrpcPort", 18081);
+        _tuning = EconomyTuning.Load(configuration[$"{OtomoEconomyOptions.SectionName}:TuningFile"],
+            environment.ContentRootPath, logger);
+        _tutorialLadder = configuration.GetValue("Tutorial:Ladder", true);
         _mastersOverrides = new MasterOverrides(configuration[MasterOverrides.ConfigurationKey], environment.ContentRootPath);
         InitializeMasters(environment.ContentRootPath);
         // A publish replaces a table under the running process: re-encrypt it and recompute the version the client
@@ -376,13 +396,13 @@ public sealed partial class DemoSessionApi
               {"id":8,"battleRuleId":8,"description":"Intense battles at S ranks","subRuleName":"Ranked Match","itemDecelerationMaxCount":0}
             ]
             """);
-        _encryptedMasters["Capsule"] = EncryptMaster("""
-            [
-              {"id":5010001,"lotteryId":1,"name":"Standard Capsule","openTime":"01:00:00","lotteryDiscRarityGroupId":1,"lotteryDiscDropAmountGroupId":1},
-              {"id":5010002,"lotteryId":2,"name":"Golden Capsule","openTime":"12:00:00","lotteryDiscRarityGroupId":2,"lotteryDiscDropAmountGroupId":2},
-              {"id":5010003,"lotteryId":3,"name":"Wooden Capsule","openTime":"03:00:00","lotteryDiscRarityGroupId":1,"lotteryDiscDropAmountGroupId":1}
-            ]
-            """);
+        // One row per tuned capsule type, so the timer the client renders is the one /capsule/open enforces, plus
+        // 5010000: the capsule TutorialUtil.CAPSULE_ID hard-codes into slot 1 for the tutorial's capsule step
+        // (OPEN_CAPSULE_DURATION 8 seconds), which the client looks up in this master like any other.
+        _encryptedMasters["Capsule"] = EncryptMaster(BuildCapsuleMasterJson());
+        // The mission screen resolves every missionId and missionTaskId it is sent through these five tables, so
+        // they are served from the same table the progress rows are built from (Otomo/EconomyMissions.cs).
+        foreach (var (name, json) in EconomyMissions.BuildMasters()) _encryptedMasters[name] = EncryptMaster(json);
 
         var weaponList = new List<object>();
         int weaponId = 1;
@@ -589,6 +609,8 @@ public sealed partial class DemoSessionApi
             {
                 var id = el.GetProperty("id").GetInt32();
                 _discIdList.Add(id);
+                if (el.TryGetProperty("rarityType", out var rarity) && rarity.TryGetInt32(out var rarityType))
+                    _discRarity[id] = rarityType;
             }
         }
         catch (Exception ex)
@@ -1145,12 +1167,25 @@ public sealed partial class DemoSessionApi
             return await HandleTutorialEndAsync(context, state, key);
         }
 
-        // Every other /tutorial/* step (capsuleOpen, discBuildup, gachaDraw, ...) belongs to the long tutorial
-        // the player is never put on - see TutorialStatus - so they stay stubs.
+        // The rest of the tutorial ladder (DemoSessionApi.Tutorial.cs): every step advances the stored progress,
+        // and the disc and kicker steps pay their economy rewards. A step this server does not know answers {}.
         if (path.StartsWith("/tutorial/", StringComparison.Ordinal))
         {
-            context.Response.Headers["x-app-status-code"] = "0";
-            return BinaryJson("{}", key);
+            return await HandleTutorialStepAsync(path, context, ticket, state, key);
+        }
+
+        // Missions are economy's tracks (DemoSessionApi.Missions.cs) and capsules are economy's pools opened with
+        // tokens a battle paid (DemoSessionApi.Capsules.cs). Both run before the neutral stubs, which still answer
+        // /mission/change.
+        if (path.StartsWith("/mission/", StringComparison.Ordinal))
+        {
+            var mission = await TryHandleMissionAsync(path, context, ticket, state, key);
+            if (mission is not null) return mission;
+        }
+
+        if (path is "/capsule/open" or "/capsule/immediateOpen")
+        {
+            return await HandleCapsuleOpenAsync(context, ticket, state, key, immediate: path == "/capsule/immediateOpen");
         }
 
         if (path == "/download/master")
@@ -1168,8 +1203,8 @@ public sealed partial class DemoSessionApi
         // rather than answering zeroes the client would believe.
         if (path == "/startup/index")
         {
-            var economy = await ReadPlayerEconomyAsync(ticket, EconomyRead.Balances | EconomyRead.Inventory,
-                path, context.RequestAborted);
+            var economy = await ReadPlayerEconomyAsync(ticket,
+                EconomyRead.Balances | EconomyRead.Inventory | EconomyRead.Tasks, path, context.RequestAborted);
             if (economy.Snapshot is null) return EconomyUnavailable(context, path, economy.Error);
             var snapshot = economy.Snapshot!;
 
@@ -1185,7 +1220,7 @@ public sealed partial class DemoSessionApi
 
         if (path == "/home/index")
         {
-            var economy = await ReadPlayerEconomyAsync(ticket, EconomyRead.Shop | EconomyRead.Pools,
+            var economy = await ReadPlayerEconomyAsync(ticket, EconomyRead.Shop | EconomyRead.Pools | EconomyRead.Tasks,
                 path, context.RequestAborted);
             if (economy.Snapshot is null) return EconomyUnavailable(context, path, economy.Error);
             var snapshot = economy.Snapshot!;
@@ -1422,11 +1457,21 @@ public sealed partial class DemoSessionApi
         }
     }
 
-    // /disc/buildup is retired with the disc gacha. Discs are not levelled in the economy's model - a disc you own
-    // is level 10 - and the Disc Force it used to spend is a wallet currency this process may not debit on its own.
-    // The request is still read, so a malformed body fails the way it did, and the answer is the disc as it stands:
-    // no level changed, nothing spent. The route stays in the switch rather than disappearing, because the client
-    // is a binary and a missing route is a network error on a screen that works.
+    // /disc/buildup: a real level-up needs the duplicate discs and the Disc Force the DiscBuildup master asks for
+    // (necessaryDiscForceAmount, totalDiscAmount per rarity and level) to be taken from the player, and economy
+    // cannot do that yet. Its player plane spends a currency only as the price of a shop offer or a gacha pool, and
+    // it has no route that takes an item back: discs are non-stackable possessions, so "the duplicates" are not
+    // even held as a count. Raising the stored level without that spend would hand out the progression for free, so
+    // the route is refused in the game's error contract and nothing is changed. The request is still read, so a
+    // malformed body fails the way it did.
+    //
+    // TODO(economy: consume primitive): once economy has a player-plane consume, this becomes one call with the
+    // player's token and a key per (disc, target level), then SessionState.DiscLevels[discId] = level + 1:
+    //   POST /api/player/economy/consume
+    //   { "items": [{ "item": "disc:<discId>", "qty": <totalDiscAmount> }],
+    //     "currencies": [{ "currency": "disc_force", "amount": <necessaryDiscForceAmount> }],
+    //     "key": "disc.buildup:<discId>:<level + 1>" }
+    // and the answer's balances/items become userDisc and userItem below.
     private async Task<IResult?> HandleDiscBuildupAsync(HttpContext context, KfIdentityTicket ticket,
         SessionState state, byte[] key)
     {
@@ -1444,40 +1489,37 @@ public sealed partial class DemoSessionApi
             return null;
         }
 
-        _logger.LogInformation("disc/buildup is retired: disc {DiscId} stays at level {Level} and nothing was spent",
-            discId, EconomyPayloads.OwnedDiscLevel);
-
-        var economy = await ReadPlayerEconomyAsync(ticket, EconomyRead.Balances | EconomyRead.Inventory,
-            "/disc/buildup", context.RequestAborted);
-        if (economy.Snapshot is null) return EconomyUnavailable(context, "/disc/buildup", economy.Error);
-        var snapshot = economy.Snapshot!;
-
-        var owned = snapshot.Items.FirstOrDefault(item =>
-            EconomyCatalog.TryDiscId(item.Item, out var ownedDiscId) && ownedDiscId == discId);
-        var discForce = snapshot.Balances.FirstOrDefault(balance =>
-            EconomyCatalog.TryItemIdForCurrency(balance.Currency, out var itemId) && itemId == 3)?.Balance ?? 0;
-
-        var resp = new
-        {
-            userDisc = new
-            {
-                discId,
-                amount = (int)Math.Clamp(owned?.Qty ?? 0, 0, int.MaxValue),
-                level = EconomyPayloads.OwnedDiscLevel,
-                exp = 0,
-                registerDatetime = EconomyPayloads.Stamp(owned?.AcquiredAt)
-            },
-            userItem = new
-            {
-                itemId = 3,
-                amount = (int)Math.Clamp(discForce, 0, int.MaxValue)
-            }
-        };
-
-        context.Response.Headers["x-app-status-code"] = "0";
-        context.Response.Headers["x-kickflight-fixture"] = "dynamic-disc-buildup";
-        return BinaryJson(JsonSerializer.Serialize(resp), key);
+        _logger.LogWarning(
+            "disc/buildup refused for user {UserId}: disc {DiscId} stays at level {Level}, because economy has no " +
+            "primitive to consume the duplicates and Disc Force a level-up costs",
+            state.UserId, discId, StoredDiscLevel(state, discId));
+        return FeatureUnavailable(context, "Disc level-up", "Levelling up discs is not available yet.");
     }
+
+    // "This screen works but this action is not available yet", in the game's error contract: HTTP 200, a non-zero
+    // x-app-status-code, and a PLAINTEXT {"error":{code,title,message}} body, for the same reason NameRejected's is
+    // plaintext. 2002 is one of the codes known to open the generic error dialog (see NameRejected) rather than
+    // send the player back to the title; whether that dialog prints this title and message is not verified.
+    private static IResult FeatureUnavailable(HttpContext context, string title, string message)
+    {
+        context.Response.Headers["x-app-status-code"] = "2002";
+        var body = JsonSerializer.Serialize(new { error = new { code = "2002", title, message } });
+        return Results.Text(body, "application/json", Encoding.UTF8, StatusCodes.Status200OK);
+    }
+
+    // The level the save holds for a disc, or its rarity's start level when the player has never raised it.
+    private int StoredDiscLevel(SessionState state, int discId) =>
+        state.DiscLevels.TryGetValue(discId, out var level) && level > 0
+            ? level
+            : _tuning.StartLevel(_discRarity.GetValueOrDefault(discId));
+
+    // What each disc of a deck fights at in a battle of this match type. Casual (anything but matchType 2) fights
+    // at the tuning's flat level so a fresh account and a veteran meet on equal discs; ranked fights at the levels
+    // the player has actually raised. The levels are fixed when the entry is issued, like the rest of the entry.
+    private List<int> DeckLevelsFor(SessionState state, IReadOnlyList<int> deck, int? matchType) =>
+        deck.Select(discId => matchType == 2 || !_tuning.LevelsRankedOnly
+            ? StoredDiscLevel(state, discId)
+            : _tuning.CasualDiscLevel).ToList();
 
     // Slot array of a costume: always three entries, padded from whatever the save file holds (a file from before
     // gear support, or a short hand-edited array, must read as empty slots instead of throwing).
@@ -1609,8 +1651,8 @@ public sealed partial class DemoSessionApi
             clearTrainingMissionTaskCount = 0
         }).ToArray();
 
-        // The discs the player owns, from the inventory's disc:<discId> items. A disc is level 10 when owned.
-        var userDiscList = Payloads(state).BuildUserDiscList(economy);
+        // The discs the player owns, from the inventory's disc:<discId> items, at the level the save holds for each.
+        var userDiscList = Payloads(state).BuildUserDiscList(economy, discId => StoredDiscLevel(state, discId));
 
         var data = new
         {
@@ -1628,7 +1670,8 @@ public sealed partial class DemoSessionApi
                 gearId = pendingGear.GearId
             },
             userStampList = Array.Empty<object>(),
-            userMissionProgressList = Array.Empty<object>(),
+            // Economy's tracks, as the mission masters name them (Otomo/EconomyMissions.cs).
+            userMissionProgressList = Payloads(state).BuildMissionProgressList(economy.Tracks),
             userDailyRandomMissionTaskList = Array.Empty<object>(),
             kickerTrainingList,
             userPremium = new { premiumId = 0, startDatetime = "", endDatetime = "" },
@@ -1763,9 +1806,8 @@ public sealed partial class DemoSessionApi
         {
             userPlayer,
             userDiscDeckList,
-            // No capsules are granted: tapping the old placeholder (5010001) softlocked the client, since
-            // /capsule/open and /capsule/immediateOpen are stubs with no real drops.
-            userCapsuleList = Array.Empty<object>(),
+            // The capsules battles have handed out and the player has not opened (DemoSessionApi.Capsules.cs).
+            userCapsuleList = BuildUserCapsuleList(state),
             // The shop's disc/kicker scrollers (Colorful.ShopDiscScroller._data : List<GachaGroupInfo>) are filled
             // from these two lists through GachaGroupListInfo(ResponseGachaGroup[]); serving them empty left the
             // scroller with a data list shorter than the cell range EnhancedScroller._Resize walks and GetCellHeight
@@ -1773,14 +1815,19 @@ public sealed partial class DemoSessionApi
             discGachaGroupList = BuildHomeDiscGachaGroupList(),
             kickerGachaGroupList = BuildHomeKickerGachaGroupList(economy),
             userBattleRankList = BuildBattleRankList(state),
-            userMissionProgressList = Array.Empty<object>(),
+            userMissionProgressList = Payloads(state).BuildMissionProgressList(economy.Tracks),
             // shopProductList is the real-money IAP list, which this server does not sell; the goods shop is the
             // JetCoin one and is served in full.
             shopProductList = Array.Empty<object>(),
             goodsShopProductList = BuildGoodsShopProducts(economy),
             // The exchange tab's own scroller (ShopExchangeScroller) stays empty: no disc fragments are converted.
             discFragmentConversionDiscIdList = Array.Empty<int>(),
-            userMissionTaskStatusNotification = new { newFlagCount = 0, completionCount = 0 },
+            // The badge on the mission button: steps reached and not yet claimed.
+            userMissionTaskStatusNotification = new
+            {
+                newFlagCount = 0,
+                completionCount = EconomyPayloads.CountClaimable(economy.Tracks)
+            },
             presentNotificationCount = 0,
             appInformationNotificationFlag = false,
             newFollowerNotificationFlag = false,
@@ -1962,6 +2009,7 @@ public sealed partial class DemoSessionApi
         }
 
         state.UserName = name;
+        state.TutorialProgress = TutorialStatusComplete;
         SaveUserState(state);
         _logger.LogInformation("Player {PlayerId} chose the name {UserName:l}", state.PlayerId, name);
         return OkJson(context, key, "{}");
@@ -2029,7 +2077,8 @@ public sealed partial class DemoSessionApi
         var entry = _matchmaking.CreateTeam(
             state.UserId, state.UserName, state.KickerId, state.KickerCostumeId, battleRuleId, deck, code,
             isDiag: IsDiagClient(context), matchType: ruleMetadata.MatchType,
-            battleRuleType: ruleMetadata.BattleRuleType);
+            battleRuleType: ruleMetadata.BattleRuleType,
+            deckLevels: DeckLevelsFor(state, deck, ruleMetadata.MatchType));
         // TeamCreate is called before Photon joins the recruiting room. Echo the app-asset revision the client
         // already has; an empty list is interpreted as missing application data and sends it to the update/restart
         // flow before it reaches Photon.
@@ -2064,9 +2113,11 @@ public sealed partial class DemoSessionApi
 
         NormalizeCostume(state);
         var deck = state.Decks.GetValueOrDefault(state.ActiveDeckNumber) ?? [3010001, 3010002, 3010003, 3010004];
+        // The joiner does not choose the rule - the team does - so the levels are chosen for whatever the team
+        // turns out to be playing.
         var entry = _matchmaking.JoinTeam(
             teamId, state.UserId, state.UserName, state.KickerId, state.KickerCostumeId, deck,
-            isDiag: IsDiagClient(context));
+            isDiag: IsDiagClient(context), deckLevels: matchType => DeckLevelsFor(state, deck, matchType));
         if (entry is null) return StatusError(context, key);
 
         var response = new
@@ -2262,7 +2313,8 @@ public sealed partial class DemoSessionApi
         var (battleEntryId, ticketId) = _matchmaking.RegisterEntry(
             state.UserId, state.UserName, state.KickerId, state.KickerCostumeId, battleRuleId, deck,
             isDiag: IsDiagClient(context), matchType: ruleMetadata.MatchType,
-            battleRuleType: ruleMetadata.BattleRuleType);
+            battleRuleType: ruleMetadata.BattleRuleType,
+            deckLevels: DeckLevelsFor(state, deck, ruleMetadata.MatchType));
 
         var resp = new
         {
@@ -2505,6 +2557,18 @@ public sealed partial class DemoSessionApi
         var before = rankSnapshot?.Before ?? _playerStore.LoadRank(state.PlayerId, battleRuleType);
         var after = rankSnapshot?.After ?? before;
 
+        // The battle's counters go to economy as facts, before the client is told the battle is over: what they
+        // are worth is a track's step, claimed later on the player's own plane.
+        await ReportBattleProgressAsync(ticket, battleEntryId, won: applyProgression, killCount, mvp,
+            context.RequestAborted);
+
+        // A capsule, for a battle this server issued to this player (DemoSessionApi.Capsules.cs). Keyed by the
+        // entry, so a retried result shows the same capsule and pays nothing more.
+        var capsule = ownedEntry is null
+            ? null
+            : await AwardBattleCapsuleAsync(ticket, state, battleEntryId, context.RequestAborted);
+        var missionProgress = await ReadMissionProgressAfterBattleAsync(ticket, state, context.RequestAborted);
+
         var rank = new { battleRuleType, battlePoint = after.BattlePoint, rank = after.Rank };
         var resp = new
         {
@@ -2512,10 +2576,10 @@ public sealed partial class DemoSessionApi
             userBattleRank = rank,
             beforeUserBattleRank = new { battleRuleType, battlePoint = before.BattlePoint, rank = before.Rank },
             playerLevelUpRewardList = Array.Empty<object>(),
-            receivedUserCapsuleList = Array.Empty<object>(),
+            receivedUserCapsuleList = capsule is null ? Array.Empty<object>() : [UserCapsuleRow(capsule)],
             receivedUserItemList = Array.Empty<object>(),
             receivedUserPresentList = Array.Empty<object>(),
-            userMissionProgressList = Array.Empty<object>(),
+            userMissionProgressList = missionProgress,
             userDailyRandomMissionTaskList = Array.Empty<object>(),
             receivedRewardList = Array.Empty<object>(),
             badConnectionReliefFlag = false,
@@ -2527,11 +2591,6 @@ public sealed partial class DemoSessionApi
             festivalPoint = 0,
             lotteryFestivalPointId = 0
         };
-
-        // The battle's counters go to economy as facts, before the client is told the battle is over: what they
-        // are worth is a track's step, claimed later on the player's own plane.
-        await ReportBattleProgressAsync(ticket, battleEntryId, won: applyProgression, killCount, mvp,
-            context.RequestAborted);
 
         context.Response.Headers["x-app-status-code"] = "0";
         context.Response.Headers["x-kickflight-fixture"] = "dynamic-battle-result";

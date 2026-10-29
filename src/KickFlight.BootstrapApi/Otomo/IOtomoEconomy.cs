@@ -118,6 +118,13 @@ public sealed record EconomyPools(
     [property: JsonPropertyName("release")] string? Release,
     [property: JsonPropertyName("pools")] IReadOnlyList<EconomyPool>? Pools);
 
+// One line of the currency journal a mutating call wrote. Every movement is a pair (the player's side and a system
+// account's); only the player's side is what the player received or spent, so a caller filters on OwnerKind.
+public sealed record EconomyEntry(
+    [property: JsonPropertyName("owner_kind")] string? OwnerKind,
+    [property: JsonPropertyName("currency")] string Currency,
+    [property: JsonPropertyName("delta")] long Delta);
+
 // One movement in the item journal: what moved and what the player holds afterwards.
 public sealed record EconomyItemMove(
     [property: JsonPropertyName("item")] string Item,
@@ -153,7 +160,8 @@ public sealed record EconomyRoll(
     [property: JsonPropertyName("balances")] IReadOnlyList<EconomyBalance>? Balances,
     [property: JsonPropertyName("items")] IReadOnlyList<EconomyItemMove>? Items,
     [property: JsonPropertyName("pity")] long Pity,
-    [property: JsonPropertyName("replayed")] bool Replayed);
+    [property: JsonPropertyName("replayed")] bool Replayed,
+    [property: JsonPropertyName("entries")] IReadOnlyList<EconomyEntry>? Entries = null);
 
 // One rung of a track as the player route reports it.
 public sealed record EconomyStep(
@@ -189,7 +197,24 @@ public sealed record EconomyClaim(
     [property: JsonPropertyName("balances")] IReadOnlyList<EconomyBalance>? Balances,
     [property: JsonPropertyName("items")] IReadOnlyList<EconomyItemMove>? Items,
     [property: JsonPropertyName("duplicates")] IReadOnlyList<EconomyItemMove>? Duplicates,
+    [property: JsonPropertyName("replayed")] bool Replayed,
+    [property: JsonPropertyName("entries")] IReadOnlyList<EconomyEntry>? Entries = null);
+
+// POST /internal/economy/grants: a configured class paid to one player under the caller's key. The amounts are the
+// class's, never the caller's; a replayed key answers the first call's result with Replayed set.
+public sealed record EconomyGrantResult(
+    [property: JsonPropertyName("player_id")] string PlayerId,
+    [property: JsonPropertyName("key")] string Key,
+    [property: JsonPropertyName("class")] string? Class,
+    [property: JsonPropertyName("balances")] IReadOnlyList<EconomyBalance>? Balances,
+    [property: JsonPropertyName("entries")] IReadOnlyList<EconomyEntry>? Entries,
+    [property: JsonPropertyName("items")] IReadOnlyList<EconomyItemMove>? Items,
+    [property: JsonPropertyName("duplicates")] IReadOnlyList<EconomyItemMove>? Duplicates,
     [property: JsonPropertyName("replayed")] bool Replayed);
+
+// One grant to make: which class, to whom, under which key. Like a progress report, the key names the fact (the
+// battle, the tutorial step) rather than the moment, so a retry pays once.
+public sealed record EconomyGrantRequest(string PlayerId, string Class, string Key, string Reason, string Reference);
 
 // One track's counter value after a progress report.
 public sealed record EconomyTrackProgress(
@@ -219,7 +244,8 @@ public sealed record EconomySnapshot(
     IReadOnlyList<EconomyBalance> Balances,
     IReadOnlyList<EconomyItem> Items,
     IReadOnlyList<EconomyOffer> Offers,
-    IReadOnlyList<EconomyPool> Pools)
+    IReadOnlyList<EconomyPool> Pools,
+    IReadOnlyList<EconomyTrack>? Tracks = null)
 {
     public static EconomySnapshot None { get; } = new([], [], [], []);
 }
@@ -231,8 +257,9 @@ public sealed record EconomySnapshot(
 // id is implied by the token: none of these calls takes one, so there is no argument a caller could change to
 // reach another player's wallet.
 //
-// The one exception is ReportProgressAsync, which is the internal plane by design: it names a player and takes
-// the game-server key, which is why it is optional and off by default (OtomoEconomyOptions.ProgressEnabled).
+// The two exceptions are ReportProgressAsync and GrantAsync, which are the internal plane by design: they name a
+// player and take the game-server key, which is why they are optional and off by default
+// (OtomoEconomyOptions.ProgressEnabled is the one switch for both).
 public interface IOtomoEconomy
 {
     // False when Otomo:Economy is off. Callers fail closed rather than serve a value they do not have.
@@ -266,4 +293,10 @@ public interface IOtomoEconomy
     // Reports one battle fact on the internal plane. Throws OtomoEconomyException(Disabled) when the report is
     // not configured, which a caller treats as "nothing to do", not as a failure.
     Task<EconomyProgress> ReportProgressAsync(EconomyProgressReport report, CancellationToken cancellationToken);
+
+    // Pays one configured class on the internal plane: a battle's capsule token, a tutorial step's disc or skin.
+    // Same switch and key as the progress report; Disabled when either is missing. There is no consume
+    // counterpart: economy's player plane can spend a currency (shop, gacha) but has no route that takes an item
+    // back, which is why /disc/buildup is gated (DemoSessionApi.HandleDiscBuildupAsync).
+    Task<EconomyGrantResult> GrantAsync(EconomyGrantRequest grant, CancellationToken cancellationToken);
 }

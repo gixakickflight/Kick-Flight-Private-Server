@@ -14,18 +14,19 @@ namespace KickFlight.BootstrapApi.Otomo;
 //
 //   currencies  jetcoin         the earned coin; the client's Item row 1 (JetCoinFree, 101)
 //               kicker_ticket   the cosmetic pull's price; the client's Item row 7 (KickerGachaTicket, 401)
+//               disc_force      what a disc level-up costs; the client's Item row 3 (DiscForce, 302)
+//               capsule_<type>  one token per disc a battle's capsule holds; not a counter (the slot shows it)
 //               shard           cosmetic duplicates convert into it, and it buys a missing skin
 //               event_coin      carried over between events
 //   items       fragment        disc fragments; the client's Item row 6 (DiscFragment, 303)
-//               disc:<discId>       a disc the player owns; owning it is level 10
+//               disc:<discId>       a disc the player owns; its level is the save's (SessionState.DiscLevels)
 //               skin:<costumeId>    a kicker costume, keyed by the KickerCostume master's ROW id;
 //                                   owning a costume owns its kicker
 //
-// Five of the client's eight Item rows are served as a constant zero, because nothing pays them any more and a
+// Four of the client's eight Item rows are served as a constant zero, because nothing pays them any more and a
 // constant is the honest answer rather than a name invented for a counter that has no faucet:
 //
 //   row 2  JetCoinPaid       no IAP on this server: there is no paid coin
-//   row 3  DiscForce         disc build-up is not ported: a disc is owned at level 10 or not at all
 //   row 4  KickPoint          retired with the pre-EOS battle rewards
 //   row 5  GearMaterial      the gear roll is still the adapter's own (SessionState.PendingGear)
 //   row 8  DiscGachaTicket   the disc gacha is retired, so nothing earns or spends it
@@ -39,10 +40,17 @@ public static class EconomyCatalog
     public static readonly (string Currency, int ItemId)[] CurrencyRows =
     [
         ("jetcoin", 1),
+        ("disc_force", 3),
         // The kicker ticket is economy's currency rather than an item because a gacha pool is priced in
         // currencies; the client has always shown it as an Item row, so it is rendered as one.
         ("kicker_ticket", 7)
     ];
+
+    // Currencies the economy holds that are deliberately not an Item row. A capsule token is spent the moment its
+    // capsule is opened and the capsule slot is what the client shows for it, so a counter would only show a
+    // number nobody can use. Named here so a balance of one is skipped quietly instead of logged as unknown.
+    public static bool IsCapsuleToken(string? currency) =>
+        currency is not null && currency.StartsWith("capsule_", StringComparison.Ordinal);
 
     // Stackable items, by the client's Item master row: the gear stamps the gear screen counts, the disc fragments,
     // and the two gacha tickets. The disc ticket is kept because the Item master still has the row (402); the disc

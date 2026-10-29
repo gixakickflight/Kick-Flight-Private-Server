@@ -9,16 +9,16 @@ namespace KickFlight.BootstrapApi.Otomo;
 //
 // Two rules about what is *not* owned:
 //
-//   * A disc the player owns is level 10. The economy models possession, not per-disc levels, and the disc gacha
-//     and /disc/buildup that used to raise them are gone. Saying 10 is the honest answer to "what level is a disc
-//     I own".
+//   * A disc's level is not economy's. Economy models possession; the level is the player's own progress, kept in
+//     the save (SessionState.DiscLevels) and handed in here as a function, so this class never decides it.
 //   * A kicker is owned when a costume of it is. The active kicker and kicker 1's tutorial costume are always
 //     included: they are the player's own selection (SessionState keeps that, and it is not a value), and a client
 //     that is handed no kicker cannot render the player at all. Kicker 2's first costume is always included too:
 //     it stands in for the tutorial's kicker draw, which the name-entry step assumes has happened.
 public sealed class EconomyPayloads
 {
-    // What the economy says a possessed disc is worth, in the client's level column.
+    // The level a disc fights at when no player's save stands behind it: the bots' decks, which have no owner to
+    // have raised them. A player's own disc is at its stored or start level (EconomyTuning, SessionState.DiscLevels).
     public const int OwnedDiscLevel = 10;
 
     // Kicker 1's first costume: the id the client hardcodes for the tutorial's placeholder player
@@ -59,6 +59,7 @@ public sealed class EconomyPayloads
                 amounts[itemId] = ToClientAmount(balance.Balance);
                 continue;
             }
+            if (EconomyCatalog.IsCapsuleToken(balance.Currency)) continue;
             _logger.LogWarning("Economy holds currency {Currency}, which the client's Item master has no row for", balance.Currency);
         }
 
@@ -82,9 +83,11 @@ public sealed class EconomyPayloads
             .ToArray();
     }
 
-    // ResponseUserDisc[]: the discs the player owns, by Disc master row id.
-    public object[] BuildUserDiscList(EconomySnapshot snapshot)
+    // ResponseUserDisc[]: the discs the player owns, by Disc master row id, at the level levelOf says. Without a
+    // levelOf there is no save to read a level from, which is the OwnedDiscLevel case.
+    public object[] BuildUserDiscList(EconomySnapshot snapshot, Func<int, int>? levelOf = null)
     {
+        levelOf ??= _ => OwnedDiscLevel;
         var rows = new List<object>();
         foreach (var item in snapshot.Items)
         {
@@ -100,13 +103,173 @@ public sealed class EconomyPayloads
             {
                 discId,
                 amount = ToClientAmount(item.Qty),
-                level = OwnedDiscLevel,
+                level = levelOf(discId),
                 exp = 0,
                 registerDatetime = Stamp(item.AcquiredAt)
             });
         }
         return rows.ToArray();
     }
+
+    // ResponseUserDisc[] for a receipt: the discs a call moved into the inventory, one row each.
+    public object[] BuildReceivedUserDiscList(IReadOnlyList<EconomyItemMove>? moves, Func<int, int> levelOf)
+    {
+        var rows = new List<object>();
+        foreach (var move in moves ?? [])
+        {
+            if (!EconomyCatalog.TryDiscId(move.Item, out var discId) || !_knownDiscIds.Contains(discId)) continue;
+            rows.Add(new
+            {
+                discId,
+                amount = ToClientAmount(move.Total),
+                level = levelOf(discId),
+                exp = 0,
+                registerDatetime = Stamp(DateTimeOffset.UtcNow)
+            });
+        }
+        return rows.ToArray();
+    }
+
+    // ResponseDropDisc[]: what each draw landed on, in draw order. A draw on a disc the player already had is a
+    // duplicate; when the pool converts it to Disc Force the amount is shown in discForceAmount, which is the
+    // client's own column for exactly that.
+    public object[] BuildDropDiscList(IReadOnlyList<EconomyDraw>? draws)
+    {
+        var rows = new List<object>();
+        foreach (var draw in draws ?? [])
+        {
+            if (!EconomyCatalog.TryDiscId(draw.Item, out var discId))
+            {
+                _logger.LogWarning("Economy drew {Item} from a disc pool; the client cannot show it", draw.Item);
+                continue;
+            }
+            var discForce = draw.Duplicate &&
+                            EconomyCatalog.TryItemIdForCurrency(draw.PaidCurrency, out var itemId) && itemId == 3
+                ? ToClientAmount(draw.PaidAmount)
+                : 0;
+            rows.Add(new { discId, amount = 1, discForceAmount = discForce });
+        }
+        return rows.ToArray();
+    }
+
+    // ResponseUserItem[] for a receipt: the counters a call changed, as the totals the player holds afterwards. The
+    // currencies come from the call's balances, filtered to the ones its journal actually moved, and the stackable
+    // items from its item moves.
+    public object[] BuildReceivedCounters(IReadOnlyList<EconomyBalance>? balances, IReadOnlyList<EconomyEntry>? entries,
+        IReadOnlyList<EconomyItemMove>? moves)
+    {
+        var moved = PlayerDeltas(entries).Keys.ToHashSet(StringComparer.Ordinal);
+        var rows = new List<object>();
+        foreach (var balance in balances ?? [])
+        {
+            if (moved.Count > 0 && !moved.Contains(balance.Currency)) continue;
+            if (EconomyCatalog.TryItemIdForCurrency(balance.Currency, out var itemId))
+                rows.Add(new { itemId, amount = ToClientAmount(balance.Balance) });
+        }
+        foreach (var row in BuildReceivedUserItemList(moves)) rows.Add(row);
+        return rows.ToArray();
+    }
+
+    // ResponseReceivedReward[]: what a call paid, as (goodsType, goodsId, amount) deltas - the popup that lists a
+    // mission's or a capsule's reward. originalReceivedReward is the same row: nothing here is converted.
+    public object[] BuildReceivedRewards(IReadOnlyList<EconomyEntry>? entries, IReadOnlyList<EconomyItemMove>? moves)
+    {
+        var rows = new List<object>();
+        void Add(int goodsType, int goodsId, long amount)
+        {
+            var original = new { goodsType, goodsId, amount = ToClientAmount(amount) };
+            rows.Add(new { goodsType, goodsId, amount = ToClientAmount(amount), originalReceivedReward = original });
+        }
+
+        foreach (var (currency, delta) in PlayerDeltas(entries))
+        {
+            if (delta <= 0 || !EconomyCatalog.TryItemIdForCurrency(currency, out var itemId)) continue;
+            if (EconomyCatalog.TryGoodsTypeForItemId(itemId, out var goodsType)) Add(goodsType, itemId, delta);
+        }
+        foreach (var move in moves ?? [])
+        {
+            if (move.Qty <= 0) continue;
+            if (EconomyCatalog.TryDiscId(move.Item, out var discId)) Add(301, discId, move.Qty);
+            else if (EconomyCatalog.TryCostumeId(move.Item, out var costumeId)) Add(201, costumeId, move.Qty);
+            else if (EconomyCatalog.TryItemIdForItem(move.Item, out var itemId) &&
+                     EconomyCatalog.TryGoodsTypeForItemId(itemId, out var goodsType)) Add(goodsType, itemId, move.Qty);
+        }
+        return rows.ToArray();
+    }
+
+    // currency -> what the player's side of a journal moved by. The system side of each pair is the faucet or the
+    // sink, and counting it too would show every payout as zero.
+    private static Dictionary<string, long> PlayerDeltas(IReadOnlyList<EconomyEntry>? entries)
+    {
+        var deltas = new Dictionary<string, long>(StringComparer.Ordinal);
+        foreach (var entry in entries ?? [])
+        {
+            if (!string.Equals(entry.OwnerKind, "player", StringComparison.Ordinal)) continue;
+            deltas[entry.Currency] = deltas.GetValueOrDefault(entry.Currency) + entry.Delta;
+        }
+        return deltas;
+    }
+
+    // ResponseUserMissionProgress[]: one row per track the mission masters know, with one task row per step.
+    //
+    // A step's status is economy's answer read three ways: claimed is ReceivedReward (3), reached is Completion (2)
+    // - which is what lights the receive button - and anything else is InProgress (1). Which reached step a claim
+    // actually pays is still economy's decision (the next one), so a client tapping a later rung cannot skip ahead.
+    public object[] BuildMissionProgressList(IReadOnlyList<EconomyTrack>? tracks)
+    {
+        var rows = new List<object>();
+        foreach (var track in tracks ?? [])
+        {
+            var mission = EconomyMissions.ByTrack(track.TrackId);
+            if (mission is null)
+            {
+                _logger.LogWarning("Economy reports track {Track}, which the mission masters have no row for; not shown",
+                    track.TrackId);
+                continue;
+            }
+
+            var expires = EconomyMissions.PeriodEnd(track.Period);
+            var statuses = new List<object>();
+            foreach (var step in track.Steps ?? [])
+            {
+                var known = mission.Steps.FirstOrDefault(row => row.Index == step.Step);
+                if (known is null)
+                {
+                    _logger.LogWarning("Economy reports step {Step} of {Track}, which the mission masters have no row for",
+                        step.Step, track.TrackId);
+                    continue;
+                }
+                if (known.Target != step.Target)
+                {
+                    _logger.LogWarning("Track {Track} step {Step}: economy's target is {Live}, the mission master says {Served}",
+                        track.TrackId, step.Step, step.Target, known.Target);
+                }
+                statuses.Add(new
+                {
+                    missionTaskId = mission.TaskId(step.Step),
+                    loopCount = track.Repetition,
+                    missionTaskStatus = step.Claimed ? 3 : step.Reached || step.Claimable ? 2 : 1,
+                    receiptExpirationDatetime = expires,
+                    expirationDatetime = expires,
+                    newFlag = false
+                });
+            }
+
+            rows.Add(new
+            {
+                missionId = mission.MissionId,
+                loopCount = track.Repetition,
+                value = ToClientAmount(track.Value),
+                userMissionTaskStatusList = statuses.ToArray()
+            });
+        }
+        return rows.ToArray();
+    }
+
+    // The home's mission badge: how many steps are reached and not yet claimed.
+    public static int CountClaimable(IReadOnlyList<EconomyTrack>? tracks) =>
+        (tracks ?? []).Where(track => EconomyMissions.ByTrack(track.TrackId) is not null)
+            .Sum(track => (track.Steps ?? []).Count(step => (step.Reached || step.Claimable) && !step.Claimed));
 
     // ResponseUserKicker[]: one row per kicker the player owns a costume of, with the costumes they own.
     public object[] BuildUserKickerList(EconomySnapshot snapshot, int activeKickerId, int activeCostumeId)
@@ -150,7 +313,9 @@ public sealed class EconomyPayloads
         {
             if (!EconomyCatalog.TryItemIdForItem(move.Item, out var itemId))
             {
-                _logger.LogWarning("Economy granted item {Item}, which this adapter has no client id for", move.Item);
+                // A disc or a costume has a receipt list of its own; anything else is a name with no client id.
+                if (!EconomyCatalog.TryDiscId(move.Item, out _) && !EconomyCatalog.TryCostumeId(move.Item, out _))
+                    _logger.LogWarning("Economy granted item {Item}, which this adapter has no client id for", move.Item);
                 continue;
             }
             rows.Add(new { itemId, amount = ToClientAmount(move.Total) });
