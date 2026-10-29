@@ -40,7 +40,14 @@ public sealed partial class DemoSessionApi
     ];
 
     // ResponseGoodsShopProduct, field for field (goodsShopProductGoodsList carries exactly one grant here).
+    // Nothing is served in the Exchange tab. GoodsShopType.Exchange (2) is what draws those cells, and every one
+    // of them rendered with a white icon because the sprite lookup has no key for our invented goods. Tickets come
+    // from missions now, so the tab has nothing left worth showing and is hidden wholesale.
+    private static readonly bool ServeExchangeProducts = false;
+
     private object[] BuildGoodsShopProducts(EconomySnapshot economy) =>
+        !ServeExchangeProducts ? [] :
+
         GoodsShopProducts.Select(product =>
         {
             var offer = OfferFor(economy, product.Id);
