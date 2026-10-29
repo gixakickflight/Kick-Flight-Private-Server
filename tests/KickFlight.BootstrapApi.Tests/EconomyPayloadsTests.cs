@@ -165,6 +165,22 @@ public sealed class EconomyPayloadsTests
         Assert.Equal(25, only.GetProperty("amount").GetInt32());
     }
 
+    // The client parses dates with DateTimeOffset.TryParse; a string without an offset would be read in the
+    // device's zone. Instants it compares with its clock (capsule unlocks, mission expiries) carry "Z".
+    [Fact]
+    public void Instants_the_client_compares_with_its_clock_carry_their_offset()
+    {
+        var unlock = new DateTimeOffset(2026, 10, 30, 1, 55, 25, TimeSpan.FromHours(8));
+        var stamp = EconomyPayloads.Instant(unlock);
+
+        Assert.Equal("2026-10-29T17:55:25Z", stamp);
+        Assert.True(DateTimeOffset.TryParse(stamp, out var parsed));
+        Assert.Equal(unlock, parsed);
+        Assert.Equal("2026-10-29T04:00:00Z", EconomyMissions.PeriodEnd("d04:2026-10-28"));
+        Assert.Equal("2026-11-02T04:00:00Z", EconomyMissions.PeriodEnd("w04:2026-10-26"));
+        Assert.Equal("", EconomyMissions.PeriodEnd("all"));
+    }
+
     private static int Amount(List<JsonElement> rows, int itemId) =>
         rows.Single(row => row.GetProperty("itemId").GetInt32() == itemId).GetProperty("amount").GetInt32();
 }

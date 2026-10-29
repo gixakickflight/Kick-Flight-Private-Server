@@ -8,5 +8,10 @@
     "id": 2,
     "goodsType": 401,
     "goodsId": 7
+  },
+  {
+    "id": 3,
+    "goodsType": 101,
+    "goodsId": 1
   }
 ]

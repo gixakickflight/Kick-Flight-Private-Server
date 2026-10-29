@@ -71,7 +71,9 @@ public static class EconomyMissions
 
     // When a period ends, from economy's period label: "dHH:yyyy-MM-dd" is the day that started at HH:00 UTC,
     // "wHH:yyyy-MM-dd" the week that started on that Monday at HH:00 UTC, and "all" never ends. The client shows the
-    // countdown from this, so an unreadable label is "" (no countdown) rather than a guessed date.
+    // countdown from this, so an unreadable label is "" (no countdown) rather than a guessed date. The offset is
+    // written out (EconomyPayloads.Instant): the client parses dates with DateTimeOffset.TryParse, which reads an
+    // offset-less string in the device's zone and would expire a UTC+8 player's dailies eight hours early.
     public static string PeriodEnd(string? period)
     {
         if (string.IsNullOrEmpty(period) || period.Length < 4 || period[3] != ':') return "";
@@ -84,7 +86,9 @@ public static class EconomyMissions
             'w' => TimeSpan.FromDays(7),
             _ => TimeSpan.Zero
         };
-        return length == TimeSpan.Zero ? "" : (start.AddHours(hour) + length).ToString("yyyy-MM-dd HH:mm:ss");
+        return length == TimeSpan.Zero
+            ? ""
+            : EconomyPayloads.Instant(new DateTimeOffset(start.AddHours(hour) + length, TimeSpan.Zero));
     }
 
     // The five masters, as the client's MasterData classes read them (field names from dump.cs: MissionMasterData,

@@ -124,6 +124,16 @@ public sealed class FakeOtomoEconomy : IAsyncDisposable
 
     public const string CosmeticPoolId = "cosmetic.standard";
 
+    // The pools this fake rolls: what one draw costs in jetcoin, the bundle count that is sold for that single price
+    // (economy's Pool.Bundle), and the one item every draw lands on, so a test can assert what a draw dropped without
+    // modelling weights - the weighting is economy's job and is tested there, not here.
+    private static readonly Dictionary<string, (long Price, long? Bundle, string Item, string Rarity)> Pools = new()
+    {
+        [CosmeticPoolId] = (300, null, "skin:2010101", "common"),
+        ["disc.standard"] = (300, null, "disc:3010014", "r"),
+        ["disc.eleven"] = (3000, 11, "disc:3010014", "r")
+    };
+
     private void Map()
     {
         _app.MapGet("/api/player/economy/wallet", async (HttpContext context) =>
@@ -183,24 +193,23 @@ public sealed class FakeOtomoEconomy : IAsyncDisposable
             return Results.Json(new
             {
                 release = "test",
-                pools = new[]
+                pools = Pools.Select(pair => new
                 {
-                    new
-                    {
-                        id = CosmeticPoolId,
-                        cost = new[] { new { currency = "jetcoin", item = (string?)null, amount = 300L } },
-                        entries = new[]
+                    id = pair.Key,
+                    cost = new[] { new { currency = "jetcoin", item = (string?)null, amount = pair.Value.Price } },
+                    entries = pair.Key == CosmeticPoolId
+                        ? new[]
                         {
                             new { item = "skin:2010101", weight = 90L, rarity = "common" },
                             new { item = "skin:2010102", weight = 10L, rarity = "rare" }
-                        },
-                        total_weight = 100L,
-                        pity = new { after = 0L, rarity = "" },
-                        pity_misses = 0L,
-                        window = new { start = "", end = "" },
-                        open = true
-                    }
-                }
+                        }
+                        : new[] { new { item = pair.Value.Item, weight = 100L, rarity = pair.Value.Rarity } },
+                    total_weight = 100L,
+                    pity = new { after = 0L, rarity = "" },
+                    pity_misses = 0L,
+                    window = new { start = "", end = "" },
+                    open = true
+                }).ToArray()
             });
         });
 
@@ -270,7 +279,7 @@ public sealed class FakeOtomoEconomy : IAsyncDisposable
             var root = body.RootElement;
             var poolId = root.TryGetProperty("pool_id", out var poolProp) ? poolProp.GetString() ?? "" : "";
             var count = root.TryGetProperty("count", out var countProp) && countProp.TryGetInt64(out var wanted) ? wanted : 1;
-            if (poolId != CosmeticPoolId)
+            if (!Pools.TryGetValue(poolId, out var pool))
             {
                 return Error(context, StatusCodes.Status404NotFound, "unknown_pool", "that gacha pool does not exist");
             }
@@ -278,24 +287,23 @@ public sealed class FakeOtomoEconomy : IAsyncDisposable
             lock (_lock)
             {
                 var player = _players.GetOrAdd(account, _ => new PlayerEconomy());
-                if (player.Balances.GetValueOrDefault("jetcoin") < 300 * count)
+                var price = pool.Bundle == count ? pool.Price : pool.Price * count;
+                if (player.Balances.GetValueOrDefault("jetcoin") < price)
                 {
                     return Error(context, StatusCodes.Status409Conflict, "insufficient_funds", "insufficient funds");
                 }
-                player.Balances["jetcoin"] = player.Balances.GetValueOrDefault("jetcoin") - 300 * count;
+                player.Balances["jetcoin"] = player.Balances.GetValueOrDefault("jetcoin") - price;
 
                 var draws = new List<object>();
                 var moved = new List<object>();
                 for (var i = 0; i < count; i++)
                 {
-                    // The same entry every time, so a test can assert what a draw dropped without modelling weights:
-                    // the weighting is economy's job and is tested there, not here.
-                    const string item = "skin:2010101";
+                    var item = pool.Item;
                     player.Items[item] = player.Items.GetValueOrDefault(item) + 1;
                     draws.Add(new
                     {
                         item,
-                        rarity = "common",
+                        rarity = pool.Rarity,
                         duplicate = false,
                         paid_currency = (string?)null,
                         paid_amount = 0L,
@@ -330,14 +338,16 @@ public sealed class FakeOtomoEconomy : IAsyncDisposable
                 {
                     new
                     {
-                        track_id = "daily.play",
-                        counter = "battle.play",
-                        period = "d2026-10-28",
-                        value = 0L,
+                        // A served mission (EconomyMissions: 102 / task 10201) with its one step reached and not
+                        // claimed, so a test can see both the row and the badge it lights.
+                        track_id = "mission.daily.win",
+                        counter = "battle.win",
+                        period = "d04:2026-10-28",
+                        value = 1L,
                         repeat = false,
                         steps = new[]
                         {
-                            new { step = 1, target = 1L, @class = "mission.small", reached = false, claimed = false, claimable = false }
+                            new { step = 0, target = 1L, @class = "mission.daily.win.1", reached = true, claimed = false, claimable = true }
                         },
                         repetition = 0
                     }

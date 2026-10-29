@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using KickFlight.BootstrapApi.Otomo;
 
@@ -16,8 +17,35 @@ namespace KickFlight.BootstrapApi;
 //   /mission/receipt {missionTaskId, loopCount}     the receive button: POST /api/player/economy/tasks/claim
 //
 // userDailyRandomMissionTaskList stays empty: the daily random missions have no economy counterpart.
+//
+// Rows go only to a client that has the mission masters. While the client believes it is in the tutorial
+// (tutorialProgressStatus != 207) NetworkManager.<CheckMasterDownloadAsync> downloads only the masters
+// MasterManager.IsTutorialMaster names, and the Mission tables are not among them; UserMissionProgressInfo.ApplyMaster
+// (0x18F24D8) then reads MissionMaster[missionId] as null and throws NullReferenceException out of
+// StartupAfterDownload. Which set a client loaded is decided by the status its last /startup/index carried (the
+// download and StartupAfterDownload run right after it, ColorfulManager.<InitializeLoadAsync>), so that answer is
+// remembered per player and every mission row and the home's mission badge follow it: a client that booted into
+// the tutorial sees no rows and no badge until its next start, and the two always agree.
 public sealed partial class DemoSessionApi
 {
+    // playerId -> whether the last /startup/index answered tutorialProgressStatus 207. Not saved: a process that
+    // has not answered a startup for a player yet serves that player no rows, which is the safe side.
+    private readonly ConcurrentDictionary<long, bool> _missionMastersLoaded = new();
+
+    private void RecordStartupStatus(SessionState state, int tutorialStatus) =>
+        _missionMastersLoaded[state.PlayerId] = tutorialStatus == TutorialStatusComplete;
+
+    private bool HasMissionMasters(SessionState state) =>
+        _missionMastersLoaded.TryGetValue(state.PlayerId, out var loaded) && loaded;
+
+    // userMissionProgressList for any payload: economy's tracks, or nothing for a client without the masters.
+    private object[] MissionRows(SessionState state, IReadOnlyList<EconomyTrack>? tracks) =>
+        HasMissionMasters(state) ? Payloads(state).BuildMissionProgressList(tracks) : [];
+
+    // The home's mission badge, counted over exactly the rows MissionRows serves.
+    private int MissionBadge(SessionState state, IReadOnlyList<EconomyTrack>? tracks) =>
+        HasMissionMasters(state) ? EconomyPayloads.CountClaimable(tracks) : 0;
+
     private async Task<IResult?> TryHandleMissionAsync(string path, HttpContext context, KfIdentityTicket ticket,
         SessionState state, byte[] key)
     {
@@ -33,7 +61,7 @@ public sealed partial class DemoSessionApi
                 if (economy.Snapshot is null) return EconomyUnavailable(context, path, economy.Error);
                 var response = new
                 {
-                    userMissionProgressList = Payloads(state).BuildMissionProgressList(economy.Snapshot.Tracks),
+                    userMissionProgressList = MissionRows(state, economy.Snapshot.Tracks),
                     userDailyRandomMissionTaskList = Array.Empty<object>()
                 };
                 return OkJson(context, key, JsonSerializer.Serialize(response));
@@ -118,7 +146,7 @@ public sealed partial class DemoSessionApi
             receivedUserItemList = payloads.BuildReceivedCounters(claim.Balances, claim.Entries, claim.Items),
             receivedUserStampList = Array.Empty<object>(),
             userPresentList = Array.Empty<object>(),
-            userMissionProgressList = payloads.BuildMissionProgressList((after.Snapshot ?? before.Snapshot).Tracks),
+            userMissionProgressList = MissionRows(state, (after.Snapshot ?? before.Snapshot).Tracks),
             receivedRewardList = payloads.BuildReceivedRewards(claim.Entries, claim.Items)
         };
 
@@ -133,6 +161,6 @@ public sealed partial class DemoSessionApi
         CancellationToken cancellationToken)
     {
         var economy = await ReadPlayerEconomyAsync(ticket, EconomyRead.Tasks, "/battle/result", cancellationToken);
-        return economy.Snapshot is { } snapshot ? Payloads(state).BuildMissionProgressList(snapshot.Tracks) : [];
+        return economy.Snapshot is { } snapshot ? MissionRows(state, snapshot.Tracks) : [];
     }
 }

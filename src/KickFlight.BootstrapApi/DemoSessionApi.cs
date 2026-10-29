@@ -1563,7 +1563,7 @@ public sealed partial class DemoSessionApi
             {
                 itemId = EconomyCatalog.DiscForceItemId, amount = (int)Math.Clamp(discForceNow, 0, int.MaxValue)
             },
-            userMissionProgressList = Payloads(state).BuildMissionProgressList(snapshot.Tracks)
+            userMissionProgressList = MissionRows(state, snapshot.Tracks)
         }));
 
         var cacheId = context.Request.Headers["x-app-response-cache-id"].ToString();
@@ -1795,6 +1795,9 @@ public sealed partial class DemoSessionApi
     private string BuildStartupJson(SessionState state, EconomySnapshot economy, HttpRequest request)
     {
         NormalizeCostume(state);
+        // The status decides which masters the client downloads next, and with them whether it can take mission rows.
+        var tutorialStatus = TutorialStatus(state, economy);
+        RecordStartupStatus(state, tutorialStatus);
         var pendingGear = state.PendingGear ?? new PendingGearState();
         // The kickers and costumes the player owns, from the inventory's skin:<costumeId> items: owning a costume
         // owns its kicker. The active costume is always included, so a save whose inventory says nothing still
@@ -1826,14 +1829,15 @@ public sealed partial class DemoSessionApi
                 gearId = pendingGear.GearId
             },
             userStampList = Array.Empty<object>(),
-            // Economy's tracks, as the mission masters name them (Otomo/EconomyMissions.cs).
-            userMissionProgressList = Payloads(state).BuildMissionProgressList(economy.Tracks),
+            // Economy's tracks, as the mission masters name them (Otomo/EconomyMissions.cs), for a client that loads
+            // those masters with this answer (DemoSessionApi.Missions.cs).
+            userMissionProgressList = MissionRows(state, economy.Tracks),
             userDailyRandomMissionTaskList = Array.Empty<object>(),
             kickerTrainingList,
             userPremium = new { premiumId = 0, startDatetime = "", endDatetime = "" },
             userSeasonPass = new { seasonPassId = 1, startDatetime = "2019-01-01 00:00:00", endDatetime = "2030-01-01 23:59:59" },
             userFestivalTeam = new { battleRuleId = 5, festivalTeamId = 1, festivalPoint = 0 },
-            tutorialProgressStatus = TutorialStatus(state, economy),
+            tutorialProgressStatus = tutorialStatus,
             birthdayConfirmFlag = true,
             dataUsageAgreementConfirmFlag = true,
             dataUsageAgreementAvailableFlag = false,
@@ -1968,21 +1972,21 @@ public sealed partial class DemoSessionApi
             // from these two lists through GachaGroupListInfo(ResponseGachaGroup[]); serving them empty left the
             // scroller with a data list shorter than the cell range EnhancedScroller._Resize walks and GetCellHeight
             // threw ArgumentOutOfRangeException (List<T>.get_Item).
-            discGachaGroupList = BuildHomeDiscGachaGroupList(),
+            discGachaGroupList = BuildHomeDiscGachaGroupList(economy),
             kickerGachaGroupList = BuildHomeKickerGachaGroupList(economy),
             userBattleRankList = BuildBattleRankList(state),
-            userMissionProgressList = Payloads(state).BuildMissionProgressList(economy.Tracks),
+            userMissionProgressList = MissionRows(state, economy.Tracks),
             // shopProductList is the real-money IAP list, which this server does not sell; the goods shop is the
             // JetCoin one and is served in full.
             shopProductList = Array.Empty<object>(),
             goodsShopProductList = BuildGoodsShopProducts(economy),
             // The exchange tab's own scroller (ShopExchangeScroller) stays empty: no disc fragments are converted.
             discFragmentConversionDiscIdList = Array.Empty<int>(),
-            // The badge on the mission button: steps reached and not yet claimed.
+            // The badge on the mission button: steps reached and not yet claimed, over the rows MissionRows serves.
             userMissionTaskStatusNotification = new
             {
                 newFlagCount = 0,
-                completionCount = EconomyPayloads.CountClaimable(economy.Tracks)
+                completionCount = MissionBadge(state, economy.Tracks)
             },
             presentNotificationCount = 0,
             appInformationNotificationFlag = false,

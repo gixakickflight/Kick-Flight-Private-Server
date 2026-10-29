@@ -214,18 +214,10 @@ public sealed class EconomyPayloads
     // A step's status is economy's answer read three ways: claimed is ReceivedReward (3), reached is Completion (2)
     // - which is what lights the receive button - and anything else is InProgress (1). Which reached step a claim
     // actually pays is still economy's decision (the next one), so a client tapping a later rung cannot skip ahead.
-    // Off until the mission ids this adapter serves are ones the client's master resolves.
-    private const bool MissionRowsEnabled = false;
-
+    //
+    // Only for a client that has the mission masters loaded: the caller decides that (DemoSessionApi.MissionRows).
     public object[] BuildMissionProgressList(IReadOnlyList<EconomyTrack>? tracks)
     {
-        // EMPTY ON PURPOSE. UserMissionProgressInfo.ApplyMaster dereferences the client's own baked
-        // Mission master for every row, and a row whose missionId it does not know throws
-        // NullReferenceException inside StartupAfterDownload - a hard crash before the tutorial can
-        // start. The ids this adapter synthesises (EconomyMissions) are ours, not the client's, so
-        // shipping rows for them is unsafe until the two tables provably agree. The counters still
-        // accumulate on economy's side; only the screen is dark.
-        if (MissionRowsEnabled is false) return Array.Empty<object>();
         var rows = new List<object>();
         foreach (var track in tracks ?? [])
         {
@@ -333,21 +325,28 @@ public sealed class EconomyPayloads
     }
 
     // The kickers a set of draws touched, deduplicated, for a draw's receivedUserKickerList.
+    //
+    // showDrawn makes each row's kickerCostumeId the costume that was drawn rather than the player's selection. The
+    // tutorial's draw has no dropKickerCostumeList: GachaKickerDrawInfo..ctor(TutorialGachaKickerDrawResponseData)
+    // (0x156C4E0) builds the drop it shows from receivedUserKickerList[i].{kickerId, kickerCostumeId}, so a row that
+    // carries the selection shows the standard colour of a kicker the player already had instead of the skin.
     public object[] BuildReceivedUserKickerList(IReadOnlyList<EconomyDraw>? draws, EconomySnapshot snapshot,
-        int activeKickerId, int activeCostumeId)
+        int activeKickerId, int activeCostumeId, bool showDrawn = false)
     {
         var costumes = OwnedCostumes(snapshot, activeCostumeId);
-        var kickerIds = new List<int>();
+        var drawn = new Dictionary<int, int>();
         foreach (var draw in draws ?? [])
         {
             if (!EconomyCatalog.TryCostumeId(draw.Item, out var costumeId)) continue;
             var kickerId = _costumeKicker.GetValueOrDefault(costumeId);
-            if (kickerId != 0 && !kickerIds.Contains(kickerId)) kickerIds.Add(kickerId);
+            if (kickerId != 0) drawn.TryAdd(kickerId, costumeId);
         }
-        return kickerIds
+        return drawn.Keys
             .Where(kickerId => costumes.ContainsKey(kickerId))
             .OrderBy(kickerId => kickerId)
-            .Select(kickerId => BuildUserKicker(kickerId, costumes[kickerId], activeKickerId, activeCostumeId))
+            .Select(kickerId => showDrawn
+                ? BuildUserKicker(kickerId, costumes[kickerId], kickerId, drawn[kickerId])
+                : BuildUserKicker(kickerId, costumes[kickerId], activeKickerId, activeCostumeId))
             .Where(row => row is not null)
             .Select(row => row!)
             .ToArray();
@@ -431,4 +430,9 @@ public sealed class EconomyPayloads
     // always used for "unknown".
     public static string Stamp(DateTimeOffset? value) =>
         value is { } stamp ? stamp.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss") : "";
+
+    // An instant the client compares with its own clock (a capsule's unlock time), with the offset written out. The
+    // client reads these with DateTimeOffset.TryParse, which takes an offset-less string in the device's zone.
+    public static string Instant(DateTimeOffset value) =>
+        value.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", System.Globalization.CultureInfo.InvariantCulture);
 }

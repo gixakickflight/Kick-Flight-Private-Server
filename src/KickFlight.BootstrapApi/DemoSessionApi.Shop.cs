@@ -24,15 +24,19 @@ public sealed partial class DemoSessionApi
     private sealed record GoodsShopProductRow(int Id, int GoodsShopType, string Name, int CostGoodsType, int CostGoodsId,
         int CostAmount, int GoodsType, int GoodsId, int GoodsAmount);
 
-    // goodsShopType follows GoodsShopType in the dump (1 = DiscForce, 2 = Exchange). The Disc Force product is the
-    // DiscForce tab; the three JetCoin exchanges live in the Exchange tab. The cost and grant here are the client's
-    // display values and the mapping is atmosphere; what a purchase charges is the offer's price, from economy.
+    // goodsShopType follows GoodsShopType in the dump (1 = DiscForce, 2 = Exchange); the three JetCoin exchanges
+    // live in the Exchange tab. The cost and grant here are the client's display values and the mapping is
+    // atmosphere; what a purchase charges is the offer's price, from economy.
+    //
+    // There is no DiscForce product. ShopDiscScroller.Initialize (0x14B2E64) appends a "buy Disc Force" banner cell
+    // to the disc gacha tab whenever a goodsShopType 1 product grants Disc Force (goodsType 302), and that cell's art
+    // (banner/goodsshopproduct/banner_disc_force) is not in the CDN, so it rendered as an empty frame - for a
+    // product economy has never sold. Product 4 used to be that row.
     private static readonly GoodsShopProductRow[] GoodsShopProducts =
     [
         new(1, 2, "Disc Gacha Ticket", 101, 1, 100, 402, 8, 1),
         new(2, 2, "Kicker Gacha Ticket", 101, 1, 300, 401, 7, 1),
         new(3, 2, "Gear Stamps x10", 101, 1, 100, 202, 5, 10),
-        new(4, 1, "Disc Force x1000", 101, 1, 100, 302, 3, 1000),
     ];
 
     // ResponseGoodsShopProduct, field for field (goodsShopProductGoodsList carries exactly one grant here).

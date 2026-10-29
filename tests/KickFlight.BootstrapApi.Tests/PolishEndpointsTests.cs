@@ -317,20 +317,20 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
         Assert.Equal(3, ranks.Count);
         foreach (var rank in ranks)
         {
-            Assert.Equal(7, rank.GetProperty("rank").GetInt32());
-            Assert.Equal(2900, rank.GetProperty("battlePoint").GetInt32());
+            Assert.Equal(RankProgression.StartRank, rank.GetProperty("rank").GetInt32());
+            Assert.Equal(RankProgression.StartBattlePoint, rank.GetProperty("battlePoint").GetInt32());
         }
 
         var result = await PostAsync(session, "/battle/result", null);
-        Assert.Equal(7, result.GetProperty("userBattleRank").GetProperty("rank").GetInt32());
+        Assert.Equal(RankProgression.StartRank, result.GetProperty("userBattleRank").GetProperty("rank").GetInt32());
         // No issued ranked entry means there is no authoritative ranked mode to apply.
-        Assert.Equal(2900, result.GetProperty("userBattleRank").GetProperty("battlePoint").GetInt32());
-        Assert.Equal(7, result.GetProperty("beforeUserBattleRank").GetProperty("rank").GetInt32());
-        Assert.Equal(2900, result.GetProperty("beforeUserBattleRank").GetProperty("battlePoint").GetInt32());
+        Assert.Equal(RankProgression.StartBattlePoint, result.GetProperty("userBattleRank").GetProperty("battlePoint").GetInt32());
+        Assert.Equal(RankProgression.StartRank, result.GetProperty("beforeUserBattleRank").GetProperty("rank").GetInt32());
+        Assert.Equal(RankProgression.StartBattlePoint, result.GetProperty("beforeUserBattleRank").GetProperty("battlePoint").GetInt32());
 
         // The home profile continues to serve the unchanged persisted standing.
         var after = await PostAsync(session, "/home/index", null);
-        Assert.Equal(2900, after.GetProperty("userBattleRankList")[0].GetProperty("battlePoint").GetInt32());
+        Assert.Equal(RankProgression.StartBattlePoint, after.GetProperty("userBattleRankList")[0].GetProperty("battlePoint").GetInt32());
     }
 
     [Fact]
@@ -465,7 +465,7 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
         Assert.Equal(publicOwnId, own.GetProperty("displayUserId").GetInt64());
         Assert.Equal("", own.GetProperty("name").GetString());
         Assert.Equal(6010000, own.GetProperty("honorId").GetInt32());
-        Assert.Equal(7, own.GetProperty("userBattleRankList")[0].GetProperty("rank").GetInt32());
+        Assert.Equal(RankProgression.StartRank, own.GetProperty("userBattleRankList")[0].GetProperty("rank").GetInt32());
 
         var ownByPublicId = (await PostAsync(session, "/user/search", new { displayUserId = publicOwnId })).GetProperty("userProfile");
         Assert.Equal(session.UserId, ownByPublicId.GetProperty("userId").GetString());

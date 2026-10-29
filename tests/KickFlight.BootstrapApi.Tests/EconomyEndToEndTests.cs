@@ -83,10 +83,11 @@ public sealed class EconomyEndToEndTests : IClassFixture<ServerTestHostFixture>
 
         var home = await PostAsync(session, "/home/index", null);
 
-        // The client's four product rows are still served; only the kicker ticket has an offer behind it, and the
-        // shelf says so rather than showing a demo stock of 9999.
+        // The client's three exchange rows are served; only the kicker ticket has an offer behind it, and the
+        // shelf says so rather than showing a demo stock of 9999. No DiscForce product: its banner has no art.
         var products = home.GetProperty("goodsShopProductList").EnumerateArray().ToList();
-        Assert.Equal(4, products.Count);
+        Assert.Equal(3, products.Count);
+        Assert.DoesNotContain(products, product => product.GetProperty("goodsShopType").GetInt32() == 1);
         var ticket = products.Single(product => product.GetProperty("id").GetInt32() == 2);
         Assert.True(ticket.GetProperty("purchasableCount").GetInt32() > 0);
         Assert.Equal(101, ticket.GetProperty("costGoodsType").GetInt32());
@@ -191,21 +192,55 @@ public sealed class EconomyEndToEndTests : IClassFixture<ServerTestHostFixture>
     }
 
     [Fact]
-    public async Task Disc_draw_is_retired_answers_no_drops_and_asks_economy_for_nothing()
+    public async Task Disc_draw_rolls_the_single_pool_once()
     {
         var session = await CreateSessionAsync();
         _economy.Seed(session.Account, balances: [("jetcoin", 400)]);
 
-        var draw = await PostAsync(session, "/gacha/discDraw", new { gachaId = 1, count = 1 });
+        var draw = await PostAsync(session, "/gacha/discDraw", new { gachaId = 1 });
 
-        Assert.Empty(draw.GetProperty("dropDiscList").EnumerateArray());
-        Assert.Empty(draw.GetProperty("receivedUserDiscList").EnumerateArray());
-        Assert.Equal(0, draw.GetProperty("drawableCount").GetInt32());
-        Assert.True(draw.GetProperty("completedDisplayFlag").GetBoolean());
-        Assert.Equal(8, draw.GetProperty("userItemList").GetArrayLength());
-        // Nothing was charged and nothing was drawn.
-        Assert.Empty(CallsFor(session.Account, "/api/player/economy/gacha/roll"));
-        Assert.Equal(400, _economy.BalanceOf(session.Account, "jetcoin"));
+        var drop = Assert.Single(draw.GetProperty("dropDiscList").EnumerateArray().ToList());
+        Assert.Equal(3010014, drop.GetProperty("discId").GetInt32());
+        Assert.Equal(3010014, Assert.Single(draw.GetProperty("receivedUserDiscList").EnumerateArray().ToList())
+            .GetProperty("discId").GetInt32());
+        Assert.False(draw.GetProperty("completedDisplayFlag").GetBoolean());
+        Assert.True(draw.GetProperty("drawableCount").GetInt32() > 0);
+        Assert.Equal(100, ItemAmount(draw.GetProperty("userItemList").EnumerateArray().ToList(), 1));
+        Assert.Equal(100, _economy.BalanceOf(session.Account, "jetcoin"));
+
+        var roll = Assert.Single(CallsFor(session.Account, "/api/player/economy/gacha/roll"));
+        using var body = JsonDocument.Parse(roll.Body!);
+        Assert.Equal("disc.standard", body.RootElement.GetProperty("pool_id").GetString());
+        Assert.Equal(1, body.RootElement.GetProperty("count").GetInt64());
+    }
+
+    [Fact]
+    public async Task Disc_draw_eleven_is_one_bundle_roll_at_the_bundle_price()
+    {
+        var session = await CreateSessionAsync();
+        _economy.Seed(session.Account, balances: [("jetcoin", 3000)]);
+
+        var draw = await PostAsync(session, "/gacha/discDraw", new { gachaId = 2 });
+
+        Assert.Equal(11, draw.GetProperty("dropDiscList").GetArrayLength());
+        Assert.Equal(0, _economy.BalanceOf(session.Account, "jetcoin"));
+        var roll = Assert.Single(CallsFor(session.Account, "/api/player/economy/gacha/roll"));
+        using var body = JsonDocument.Parse(roll.Body!);
+        Assert.Equal("disc.eleven", body.RootElement.GetProperty("pool_id").GetString());
+        Assert.Equal(11, body.RootElement.GetProperty("count").GetInt64());
+    }
+
+    [Fact]
+    public async Task Disc_draw_the_player_cannot_pay_for_is_economy_refusal_and_moves_nothing()
+    {
+        var session = await CreateSessionAsync();
+        _economy.Seed(session.Account, balances: [("jetcoin", 299)]);
+
+        var draw = await PostAsync(session, "/gacha/discDraw", new { gachaId = 1 }, expectStatusZero: false);
+
+        Assert.Equal(JsonValueKind.Object, draw.ValueKind);
+        Assert.Equal(299, _economy.BalanceOf(session.Account, "jetcoin"));
+        Assert.Single(CallsFor(session.Account, "/api/player/economy/gacha/roll"));
     }
 
     [Fact]

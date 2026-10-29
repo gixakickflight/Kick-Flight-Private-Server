@@ -8,8 +8,8 @@
     "startDatetime": "2019-01-01 00:00:00",
     "endDatetime": "2030-01-01 23:59:59",
     "drawableTermDay": 0,
-    "informationText": "Get new discs with gacha tickets.",
-    "noticeText": "Each draw uses one Disc Gacha ticket."
+    "informationText": "Get new discs with Jet Coins.",
+    "noticeText": "One draw costs 300 Jet Coins; eleven draws cost 3000."
   },
   {
     "id": 2,
@@ -20,7 +20,7 @@
     "startDatetime": "2019-01-01 00:00:00",
     "endDatetime": "2030-01-01 23:59:59",
     "drawableTermDay": 0,
-    "informationText": "Get Kicker costumes with gacha tickets.",
-    "noticeText": "Each draw uses one Kicker Gacha ticket."
+    "informationText": "Get Kicker skins with Kicker tickets.",
+    "noticeText": "Each draw uses one Kicker ticket."
   }
 ]

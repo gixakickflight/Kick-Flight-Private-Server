@@ -66,7 +66,7 @@ public sealed class ShopGachaTests : IClassFixture<ServerTestHostFixture>
         var reset = await PostAsync(session, "/goodsShop/reset", null);
 
         Assert.Equal(8, reset.GetProperty("userItemList").GetArrayLength());
-        Assert.Equal(4, reset.GetProperty("goodsShopProductList").GetArrayLength());
+        Assert.Equal(3, reset.GetProperty("goodsShopProductList").GetArrayLength());
     }
 
     // The gacha DTOs, field for field: a missing field is a NullReferenceException while the client deserializes.
@@ -74,18 +74,17 @@ public sealed class ShopGachaTests : IClassFixture<ServerTestHostFixture>
     public async Task Draw_and_information_responses_carry_every_field_of_their_dto()
     {
         var session = await CreateSessionAsync();
-        // The kicker draw is a real roll on economy, so this player needs the pool's price to draw once.
-        _economy.Seed(session.Account, balances: [("jetcoin", 400)]);
+        // Both draws are real rolls on economy, so this player needs both pools' price to draw once each.
+        _economy.Seed(session.Account, balances: [("jetcoin", 700)]);
 
-        // The disc draw is retired: the DTO is complete, the drops are empty, and the tab says it is finished.
-        var discDraw = await PostAsync(session, "/gacha/discDraw", new { gachaId = 1, count = 1 });
+        var discDraw = await PostAsync(session, "/gacha/discDraw", new { gachaId = 1 });
         AssertFields(discDraw,
             "dropDiscList", "receivedUserDiscList", "receivedUserItemList", "userItemList", "gachaDropCountRewardList",
             "modelId", "effectTopImageFilename", "effectBottomImageFilename", "capsuleEffectType", "drawableCount",
             "drawableDatetime", "completedDisplayFlag", "userPresentList", "userMissionProgressList",
             "userDailyRandomMissionTaskList", "receivedRewardList", "premiumFlag");
-        Assert.Empty(discDraw.GetProperty("dropDiscList").EnumerateArray());
-        Assert.True(discDraw.GetProperty("completedDisplayFlag").GetBoolean());
+        AssertFields(discDraw.GetProperty("dropDiscList")[0], "discId", "amount", "discForceAmount");
+        Assert.False(discDraw.GetProperty("completedDisplayFlag").GetBoolean());
 
         var kickerDraw = await PostAsync(session, "/gacha/kickerDraw", new { gachaId = 1, count = 1 });
         AssertFields(kickerDraw,
@@ -130,21 +129,28 @@ public sealed class ShopGachaTests : IClassFixture<ServerTestHostFixture>
             "gachaGroupId", "name", "gachaType", "bannerImageFilename", "startDatetime", "endDatetime",
             "boxFlag", "stepFlag", "newFlag", "completedDisplayFlag", "remainingTimeDisplayFlag", "gachaList",
             "gachaDropCountRewardList");
-        Assert.Single(discGroups[0].GetProperty("gachaList").EnumerateArray().ToList());
-        AssertFields(discGroups[0].GetProperty("gachaList")[0],
+        var discRows = discGroups[0].GetProperty("gachaList").EnumerateArray().ToList();
+        Assert.Equal(2, discRows.Count);
+        AssertFields(discRows[0],
             "id", "dropAmount", "drawableCount", "drawableDatetime", "costGoodsType", "costGoodsId", "costAmount",
             "gachaBoxStatus", "stepNumber", "effectTopImageFilename", "effectBottomImageFilename");
-        // The disc gacha is retired but still priced from its own master (item 8 / GoodsType 402), and not drawable.
-        Assert.Equal(402, discGroups[0].GetProperty("gachaList")[0].GetProperty("costGoodsType").GetInt32());
-        Assert.Equal(8, discGroups[0].GetProperty("gachaList")[0].GetProperty("costGoodsId").GetInt32());
-        Assert.Equal(0, discGroups[0].GetProperty("gachaList")[0].GetProperty("drawableCount").GetInt32());
+        // The disc tab's two buttons are economy's two disc pools, priced in Jet Coin (Item row 1, GoodsType 101):
+        // one draw, and the eleven-draw bundle at its single price.
+        Assert.Equal(new[] { 1, 2 }, discRows.Select(row => row.GetProperty("id").GetInt32()).ToArray());
+        Assert.Equal(new[] { 1, 11 }, discRows.Select(row => row.GetProperty("dropAmount").GetInt32()).ToArray());
+        Assert.Equal(new[] { 300, 3000 }, discRows.Select(row => row.GetProperty("costAmount").GetInt32()).ToArray());
+        Assert.All(discRows, row =>
+        {
+            Assert.Equal(101, row.GetProperty("costGoodsType").GetInt32());
+            Assert.Equal(1, row.GetProperty("costGoodsId").GetInt32());
+            Assert.True(row.GetProperty("drawableCount").GetInt32() > 0);
+        });
         // The kicker gacha is economy's pool, and its banner carries the pool's own price.
         Assert.Equal(101, kickerGroups[0].GetProperty("gachaList")[0].GetProperty("costGoodsType").GetInt32());
         Assert.Equal(300, kickerGroups[0].GetProperty("gachaList")[0].GetProperty("costAmount").GetInt32());
 
         var products = home.GetProperty("goodsShopProductList").EnumerateArray().ToList();
-        Assert.Equal(4, products.Count);
-        Assert.Equal(new[] { 1, 2, 3, 4 }, products.Select(p => p.GetProperty("id").GetInt32()).ToArray());
+        Assert.Equal(new[] { 1, 2, 3 }, products.Select(p => p.GetProperty("id").GetInt32()).ToArray());
         AssertFields(products[0],
             "id", "goodsShopType", "name", "costGoodsType", "costGoodsId", "costAmount", "resetType",
             "startDatetime", "endDatetime", "resetDatetime", "limitedCount", "purchasableCount", "newFlag",
@@ -180,7 +186,7 @@ public sealed class ShopGachaTests : IClassFixture<ServerTestHostFixture>
         Assert.All(rows, row => Assert.True(row.TryGetProperty("id", out _), $"{masterName} row without id"));
     }
 
-    // LotteryDropDisc has to cover the whole disc master: the (retired) disc tab's information page still lists it.
+    // LotteryDropDisc has to cover the whole disc master: the disc tab's information page lists it.
     [Fact]
     public async Task Lottery_drop_disc_covers_every_disc_and_lottery_drop_kicker_every_costume()
     {

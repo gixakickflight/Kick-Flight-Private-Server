@@ -141,11 +141,23 @@ public sealed class OnboardingEndToEndTests : IDisposable
 
         var kickerDraw = await PostAsync(session, "/tutorial/gachaKickerDraw", null);
         AssertMembers(kickerDraw, "receivedUserKickerList", "userItemList", "userPresentList", "receivedRewardList");
-        Assert.NotEmpty(kickerDraw.GetProperty("receivedUserKickerList").EnumerateArray());
+        // The client shows receivedUserKickerList[i].kickerCostumeId as the drop: it must be the granted skin
+        // (tutorial.kicker = skin:2010201), not kicker 1's standard colour that every account already has.
+        var shown = Assert.Single(kickerDraw.GetProperty("receivedUserKickerList").EnumerateArray().ToList());
+        Assert.Equal(1, shown.GetProperty("kickerId").GetInt32());
+        Assert.Equal(2010201, shown.GetProperty("kickerCostumeId").GetInt32());
+        Assert.Contains(kickerDraw.GetProperty("receivedRewardList").EnumerateArray(), reward =>
+            reward.GetProperty("goodsType").GetInt32() == 201 && reward.GetProperty("goodsId").GetInt32() == 2010201);
 
         await PostAsync(session, "/tutorial/kickerChange", new { kickerId = 2, kickerCostumeId = 2020101 });
         var beforeName = await PostAsync(session, "/startup/index", null);
         Assert.Equal(DemoSessionApi.TutorialStatusInputName, beforeName.GetProperty("tutorialProgressStatus").GetInt32());
+        // A client in the tutorial downloads no Mission masters, so it gets no mission rows and no badge, even with
+        // a step economy says is claimable.
+        Assert.Empty(beforeName.GetProperty("userMissionProgressList").EnumerateArray());
+        var tutorialHome = await PostAsync(session, "/home/index", null);
+        Assert.Empty(tutorialHome.GetProperty("userMissionProgressList").EnumerateArray());
+        Assert.Equal(0, tutorialHome.GetProperty("userMissionTaskStatusNotification").GetProperty("completionCount").GetInt32());
 
         await PostAsync(session, "/tutorial/end", new { name = "Laddered" });
         var named = await PostAsync(session, "/startup/index", null);
@@ -156,6 +168,17 @@ public sealed class OnboardingEndToEndTests : IDisposable
         Assert.Equal(400, ItemAmount(named, EconomyCatalog.DiscForceItemId));
         var home = await PostAsync(session, "/home/index", null);
         Assert.Equal("Laddered", home.GetProperty("userPlayer").GetProperty("name").GetString());
+
+        // Started past the tutorial, the client has every master: the rows are served and the badge counts them.
+        var mission = Assert.Single(named.GetProperty("userMissionProgressList").EnumerateArray().ToList());
+        Assert.Equal(102, mission.GetProperty("missionId").GetInt32());
+        Assert.Equal(1, home.GetProperty("userMissionTaskStatusNotification").GetProperty("completionCount").GetInt32());
+        var missions = await PostAsync(session, "/mission/index", null);
+        var task = Assert.Single(Assert.Single(missions.GetProperty("userMissionProgressList").EnumerateArray().ToList())
+            .GetProperty("userMissionTaskStatusList").EnumerateArray().ToList());
+        Assert.Equal(10201, task.GetProperty("missionTaskId").GetInt32());
+        Assert.Equal(2, task.GetProperty("missionTaskStatus").GetInt32());
+        Assert.EndsWith("Z", task.GetProperty("expirationDatetime").GetString());
     }
 
     [Fact]

@@ -1,5 +1,4 @@
 using System.Text;
-using System.Text.Json;
 using KickFlight.BootstrapApi.Otomo;
 
 namespace KickFlight.BootstrapApi;
@@ -249,18 +248,5 @@ public sealed partial class DemoSessionApi
             builder.Append(char.IsAsciiLetterOrDigit(character) || character is '.' or '_' or ':' or '-' ? character : '-');
         }
         return builder.ToString();
-    }
-
-    // The client's item counters for a route that repeats them without a payload of its own. An unreachable economy
-    // answers an empty list here rather than a refusal: the route grants nothing either way, and a counter read must
-    // not turn a working screen into an error.
-    private async Task<string> BuildUserItemListJsonAsync(KfIdentityTicket ticket, SessionState state,
-        HttpContext context)
-    {
-        var economy = await ReadPlayerEconomyAsync(ticket, EconomyRead.Balances | EconomyRead.Inventory,
-            context.Request.Path, context.RequestAborted);
-        return economy.Snapshot is { } snapshot
-            ? JsonSerializer.Serialize(Payloads(state).BuildUserItemList(snapshot))
-            : "[]";
     }
 }

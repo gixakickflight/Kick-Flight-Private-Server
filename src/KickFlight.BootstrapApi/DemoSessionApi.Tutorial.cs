@@ -252,13 +252,14 @@ public sealed partial class DemoSessionApi
         if (economy.Snapshot is null) return EconomyUnavailable(context, path, economy.Error);
         AdvanceTutorial(state, 205);
 
-        // The grant's item moves read as draws, so the kicker rows are built the way a real draw's are.
+        // The grant's item moves read as draws, so the kicker rows are built the way a real draw's are, except that
+        // each row names the granted skin: this response has no drop list, and the client shows these rows as one.
         var draws = (grant!.Items ?? []).Select(move => new EconomyDraw(move.Item, null, false, null, 0, false)).ToList();
         var payloads = Payloads(state);
         return OkJson(context, key, JsonSerializer.Serialize(new
         {
             receivedUserKickerList = payloads.BuildReceivedUserKickerList(draws, economy.Snapshot, state.KickerId,
-                state.KickerCostumeId),
+                state.KickerCostumeId, showDrawn: true),
             userItemList = payloads.BuildUserItemList(economy.Snapshot),
             userPresentList = Array.Empty<object>(),
             receivedRewardList = payloads.BuildReceivedRewards(grant.Entries, grant.Items)

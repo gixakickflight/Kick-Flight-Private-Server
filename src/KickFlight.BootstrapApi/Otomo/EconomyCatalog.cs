@@ -29,7 +29,7 @@ namespace KickFlight.BootstrapApi.Otomo;
 //   row 2  JetCoinPaid       no IAP on this server: there is no paid coin
 //   row 4  KickPoint          retired with the pre-EOS battle rewards
 //   row 5  GearMaterial      the gear roll is still the adapter's own (SessionState.PendingGear)
-//   row 8  DiscGachaTicket   the disc gacha is retired, so nothing earns or spends it
+//   row 8  DiscGachaTicket   the disc gacha is priced in Jet Coin, so nothing earns or spends it
 //
 // Anything the economy holds that is not named here is not shown to the client: an unmapped item is logged and
 // skipped rather than guessed at, because a wrong itemId puts a wrong number on a real screen.
@@ -59,7 +59,7 @@ public static class EconomyCatalog
 
     // Stackable items, by the client's Item master row: the gear stamps the gear screen counts, the disc fragments,
     // and the two gacha tickets. The disc ticket is kept because the Item master still has the row (402); the disc
-    // gacha that spent it is retired, so nothing spends it any more.
+    // gacha is priced in Jet Coin now, so nothing spends it any more.
     public static readonly (string Item, int ItemId)[] ItemRows =
     [
         ("fragment", 6)
@@ -79,21 +79,38 @@ public static class EconomyCatalog
     // The goods shop's products (GoodsShopProductRow in DemoSessionApi.Shop.cs) and the economy offer each one buys.
     // The product id is the client's - it sends it in GoodsShopBuyRequestData.goodsShopProductId - and the offer id
     // is economy's; this table is the only place the two are related.
-    // Only one of the four has an offer behind it. The other three sold what the economy design stopped selling:
-    // a disc ticket (the disc gacha is retired), gear stamps and disc force (neither is ported). They stay in the
-    // client's product list and answer "not for sale", which is the truth - the alternative, inventing offers so the
-    // shelf looks full, would put four unpriced goods on a live screen.
+    // Only one of the three has an offer behind it. The other two sold what the economy design stopped selling: a
+    // disc ticket (the disc gacha is priced in Jet Coin) and gear stamps (not ported). They stay in the client's
+    // product list and answer "not for sale", which is the truth - the alternative, inventing offers so the shelf
+    // looks full, would put unpriced goods on a live screen.
     public static readonly (int ProductId, string OfferId)[] GoodsShopOffers =
     [
         (2, "ticket.single")
     ];
 
     // The one cosmetic pool in use, and the GachaKicker row id the client quotes back in
-    // GachaKickerDrawRequestData.gachaId (through ResponseGacha.id). The disc gacha is retired, so nothing is mapped
-    // on that side: its group is served as a banner with drawableCount 0.
+    // GachaKickerDrawRequestData.gachaId (through ResponseGacha.id).
     public const string CosmeticPoolId = "cosmetic.standard";
 
     public static readonly (int GachaId, string PoolId)[] KickerGachas = [(1, CosmeticPoolId)];
+
+    // The disc tab's two buttons: DiscGacha row id (GachaDiscDrawRequestData.gachaId, which is all a draw request
+    // carries), the economy pool, and how many draws one press rolls. disc.eleven is a bundle pool: a roll of exactly
+    // its bundle count pays its cost once, so the count here must be that bundle count.
+    public static readonly (int GachaId, string PoolId, int Count)[] DiscGachas =
+    [
+        (1, "disc.standard", 1),
+        (2, "disc.eleven", 11)
+    ];
+
+    public static (string PoolId, int Count)? DiscPoolForGachaId(int gachaId)
+    {
+        foreach (var row in DiscGachas)
+        {
+            if (row.GachaId == gachaId) return (row.PoolId, row.Count);
+        }
+        return null;
+    }
 
     public static bool TryGoodsTypeForItemId(int itemId, out int goodsType)
     {

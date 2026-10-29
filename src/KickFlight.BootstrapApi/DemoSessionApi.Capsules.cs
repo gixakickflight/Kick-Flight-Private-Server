@@ -30,6 +30,9 @@ public sealed partial class DemoSessionApi
     // The tutorial's capsule: TutorialUtil.CAPSULE_ID, opened after OPEN_CAPSULE_DURATION (8) seconds.
     private const int TutorialCapsuleId = 5010000;
 
+    // How far ahead of this server's clock a device may be and still open a capsule its own countdown has finished.
+    private static readonly TimeSpan CapsuleClockGrace = TimeSpan.FromMinutes(1);
+
     private string BuildCapsuleMasterJson()
     {
         var rows = new List<object>
@@ -66,11 +69,16 @@ public sealed partial class DemoSessionApi
     private object[] BuildUserCapsuleList(SessionState state) =>
         state.Capsules.OrderBy(capsule => capsule.SlotNumber).Select(UserCapsuleRow).ToArray();
 
+    // completeDatetime carries its offset. UserCapsuleInfo..ctor (0x18F1398) reads it with TimeUtil.GetDatetimeFromString
+    // (0x161E520), which is a bare DateTimeOffset.TryParse: a string without an offset is taken in the device's own
+    // zone. The slot compares it with TimeUtil.GetCurrentDateTime, which is an instant (FromUnixTimeSeconds), so an
+    // offset-less UTC stamp opened the slot early by the device's UTC offset - 8 hours on a UTC+8 phone - and the
+    // open was refused here as not yet unlocked.
     private static object UserCapsuleRow(PendingCapsule capsule) => new
     {
         slotNumber = capsule.SlotNumber,
         capsuleId = capsule.CapsuleId,
-        completeDatetime = EconomyPayloads.Stamp(capsule.UnlockAt),
+        completeDatetime = EconomyPayloads.Instant(capsule.UnlockAt),
         openTimeSecond = (int)Math.Max(0, (capsule.UnlockAt - capsule.GrantedAt).TotalSeconds)
     };
 
@@ -147,8 +155,8 @@ public sealed partial class DemoSessionApi
     }
 
     // /capsule/open and /capsule/immediateOpen {slotNumber}. The two differ only in the timer: open refuses before
-    // the unlock time (the client is showing the countdown, so this only catches a clock that ran ahead), and
-    // immediateOpen skips it. Either way it is one roll, paid by the tokens the battle granted, and the slot empties.
+    // the unlock time (less CapsuleClockGrace, for a device clock slightly ahead of this one), and immediateOpen
+    // skips it. Either way it is one roll, paid by the tokens the battle granted, and the slot empties.
     private async Task<IResult?> HandleCapsuleOpenAsync(HttpContext context, KfIdentityTicket ticket,
         SessionState state, byte[] key, bool immediate)
     {
@@ -173,7 +181,7 @@ public sealed partial class DemoSessionApi
             _logger.LogWarning("{Path} for user {UserId}: slot {Slot} holds no capsule", path, state.UserId, slotNumber);
             return StatusError(context, key);
         }
-        if (!immediate && _timeProvider.GetUtcNow() < capsule.UnlockAt)
+        if (!immediate && _timeProvider.GetUtcNow() + CapsuleClockGrace < capsule.UnlockAt)
         {
             _logger.LogInformation("{Path} for user {UserId}: slot {Slot} opens at {UnlockAt:u}", path, state.UserId,
                 slotNumber, capsule.UnlockAt);
