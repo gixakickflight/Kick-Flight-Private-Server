@@ -214,6 +214,14 @@ public sealed class EconomyPayloads
             Add(TutorialDrawCostumeId);
         }
 
+        // Every kicker is unlocked for every account, and a kicker is only playable through a costume, so the
+        // standard colour of all fourteen is served unconditionally: identity, not value, exactly like the active
+        // selection above. Costume ids read 2_KK_CC_01, so "costume number 1" is ((id / 100) % 100) == 1.
+        foreach (var costumeId in _costumeKicker.Keys)
+        {
+            if (costumeId / 100 % 100 == 1) Add(costumeId);
+        }
+
         foreach (var list in owned.Values) list.Sort();
         return owned;
     }
