@@ -620,7 +620,11 @@ public sealed partial class DemoSessionApi
               {"id":8,"goodsType":402,"name":"DiscGachaTicket","maxAmount":9999999}
             ]
             """;
-        _encryptedMasters["Item"] = EncryptMaster(itemJson);
+        // The Item master is deliberately NOT served. Ours carries only id/goodsType/name/maxAmount, and the
+        // client draws a goods icon by looking a sprite up by the row it holds: serving our invented names
+        // ("JetCoin", "KickerGachaTicket") shadows the baked table that has the real sprite keys, and every
+        // item icon renders as a white quad. The counts the client shows come from userItemList, not from here.
+        _ = itemJson;
 
         var discJson = LoadJson(contentRoot, "config/masters_disc.json", "[]");
         var skillJson = LoadJson(contentRoot, "config/masters_skill.json", "[]");
