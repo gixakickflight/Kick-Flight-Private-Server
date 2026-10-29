@@ -214,8 +214,18 @@ public sealed class EconomyPayloads
     // A step's status is economy's answer read three ways: claimed is ReceivedReward (3), reached is Completion (2)
     // - which is what lights the receive button - and anything else is InProgress (1). Which reached step a claim
     // actually pays is still economy's decision (the next one), so a client tapping a later rung cannot skip ahead.
+    // Off until the mission ids this adapter serves are ones the client's master resolves.
+    private const bool MissionRowsEnabled = false;
+
     public object[] BuildMissionProgressList(IReadOnlyList<EconomyTrack>? tracks)
     {
+        // EMPTY ON PURPOSE. UserMissionProgressInfo.ApplyMaster dereferences the client's own baked
+        // Mission master for every row, and a row whose missionId it does not know throws
+        // NullReferenceException inside StartupAfterDownload - a hard crash before the tutorial can
+        // start. The ids this adapter synthesises (EconomyMissions) are ours, not the client's, so
+        // shipping rows for them is unsafe until the two tables provably agree. The counters still
+        // accumulate on economy's side; only the screen is dark.
+        if (MissionRowsEnabled is false) return Array.Empty<object>();
         var rows = new List<object>();
         foreach (var track in tracks ?? [])
         {
