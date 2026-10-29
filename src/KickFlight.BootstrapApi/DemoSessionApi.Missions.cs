@@ -35,8 +35,11 @@ public sealed partial class DemoSessionApi
     private void RecordStartupStatus(SessionState state, int tutorialStatus) =>
         _missionMastersLoaded[state.PlayerId] = tutorialStatus == TutorialStatusComplete;
 
-    private bool HasMissionMasters(SessionState state) =>
-        _missionMastersLoaded.TryGetValue(state.PlayerId, out var loaded) && loaded;
+    // Missions are off on this server. The rows are built from economy's tracks, but the client dereferences
+    // its own baked mission master for every one of them and throws NullReferenceException from
+    // StartupAfterDownload for an id it does not know - the crash that broke onboarding. With the rows off the
+    // badge must be off too, or the home shows a "!" bubble over a page that has nothing in it.
+    private bool HasMissionMasters(SessionState state) => false;
 
     // userMissionProgressList for any payload: economy's tracks, or nothing for a client without the masters.
     private object[] MissionRows(SessionState state, IReadOnlyList<EconomyTrack>? tracks) =>

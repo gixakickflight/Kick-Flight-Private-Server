@@ -395,8 +395,8 @@ public sealed partial class DemoSessionApi
             userItemList = payloads.BuildUserItemList(snapshot),
             gachaDropCountRewardList = Array.Empty<object>(),
             modelId = gacha.ModelId,
-            effectTopImageFilename = gacha.EffectTopImageFilename,
-            effectBottomImageFilename = gacha.EffectBottomImageFilename,
+            effectTopImageFilename = EffectOr(DiscGachaGroupId, gacha.EffectTopImageFilename),
+            effectBottomImageFilename = EffectOr(DiscGachaGroupId, gacha.EffectBottomImageFilename),
             capsuleEffectType = CapsuleEffectOf(roll.Draws),
             drawableCount = GachaDrawableCount,
             drawableDatetime = GachaGroupStart(DiscGachaGroupId),
@@ -495,8 +495,8 @@ public sealed partial class DemoSessionApi
             receivedUserKickerList = payloads.BuildReceivedUserKickerList(roll.Draws, snapshot,
                 state.KickerId, state.KickerCostumeId),
             userItemList = payloads.BuildUserItemList(snapshot),
-            effectTopImageFilename = gacha.EffectTopImageFilename,
-            effectBottomImageFilename = gacha.EffectBottomImageFilename,
+            effectTopImageFilename = EffectOr(gacha.GachaGroupId, gacha.EffectTopImageFilename),
+            effectBottomImageFilename = EffectOr(gacha.GachaGroupId, gacha.EffectBottomImageFilename),
             userPresentList = Array.Empty<object>(),
             userMissionProgressList = Array.Empty<object>(),
             userDailyRandomMissionTaskList = Array.Empty<object>(),
@@ -655,6 +655,13 @@ public sealed partial class DemoSessionApi
         effectTopImageFilename = effectTop,
         effectBottomImageFilename = effectBottom
     };
+
+    // A gacha row's effect art is optional in the master and empty in ours. The client draws a white quad for
+    // an empty filename, so fall back to the group's banner: something real, rather than a blank frame.
+    private string EffectOr(int gachaGroupId, string effect) =>
+        !string.IsNullOrEmpty(effect)
+            ? effect
+            : _gachaGroupById.TryGetValue(gachaGroupId, out var group) ? group.BannerImageFilename : "";
 
     private string GachaGroupText(int gachaGroupId, bool information) =>
         _gachaGroupById.TryGetValue(gachaGroupId, out var group)
