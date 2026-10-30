@@ -308,12 +308,19 @@ def test_http_server_endpoints(http_server, badge_db):
         assert "<title>Kick Flight Collaborative Badge Catalog</title>" in html
         assert 'id="badge-grid"' in html
         assert 'id="modal-contributor"' in html
+        assert 'id="btn-sync-now"' in html
+        assert 'id="txt-sync-btn"' in html
+        assert 'btn-sync' in html
+        assert 'role="status"' in html
+        assert 'aria-live="polite"' in html
 
     # i18n script
     with urllib.request.urlopen(f"{base_url}/badges/i18n.js") as resp:
         assert resp.status == 200
         js = resp.read().decode()
         assert "I18N_STRINGS" in js
+        assert "sync_btn" in js
+        assert "Sincronizar" in js
 
     # Catalog API
     with urllib.request.urlopen(f"{base_url}/badges/api/catalog") as resp:
