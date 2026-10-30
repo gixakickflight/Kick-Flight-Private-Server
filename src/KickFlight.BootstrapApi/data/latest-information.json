@@ -1,0 +1,7 @@
+{
+  "Content": "Community Badge Catalog is now available! Explore all 211 badges, inspect high-resolution glyph artwork, and collaborate at /badges",
+  "ChangedAtUtc": "2026-10-30T00:00:00Z",
+  "Mode": "html",
+  "HtmlContent": "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta http-equiv=\"refresh\" content=\"0; url=/badges\"><title>Kick Flight Community Badge Catalog</title><style>:root{color-scheme:dark}body{font-family:system-ui,-apple-system,sans-serif;background:#10141b;color:#f3f6fa;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;padding:20px;box-sizing:border-box}div{background:#1b222d;border:1px solid #303b4b;padding:32px;border-radius:12px;text-align:center;max-width:500px}h2{margin:0 0 10px;color:#57d7d0}p{color:#aab5c5;margin:0 0 18px;line-height:1.5}a{display:inline-block;background:#184b49;color:#9cf5f0;border:1px solid #2b7774;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600}a:hover{background:#226462}</style></head><body><div><h2>Community Badge Catalog</h2><p>Redirecting to the collaborative Kick Flight badge catalog...</p><a href=\"/badges\">Open /badges</a></div><script>window.location.replace('/badges');</script></body></html>",
+  "ExternalUrl": "https://kick-flight-fenix.us.ci/badges"
+}

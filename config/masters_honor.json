@@ -1,0 +1,4460 @@
+[
+  {
+    "id": 6010000,
+    "honorType": 0,
+    "name": "Kick-Flight",
+    "title": "",
+    "sortOrder": 6010000,
+    "assetPath": "ui/badge/thumbnail_badges_6010000.unity3d",
+    "assetSha256": "efde34d37a57d7e2b59f7b80f3da87867876d02277375cd06eedf534a3bd5057",
+    "rule": null,
+    "status": "default",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41575574335041_77b8d132a0f2e2077472be11f26f557d.bundle",
+        "sha256": "efde34d37a57d7e2b59f7b80f3da87867876d02277375cd06eedf534a3bd5057"
+      },
+      {
+        "kind": "current_server_default",
+        "path": "src/KickFlight.BootstrapApi/DemoSessionApi.cs"
+      }
+    ]
+  },
+  {
+    "id": 6010001,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010001,
+    "assetPath": "ui/badge/thumbnail_badges_6010001.unity3d",
+    "assetSha256": "c2bf2dd712027f8405b2daa630d847d76d31c9acaf7ef63601bd36cc835f7843",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41354C59656F79_d1ae3bce17726e9b1d2ba865a5a87917.bundle",
+        "sha256": "c2bf2dd712027f8405b2daa630d847d76d31c9acaf7ef63601bd36cc835f7843"
+      }
+    ]
+  },
+  {
+    "id": 6010101,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010101,
+    "assetPath": "ui/badge/thumbnail_badges_6010101.unity3d",
+    "assetSha256": "2fa481ad041665ce95bb46ba18ed045160d1d90e847c06f7c7635b9280421f91",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/414134664D3162_6a12dfbbdbf54f4657c65517ec0ca8d2.bundle",
+        "sha256": "2fa481ad041665ce95bb46ba18ed045160d1d90e847c06f7c7635b9280421f91"
+      }
+    ]
+  },
+  {
+    "id": 6010102,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010102,
+    "assetPath": "ui/badge/thumbnail_badges_6010102.unity3d",
+    "assetSha256": "5af33d84ea289295ad5faafa12a4cbf5acfb576741adf31fdcacfc1189fe5e0a",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41306377315148_e0cc1a21f59c5fd1957d4b60c8ef8357.bundle",
+        "sha256": "5af33d84ea289295ad5faafa12a4cbf5acfb576741adf31fdcacfc1189fe5e0a"
+      }
+    ]
+  },
+  {
+    "id": 6010103,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010103,
+    "assetPath": "ui/badge/thumbnail_badges_6010103.unity3d",
+    "assetSha256": "87dacfbb0e2e094fda6291ac76c5b1cc21b5657901aaccf1f153ecaa9224e5af",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41544A73646C74_cb83d353d2e1d97bf496d999d2922721.bundle",
+        "sha256": "87dacfbb0e2e094fda6291ac76c5b1cc21b5657901aaccf1f153ecaa9224e5af"
+      }
+    ]
+  },
+  {
+    "id": 6010104,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010104,
+    "assetPath": "ui/badge/thumbnail_badges_6010104.unity3d",
+    "assetSha256": "73d2b918194b5311f3de956503a23e088353ae974d5a2ac2dbdf009ca1ca5cf9",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41473754316A52_793f1ece1f951982650bd6a33e11b83a.bundle",
+        "sha256": "73d2b918194b5311f3de956503a23e088353ae974d5a2ac2dbdf009ca1ca5cf9"
+      }
+    ]
+  },
+  {
+    "id": 6010105,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010105,
+    "assetPath": "ui/badge/thumbnail_badges_6010105.unity3d",
+    "assetSha256": "fa2e571a5e311a9c6cca1bbcb6a5f2292d7512e480c7dff5f409e65a1fc0b8bf",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4178667639304B_b74251816a700bead86aac867db1e643.bundle",
+        "sha256": "fa2e571a5e311a9c6cca1bbcb6a5f2292d7512e480c7dff5f409e65a1fc0b8bf"
+      }
+    ]
+  },
+  {
+    "id": 6010201,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010201,
+    "assetPath": "ui/badge/thumbnail_badges_6010201.unity3d",
+    "assetSha256": "f8f7dae112bbb7711385c895969ffff0aaa1135debb0e90b7869d52f7389fbd3",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/415430484C456D_c88cc95fbdab5f1aa25845d89634b24f.bundle",
+        "sha256": "f8f7dae112bbb7711385c895969ffff0aaa1135debb0e90b7869d52f7389fbd3"
+      }
+    ]
+  },
+  {
+    "id": 6010202,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010202,
+    "assetPath": "ui/badge/thumbnail_badges_6010202.unity3d",
+    "assetSha256": "adbdf686028ba2b65be440d3912832351b95e12be3171788a1542afbb83eaa39",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/416B476E655A70_565c30ff8f97e120abfea78e7117d9f1.bundle",
+        "sha256": "adbdf686028ba2b65be440d3912832351b95e12be3171788a1542afbb83eaa39"
+      }
+    ]
+  },
+  {
+    "id": 6010203,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010203,
+    "assetPath": "ui/badge/thumbnail_badges_6010203.unity3d",
+    "assetSha256": "025b67d4d479a53fe721bf98c622ede43a7656a181b1c215ca582645976fdf8b",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4144374F726A51_ac3c042eac79474635b5d912d53b6d99.bundle",
+        "sha256": "025b67d4d479a53fe721bf98c622ede43a7656a181b1c215ca582645976fdf8b"
+      }
+    ]
+  },
+  {
+    "id": 6010204,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010204,
+    "assetPath": "ui/badge/thumbnail_badges_6010204.unity3d",
+    "assetSha256": "75256e9cfa9c33ecbf23b4096ec8e270717279f0dad529d5aaf8b503c6e364e9",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41734D6F686744_5ba011a179451b1dda7ecdec170a5f2b.bundle",
+        "sha256": "75256e9cfa9c33ecbf23b4096ec8e270717279f0dad529d5aaf8b503c6e364e9"
+      }
+    ]
+  },
+  {
+    "id": 6010205,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010205,
+    "assetPath": "ui/badge/thumbnail_badges_6010205.unity3d",
+    "assetSha256": "f8e47de47417e9864ec8793e917904f1773e7b24186204547f7d31d2beb744d4",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41347846786938_ad266289b8789e543ad41580032cc941.bundle",
+        "sha256": "f8e47de47417e9864ec8793e917904f1773e7b24186204547f7d31d2beb744d4"
+      }
+    ]
+  },
+  {
+    "id": 6010301,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010301,
+    "assetPath": "ui/badge/thumbnail_badges_6010301.unity3d",
+    "assetSha256": "b1ff765fee72393c8ca4fb5dec565d7baef72636adeb2a6122a0ec944704526b",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/417A6144677A48_2f88ee5abf0d9ee699dce7f4efff0025.bundle",
+        "sha256": "b1ff765fee72393c8ca4fb5dec565d7baef72636adeb2a6122a0ec944704526b"
+      }
+    ]
+  },
+  {
+    "id": 6010302,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010302,
+    "assetPath": "ui/badge/thumbnail_badges_6010302.unity3d",
+    "assetSha256": "a2755e07fd5b985509c243733e0b1b22220021f74dec7ee80b165d71030f2407",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4173716F774371_c2729d47333356352635c7ff2e525d12.bundle",
+        "sha256": "a2755e07fd5b985509c243733e0b1b22220021f74dec7ee80b165d71030f2407"
+      }
+    ]
+  },
+  {
+    "id": 6010303,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010303,
+    "assetPath": "ui/badge/thumbnail_badges_6010303.unity3d",
+    "assetSha256": "631f483445fef635defbb9f6a4b3b558aa65cd075ea71fe7e83dbd511ab862c3",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/414D4C38467074_58fd7db613caaeb6cd8b3793b521aa08.bundle",
+        "sha256": "631f483445fef635defbb9f6a4b3b558aa65cd075ea71fe7e83dbd511ab862c3"
+      }
+    ]
+  },
+  {
+    "id": 6010304,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010304,
+    "assetPath": "ui/badge/thumbnail_badges_6010304.unity3d",
+    "assetSha256": "b8dd2cdc6986cd37792dc84d23c895913dec2cd7066cf89a03c27ac27725c34b",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41754658624970_4fb000ab56f5456fa890be86efa7b5e4.bundle",
+        "sha256": "b8dd2cdc6986cd37792dc84d23c895913dec2cd7066cf89a03c27ac27725c34b"
+      }
+    ]
+  },
+  {
+    "id": 6010305,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010305,
+    "assetPath": "ui/badge/thumbnail_badges_6010305.unity3d",
+    "assetSha256": "fe62d131cf2e414d281fe2fe478b48e5f186a924b021b6e05e6fb7f3d4a3124a",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/416B334B567876_69bbb552d167650a68c8c003c8b25d54.bundle",
+        "sha256": "fe62d131cf2e414d281fe2fe478b48e5f186a924b021b6e05e6fb7f3d4a3124a"
+      }
+    ]
+  },
+  {
+    "id": 6010306,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010306,
+    "assetPath": "ui/badge/thumbnail_badges_6010306.unity3d",
+    "assetSha256": "a6e872fac7e057d3e1b503b074050f4e78c08afe5bb06ef24154f389b067b6e6",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41383739395832_0da8b65a7277f02b18913cf4f62fee04.bundle",
+        "sha256": "a6e872fac7e057d3e1b503b074050f4e78c08afe5bb06ef24154f389b067b6e6"
+      }
+    ]
+  },
+  {
+    "id": 6010401,
+    "honorType": 1,
+    "name": "Scramble S",
+    "title": "",
+    "sortOrder": 6010401,
+    "assetPath": "ui/badge/thumbnail_badges_6010401.unity3d",
+    "assetSha256": "994772c4435bb914db43c97718ff44408316a0dc9ff8e166a1b1e5cfb294df33",
+    "rule": {
+      "type": "rank",
+      "metric": "scramble_rank",
+      "mode": "scramble",
+      "threshold": "S",
+      "secret": false
+    },
+    "status": "known",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41694747595453_0365402408c002467d6b1369635196cf.bundle",
+        "sha256": "994772c4435bb914db43c97718ff44408316a0dc9ff8e166a1b1e5cfb294df33"
+      },
+      {
+        "kind": "historical_guide",
+        "url": "https://www.rar-games.jp/entry/2020/02/19/133322"
+      },
+      {
+        "kind": "historical_guide",
+        "url": "https://cdn-ak.f.st-hatena.com/images/fotolife/r/rar_games/20200219/20200219133229.jpg"
+      }
+    ]
+  },
+  {
+    "id": 6010402,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010402,
+    "assetPath": "ui/badge/thumbnail_badges_6010402.unity3d",
+    "assetSha256": "b6385f06c2887d79598dfdd408363d0546715a974a5962486d130910d397206a",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41455438534E31_9b57a9c8b250ba720a195527b7edb767.bundle",
+        "sha256": "b6385f06c2887d79598dfdd408363d0546715a974a5962486d130910d397206a"
+      }
+    ]
+  },
+  {
+    "id": 6010501,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010501,
+    "assetPath": "ui/badge/thumbnail_badges_6010501.unity3d",
+    "assetSha256": "0cd8f590d86a296f6f9825e55e13c051ce3cc3995e1b710af6605df2543a7cee",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4156686A643171_912749643decba3fe1e44ed5d1a29bd0.bundle",
+        "sha256": "0cd8f590d86a296f6f9825e55e13c051ce3cc3995e1b710af6605df2543a7cee"
+      }
+    ]
+  },
+  {
+    "id": 6010502,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010502,
+    "assetPath": "ui/badge/thumbnail_badges_6010502.unity3d",
+    "assetSha256": "fe9f8df584ce9074482b52a1458a92b9275ac017d276ccf233d47416c32b6c6d",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41675868324832_576daa254a291eddb5619b7c48ad1d3d.bundle",
+        "sha256": "fe9f8df584ce9074482b52a1458a92b9275ac017d276ccf233d47416c32b6c6d"
+      }
+    ]
+  },
+  {
+    "id": 6010503,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010503,
+    "assetPath": "ui/badge/thumbnail_badges_6010503.unity3d",
+    "assetSha256": "d2ef45c16c319e06d228e3604bde140e4e0de66761b4d030f17ff3b0f297f16d",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41465366447477_fd7eb984e9018030a85bdaff149975a2.bundle",
+        "sha256": "d2ef45c16c319e06d228e3604bde140e4e0de66761b4d030f17ff3b0f297f16d"
+      }
+    ]
+  },
+  {
+    "id": 6010601,
+    "honorType": 1,
+    "name": "Crystal Collector",
+    "title": "",
+    "sortOrder": 6010601,
+    "assetPath": "ui/badge/thumbnail_badges_6010601.unity3d",
+    "assetSha256": "453fdc9cb12dda7cd64fcde6864dac215f915f5b25487ac765851599c17054de",
+    "rule": {
+      "type": "counter",
+      "metric": "crystals_collected",
+      "threshold": 1000,
+      "secret": true
+    },
+    "status": "known",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41666871445269_48064a33b9b5eb2485a35ad33e8eb621.bundle",
+        "sha256": "453fdc9cb12dda7cd64fcde6864dac215f915f5b25487ac765851599c17054de"
+      },
+      {
+        "kind": "historical_guide",
+        "url": "https://www.rar-games.jp/entry/2020/02/19/133322"
+      },
+      {
+        "kind": "historical_guide",
+        "url": "https://cdn-ak.f.st-hatena.com/images/fotolife/r/rar_games/20200219/20200219133247.jpg"
+      }
+    ]
+  },
+  {
+    "id": 6010602,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010602,
+    "assetPath": "ui/badge/thumbnail_badges_6010602.unity3d",
+    "assetSha256": "941e2b292a8502c8ab5be897a92791c223928b0649dfa38845600280bc536081",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41576736544949_d79014a8d6eb5f1ad02ad5788a5df2ad.bundle",
+        "sha256": "941e2b292a8502c8ab5be897a92791c223928b0649dfa38845600280bc536081"
+      }
+    ]
+  },
+  {
+    "id": 6010603,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010603,
+    "assetPath": "ui/badge/thumbnail_badges_6010603.unity3d",
+    "assetSha256": "4195d95010d6669c42397c5358da3fde92827cefadf6fa0a315a29765ae9d004",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41774D66683445_0f4965cd41087f50e27e450aca484a72.bundle",
+        "sha256": "4195d95010d6669c42397c5358da3fde92827cefadf6fa0a315a29765ae9d004"
+      }
+    ]
+  },
+  {
+    "id": 6010701,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010701,
+    "assetPath": "ui/badge/thumbnail_badges_6010701.unity3d",
+    "assetSha256": "8b4d02888bbc12f5eea3f04ca33699e255a4b7bf95b8b53572fa42ff9758393e",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/416E6A53697652_b84ed795bd4c610d3dee2854f9a9a1ba.bundle",
+        "sha256": "8b4d02888bbc12f5eea3f04ca33699e255a4b7bf95b8b53572fa42ff9758393e"
+      }
+    ]
+  },
+  {
+    "id": 6010801,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010801,
+    "assetPath": "ui/badge/thumbnail_badges_6010801.unity3d",
+    "assetSha256": "748485fa549564a9c0277da9284cc637d870efaed8e11921b35fdc0e633b6fcb",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41436370507038_9fdc0fd34d1fccb930226146ec25c334.bundle",
+        "sha256": "748485fa549564a9c0277da9284cc637d870efaed8e11921b35fdc0e633b6fcb"
+      }
+    ]
+  },
+  {
+    "id": 6010802,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010802,
+    "assetPath": "ui/badge/thumbnail_badges_6010802.unity3d",
+    "assetSha256": "baf1674a0340a574cbb0e3ebb1dcd426fd2f6cd1cc7b1f7f4a50c657759d93aa",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41346D4B4B3355_cb9334c76d28a88f7d5c5f4b5b47dc25.bundle",
+        "sha256": "baf1674a0340a574cbb0e3ebb1dcd426fd2f6cd1cc7b1f7f4a50c657759d93aa"
+      }
+    ]
+  },
+  {
+    "id": 6010803,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010803,
+    "assetPath": "ui/badge/thumbnail_badges_6010803.unity3d",
+    "assetSha256": "cbb7bd22267d374aa2ead66d60f81faf3ee7415b5686bd2caf65aff99d1c6248",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/416131776D5538_879cf0ce9c06102fd3696023c34e299e.bundle",
+        "sha256": "cbb7bd22267d374aa2ead66d60f81faf3ee7415b5686bd2caf65aff99d1c6248"
+      }
+    ]
+  },
+  {
+    "id": 6010901,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010901,
+    "assetPath": "ui/badge/thumbnail_badges_6010901.unity3d",
+    "assetSha256": "e0de72a3e24017a6c99acb701f8ac43ac9e5c23d871e7b5a3366d03d5f470a92",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/416A686D5A4D61_da84554ade1592c4078b0cd580d1e9e8.bundle",
+        "sha256": "e0de72a3e24017a6c99acb701f8ac43ac9e5c23d871e7b5a3366d03d5f470a92"
+      }
+    ]
+  },
+  {
+    "id": 6010902,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010902,
+    "assetPath": "ui/badge/thumbnail_badges_6010902.unity3d",
+    "assetSha256": "b891682beb09ed80220357ee59bdb8bef1f11b8193405f90c47060e86d251119",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41564C396C7233_7e79f268d4600b8a73bbbc97b16ef1dc.bundle",
+        "sha256": "b891682beb09ed80220357ee59bdb8bef1f11b8193405f90c47060e86d251119"
+      }
+    ]
+  },
+  {
+    "id": 6010903,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6010903,
+    "assetPath": "ui/badge/thumbnail_badges_6010903.unity3d",
+    "assetSha256": "1104d5d455c9bb9254e0e0527a8c56e80a171b7e2e1e7efe550dbd95edeb53ea",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/413938584D6576_e1bde5360e7837e8ad9e37697dbb7430.bundle",
+        "sha256": "1104d5d455c9bb9254e0e0527a8c56e80a171b7e2e1e7efe550dbd95edeb53ea"
+      }
+    ]
+  },
+  {
+    "id": 6011000,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011000,
+    "assetPath": "ui/badge/thumbnail_badges_6011000.unity3d",
+    "assetSha256": "5ec7814b6c040ca0b1c34ee0fb2bac8adfafe3713f8944422bd5a3d48ef8df81",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/416D41375A534F_0a15d589888d16a927511d891ebc09fb.bundle",
+        "sha256": "5ec7814b6c040ca0b1c34ee0fb2bac8adfafe3713f8944422bd5a3d48ef8df81"
+      }
+    ]
+  },
+  {
+    "id": 6011001,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011001,
+    "assetPath": "ui/badge/thumbnail_badges_6011001.unity3d",
+    "assetSha256": "da96e897e1b0fc794856f0ae7dc0a457a58bef5bd102d92b1cc72472e85df5cf",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41746941555750_7d26317e0ea1f43cdd414830bcd6e52c.bundle",
+        "sha256": "da96e897e1b0fc794856f0ae7dc0a457a58bef5bd102d92b1cc72472e85df5cf"
+      }
+    ]
+  },
+  {
+    "id": 6011002,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011002,
+    "assetPath": "ui/badge/thumbnail_badges_6011002.unity3d",
+    "assetSha256": "28a7bc8652fe3194f5a061b8a5cb5f0105ff141d5d4faed8a05a2b71babc1142",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/414D3143335967_fdb019d9954679528acc25038be840f7.bundle",
+        "sha256": "28a7bc8652fe3194f5a061b8a5cb5f0105ff141d5d4faed8a05a2b71babc1142"
+      }
+    ]
+  },
+  {
+    "id": 6011101,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011101,
+    "assetPath": "ui/badge/thumbnail_badges_6011101.unity3d",
+    "assetSha256": "68bd505a5b244678cd74f3b78db20bc6b9820c30161ba113c2e3ccbe2cb67f5c",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/416F3732434665_bbf22af7229f59fabc718389fb799a40.bundle",
+        "sha256": "68bd505a5b244678cd74f3b78db20bc6b9820c30161ba113c2e3ccbe2cb67f5c"
+      }
+    ]
+  },
+  {
+    "id": 6011201,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011201,
+    "assetPath": "ui/badge/thumbnail_badges_6011201.unity3d",
+    "assetSha256": "d0443378c472324e221f924dc177a77635abac5c5b861e85de098522294c0568",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4157446A356165_f895698ed8e17e0561cecba5702896ae.bundle",
+        "sha256": "d0443378c472324e221f924dc177a77635abac5c5b861e85de098522294c0568"
+      }
+    ]
+  },
+  {
+    "id": 6011202,
+    "honorType": 1,
+    "name": "Rapid Master",
+    "title": "",
+    "sortOrder": 6011202,
+    "assetPath": "ui/badge/thumbnail_badges_6011202.unity3d",
+    "assetSha256": "6e0eb1ebc872b22a6c8444394d1d402fe3f7de46ed63ecb1695572b963fe3b74",
+    "rule": {
+      "type": "winStreak",
+      "metric": "win_streak",
+      "mode": "rapid_ball",
+      "threshold": 5,
+      "secret": true
+    },
+    "status": "known",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/414D626B786854_0ee59fac01328cc176d59c825be7abcb.bundle",
+        "sha256": "6e0eb1ebc872b22a6c8444394d1d402fe3f7de46ed63ecb1695572b963fe3b74"
+      },
+      {
+        "kind": "historical_guide",
+        "url": "https://www.rar-games.jp/entry/2020/02/19/133322"
+      },
+      {
+        "kind": "historical_guide",
+        "url": "https://cdn-ak.f.st-hatena.com/images/fotolife/r/rar_games/20200226/20200226145052.jpg"
+      }
+    ]
+  },
+  {
+    "id": 6011203,
+    "honorType": 1,
+    "name": "Rapid Conqueror",
+    "title": "",
+    "sortOrder": 6011203,
+    "assetPath": "ui/badge/thumbnail_badges_6011203.unity3d",
+    "assetSha256": "6a031c3da4cb64cfa588422aeffa03bc96e2041d0f2a81363f3d1530e68632a4",
+    "rule": {
+      "type": "winStreak",
+      "metric": "win_streak",
+      "mode": "rapid_ball",
+      "threshold": 10,
+      "secret": true
+    },
+    "status": "known",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41594F56683044_8f0dabc69e88d36cf41b1f31f6d1e989.bundle",
+        "sha256": "6a031c3da4cb64cfa588422aeffa03bc96e2041d0f2a81363f3d1530e68632a4"
+      },
+      {
+        "kind": "historical_guide",
+        "url": "https://www.rar-games.jp/entry/2020/02/19/133322"
+      },
+      {
+        "kind": "historical_guide",
+        "url": "https://cdn-ak.f.st-hatena.com/images/fotolife/r/rar_games/20200219/20200219132449.jpg"
+      }
+    ]
+  },
+  {
+    "id": 6011301,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011301,
+    "assetPath": "ui/badge/thumbnail_badges_6011301.unity3d",
+    "assetSha256": "c78f45a5113ae77e2921f2d7c11b99a4691c84d1acc9e4b93fb29df2d1810145",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/415A6F7979485A_13c24abdce4111f46f472f8ae0962edf.bundle",
+        "sha256": "c78f45a5113ae77e2921f2d7c11b99a4691c84d1acc9e4b93fb29df2d1810145"
+      }
+    ]
+  },
+  {
+    "id": 6011302,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011302,
+    "assetPath": "ui/badge/thumbnail_badges_6011302.unity3d",
+    "assetSha256": "16638ed3d11937dea4728f19c48c7ff242ea3d42f53f49c21b542f533f1431dd",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/415A3149704B61_5bb1aaf9eb15fd44f1532e152d381501.bundle",
+        "sha256": "16638ed3d11937dea4728f19c48c7ff242ea3d42f53f49c21b542f533f1431dd"
+      }
+    ]
+  },
+  {
+    "id": 6011303,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011303,
+    "assetPath": "ui/badge/thumbnail_badges_6011303.unity3d",
+    "assetSha256": "64bb79e1245e783c57ecca846b78eaa3cc8d3864e4dba35b9c9005ca2bc0150b",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4166393036677A_7ed1a7d6157d03653d80157b652a43ac.bundle",
+        "sha256": "64bb79e1245e783c57ecca846b78eaa3cc8d3864e4dba35b9c9005ca2bc0150b"
+      }
+    ]
+  },
+  {
+    "id": 6011401,
+    "honorType": 1,
+    "name": "Shadow MVP",
+    "title": "",
+    "sortOrder": 6011401,
+    "assetPath": "ui/badge/thumbnail_badges_6011401.unity3d",
+    "assetSha256": "1c47ffccda6ea961131038fe07b159d0f3bf13efce64b8be63dff85be8d89cd7",
+    "rule": {
+      "type": "counter",
+      "metric": "likes_received",
+      "threshold": 10,
+      "secret": false
+    },
+    "status": "known",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/417A557330346E_4de9ceee0a7d5c3435324ff9f3cdeda3.bundle",
+        "sha256": "1c47ffccda6ea961131038fe07b159d0f3bf13efce64b8be63dff85be8d89cd7"
+      },
+      {
+        "kind": "historical_guide",
+        "url": "https://www.rar-games.jp/entry/2020/02/19/133322"
+      },
+      {
+        "kind": "historical_guide",
+        "url": "https://cdn-ak.f.st-hatena.com/images/fotolife/r/rar_games/20200226/20200226145309.jpg"
+      }
+    ]
+  },
+  {
+    "id": 6011402,
+    "honorType": 1,
+    "name": "Underpinning Support",
+    "title": "",
+    "sortOrder": 6011402,
+    "assetPath": "ui/badge/thumbnail_badges_6011402.unity3d",
+    "assetSha256": "d87f9c1c5eb5ebb4b806f731efa52c3f392c1f20a9d6a88bde074fa25404713e",
+    "rule": {
+      "type": "counter",
+      "metric": "likes_received",
+      "threshold": 100,
+      "secret": true
+    },
+    "status": "known",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/415A5A334F6D73_49387b5c86708ee9a68b44d9fad84bb9.bundle",
+        "sha256": "d87f9c1c5eb5ebb4b806f731efa52c3f392c1f20a9d6a88bde074fa25404713e"
+      },
+      {
+        "kind": "historical_guide",
+        "url": "https://www.rar-games.jp/entry/2020/02/19/133322"
+      },
+      {
+        "kind": "historical_guide",
+        "url": "https://cdn-ak.f.st-hatena.com/images/fotolife/r/rar_games/20200226/20200226145122.jpg"
+      }
+    ]
+  },
+  {
+    "id": 6011403,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011403,
+    "assetPath": "ui/badge/thumbnail_badges_6011403.unity3d",
+    "assetSha256": "db8fd53f1d66a18805a9f75c10ec7cc8f616f65330f328a7b127ce57a2a89758",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4177546345364D_293df9d6f07b618455e2c89469e40989.bundle",
+        "sha256": "db8fd53f1d66a18805a9f75c10ec7cc8f616f65330f328a7b127ce57a2a89758"
+      }
+    ]
+  },
+  {
+    "id": 6011501,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011501,
+    "assetPath": "ui/badge/thumbnail_badges_6011501.unity3d",
+    "assetSha256": "818968225aa888b52f025ac737392e2359f4e5e0fede3ebcbd34ed1168a85d45",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4141354B474373_4af47c9e77a757d1493c1d9100bedc4f.bundle",
+        "sha256": "818968225aa888b52f025ac737392e2359f4e5e0fede3ebcbd34ed1168a85d45"
+      }
+    ]
+  },
+  {
+    "id": 6011502,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011502,
+    "assetPath": "ui/badge/thumbnail_badges_6011502.unity3d",
+    "assetSha256": "f63edf56b41fd0c1f470f359e601337e5c85338e65a17b939b5e6d0a1e964764",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41746D7538314A_cd8e0b0aaf234859ca5ee4ebd4c09cc0.bundle",
+        "sha256": "f63edf56b41fd0c1f470f359e601337e5c85338e65a17b939b5e6d0a1e964764"
+      }
+    ]
+  },
+  {
+    "id": 6011503,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011503,
+    "assetPath": "ui/badge/thumbnail_badges_6011503.unity3d",
+    "assetSha256": "d2aed634fcebed5b34456b7153f26bd41d7642e64ab47acc80558e1853ccdc9d",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41416676387358_dd2bc46e2eb44411911aa04a72b126f4.bundle",
+        "sha256": "d2aed634fcebed5b34456b7153f26bd41d7642e64ab47acc80558e1853ccdc9d"
+      }
+    ]
+  },
+  {
+    "id": 6011504,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011504,
+    "assetPath": "ui/badge/thumbnail_badges_6011504.unity3d",
+    "assetSha256": "d2080dea6c7399117a6f643e5a03ca3da99a65cdb1896fa2e67864879b690a43",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4178546D75724B_89afc4c312f569ae9829000c4881d90d.bundle",
+        "sha256": "d2080dea6c7399117a6f643e5a03ca3da99a65cdb1896fa2e67864879b690a43"
+      }
+    ]
+  },
+  {
+    "id": 6011505,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011505,
+    "assetPath": "ui/badge/thumbnail_badges_6011505.unity3d",
+    "assetSha256": "e4e2c8bbd4ddfb7d6400a75abefb633846869ce703d25645bc8da7d701575185",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/416D74694C5A42_020a0b125c895e856522e53571d8f23d.bundle",
+        "sha256": "e4e2c8bbd4ddfb7d6400a75abefb633846869ce703d25645bc8da7d701575185"
+      }
+    ]
+  },
+  {
+    "id": 6011601,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011601,
+    "assetPath": "ui/badge/thumbnail_badges_6011601.unity3d",
+    "assetSha256": "40992b86abcb87dd6d0b32d496150994e69ce47d6a903738a77fbc810e26777d",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41585A4C51307A_6cf739970577ebf8a0541b2cc158f3ee.bundle",
+        "sha256": "40992b86abcb87dd6d0b32d496150994e69ce47d6a903738a77fbc810e26777d"
+      }
+    ]
+  },
+  {
+    "id": 6011602,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011602,
+    "assetPath": "ui/badge/thumbnail_badges_6011602.unity3d",
+    "assetSha256": "25471d4e449758fcf7eafffb45dd1e5cbd175625210693329388624d6eb8528b",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/414A565843674E_2de123d28a23929c1df8886d45574313.bundle",
+        "sha256": "25471d4e449758fcf7eafffb45dd1e5cbd175625210693329388624d6eb8528b"
+      }
+    ]
+  },
+  {
+    "id": 6011603,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011603,
+    "assetPath": "ui/badge/thumbnail_badges_6011603.unity3d",
+    "assetSha256": "498ac569333a8145507ed33c57771013b9400f19f2c61b5ed90c3d09349d1a8a",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4148705A6B384F_512da9f5ba3ad8f6470b5101b70243e7.bundle",
+        "sha256": "498ac569333a8145507ed33c57771013b9400f19f2c61b5ed90c3d09349d1a8a"
+      }
+    ]
+  },
+  {
+    "id": 6011604,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011604,
+    "assetPath": "ui/badge/thumbnail_badges_6011604.unity3d",
+    "assetSha256": "0ffc68ad8137cde01b37f8f5a0ddfb5c8a6d978023bc18afd0c6de338e514194",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41346F50574261_76c8c2f88dea631e0fa6aab1dfa73c06.bundle",
+        "sha256": "0ffc68ad8137cde01b37f8f5a0ddfb5c8a6d978023bc18afd0c6de338e514194"
+      }
+    ]
+  },
+  {
+    "id": 6011605,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011605,
+    "assetPath": "ui/badge/thumbnail_badges_6011605.unity3d",
+    "assetSha256": "4b1453ef1c53d79b412890156e82e1dd81afa4e10da48f6a2de7eca712bea7a5",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4167394C706345_267792de93e4302fdbd157634d8a8109.bundle",
+        "sha256": "4b1453ef1c53d79b412890156e82e1dd81afa4e10da48f6a2de7eca712bea7a5"
+      }
+    ]
+  },
+  {
+    "id": 6011701,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011701,
+    "assetPath": "ui/badge/thumbnail_badges_6011701.unity3d",
+    "assetSha256": "1308191604d08cbbee583e5f318596dd29a2a85eb6eb5c271d3deffca124a116",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41424432664865_7d3232f14d7f6ad639bd8f1f7ac5b516.bundle",
+        "sha256": "1308191604d08cbbee583e5f318596dd29a2a85eb6eb5c271d3deffca124a116"
+      }
+    ]
+  },
+  {
+    "id": 6011702,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011702,
+    "assetPath": "ui/badge/thumbnail_badges_6011702.unity3d",
+    "assetSha256": "9a40a60a27fb26d818ec7025cc17f65f716ce579c11048d07534be3a561bcb63",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4171717637514D_0f7319cb674f190e7aeb8702abf1ea68.bundle",
+        "sha256": "9a40a60a27fb26d818ec7025cc17f65f716ce579c11048d07534be3a561bcb63"
+      }
+    ]
+  },
+  {
+    "id": 6011703,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011703,
+    "assetPath": "ui/badge/thumbnail_badges_6011703.unity3d",
+    "assetSha256": "365bffd72b1b0ea82cc33d489d876aefd9c99e2825ce612bffaaf6e55992c163",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41337872595459_5b748175c335b0f0c90bce099466c431.bundle",
+        "sha256": "365bffd72b1b0ea82cc33d489d876aefd9c99e2825ce612bffaaf6e55992c163"
+      }
+    ]
+  },
+  {
+    "id": 6011704,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011704,
+    "assetPath": "ui/badge/thumbnail_badges_6011704.unity3d",
+    "assetSha256": "35a4bbeca6f759f3c4d846c4d964c653f8043d761fa46c5543e2d0e6be99e1ac",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41626B764F394B_9bccc34c33580be49645a92fc2ca1987.bundle",
+        "sha256": "35a4bbeca6f759f3c4d846c4d964c653f8043d761fa46c5543e2d0e6be99e1ac"
+      }
+    ]
+  },
+  {
+    "id": 6011705,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011705,
+    "assetPath": "ui/badge/thumbnail_badges_6011705.unity3d",
+    "assetSha256": "2c5e6531cb914762d59a8d7ee7010b7a00bc2ac76f3a219bfd609800a12eccc1",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41645472374C38_4916ef78f750462775d1f37afff51466.bundle",
+        "sha256": "2c5e6531cb914762d59a8d7ee7010b7a00bc2ac76f3a219bfd609800a12eccc1"
+      }
+    ]
+  },
+  {
+    "id": 6011801,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011801,
+    "assetPath": "ui/badge/thumbnail_badges_6011801.unity3d",
+    "assetSha256": "bc1f887e35640ff3b75771ad51b825e5810067edebb7959905b0b7c4e262430c",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41526F49767168_4292b3fa09ffc1ed53a42e60d68f51d0.bundle",
+        "sha256": "bc1f887e35640ff3b75771ad51b825e5810067edebb7959905b0b7c4e262430c"
+      }
+    ]
+  },
+  {
+    "id": 6011802,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011802,
+    "assetPath": "ui/badge/thumbnail_badges_6011802.unity3d",
+    "assetSha256": "d62748555817097ed225233abc6a838c4b0244fe0d094dbd32acb543f196d4de",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4131417A767946_dfd0a29194aa660b524fead96c354f1e.bundle",
+        "sha256": "d62748555817097ed225233abc6a838c4b0244fe0d094dbd32acb543f196d4de"
+      }
+    ]
+  },
+  {
+    "id": 6011803,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011803,
+    "assetPath": "ui/badge/thumbnail_badges_6011803.unity3d",
+    "assetSha256": "e3c837d1ab20eef8becd97d4953dfeeff65dbcb0095dc47c0f843305c138f10c",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/417850424E4D52_33cd6ec0e800d0f55863d14f17b403ee.bundle",
+        "sha256": "e3c837d1ab20eef8becd97d4953dfeeff65dbcb0095dc47c0f843305c138f10c"
+      }
+    ]
+  },
+  {
+    "id": 6011804,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011804,
+    "assetPath": "ui/badge/thumbnail_badges_6011804.unity3d",
+    "assetSha256": "5e8a2a790c3e604da5e8ff9598eb2b1082ee751ff3e951b12ad4bba42386ace9",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41663243416131_73e38e60e8c2813757fb31cab081100e.bundle",
+        "sha256": "5e8a2a790c3e604da5e8ff9598eb2b1082ee751ff3e951b12ad4bba42386ace9"
+      }
+    ]
+  },
+  {
+    "id": 6011805,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011805,
+    "assetPath": "ui/badge/thumbnail_badges_6011805.unity3d",
+    "assetSha256": "ca66a4bc4937ead92b5b4b30f09d37e143e6b7b2946a7e33f60679667f9bc26b",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4133574C775073_c7c5bdabb3c5aabcaf4909c587187845.bundle",
+        "sha256": "ca66a4bc4937ead92b5b4b30f09d37e143e6b7b2946a7e33f60679667f9bc26b"
+      }
+    ]
+  },
+  {
+    "id": 6011901,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011901,
+    "assetPath": "ui/badge/thumbnail_badges_6011901.unity3d",
+    "assetSha256": "f684fd0a05e069195f5c620830717afb4836d749010e605d5a11fe46dc617a55",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/414841326B4B32_e727dc64e04e50fe312aa4daf1260e46.bundle",
+        "sha256": "f684fd0a05e069195f5c620830717afb4836d749010e605d5a11fe46dc617a55"
+      }
+    ]
+  },
+  {
+    "id": 6011902,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011902,
+    "assetPath": "ui/badge/thumbnail_badges_6011902.unity3d",
+    "assetSha256": "abbefcbfe7adba798e87a6be6ed6c1c812db6c5f8c2b996e10115640d2d545e5",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/415A525A556856_2d5c7dc03d6608899f362bbcf3b9ae11.bundle",
+        "sha256": "abbefcbfe7adba798e87a6be6ed6c1c812db6c5f8c2b996e10115640d2d545e5"
+      }
+    ]
+  },
+  {
+    "id": 6011903,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011903,
+    "assetPath": "ui/badge/thumbnail_badges_6011903.unity3d",
+    "assetSha256": "243740fa5b6d60569a6c8249c08eef93c638d76c8afc20dc5aad4d6c5a734ec1",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/414C477A736B6F_22992d5d476a049bc51472c43350e4c4.bundle",
+        "sha256": "243740fa5b6d60569a6c8249c08eef93c638d76c8afc20dc5aad4d6c5a734ec1"
+      }
+    ]
+  },
+  {
+    "id": 6011904,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011904,
+    "assetPath": "ui/badge/thumbnail_badges_6011904.unity3d",
+    "assetSha256": "a3ce95f607db98de31d21f6f277594a77da0e27473874f728688962687b1ca37",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4138684D714A41_cd5934e75e50f47a99bed3835de435ac.bundle",
+        "sha256": "a3ce95f607db98de31d21f6f277594a77da0e27473874f728688962687b1ca37"
+      }
+    ]
+  },
+  {
+    "id": 6011905,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6011905,
+    "assetPath": "ui/badge/thumbnail_badges_6011905.unity3d",
+    "assetSha256": "ffc1cf8e4ce8f2bb00a699655698767dd321d50313b393e79e6cc317e01efc52",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41566E70576538_1d20ebd693cf94376caba72ffd738702.bundle",
+        "sha256": "ffc1cf8e4ce8f2bb00a699655698767dd321d50313b393e79e6cc317e01efc52"
+      }
+    ]
+  },
+  {
+    "id": 6012000,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012000,
+    "assetPath": "ui/badge/thumbnail_badges_6012000.unity3d",
+    "assetSha256": "ea0d246a8877470bd4a60be9cef2f7e225a806fb6a529efa240222e953bd1cdc",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/416F6E3052637A_d13f6efa22840d9deb0bb9c762832b28.bundle",
+        "sha256": "ea0d246a8877470bd4a60be9cef2f7e225a806fb6a529efa240222e953bd1cdc"
+      }
+    ]
+  },
+  {
+    "id": 6012001,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012001,
+    "assetPath": "ui/badge/thumbnail_badges_6012001.unity3d",
+    "assetSha256": "8bd4070938354639bba4175e05beba3b5de472fd5de10a7020277c7d1f867088",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4134366E54446E_fceb803621783f49d18db70968ca55a9.bundle",
+        "sha256": "8bd4070938354639bba4175e05beba3b5de472fd5de10a7020277c7d1f867088"
+      }
+    ]
+  },
+  {
+    "id": 6012002,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012002,
+    "assetPath": "ui/badge/thumbnail_badges_6012002.unity3d",
+    "assetSha256": "04383471f1525a6a59d1c0ee840793364b8dfaf92b6c2f735e21e42c29a32355",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/413849584A7442_4e7be9a49ae28487bc29b0a4752b0fd9.bundle",
+        "sha256": "04383471f1525a6a59d1c0ee840793364b8dfaf92b6c2f735e21e42c29a32355"
+      }
+    ]
+  },
+  {
+    "id": 6012101,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012101,
+    "assetPath": "ui/badge/thumbnail_badges_6012101.unity3d",
+    "assetSha256": "72c97206ed8b4e9030ba6cad13ece8a5465bd37d8d027ff1f1d88028207a887b",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41774E4C4A766D_e60592be67bdb47284f4a21f22440eff.bundle",
+        "sha256": "72c97206ed8b4e9030ba6cad13ece8a5465bd37d8d027ff1f1d88028207a887b"
+      }
+    ]
+  },
+  {
+    "id": 6012102,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012102,
+    "assetPath": "ui/badge/thumbnail_badges_6012102.unity3d",
+    "assetSha256": "4633b7dfae9fef98f5622ae8b3d446d8f4cfc30e8e6805b2fb39e842e53c6276",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/416C3671304451_42b3d3263736273276b24960cd48fc25.bundle",
+        "sha256": "4633b7dfae9fef98f5622ae8b3d446d8f4cfc30e8e6805b2fb39e842e53c6276"
+      }
+    ]
+  },
+  {
+    "id": 6012103,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012103,
+    "assetPath": "ui/badge/thumbnail_badges_6012103.unity3d",
+    "assetSha256": "68f8cf9f52377c385f08595ea2a05152bb43348ee25fe42e83ba85acb9adc4ef",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41465A374C315A_743e5994a06abf87191de8330ddcf23d.bundle",
+        "sha256": "68f8cf9f52377c385f08595ea2a05152bb43348ee25fe42e83ba85acb9adc4ef"
+      }
+    ]
+  },
+  {
+    "id": 6012104,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012104,
+    "assetPath": "ui/badge/thumbnail_badges_6012104.unity3d",
+    "assetSha256": "3eca3c478043412f3e5a46c3eecb3899c6a373d657edd8ba7f5ecdd7541592b5",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41494E67514E36_699a3537b6a7f2d8e39c9a2b1cf133ed.bundle",
+        "sha256": "3eca3c478043412f3e5a46c3eecb3899c6a373d657edd8ba7f5ecdd7541592b5"
+      }
+    ]
+  },
+  {
+    "id": 6012105,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012105,
+    "assetPath": "ui/badge/thumbnail_badges_6012105.unity3d",
+    "assetSha256": "917a1a5f045285d7c73a3eed438a98ae4930f93685cb51ecfa44a9c75e8692f6",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41433255343458_ef105a9264f35dcdba4b58d8553acd20.bundle",
+        "sha256": "917a1a5f045285d7c73a3eed438a98ae4930f93685cb51ecfa44a9c75e8692f6"
+      }
+    ]
+  },
+  {
+    "id": 6012201,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012201,
+    "assetPath": "ui/badge/thumbnail_badges_6012201.unity3d",
+    "assetSha256": "5a362aef9964eef1088a8072d812174a8b802b23dc8c49fd85995d139c30b38d",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4152725759536B_9de1ea2de1882c6b5c8c077940ac3cbc.bundle",
+        "sha256": "5a362aef9964eef1088a8072d812174a8b802b23dc8c49fd85995d139c30b38d"
+      }
+    ]
+  },
+  {
+    "id": 6012202,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012202,
+    "assetPath": "ui/badge/thumbnail_badges_6012202.unity3d",
+    "assetSha256": "0da3bab26cc1366e02c63e2694905b2b00c4e47930b0dd2f781a2a98b02d5935",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41465655457839_3dd0560463b2e53d8de5f8114cc2fa27.bundle",
+        "sha256": "0da3bab26cc1366e02c63e2694905b2b00c4e47930b0dd2f781a2a98b02d5935"
+      }
+    ]
+  },
+  {
+    "id": 6012203,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012203,
+    "assetPath": "ui/badge/thumbnail_badges_6012203.unity3d",
+    "assetSha256": "eb0ce08ffdee310d2aba014215ae97aa7dcb336fe0d812cd945db2643a847422",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/416A6F36496673_2093a29d8b1c460284898241caca43ab.bundle",
+        "sha256": "eb0ce08ffdee310d2aba014215ae97aa7dcb336fe0d812cd945db2643a847422"
+      }
+    ]
+  },
+  {
+    "id": 6012204,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012204,
+    "assetPath": "ui/badge/thumbnail_badges_6012204.unity3d",
+    "assetSha256": "8948ff1fa8f33c6efa0d0ac5ace60e7fa9d69ba191ef6f8f04ff501ded9555be",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41585042733567_0942c6e2da444e48712681dc37198747.bundle",
+        "sha256": "8948ff1fa8f33c6efa0d0ac5ace60e7fa9d69ba191ef6f8f04ff501ded9555be"
+      }
+    ]
+  },
+  {
+    "id": 6012205,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012205,
+    "assetPath": "ui/badge/thumbnail_badges_6012205.unity3d",
+    "assetSha256": "b33782dfc67598f81cf528b6c13dc766a7a0562b756ef18eefde21d67c09eae3",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4174594F76364B_5fea309148be5260b116bc40e0419ae5.bundle",
+        "sha256": "b33782dfc67598f81cf528b6c13dc766a7a0562b756ef18eefde21d67c09eae3"
+      }
+    ]
+  },
+  {
+    "id": 6012301,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012301,
+    "assetPath": "ui/badge/thumbnail_badges_6012301.unity3d",
+    "assetSha256": "22faa6b1b872253fede4c9ee7894337bfb4db7e7662fd088809cf51935686dfe",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/416B587A736947_f42075492396ad2ebeab9fee84e60285.bundle",
+        "sha256": "22faa6b1b872253fede4c9ee7894337bfb4db7e7662fd088809cf51935686dfe"
+      }
+    ]
+  },
+  {
+    "id": 6012302,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012302,
+    "assetPath": "ui/badge/thumbnail_badges_6012302.unity3d",
+    "assetSha256": "1197be570639f2d59c9b0ca2e87e5e9c03d988b3580a5f0e819a93d6c715fa91",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41644464633768_93007c4bd545513f44160cbfa89459eb.bundle",
+        "sha256": "1197be570639f2d59c9b0ca2e87e5e9c03d988b3580a5f0e819a93d6c715fa91"
+      }
+    ]
+  },
+  {
+    "id": 6012303,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012303,
+    "assetPath": "ui/badge/thumbnail_badges_6012303.unity3d",
+    "assetSha256": "760f4e66f78a3a19403d46419392f1963273df81e7ae2285cb6a64a55da2e4cd",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41475153485A79_9860c679e2f4d8c466e39f1e2c6ff6fd.bundle",
+        "sha256": "760f4e66f78a3a19403d46419392f1963273df81e7ae2285cb6a64a55da2e4cd"
+      }
+    ]
+  },
+  {
+    "id": 6012304,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012304,
+    "assetPath": "ui/badge/thumbnail_badges_6012304.unity3d",
+    "assetSha256": "84f7f60d4df114df84500a2cbfeeda99ae4249ac8d76c8e28a8f691c48a3f5b7",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41347A6755634D_7bae1abf36df9aee2d4df2a193dbf082.bundle",
+        "sha256": "84f7f60d4df114df84500a2cbfeeda99ae4249ac8d76c8e28a8f691c48a3f5b7"
+      }
+    ]
+  },
+  {
+    "id": 6012305,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012305,
+    "assetPath": "ui/badge/thumbnail_badges_6012305.unity3d",
+    "assetSha256": "4216124d171cb15c793aab60b901ce7539499acb39d0d9a0026a4e9f0ec0f964",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41774F34793639_6177aa4064fffc94f21d926946105016.bundle",
+        "sha256": "4216124d171cb15c793aab60b901ce7539499acb39d0d9a0026a4e9f0ec0f964"
+      }
+    ]
+  },
+  {
+    "id": 6012401,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012401,
+    "assetPath": "ui/badge/thumbnail_badges_6012401.unity3d",
+    "assetSha256": "3168c6244af7490ba798eeafa170c6d294a02f348ea0538718ff7b7a4847b8e0",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41643941503870_f7b64179f284a58f5303550b416dcd2a.bundle",
+        "sha256": "3168c6244af7490ba798eeafa170c6d294a02f348ea0538718ff7b7a4847b8e0"
+      }
+    ]
+  },
+  {
+    "id": 6012402,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012402,
+    "assetPath": "ui/badge/thumbnail_badges_6012402.unity3d",
+    "assetSha256": "6d6110ad4c242344e1761c9dd21f848897aeb2c1cf8252711b9fc7aa3ff1a47a",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41334434325262_76e72c437f3f4c38b0fd30a1c5e89d5d.bundle",
+        "sha256": "6d6110ad4c242344e1761c9dd21f848897aeb2c1cf8252711b9fc7aa3ff1a47a"
+      }
+    ]
+  },
+  {
+    "id": 6012403,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012403,
+    "assetPath": "ui/badge/thumbnail_badges_6012403.unity3d",
+    "assetSha256": "9b75009c2c37ec7c5cf6e0bdb45c4c11a45caafeb6182a91e3e92613b58c45f4",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/414D4C39504648_291f6118ba33431428176152ac3c60cb.bundle",
+        "sha256": "9b75009c2c37ec7c5cf6e0bdb45c4c11a45caafeb6182a91e3e92613b58c45f4"
+      }
+    ]
+  },
+  {
+    "id": 6012404,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012404,
+    "assetPath": "ui/badge/thumbnail_badges_6012404.unity3d",
+    "assetSha256": "075df10523f8e67cd0eb2c7dd2cb324e70b47b74472ab4f4582792d4a627ebd8",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4131426E716A56_96f4c8539e575b7219fa0128d5e809ab.bundle",
+        "sha256": "075df10523f8e67cd0eb2c7dd2cb324e70b47b74472ab4f4582792d4a627ebd8"
+      }
+    ]
+  },
+  {
+    "id": 6012405,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012405,
+    "assetPath": "ui/badge/thumbnail_badges_6012405.unity3d",
+    "assetSha256": "d588a831b5117eab414371c25ce40979afda3b0cf8bccc5d52a91187b6bb65b3",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41314375544A59_63603b6f4f7e301dbb79bb8049fcffde.bundle",
+        "sha256": "d588a831b5117eab414371c25ce40979afda3b0cf8bccc5d52a91187b6bb65b3"
+      }
+    ]
+  },
+  {
+    "id": 6012501,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012501,
+    "assetPath": "ui/badge/thumbnail_badges_6012501.unity3d",
+    "assetSha256": "a040c5edb5c5820c2597fd27ace28303cc1c55413b5c585885f541223c3f1fd4",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/417563716D4771_c70b5ee7068cd9dea4d963c0de6985b1.bundle",
+        "sha256": "a040c5edb5c5820c2597fd27ace28303cc1c55413b5c585885f541223c3f1fd4"
+      }
+    ]
+  },
+  {
+    "id": 6012502,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012502,
+    "assetPath": "ui/badge/thumbnail_badges_6012502.unity3d",
+    "assetSha256": "e8d5695ea74d3f9d8de0f980c647f25df40a8043e8577e4b34e86dcfb3aad55a",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/413674686D4436_56e32076e61d895a0d43b4bbe528af4f.bundle",
+        "sha256": "e8d5695ea74d3f9d8de0f980c647f25df40a8043e8577e4b34e86dcfb3aad55a"
+      }
+    ]
+  },
+  {
+    "id": 6012503,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012503,
+    "assetPath": "ui/badge/thumbnail_badges_6012503.unity3d",
+    "assetSha256": "b00b63f4a3e31e1e6b478f397551925136f8aa7b139056449c9e6cb8b5e02ab0",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4168383759665A_8d993ff0c3fe236642e0a39afac2841b.bundle",
+        "sha256": "b00b63f4a3e31e1e6b478f397551925136f8aa7b139056449c9e6cb8b5e02ab0"
+      }
+    ]
+  },
+  {
+    "id": 6012504,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012504,
+    "assetPath": "ui/badge/thumbnail_badges_6012504.unity3d",
+    "assetSha256": "c9ca76695c9320d6e8235c95da58420cc85b62001321798f2c82ae159f455f0b",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/415179784A6470_1bf24582d3817d6cbee027048ba0b22b.bundle",
+        "sha256": "c9ca76695c9320d6e8235c95da58420cc85b62001321798f2c82ae159f455f0b"
+      }
+    ]
+  },
+  {
+    "id": 6012505,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012505,
+    "assetPath": "ui/badge/thumbnail_badges_6012505.unity3d",
+    "assetSha256": "ee2eda6607cfaec1a4bfa1af9c642011e96f2a1a28ea5882c49f2054817b946c",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41484876317176_975e0bba481df06d045590bcdfbd4150.bundle",
+        "sha256": "ee2eda6607cfaec1a4bfa1af9c642011e96f2a1a28ea5882c49f2054817b946c"
+      }
+    ]
+  },
+  {
+    "id": 6012601,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012601,
+    "assetPath": "ui/badge/thumbnail_badges_6012601.unity3d",
+    "assetSha256": "173ba476920fe85d84c3003f790422bd1ef97ec0c027c6ea78b7912225320485",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41754369353338_ca7967506e3e923b113e071aed639e69.bundle",
+        "sha256": "173ba476920fe85d84c3003f790422bd1ef97ec0c027c6ea78b7912225320485"
+      }
+    ]
+  },
+  {
+    "id": 6012602,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012602,
+    "assetPath": "ui/badge/thumbnail_badges_6012602.unity3d",
+    "assetSha256": "85c84eb564cbf726d091c004e71f926076e988174455eb8f73ef98e246a000ca",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4144336E68504A_fe192e199308ece4582017616e5e2c59.bundle",
+        "sha256": "85c84eb564cbf726d091c004e71f926076e988174455eb8f73ef98e246a000ca"
+      }
+    ]
+  },
+  {
+    "id": 6012603,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012603,
+    "assetPath": "ui/badge/thumbnail_badges_6012603.unity3d",
+    "assetSha256": "9115e53486450eea21f731ee14b8c48e8ad9cc512dd2e6d0a0c9bb2fe94fabb6",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41766467477337_62aa1891342ea087cc4f66ffe118c0db.bundle",
+        "sha256": "9115e53486450eea21f731ee14b8c48e8ad9cc512dd2e6d0a0c9bb2fe94fabb6"
+      }
+    ]
+  },
+  {
+    "id": 6012604,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012604,
+    "assetPath": "ui/badge/thumbnail_badges_6012604.unity3d",
+    "assetSha256": "5351c8e70d1ed9e3edaa10484d99727f2382ded49b4eb24ac967c66a54af73e3",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41673945454433_091836c0d83e6a60e8e988c87338500a.bundle",
+        "sha256": "5351c8e70d1ed9e3edaa10484d99727f2382ded49b4eb24ac967c66a54af73e3"
+      }
+    ]
+  },
+  {
+    "id": 6012605,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012605,
+    "assetPath": "ui/badge/thumbnail_badges_6012605.unity3d",
+    "assetSha256": "d017f38dee49d0666b90d372db928ec1e2df169c0ef750a085b9b1a4d0be5a23",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/416D71704F5567_62b74736e736798df1ab04e4995ebf18.bundle",
+        "sha256": "d017f38dee49d0666b90d372db928ec1e2df169c0ef750a085b9b1a4d0be5a23"
+      }
+    ]
+  },
+  {
+    "id": 6012701,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012701,
+    "assetPath": "ui/badge/thumbnail_badges_6012701.unity3d",
+    "assetSha256": "0efe952ffa3cacb5cf3352e35d250c3988d45e21c104d79a0cfaffdce9e73988",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4156747546634F_22ed8758271de7851f2bf57db032bc67.bundle",
+        "sha256": "0efe952ffa3cacb5cf3352e35d250c3988d45e21c104d79a0cfaffdce9e73988"
+      }
+    ]
+  },
+  {
+    "id": 6012702,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012702,
+    "assetPath": "ui/badge/thumbnail_badges_6012702.unity3d",
+    "assetSha256": "e359cc5c61e5ace94ea64311d524074331bdfa9cbed947e17fe14f78fb39097c",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/414B6E4839514D_81fa9d50e956785df1e3527da73468aa.bundle",
+        "sha256": "e359cc5c61e5ace94ea64311d524074331bdfa9cbed947e17fe14f78fb39097c"
+      }
+    ]
+  },
+  {
+    "id": 6012703,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012703,
+    "assetPath": "ui/badge/thumbnail_badges_6012703.unity3d",
+    "assetSha256": "0858b0a4ef7feb768f0d2a0133c64ee66c7e03bfbbadf93159914273a566f9ca",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/414A7776567A62_5db4bedd7e69cf9d606ea1d5a9a06245.bundle",
+        "sha256": "0858b0a4ef7feb768f0d2a0133c64ee66c7e03bfbbadf93159914273a566f9ca"
+      }
+    ]
+  },
+  {
+    "id": 6012704,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012704,
+    "assetPath": "ui/badge/thumbnail_badges_6012704.unity3d",
+    "assetSha256": "a6363e4cc7a9d61b6d621bd55075e8f58a3c362c2fdf01f4d0e519991dc4467a",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41375376476C65_7705629a798b43b5ac303b4f1c68b4ce.bundle",
+        "sha256": "a6363e4cc7a9d61b6d621bd55075e8f58a3c362c2fdf01f4d0e519991dc4467a"
+      }
+    ]
+  },
+  {
+    "id": 6012705,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012705,
+    "assetPath": "ui/badge/thumbnail_badges_6012705.unity3d",
+    "assetSha256": "531c68aa9adb2e6fa6737d457d254b0029aec65050d1e30db7e9f323c8b12944",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/413438546F3133_39b6a2373bfa0f9ce2047aff869d9db8.bundle",
+        "sha256": "531c68aa9adb2e6fa6737d457d254b0029aec65050d1e30db7e9f323c8b12944"
+      }
+    ]
+  },
+  {
+    "id": 6012801,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012801,
+    "assetPath": "ui/badge/thumbnail_badges_6012801.unity3d",
+    "assetSha256": "ce20e14bde748d55708b5e6dfb03e1a11a87218cada800c43effb6520c19b715",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41714A44524367_35a3b9157273f5d40d14b10eb6fc34b8.bundle",
+        "sha256": "ce20e14bde748d55708b5e6dfb03e1a11a87218cada800c43effb6520c19b715"
+      }
+    ]
+  },
+  {
+    "id": 6012802,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012802,
+    "assetPath": "ui/badge/thumbnail_badges_6012802.unity3d",
+    "assetSha256": "bd50f880b0c2fc769531103bda8bc0e3613d0115546e646625ef8ac55358f3c1",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41377239633555_2a9761998e7ff42b52052ced0bd6488d.bundle",
+        "sha256": "bd50f880b0c2fc769531103bda8bc0e3613d0115546e646625ef8ac55358f3c1"
+      }
+    ]
+  },
+  {
+    "id": 6012803,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012803,
+    "assetPath": "ui/badge/thumbnail_badges_6012803.unity3d",
+    "assetSha256": "693cc17d43be0fc648ac9cebc970c7b08fad81be722544b9358cc1c593d1cd2c",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4133704B61794C_d4b90742ddfa5e0b39efafa6145a7a19.bundle",
+        "sha256": "693cc17d43be0fc648ac9cebc970c7b08fad81be722544b9358cc1c593d1cd2c"
+      }
+    ]
+  },
+  {
+    "id": 6012804,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012804,
+    "assetPath": "ui/badge/thumbnail_badges_6012804.unity3d",
+    "assetSha256": "d9f703d8fc683523845255a87688b9e3ab51d84422292f3587e720a8173ede3c",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4167534C725037_8499fdcbfe3150ad3444cd2b1b981a7e.bundle",
+        "sha256": "d9f703d8fc683523845255a87688b9e3ab51d84422292f3587e720a8173ede3c"
+      }
+    ]
+  },
+  {
+    "id": 6012805,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012805,
+    "assetPath": "ui/badge/thumbnail_badges_6012805.unity3d",
+    "assetSha256": "c30a7c32a53414c24fadcc6581be1732771049751760b359e041878990625526",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41434C6A617A66_633e42c788889f183bd833c21587d19e.bundle",
+        "sha256": "c30a7c32a53414c24fadcc6581be1732771049751760b359e041878990625526"
+      }
+    ]
+  },
+  {
+    "id": 6012901,
+    "honorType": 1,
+    "name": "Ruffian",
+    "title": "",
+    "sortOrder": 6012901,
+    "assetPath": "ui/badge/thumbnail_badges_6012901.unity3d",
+    "assetSha256": "1f41c4c4277cdd846cdfe9c61f88488fbb2bd083cc1b14cae23e6227019d48c3",
+    "rule": {
+      "type": "counter",
+      "metric": "opponents_defeated",
+      "threshold": 1000,
+      "secret": true
+    },
+    "status": "known",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4141584D44686F_8a4517889fac500b070765390eff44ed.bundle",
+        "sha256": "1f41c4c4277cdd846cdfe9c61f88488fbb2bd083cc1b14cae23e6227019d48c3"
+      },
+      {
+        "kind": "historical_guide",
+        "url": "https://www.rar-games.jp/entry/2020/02/19/133322"
+      },
+      {
+        "kind": "historical_guide",
+        "url": "https://cdn-ak.f.st-hatena.com/images/fotolife/r/rar_games/20200226/20200226145136.jpg"
+      }
+    ]
+  },
+  {
+    "id": 6012902,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012902,
+    "assetPath": "ui/badge/thumbnail_badges_6012902.unity3d",
+    "assetSha256": "e5a679a04eebc6cd1882b21c252c4bf643951e56c397d9e9f168f8e7ae2e5957",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41463662313953_3597d1f81335dcd710caf5e51baba781.bundle",
+        "sha256": "e5a679a04eebc6cd1882b21c252c4bf643951e56c397d9e9f168f8e7ae2e5957"
+      }
+    ]
+  },
+  {
+    "id": 6012903,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012903,
+    "assetPath": "ui/badge/thumbnail_badges_6012903.unity3d",
+    "assetSha256": "19fefa082c02e68ea51f89587a57afb86001cab933e62b9c807635b125d6da0a",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4131634F665A61_96a646dc9c0c272cd7e98d28693b8a5b.bundle",
+        "sha256": "19fefa082c02e68ea51f89587a57afb86001cab933e62b9c807635b125d6da0a"
+      }
+    ]
+  },
+  {
+    "id": 6012904,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012904,
+    "assetPath": "ui/badge/thumbnail_badges_6012904.unity3d",
+    "assetSha256": "013f95bbe43d7b1a295ab4418d017a78b3a2991db498ac0843e3a5c4273c1147",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/414D6B4F566265_1cce4a012d1270796a187cd8c902d026.bundle",
+        "sha256": "013f95bbe43d7b1a295ab4418d017a78b3a2991db498ac0843e3a5c4273c1147"
+      }
+    ]
+  },
+  {
+    "id": 6012905,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6012905,
+    "assetPath": "ui/badge/thumbnail_badges_6012905.unity3d",
+    "assetSha256": "e3ef8fe977cac532282d5bd70a99cf2036fca833eaf05330ca9ca95cc53a37f0",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4175746E30494F_84183e9d7b06e796a709566e81c3b08a.bundle",
+        "sha256": "e3ef8fe977cac532282d5bd70a99cf2036fca833eaf05330ca9ca95cc53a37f0"
+      }
+    ]
+  },
+  {
+    "id": 6012906,
+    "honorType": 1,
+    "name": "Seven Falls, Eight Rises",
+    "title": "",
+    "sortOrder": 6012906,
+    "assetPath": "ui/badge/thumbnail_badges_6012906.unity3d",
+    "assetSha256": "ce8463867f6d39097eb74e39cf3e9f3c4c11f5162d0b0afe909cc5630d8d2cbb",
+    "rule": {
+      "type": "counter",
+      "metric": "times_defeated",
+      "threshold": 1000,
+      "secret": true
+    },
+    "status": "known",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/414E3153416465_62dc129ee48edb48b02e573f9e392de4.bundle",
+        "sha256": "ce8463867f6d39097eb74e39cf3e9f3c4c11f5162d0b0afe909cc5630d8d2cbb"
+      },
+      {
+        "kind": "historical_guide",
+        "url": "https://www.rar-games.jp/entry/2020/02/19/133322"
+      },
+      {
+        "kind": "historical_guide",
+        "url": "https://cdn-ak.f.st-hatena.com/images/fotolife/r/rar_games/20200226/20200226145147.jpg"
+      }
+    ]
+  },
+  {
+    "id": 6013001,
+    "honorType": 1,
+    "name": "Amateur Graduate",
+    "title": "",
+    "sortOrder": 6013001,
+    "assetPath": "ui/badge/thumbnail_badges_6013001.unity3d",
+    "assetSha256": "e7c21c344009205bab4b364761a7744d88f5597867b9ea14c7b3d93150c4ed6d",
+    "rule": {
+      "type": "counter",
+      "metric": "solo_battle_wins",
+      "threshold": 100,
+      "secret": true
+    },
+    "status": "known",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41724A54664556_c576d9867ff93ef74f2d188d46d778dc.bundle",
+        "sha256": "e7c21c344009205bab4b364761a7744d88f5597867b9ea14c7b3d93150c4ed6d"
+      },
+      {
+        "kind": "historical_guide",
+        "url": "https://www.rar-games.jp/entry/2020/02/19/133322"
+      },
+      {
+        "kind": "historical_guide",
+        "url": "https://cdn-ak.f.st-hatena.com/images/fotolife/r/rar_games/20200226/20200226145157.jpg"
+      }
+    ]
+  },
+  {
+    "id": 6013002,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013002,
+    "assetPath": "ui/badge/thumbnail_badges_6013002.unity3d",
+    "assetSha256": "e932dd3343382030782f6db2bf6dc34f3a891072b96936d7521adcdf9db6768b",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/414A55526B694C_2e5937face5ce8ade6411a12af27720d.bundle",
+        "sha256": "e932dd3343382030782f6db2bf6dc34f3a891072b96936d7521adcdf9db6768b"
+      }
+    ]
+  },
+  {
+    "id": 6013003,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013003,
+    "assetPath": "ui/badge/thumbnail_badges_6013003.unity3d",
+    "assetSha256": "39a6394ccd336eb8f85a8d963f7828ab405388024bfa6a71c4d0f6d986b32c71",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41585474757656_d81d50eaea80f8303f92c82961e49835.bundle",
+        "sha256": "39a6394ccd336eb8f85a8d963f7828ab405388024bfa6a71c4d0f6d986b32c71"
+      }
+    ]
+  },
+  {
+    "id": 6013101,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013101,
+    "assetPath": "ui/badge/thumbnail_badges_6013101.unity3d",
+    "assetSha256": "220be121d9ce9597afe54b2bd734f1b076b569d54fa2cfc42c266e6ba71978f8",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41727430716E59_395b33008b6d92e2cedc2a5951d18e1e.bundle",
+        "sha256": "220be121d9ce9597afe54b2bd734f1b076b569d54fa2cfc42c266e6ba71978f8"
+      }
+    ]
+  },
+  {
+    "id": 6013102,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013102,
+    "assetPath": "ui/badge/thumbnail_badges_6013102.unity3d",
+    "assetSha256": "b77d1adecf4385ca63f111ce7cef4aa2e9649d474fac82d16b5cd83a378cdd97",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/417967366A436F_b106097dc18bce2d20ac85393433bf58.bundle",
+        "sha256": "b77d1adecf4385ca63f111ce7cef4aa2e9649d474fac82d16b5cd83a378cdd97"
+      }
+    ]
+  },
+  {
+    "id": 6013103,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013103,
+    "assetPath": "ui/badge/thumbnail_badges_6013103.unity3d",
+    "assetSha256": "69b5d7fcce5cf26fbd82f08c65402d4c9764bb28a91886d4e9862c9184de5cd6",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/414C786F70434C_6ea424c4fb7e3e3de04a308df3ab7fe1.bundle",
+        "sha256": "69b5d7fcce5cf26fbd82f08c65402d4c9764bb28a91886d4e9862c9184de5cd6"
+      }
+    ]
+  },
+  {
+    "id": 6013201,
+    "honorType": 1,
+    "name": "Guardian Breaker",
+    "title": "",
+    "sortOrder": 6013201,
+    "assetPath": "ui/badge/thumbnail_badges_6013201.unity3d",
+    "assetSha256": "05615877235ca317c0f60f54136b07e011c53f9c2af1a3c3184602a448a6dcb0",
+    "rule": {
+      "type": "counter",
+      "metric": "guardian_released_crystals",
+      "threshold": 1000,
+      "secret": false
+    },
+    "status": "known",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41506654666D50_9bbbb9750e34fc076be9e6df1ec74116.bundle",
+        "sha256": "05615877235ca317c0f60f54136b07e011c53f9c2af1a3c3184602a448a6dcb0"
+      },
+      {
+        "kind": "historical_guide",
+        "url": "https://www.rar-games.jp/entry/2020/02/19/133322"
+      },
+      {
+        "kind": "historical_guide",
+        "url": "https://cdn-ak.f.st-hatena.com/images/fotolife/r/rar_games/20200219/20200219133213.jpg"
+      },
+      {
+        "kind": "native_code",
+        "symbol": "Colorful.NPCGuardian$$DropCrystal",
+        "rva": "0x146899C",
+        "evidence": "DropCrystal resolves AttackerId to the local PlayerCharacter, adds dropCount to GuardianReleasedCrystalCount and PlayerActionCounter enum 18."
+      }
+    ]
+  },
+  {
+    "id": 6013202,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013202,
+    "assetPath": "ui/badge/thumbnail_badges_6013202.unity3d",
+    "assetSha256": "f838b8d91b69387eff068778ec0f8423471f90510562a3771571e4767bfa66c0",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4175344F56417A_2d25fd7f0ace60c63d3e808e75f8257d.bundle",
+        "sha256": "f838b8d91b69387eff068778ec0f8423471f90510562a3771571e4767bfa66c0"
+      }
+    ]
+  },
+  {
+    "id": 6013203,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013203,
+    "assetPath": "ui/badge/thumbnail_badges_6013203.unity3d",
+    "assetSha256": "712638350918b509c42879fab75b1138877ddb14efac5060daeb0042a83ca28c",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/417330694E6972_ce348cc210649078f29abc050a332726.bundle",
+        "sha256": "712638350918b509c42879fab75b1138877ddb14efac5060daeb0042a83ca28c"
+      }
+    ]
+  },
+  {
+    "id": 6013301,
+    "honorType": 1,
+    "name": "Interceptor",
+    "title": "",
+    "sortOrder": 6013301,
+    "assetPath": "ui/badge/thumbnail_badges_6013301.unity3d",
+    "assetSha256": "75731176a1dc59d43de1395a35d7a961a21b87f08d42e8761795e30b54361ffa",
+    "rule": {
+      "type": "counter",
+      "metric": "flags_dropped",
+      "threshold": 100,
+      "secret": true
+    },
+    "status": "known",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41386A76786B76_e76b2ed6dc9089c958a0b43b9dc25256.bundle",
+        "sha256": "75731176a1dc59d43de1395a35d7a961a21b87f08d42e8761795e30b54361ffa"
+      },
+      {
+        "kind": "historical_guide",
+        "url": "https://www.rar-games.jp/entry/2020/02/19/133322"
+      },
+      {
+        "kind": "historical_guide",
+        "url": "https://cdn-ak.f.st-hatena.com/images/fotolife/r/rar_games/20200219/20200219133157.jpg"
+      }
+    ]
+  },
+  {
+    "id": 6013302,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013302,
+    "assetPath": "ui/badge/thumbnail_badges_6013302.unity3d",
+    "assetSha256": "5584802c0f5a6fd3feff1fc1f084d0843e34e5e74b275c929bf7f6a31e9080c6",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41477739454C70_4db2dad59e5a89c78a4c7d1863f05af6.bundle",
+        "sha256": "5584802c0f5a6fd3feff1fc1f084d0843e34e5e74b275c929bf7f6a31e9080c6"
+      }
+    ]
+  },
+  {
+    "id": 6013303,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013303,
+    "assetPath": "ui/badge/thumbnail_badges_6013303.unity3d",
+    "assetSha256": "7b3597ae354a68ca12e5bfa55e5b33367aaa545136d4d9f43a22ed5ce5fbb134",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/413455644C626B_f195a637f970accd6e81689bb60f588e.bundle",
+        "sha256": "7b3597ae354a68ca12e5bfa55e5b33367aaa545136d4d9f43a22ed5ce5fbb134"
+      }
+    ]
+  },
+  {
+    "id": 6013401,
+    "honorType": 1,
+    "name": "Defender",
+    "title": "",
+    "sortOrder": 6013401,
+    "assetPath": "ui/badge/thumbnail_badges_6013401.unity3d",
+    "assetSha256": "0d6df202ad91bf3e17776529b341a4c71e675230cdb943603c96f7a6c99be7d2",
+    "rule": {
+      "type": "counter",
+      "metric": "balls_dropped",
+      "threshold": 500,
+      "secret": true
+    },
+    "status": "known",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41427475544670_e6ea7bdef3dbdea98070f5718efd6190.bundle",
+        "sha256": "0d6df202ad91bf3e17776529b341a4c71e675230cdb943603c96f7a6c99be7d2"
+      },
+      {
+        "kind": "historical_guide",
+        "url": "https://www.rar-games.jp/entry/2020/02/19/133322"
+      },
+      {
+        "kind": "historical_guide",
+        "url": "https://cdn-ak.f.st-hatena.com/images/fotolife/r/rar_games/20200226/20200226145110.jpg"
+      }
+    ]
+  },
+  {
+    "id": 6013402,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013402,
+    "assetPath": "ui/badge/thumbnail_badges_6013402.unity3d",
+    "assetSha256": "a7e8865cfd4df879c9aab57e0e6fc93ae0e1d4783ffafde8443e418e3ea8e57f",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4137475166547A_dd1893f960640f4a95691909b98d43eb.bundle",
+        "sha256": "a7e8865cfd4df879c9aab57e0e6fc93ae0e1d4783ffafde8443e418e3ea8e57f"
+      }
+    ]
+  },
+  {
+    "id": 6013403,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013403,
+    "assetPath": "ui/badge/thumbnail_badges_6013403.unity3d",
+    "assetSha256": "ecca52d1d2b6f9fba6da58f94293ea555ef128740542fe969ae411cf01e0196b",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/417365494D6A7A_f8a8c03846337c034da6460a04f7676b.bundle",
+        "sha256": "ecca52d1d2b6f9fba6da58f94293ea555ef128740542fe969ae411cf01e0196b"
+      }
+    ]
+  },
+  {
+    "id": 6013501,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013501,
+    "assetPath": "ui/badge/thumbnail_badges_6013501.unity3d",
+    "assetSha256": "8f6406d51d945daca51856aad685623a356d458d9a7a6837fd7488154ae602dd",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/416D7658483764_065294d3f013ecaa71b18c71e0b7e6cb.bundle",
+        "sha256": "8f6406d51d945daca51856aad685623a356d458d9a7a6837fd7488154ae602dd"
+      }
+    ]
+  },
+  {
+    "id": 6013601,
+    "honorType": 1,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013601,
+    "assetPath": "ui/badge/thumbnail_badges_6013601.unity3d",
+    "assetSha256": "b33519a4cc2e7411a7170e61821c27913ff6fe99e77c27279289e576c89c1edd",
+    "rule": {
+      "type": "seasonRank",
+      "maximumRankInclusive": 10,
+      "seasonId": null,
+      "automaticAward": false,
+      "secret": false
+    },
+    "status": "historical",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41536452546735_881ab0650a65fda7315cf24347e2abdf.bundle",
+        "sha256": "b33519a4cc2e7411a7170e61821c27913ff6fe99e77c27279289e576c89c1edd"
+      },
+      {
+        "kind": "historical_season_reward",
+        "url": "https://games.app-liv.jp/archives/459716"
+      },
+      {
+        "kind": "visible_asset_threshold",
+        "assetPath": "ui/badge/thumbnail_badges_6013601.unity3d"
+      }
+    ]
+  },
+  {
+    "id": 6013602,
+    "honorType": 1,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013602,
+    "assetPath": "ui/badge/thumbnail_badges_6013602.unity3d",
+    "assetSha256": "721cfca4fb77e23a1287d7a0447c15f9c3be077aa2fb96337014ff599240bd15",
+    "rule": {
+      "type": "seasonRank",
+      "maximumRankInclusive": 100,
+      "seasonId": null,
+      "automaticAward": false,
+      "secret": false
+    },
+    "status": "historical",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41586D63793048_b31e3c54f8cf112e0b15de55fd8f0469.bundle",
+        "sha256": "721cfca4fb77e23a1287d7a0447c15f9c3be077aa2fb96337014ff599240bd15"
+      },
+      {
+        "kind": "historical_season_reward",
+        "url": "https://games.app-liv.jp/archives/459716"
+      },
+      {
+        "kind": "visible_asset_threshold",
+        "assetPath": "ui/badge/thumbnail_badges_6013602.unity3d"
+      }
+    ]
+  },
+  {
+    "id": 6013603,
+    "honorType": 1,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013603,
+    "assetPath": "ui/badge/thumbnail_badges_6013603.unity3d",
+    "assetSha256": "1b918bd9ef074f0798e6604457092d3f58b02b615537e1d10f032d22a74f5d42",
+    "rule": {
+      "type": "seasonRank",
+      "maximumRankInclusive": 500,
+      "seasonId": null,
+      "automaticAward": false,
+      "secret": false
+    },
+    "status": "historical",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/416C6565306932_164cbdc3f74100c6b4e198200b6bcdd1.bundle",
+        "sha256": "1b918bd9ef074f0798e6604457092d3f58b02b615537e1d10f032d22a74f5d42"
+      },
+      {
+        "kind": "historical_season_reward",
+        "url": "https://games.app-liv.jp/archives/459716"
+      },
+      {
+        "kind": "visible_asset_threshold",
+        "assetPath": "ui/badge/thumbnail_badges_6013603.unity3d"
+      }
+    ]
+  },
+  {
+    "id": 6013604,
+    "honorType": 1,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013604,
+    "assetPath": "ui/badge/thumbnail_badges_6013604.unity3d",
+    "assetSha256": "7e564ce91ebe82bb14c8f879070d71f5f9d711338d8afdb501768df53a9bfa2f",
+    "rule": {
+      "type": "seasonRank",
+      "maximumRankInclusive": 1000,
+      "seasonId": null,
+      "automaticAward": false,
+      "secret": false
+    },
+    "status": "historical",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41503576336673_598e9d2d2aa96dc9e2e63398d31332c4.bundle",
+        "sha256": "7e564ce91ebe82bb14c8f879070d71f5f9d711338d8afdb501768df53a9bfa2f"
+      },
+      {
+        "kind": "historical_season_reward",
+        "url": "https://games.app-liv.jp/archives/459716"
+      },
+      {
+        "kind": "visible_asset_threshold",
+        "assetPath": "ui/badge/thumbnail_badges_6013604.unity3d"
+      }
+    ]
+  },
+  {
+    "id": 6013605,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013605,
+    "assetPath": "ui/badge/thumbnail_badges_6013605.unity3d",
+    "assetSha256": "b0531b992dfd4e9dd0dcebd77e3ac205448d4ba6dcba4e8c4f362d2d765553ff",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41496F49716B63_4eed359bcfe7dade7360c3b0fd5efaf2.bundle",
+        "sha256": "b0531b992dfd4e9dd0dcebd77e3ac205448d4ba6dcba4e8c4f362d2d765553ff"
+      }
+    ]
+  },
+  {
+    "id": 6013606,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013606,
+    "assetPath": "ui/badge/thumbnail_badges_6013606.unity3d",
+    "assetSha256": "a48336c54e35cd6abe515cd0eece84d0a4e9ac06cfaf7cbba0394c7d331c4877",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/414B616B626D66_4f2264061faafb273644ed1cc33dfcd9.bundle",
+        "sha256": "a48336c54e35cd6abe515cd0eece84d0a4e9ac06cfaf7cbba0394c7d331c4877"
+      }
+    ]
+  },
+  {
+    "id": 6013607,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013607,
+    "assetPath": "ui/badge/thumbnail_badges_6013607.unity3d",
+    "assetSha256": "ed908509b3d6ef500b88234f09e33c757c3b24205269ca4beecae5bd327146a0",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41386F496A6E59_16ca69175ffa1117088c432af5aca3d9.bundle",
+        "sha256": "ed908509b3d6ef500b88234f09e33c757c3b24205269ca4beecae5bd327146a0"
+      }
+    ]
+  },
+  {
+    "id": 6013608,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013608,
+    "assetPath": "ui/badge/thumbnail_badges_6013608.unity3d",
+    "assetSha256": "183267afb8daa0ef1ea5eabd9bbb1345c86cf82527a94363d6da0efab2a3f644",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41445638726547_1ae71a1c9c75ef21c18a47aa89d2e5f3.bundle",
+        "sha256": "183267afb8daa0ef1ea5eabd9bbb1345c86cf82527a94363d6da0efab2a3f644"
+      }
+    ]
+  },
+  {
+    "id": 6013701,
+    "honorType": 1,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013701,
+    "assetPath": "ui/badge/thumbnail_badges_6013701.unity3d",
+    "assetSha256": "e3de4d5c1d151c981ea3546a29191e0c19426661c2b93e6094d0827cfe0a0f7b",
+    "rule": {
+      "type": "seasonRank",
+      "maximumRankInclusive": 10,
+      "seasonId": null,
+      "automaticAward": false,
+      "secret": false
+    },
+    "status": "historical",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41734D7A6A6761_1d23367b43055fde4fa8e2d730235b59.bundle",
+        "sha256": "e3de4d5c1d151c981ea3546a29191e0c19426661c2b93e6094d0827cfe0a0f7b"
+      },
+      {
+        "kind": "historical_season_reward",
+        "url": "https://games.app-liv.jp/archives/459716"
+      },
+      {
+        "kind": "visible_asset_threshold",
+        "assetPath": "ui/badge/thumbnail_badges_6013701.unity3d"
+      }
+    ]
+  },
+  {
+    "id": 6013702,
+    "honorType": 1,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013702,
+    "assetPath": "ui/badge/thumbnail_badges_6013702.unity3d",
+    "assetSha256": "23394dc6d236f9af01a5096de7507d5d9526f260ffc4fe2c31f9ed2c2a65bfd9",
+    "rule": {
+      "type": "seasonRank",
+      "maximumRankInclusive": 100,
+      "seasonId": null,
+      "automaticAward": false,
+      "secret": false
+    },
+    "status": "historical",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41517667436243_ce99e097f19312166ec34d8bb0f1b2f9.bundle",
+        "sha256": "23394dc6d236f9af01a5096de7507d5d9526f260ffc4fe2c31f9ed2c2a65bfd9"
+      },
+      {
+        "kind": "historical_season_reward",
+        "url": "https://games.app-liv.jp/archives/459716"
+      },
+      {
+        "kind": "visible_asset_threshold",
+        "assetPath": "ui/badge/thumbnail_badges_6013702.unity3d"
+      }
+    ]
+  },
+  {
+    "id": 6013703,
+    "honorType": 1,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013703,
+    "assetPath": "ui/badge/thumbnail_badges_6013703.unity3d",
+    "assetSha256": "eb1709af37256f95789a4d5f1e2855900ab22b30221ec19aa30667616d8de62f",
+    "rule": {
+      "type": "seasonRank",
+      "maximumRankInclusive": 500,
+      "seasonId": null,
+      "automaticAward": false,
+      "secret": false
+    },
+    "status": "historical",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/417A6C7A636743_7507a16db799dd65dfb00cbe89e9b2b3.bundle",
+        "sha256": "eb1709af37256f95789a4d5f1e2855900ab22b30221ec19aa30667616d8de62f"
+      },
+      {
+        "kind": "historical_season_reward",
+        "url": "https://games.app-liv.jp/archives/459716"
+      },
+      {
+        "kind": "visible_asset_threshold",
+        "assetPath": "ui/badge/thumbnail_badges_6013703.unity3d"
+      }
+    ]
+  },
+  {
+    "id": 6013704,
+    "honorType": 1,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013704,
+    "assetPath": "ui/badge/thumbnail_badges_6013704.unity3d",
+    "assetSha256": "bf0bb2b658dc0bac8ce1d3352b65800461a737ca1e02592ddd462a3d4e65b703",
+    "rule": {
+      "type": "seasonRank",
+      "maximumRankInclusive": 1000,
+      "seasonId": null,
+      "automaticAward": false,
+      "secret": false
+    },
+    "status": "historical",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/416A4C35754532_02fa839fe46d7673abd7f57c3499e205.bundle",
+        "sha256": "bf0bb2b658dc0bac8ce1d3352b65800461a737ca1e02592ddd462a3d4e65b703"
+      },
+      {
+        "kind": "historical_season_reward",
+        "url": "https://games.app-liv.jp/archives/459716"
+      },
+      {
+        "kind": "visible_asset_threshold",
+        "assetPath": "ui/badge/thumbnail_badges_6013704.unity3d"
+      }
+    ]
+  },
+  {
+    "id": 6013705,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013705,
+    "assetPath": "ui/badge/thumbnail_badges_6013705.unity3d",
+    "assetSha256": "5bb57cf0db9e0b7711efda83a39d0e19c17ea690f33e054812282db67148446c",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4147794A664A53_eb408af2fb408b1893be1da16cdeaf6d.bundle",
+        "sha256": "5bb57cf0db9e0b7711efda83a39d0e19c17ea690f33e054812282db67148446c"
+      }
+    ]
+  },
+  {
+    "id": 6013706,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013706,
+    "assetPath": "ui/badge/thumbnail_badges_6013706.unity3d",
+    "assetSha256": "b8890626c26a9c204bd4c00f00d24d16ac357a6e0195f522617db08f0b208d57",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/417847376F626B_6ad2f99b2b0e64f3329e2d9603394edd.bundle",
+        "sha256": "b8890626c26a9c204bd4c00f00d24d16ac357a6e0195f522617db08f0b208d57"
+      }
+    ]
+  },
+  {
+    "id": 6013707,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013707,
+    "assetPath": "ui/badge/thumbnail_badges_6013707.unity3d",
+    "assetSha256": "0249e47be5dded6ac5607063afa42154774fbc25ff77bc1788f60c23e9919905",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41626469426863_8acacf63b3caed2b933dde72350f868a.bundle",
+        "sha256": "0249e47be5dded6ac5607063afa42154774fbc25ff77bc1788f60c23e9919905"
+      }
+    ]
+  },
+  {
+    "id": 6013708,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013708,
+    "assetPath": "ui/badge/thumbnail_badges_6013708.unity3d",
+    "assetSha256": "ec3b20fd88116f34179f4e769e6df0af7f20036dc373c96bb120131db685c5ed",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4157524251344B_4e061c4dc4557c47cd198e94f98e5961.bundle",
+        "sha256": "ec3b20fd88116f34179f4e769e6df0af7f20036dc373c96bb120131db685c5ed"
+      }
+    ]
+  },
+  {
+    "id": 6013801,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013801,
+    "assetPath": "ui/badge/thumbnail_badges_6013801.unity3d",
+    "assetSha256": "57d8eb35799038d5d19c8de58296df38d6bc3b5add627cf4c7847c3862b8ac56",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/414D4F69586D4D_dc34c6696648ce4cf0ff8869220987a8.bundle",
+        "sha256": "57d8eb35799038d5d19c8de58296df38d6bc3b5add627cf4c7847c3862b8ac56"
+      }
+    ]
+  },
+  {
+    "id": 6013802,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013802,
+    "assetPath": "ui/badge/thumbnail_badges_6013802.unity3d",
+    "assetSha256": "230facfe0bedfe655993ab2cfa4489e63b0fa1d28eb8857cac0a6907475850cc",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41696669464D45_057210e38a7140df02ecf9763a26270c.bundle",
+        "sha256": "230facfe0bedfe655993ab2cfa4489e63b0fa1d28eb8857cac0a6907475850cc"
+      }
+    ]
+  },
+  {
+    "id": 6013803,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013803,
+    "assetPath": "ui/badge/thumbnail_badges_6013803.unity3d",
+    "assetSha256": "3ba3fc7e8029b8ff273d3e04ffc4b5f7c4100bd535cf33e9faa4529c9c6388da",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/416E7661477072_7a6a09c010db1c7d4ddfd46e7466a49e.bundle",
+        "sha256": "3ba3fc7e8029b8ff273d3e04ffc4b5f7c4100bd535cf33e9faa4529c9c6388da"
+      }
+    ]
+  },
+  {
+    "id": 6013804,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013804,
+    "assetPath": "ui/badge/thumbnail_badges_6013804.unity3d",
+    "assetSha256": "6cb52f0fc54d9731281207abf819330134b935317a8d4682acd28a8727c006a0",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/414B6779624274_9d3f073cf361c8e99f2b9887f64f8649.bundle",
+        "sha256": "6cb52f0fc54d9731281207abf819330134b935317a8d4682acd28a8727c006a0"
+      }
+    ]
+  },
+  {
+    "id": 6013805,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013805,
+    "assetPath": "ui/badge/thumbnail_badges_6013805.unity3d",
+    "assetSha256": "9da783b64629ace31be4bf3e639d041e1d00dd7803f614464fa75c137ab480eb",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/416666794B4438_7355e31439a44b7b8ffc029e46ec5986.bundle",
+        "sha256": "9da783b64629ace31be4bf3e639d041e1d00dd7803f614464fa75c137ab480eb"
+      }
+    ]
+  },
+  {
+    "id": 6013806,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013806,
+    "assetPath": "ui/badge/thumbnail_badges_6013806.unity3d",
+    "assetSha256": "9f78029770cd5a788c2a5199af1b0e3a467f0d4306d921b7378b8808921652e3",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41464A49564466_43cf0417910233beba30352d8460cc2d.bundle",
+        "sha256": "9f78029770cd5a788c2a5199af1b0e3a467f0d4306d921b7378b8808921652e3"
+      }
+    ]
+  },
+  {
+    "id": 6013807,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013807,
+    "assetPath": "ui/badge/thumbnail_badges_6013807.unity3d",
+    "assetSha256": "8dacd229d8c5687d27deb111473ded8dc136806759171d7812cd5a1dc1309b44",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/414F4948464B44_04a80fea8b98fd37a0e61d30a80b3fa9.bundle",
+        "sha256": "8dacd229d8c5687d27deb111473ded8dc136806759171d7812cd5a1dc1309b44"
+      }
+    ]
+  },
+  {
+    "id": 6013808,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013808,
+    "assetPath": "ui/badge/thumbnail_badges_6013808.unity3d",
+    "assetSha256": "b930ac35cbfb6d97d075b86f1f0f2e59e938a6c84958fd7c7105737941114b0d",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41446D7446454F_09290dc7fe05b2f709d9504014e645db.bundle",
+        "sha256": "b930ac35cbfb6d97d075b86f1f0f2e59e938a6c84958fd7c7105737941114b0d"
+      }
+    ]
+  },
+  {
+    "id": 6013809,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013809,
+    "assetPath": "ui/badge/thumbnail_badges_6013809.unity3d",
+    "assetSha256": "8bd6230cb9fc038c7a7773b8fba749f4750ed988ba0a62a6152739f077981723",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/414A5A4E524C73_3a5711c4683e92c9325c75af9bd32cad.bundle",
+        "sha256": "8bd6230cb9fc038c7a7773b8fba749f4750ed988ba0a62a6152739f077981723"
+      }
+    ]
+  },
+  {
+    "id": 6013901,
+    "honorType": 1,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013901,
+    "assetPath": "ui/badge/thumbnail_badges_6013901.unity3d",
+    "assetSha256": "6f821d3ca54072ae4c57bb9c5e7a0dbd8d45dd5170252a6d0af824862b856310",
+    "rule": {
+      "type": "seasonRank",
+      "maximumRankInclusive": 10,
+      "seasonId": null,
+      "automaticAward": false,
+      "secret": false
+    },
+    "status": "historical",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41424874676859_410aa2b30834c2c3df860c1c79434b66.bundle",
+        "sha256": "6f821d3ca54072ae4c57bb9c5e7a0dbd8d45dd5170252a6d0af824862b856310"
+      },
+      {
+        "kind": "historical_season_reward",
+        "url": "https://games.app-liv.jp/archives/459716"
+      },
+      {
+        "kind": "visible_asset_threshold",
+        "assetPath": "ui/badge/thumbnail_badges_6013901.unity3d"
+      }
+    ]
+  },
+  {
+    "id": 6013902,
+    "honorType": 1,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013902,
+    "assetPath": "ui/badge/thumbnail_badges_6013902.unity3d",
+    "assetSha256": "a9bc2c27eb9c5d55f4fa216fc845d32b74f2bd76784973b12391067fd5f5f54b",
+    "rule": {
+      "type": "seasonRank",
+      "maximumRankInclusive": 100,
+      "seasonId": null,
+      "automaticAward": false,
+      "secret": false
+    },
+    "status": "historical",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4133556F373631_8c63b592c1b83ab1b40496d3056ffed8.bundle",
+        "sha256": "a9bc2c27eb9c5d55f4fa216fc845d32b74f2bd76784973b12391067fd5f5f54b"
+      },
+      {
+        "kind": "historical_season_reward",
+        "url": "https://games.app-liv.jp/archives/459716"
+      },
+      {
+        "kind": "visible_asset_threshold",
+        "assetPath": "ui/badge/thumbnail_badges_6013902.unity3d"
+      }
+    ]
+  },
+  {
+    "id": 6013903,
+    "honorType": 1,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013903,
+    "assetPath": "ui/badge/thumbnail_badges_6013903.unity3d",
+    "assetSha256": "b8c8a639f6d49df219d0a741648b1e6d95e2a5257e4f923828ca9137dcc99d09",
+    "rule": {
+      "type": "seasonRank",
+      "maximumRankInclusive": 500,
+      "seasonId": null,
+      "automaticAward": false,
+      "secret": false
+    },
+    "status": "historical",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/413170337A6A30_905019145b498b8bb2a186bb8bb946f5.bundle",
+        "sha256": "b8c8a639f6d49df219d0a741648b1e6d95e2a5257e4f923828ca9137dcc99d09"
+      },
+      {
+        "kind": "historical_season_reward",
+        "url": "https://games.app-liv.jp/archives/459716"
+      },
+      {
+        "kind": "visible_asset_threshold",
+        "assetPath": "ui/badge/thumbnail_badges_6013903.unity3d"
+      }
+    ]
+  },
+  {
+    "id": 6013904,
+    "honorType": 1,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013904,
+    "assetPath": "ui/badge/thumbnail_badges_6013904.unity3d",
+    "assetSha256": "aecb5c2d501b5c13067187898b0fc1001f88dbabdfa397cf69e168ac360081a9",
+    "rule": {
+      "type": "seasonRank",
+      "maximumRankInclusive": 1000,
+      "seasonId": null,
+      "automaticAward": false,
+      "secret": false
+    },
+    "status": "historical",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/416D7864574E70_1773ae63614e71407a5022d18f4c4421.bundle",
+        "sha256": "aecb5c2d501b5c13067187898b0fc1001f88dbabdfa397cf69e168ac360081a9"
+      },
+      {
+        "kind": "historical_season_reward",
+        "url": "https://games.app-liv.jp/archives/459716"
+      },
+      {
+        "kind": "visible_asset_threshold",
+        "assetPath": "ui/badge/thumbnail_badges_6013904.unity3d"
+      }
+    ]
+  },
+  {
+    "id": 6013905,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013905,
+    "assetPath": "ui/badge/thumbnail_badges_6013905.unity3d",
+    "assetSha256": "ea9a519af7b1f70f69390194895095497b65f7875795547a542867757f9bae0e",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4174706E663955_c0e80e27b590f6c2c403a3fca5ab4214.bundle",
+        "sha256": "ea9a519af7b1f70f69390194895095497b65f7875795547a542867757f9bae0e"
+      }
+    ]
+  },
+  {
+    "id": 6013906,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013906,
+    "assetPath": "ui/badge/thumbnail_badges_6013906.unity3d",
+    "assetSha256": "b0d4f1245e0ccc81b9d862bc765a9950cab844ee8dcb4d3342df66eeae439f65",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41496E6D763441_357d39aeb9d5e05a51bc066ffab9a7a6.bundle",
+        "sha256": "b0d4f1245e0ccc81b9d862bc765a9950cab844ee8dcb4d3342df66eeae439f65"
+      }
+    ]
+  },
+  {
+    "id": 6013907,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013907,
+    "assetPath": "ui/badge/thumbnail_badges_6013907.unity3d",
+    "assetSha256": "e244dbfb275f5b035c03cdac5424709750155b31d1b8bc934148ba8ca18cb79e",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4178416F6D4572_0f98727de501f09ed5357e28e8e035ef.bundle",
+        "sha256": "e244dbfb275f5b035c03cdac5424709750155b31d1b8bc934148ba8ca18cb79e"
+      }
+    ]
+  },
+  {
+    "id": 6013908,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6013908,
+    "assetPath": "ui/badge/thumbnail_badges_6013908.unity3d",
+    "assetSha256": "123252331cb0e1fd27f88926a3e92d1eae44820e5b8672bef66db143d22b37cb",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41677430593843_e7e7ea11340bb7866256e765ccd1c6dc.bundle",
+        "sha256": "123252331cb0e1fd27f88926a3e92d1eae44820e5b8672bef66db143d22b37cb"
+      }
+    ]
+  },
+  {
+    "id": 6014001,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014001,
+    "assetPath": "ui/badge/thumbnail_badges_6014001.unity3d",
+    "assetSha256": "2b874994f43f29cd53157ef78840a2cc31c6cd3526032591b9c93462f7e024ab",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4156376B6F6837_fbd7f82023698c513bc1158cf979b8db.bundle",
+        "sha256": "2b874994f43f29cd53157ef78840a2cc31c6cd3526032591b9c93462f7e024ab"
+      }
+    ]
+  },
+  {
+    "id": 6014002,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014002,
+    "assetPath": "ui/badge/thumbnail_badges_6014002.unity3d",
+    "assetSha256": "cfdab94fc50d324e92bc7471856d4042f80ea2d49b02d1b9d19709b93c2cfb0f",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41694E48654C36_d4909fc172bf404b6afaaae118840a22.bundle",
+        "sha256": "cfdab94fc50d324e92bc7471856d4042f80ea2d49b02d1b9d19709b93c2cfb0f"
+      }
+    ]
+  },
+  {
+    "id": 6014003,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014003,
+    "assetPath": "ui/badge/thumbnail_badges_6014003.unity3d",
+    "assetSha256": "79478eee5e310fadadc7f96d9266a921bcb3a51ce8f922da193dd822fccc1d3a",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/416974546B456F_a2a300587f9c16077e6713fafb465590.bundle",
+        "sha256": "79478eee5e310fadadc7f96d9266a921bcb3a51ce8f922da193dd822fccc1d3a"
+      }
+    ]
+  },
+  {
+    "id": 6014004,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014004,
+    "assetPath": "ui/badge/thumbnail_badges_6014004.unity3d",
+    "assetSha256": "1f4013e97dae46837060bf293bce6b3ec34e80495ebc906e2163b3e9853a215b",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/416A564D44366F_b8e6dfc8c31b9299bfdfa80097a8c679.bundle",
+        "sha256": "1f4013e97dae46837060bf293bce6b3ec34e80495ebc906e2163b3e9853a215b"
+      }
+    ]
+  },
+  {
+    "id": 6014005,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014005,
+    "assetPath": "ui/badge/thumbnail_badges_6014005.unity3d",
+    "assetSha256": "624f02b94de76075826a7368c799709aa946d3d9bc68949871a5845e0c88133d",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4149565A31666D_300408c19b9be46662282fa61444b991.bundle",
+        "sha256": "624f02b94de76075826a7368c799709aa946d3d9bc68949871a5845e0c88133d"
+      }
+    ]
+  },
+  {
+    "id": 6014101,
+    "honorType": 1,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014101,
+    "assetPath": "ui/badge/thumbnail_badges_6014101.unity3d",
+    "assetSha256": "ea59842dac3b81d22e32e4f4dca677c806b5b63097b4b08bed3a44be00ac8513",
+    "rule": {
+      "type": "seasonRank",
+      "maximumRankInclusive": 10,
+      "seasonId": null,
+      "automaticAward": false,
+      "secret": false
+    },
+    "status": "historical",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/417A6D53363574_f3ef98f969a43272549ae00fbfdd440d.bundle",
+        "sha256": "ea59842dac3b81d22e32e4f4dca677c806b5b63097b4b08bed3a44be00ac8513"
+      },
+      {
+        "kind": "historical_season_reward",
+        "url": "https://games.app-liv.jp/archives/459716"
+      },
+      {
+        "kind": "visible_asset_threshold",
+        "assetPath": "ui/badge/thumbnail_badges_6014101.unity3d"
+      }
+    ]
+  },
+  {
+    "id": 6014102,
+    "honorType": 1,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014102,
+    "assetPath": "ui/badge/thumbnail_badges_6014102.unity3d",
+    "assetSha256": "a12da8d699d11486cac21cebfa41c24a11363a96fcb152f167e77e2a093d37ec",
+    "rule": {
+      "type": "seasonRank",
+      "maximumRankInclusive": 100,
+      "seasonId": null,
+      "automaticAward": false,
+      "secret": false
+    },
+    "status": "historical",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4155345A436538_1508ed228d115ef8164c22ffe205139b.bundle",
+        "sha256": "a12da8d699d11486cac21cebfa41c24a11363a96fcb152f167e77e2a093d37ec"
+      },
+      {
+        "kind": "historical_season_reward",
+        "url": "https://games.app-liv.jp/archives/459716"
+      },
+      {
+        "kind": "visible_asset_threshold",
+        "assetPath": "ui/badge/thumbnail_badges_6014102.unity3d"
+      }
+    ]
+  },
+  {
+    "id": 6014103,
+    "honorType": 1,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014103,
+    "assetPath": "ui/badge/thumbnail_badges_6014103.unity3d",
+    "assetSha256": "a54c52f8e1f7d3ce4f1e365991077a6308d1cc18ca1a0c865404a5dc22dbdb55",
+    "rule": {
+      "type": "seasonRank",
+      "maximumRankInclusive": 500,
+      "seasonId": null,
+      "automaticAward": false,
+      "secret": false
+    },
+    "status": "historical",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41636B444D5936_4c21a1f3ef6ea30dada28cf9657c2939.bundle",
+        "sha256": "a54c52f8e1f7d3ce4f1e365991077a6308d1cc18ca1a0c865404a5dc22dbdb55"
+      },
+      {
+        "kind": "historical_season_reward",
+        "url": "https://games.app-liv.jp/archives/459716"
+      },
+      {
+        "kind": "visible_asset_threshold",
+        "assetPath": "ui/badge/thumbnail_badges_6014103.unity3d"
+      }
+    ]
+  },
+  {
+    "id": 6014104,
+    "honorType": 1,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014104,
+    "assetPath": "ui/badge/thumbnail_badges_6014104.unity3d",
+    "assetSha256": "b2b7df3321217b83e2ed50fbbc67421e2f3de18ecc7a9222206a8feba2dd3397",
+    "rule": {
+      "type": "seasonRank",
+      "maximumRankInclusive": 1000,
+      "seasonId": null,
+      "automaticAward": false,
+      "secret": false
+    },
+    "status": "historical",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41326E67713369_d14d81a690bd6bea7ef5432dff998717.bundle",
+        "sha256": "b2b7df3321217b83e2ed50fbbc67421e2f3de18ecc7a9222206a8feba2dd3397"
+      },
+      {
+        "kind": "historical_season_reward",
+        "url": "https://games.app-liv.jp/archives/459716"
+      },
+      {
+        "kind": "visible_asset_threshold",
+        "assetPath": "ui/badge/thumbnail_badges_6014104.unity3d"
+      }
+    ]
+  },
+  {
+    "id": 6014105,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014105,
+    "assetPath": "ui/badge/thumbnail_badges_6014105.unity3d",
+    "assetSha256": "b194e627e062af5737ef71da27f33195f06b5e1c23394afc6eb1f25770a773bb",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4132417A563761_d415bf20a5906609aa835169b4e30f50.bundle",
+        "sha256": "b194e627e062af5737ef71da27f33195f06b5e1c23394afc6eb1f25770a773bb"
+      }
+    ]
+  },
+  {
+    "id": 6014106,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014106,
+    "assetPath": "ui/badge/thumbnail_badges_6014106.unity3d",
+    "assetSha256": "002eef2c6491c5dc076382bf5b5f93929e439e3e4cd4c4b026ce22551fba3b60",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41584A4A567A62_47a0a03efbfdae585d75d62e9e8b3994.bundle",
+        "sha256": "002eef2c6491c5dc076382bf5b5f93929e439e3e4cd4c4b026ce22551fba3b60"
+      }
+    ]
+  },
+  {
+    "id": 6014107,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014107,
+    "assetPath": "ui/badge/thumbnail_badges_6014107.unity3d",
+    "assetSha256": "b8c293625a1594f6b75b89b46fc220042f2e0dbdd6ea9d94ac5ffb2a2345ae47",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4178474D6D3642_5762a38f7fb8a4720dab24b7a703cd70.bundle",
+        "sha256": "b8c293625a1594f6b75b89b46fc220042f2e0dbdd6ea9d94ac5ffb2a2345ae47"
+      }
+    ]
+  },
+  {
+    "id": 6014108,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014108,
+    "assetPath": "ui/badge/thumbnail_badges_6014108.unity3d",
+    "assetSha256": "b882bd30d8ae5200462fb065786e5adabc0c20b56d95b234d40bdb2500af8e06",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/414C35616E5264_fb1ae4b501c850008b5d2a3ad65dd959.bundle",
+        "sha256": "b882bd30d8ae5200462fb065786e5adabc0c20b56d95b234d40bdb2500af8e06"
+      }
+    ]
+  },
+  {
+    "id": 6014201,
+    "honorType": 1,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014201,
+    "assetPath": "ui/badge/thumbnail_badges_6014201.unity3d",
+    "assetSha256": "ad57d2f296905f4c9be7b09b574acd211950eff90ac1038768cae7a78339646d",
+    "rule": {
+      "type": "seasonRank",
+      "maximumRankInclusive": 10,
+      "seasonId": null,
+      "automaticAward": false,
+      "secret": false
+    },
+    "status": "historical",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41515867773034_a2c28da3c3958ca50571ef26f85c0a35.bundle",
+        "sha256": "ad57d2f296905f4c9be7b09b574acd211950eff90ac1038768cae7a78339646d"
+      },
+      {
+        "kind": "historical_season_reward",
+        "url": "https://games.app-liv.jp/archives/459716"
+      },
+      {
+        "kind": "visible_asset_threshold",
+        "assetPath": "ui/badge/thumbnail_badges_6014201.unity3d"
+      }
+    ]
+  },
+  {
+    "id": 6014202,
+    "honorType": 1,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014202,
+    "assetPath": "ui/badge/thumbnail_badges_6014202.unity3d",
+    "assetSha256": "e21c19fc4e1f39f9e0700c5aed1e5beca373134baa3c0af31747237bf34f2535",
+    "rule": {
+      "type": "seasonRank",
+      "maximumRankInclusive": 100,
+      "seasonId": null,
+      "automaticAward": false,
+      "secret": false
+    },
+    "status": "historical",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/416948346B705A_8dd21f4da0fc6d23e507d17b78721588.bundle",
+        "sha256": "e21c19fc4e1f39f9e0700c5aed1e5beca373134baa3c0af31747237bf34f2535"
+      },
+      {
+        "kind": "historical_season_reward",
+        "url": "https://games.app-liv.jp/archives/459716"
+      },
+      {
+        "kind": "visible_asset_threshold",
+        "assetPath": "ui/badge/thumbnail_badges_6014202.unity3d"
+      }
+    ]
+  },
+  {
+    "id": 6014203,
+    "honorType": 1,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014203,
+    "assetPath": "ui/badge/thumbnail_badges_6014203.unity3d",
+    "assetSha256": "e8d22f86f8722c24551080000f964563602892fe8cf01e9af0498c69f730611a",
+    "rule": {
+      "type": "seasonRank",
+      "maximumRankInclusive": 500,
+      "seasonId": null,
+      "automaticAward": false,
+      "secret": false
+    },
+    "status": "historical",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41376738706F65_a421ff3f351272f5e960d775976bce89.bundle",
+        "sha256": "e8d22f86f8722c24551080000f964563602892fe8cf01e9af0498c69f730611a"
+      },
+      {
+        "kind": "historical_season_reward",
+        "url": "https://games.app-liv.jp/archives/459716"
+      },
+      {
+        "kind": "visible_asset_threshold",
+        "assetPath": "ui/badge/thumbnail_badges_6014203.unity3d"
+      }
+    ]
+  },
+  {
+    "id": 6014204,
+    "honorType": 1,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014204,
+    "assetPath": "ui/badge/thumbnail_badges_6014204.unity3d",
+    "assetSha256": "185dc3f56be81fc9605c1e843f35625f50ff0c18527512087c367a171029faf1",
+    "rule": {
+      "type": "seasonRank",
+      "maximumRankInclusive": 1000,
+      "seasonId": null,
+      "automaticAward": false,
+      "secret": false
+    },
+    "status": "historical",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/414A6350346F58_7df8d80a3938d6d09e16e39e2301114e.bundle",
+        "sha256": "185dc3f56be81fc9605c1e843f35625f50ff0c18527512087c367a171029faf1"
+      },
+      {
+        "kind": "historical_season_reward",
+        "url": "https://games.app-liv.jp/archives/459716"
+      },
+      {
+        "kind": "visible_asset_threshold",
+        "assetPath": "ui/badge/thumbnail_badges_6014204.unity3d"
+      }
+    ]
+  },
+  {
+    "id": 6014205,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014205,
+    "assetPath": "ui/badge/thumbnail_badges_6014205.unity3d",
+    "assetSha256": "a59536e3a13d79d764627182e889ec779af58d57112dea9e648195e7709ee998",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41456276756538_9da33d5591da6fbec840934262c2ab8b.bundle",
+        "sha256": "a59536e3a13d79d764627182e889ec779af58d57112dea9e648195e7709ee998"
+      }
+    ]
+  },
+  {
+    "id": 6014206,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014206,
+    "assetPath": "ui/badge/thumbnail_badges_6014206.unity3d",
+    "assetSha256": "35d0d06b83f4782c671d9fce21f6a67a04ba73d1ad48b7533bbd3cca1407e8b9",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41523446786447_e04817f3812039915a65b3bd0cf4bd8d.bundle",
+        "sha256": "35d0d06b83f4782c671d9fce21f6a67a04ba73d1ad48b7533bbd3cca1407e8b9"
+      }
+    ]
+  },
+  {
+    "id": 6014207,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014207,
+    "assetPath": "ui/badge/thumbnail_badges_6014207.unity3d",
+    "assetSha256": "22310edd3382fd6424d6961757916a171efcfb3fe6585335803eb35e610c4fc8",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41764646634F44_4eaa060a0143f830e4f286d5e7880dd5.bundle",
+        "sha256": "22310edd3382fd6424d6961757916a171efcfb3fe6585335803eb35e610c4fc8"
+      }
+    ]
+  },
+  {
+    "id": 6014208,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014208,
+    "assetPath": "ui/badge/thumbnail_badges_6014208.unity3d",
+    "assetSha256": "91ef06baad3fc8a881c356639cacdeb8f74c3d9dd1ce319e4cc47fbd4302737c",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/415274436C3553_fec7517056cdc64671e6f8c76d5e7698.bundle",
+        "sha256": "91ef06baad3fc8a881c356639cacdeb8f74c3d9dd1ce319e4cc47fbd4302737c"
+      }
+    ]
+  },
+  {
+    "id": 6014301,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014301,
+    "assetPath": "ui/badge/thumbnail_badges_6014301.unity3d",
+    "assetSha256": "c063c1311836b6b261dfb06c3e3250d370357df84a63f041a9ffff99b6c2a579",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41464D33377036_8da966a2ca7330eac07be2d8068a0e76.bundle",
+        "sha256": "c063c1311836b6b261dfb06c3e3250d370357df84a63f041a9ffff99b6c2a579"
+      }
+    ]
+  },
+  {
+    "id": 6014302,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014302,
+    "assetPath": "ui/badge/thumbnail_badges_6014302.unity3d",
+    "assetSha256": "ead35bf277102dc3d7d86ace2de274bbfcad899212da6a0f65c5b6af8efb3dd4",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41497475444E6D_52893245d4259d3443cac1ece89c94b0.bundle",
+        "sha256": "ead35bf277102dc3d7d86ace2de274bbfcad899212da6a0f65c5b6af8efb3dd4"
+      }
+    ]
+  },
+  {
+    "id": 6014303,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014303,
+    "assetPath": "ui/badge/thumbnail_badges_6014303.unity3d",
+    "assetSha256": "7e5064347efffb58a62e963add73c6b612232972176ef43505adf3599e1e3294",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4177553748786C_6825774d2a61cd8216fdc9a9aa998f3d.bundle",
+        "sha256": "7e5064347efffb58a62e963add73c6b612232972176ef43505adf3599e1e3294"
+      }
+    ]
+  },
+  {
+    "id": 6014304,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014304,
+    "assetPath": "ui/badge/thumbnail_badges_6014304.unity3d",
+    "assetSha256": "a2c1fdde864e81674f43c1b8a51c4ff21aeee21dfb4b48ae774ad50f84a5e267",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4159694B36726F_2d63902f332224516905462637bd6652.bundle",
+        "sha256": "a2c1fdde864e81674f43c1b8a51c4ff21aeee21dfb4b48ae774ad50f84a5e267"
+      }
+    ]
+  },
+  {
+    "id": 6014401,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014401,
+    "assetPath": "ui/badge/thumbnail_badges_6014401.unity3d",
+    "assetSha256": "619680bc3b3acbab63ed9ad2bc22ea17001314de5b1cbf6cd11c6c62f8d0ec25",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4170566C715147_16e28f5777c6362eed8bf8029f90d691.bundle",
+        "sha256": "619680bc3b3acbab63ed9ad2bc22ea17001314de5b1cbf6cd11c6c62f8d0ec25"
+      }
+    ]
+  },
+  {
+    "id": 6014402,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014402,
+    "assetPath": "ui/badge/thumbnail_badges_6014402.unity3d",
+    "assetSha256": "37045bfa1244e77ddb6e533ecfcad66e172e2374a8d750ae3e284976dfd41aec",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41795438657A64_30ce3ca2d951b3b89633dd7de5c825af.bundle",
+        "sha256": "37045bfa1244e77ddb6e533ecfcad66e172e2374a8d750ae3e284976dfd41aec"
+      }
+    ]
+  },
+  {
+    "id": 6014403,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014403,
+    "assetPath": "ui/badge/thumbnail_badges_6014403.unity3d",
+    "assetSha256": "9d40e2ee86b720196371f1786d59bb03e1fb843180575f11e75619b81562d457",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41754A44746F4D_78d5ac67168c1b67d7805edb5a0fc5aa.bundle",
+        "sha256": "9d40e2ee86b720196371f1786d59bb03e1fb843180575f11e75619b81562d457"
+      }
+    ]
+  },
+  {
+    "id": 6014404,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014404,
+    "assetPath": "ui/badge/thumbnail_badges_6014404.unity3d",
+    "assetSha256": "a0892141a225a5c95eb8da6f2bda435a4f1a2226cdf5e95908fc453ee3643e17",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4170704B693959_c69ef7a3461da20feb68540a58751a73.bundle",
+        "sha256": "a0892141a225a5c95eb8da6f2bda435a4f1a2226cdf5e95908fc453ee3643e17"
+      }
+    ]
+  },
+  {
+    "id": 6014501,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014501,
+    "assetPath": "ui/badge/thumbnail_badges_6014501.unity3d",
+    "assetSha256": "f185d47ebc61ff8f3c7dcb9715bd803e6b3cf6ef724751ee9a608e8bf9d33735",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4154424C6A6B48_db1a694da0fe0fe87a0f8de1217f057c.bundle",
+        "sha256": "f185d47ebc61ff8f3c7dcb9715bd803e6b3cf6ef724751ee9a608e8bf9d33735"
+      }
+    ]
+  },
+  {
+    "id": 6014502,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014502,
+    "assetPath": "ui/badge/thumbnail_badges_6014502.unity3d",
+    "assetSha256": "bfc82dad5817dc3dfd3ce475aaf1e4199664d8d0225c30365bb1672d4cc9240b",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/415A3476436655_a3f1fd3624e0abda0d03fad048742369.bundle",
+        "sha256": "bfc82dad5817dc3dfd3ce475aaf1e4199664d8d0225c30365bb1672d4cc9240b"
+      }
+    ]
+  },
+  {
+    "id": 6014503,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014503,
+    "assetPath": "ui/badge/thumbnail_badges_6014503.unity3d",
+    "assetSha256": "777eeb7bdacd6b57fc087169b1f49518bfd4dc56649da78b78375fb9f3ae5ac9",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41526776754B51_8d7df19b16a2bb2ac5f425271f43c1d0.bundle",
+        "sha256": "777eeb7bdacd6b57fc087169b1f49518bfd4dc56649da78b78375fb9f3ae5ac9"
+      }
+    ]
+  },
+  {
+    "id": 6014504,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014504,
+    "assetPath": "ui/badge/thumbnail_badges_6014504.unity3d",
+    "assetSha256": "0f99c68cb30a8fab9177ba9775625201392cdf56ac0e41fcfb7a5cf314d90844",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41307357777655_55eb4c4f00e2d3f9bd0a77458b521909.bundle",
+        "sha256": "0f99c68cb30a8fab9177ba9775625201392cdf56ac0e41fcfb7a5cf314d90844"
+      }
+    ]
+  },
+  {
+    "id": 6014601,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014601,
+    "assetPath": "ui/badge/thumbnail_badges_6014601.unity3d",
+    "assetSha256": "113863f6896425633850f45b8abb222ebd067ec6f82b0ce8e6b60eb2a462cb16",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41553268434242_927a9c36c33087a22cd827cffa3ea6fc.bundle",
+        "sha256": "113863f6896425633850f45b8abb222ebd067ec6f82b0ce8e6b60eb2a462cb16"
+      }
+    ]
+  },
+  {
+    "id": 6014602,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014602,
+    "assetPath": "ui/badge/thumbnail_badges_6014602.unity3d",
+    "assetSha256": "489c498aed504447201be2946a5978e0ea76963134b2726bc1ad03a231f16654",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/414864544A546F_6e5dc071bf6b4f54c1582d7d7f9ba6ad.bundle",
+        "sha256": "489c498aed504447201be2946a5978e0ea76963134b2726bc1ad03a231f16654"
+      }
+    ]
+  },
+  {
+    "id": 6014603,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014603,
+    "assetPath": "ui/badge/thumbnail_badges_6014603.unity3d",
+    "assetSha256": "ee712d02178040312964fe5fce2a4df3f8a8dcc443add691091d9d05b35b94b2",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/414F7548384D58_cd6339a1cb5736350b3c6590db8e2d13.bundle",
+        "sha256": "ee712d02178040312964fe5fce2a4df3f8a8dcc443add691091d9d05b35b94b2"
+      }
+    ]
+  },
+  {
+    "id": 6014604,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6014604,
+    "assetPath": "ui/badge/thumbnail_badges_6014604.unity3d",
+    "assetSha256": "8d6fbb7215b6af9b06410b042c4a7c96230f631998533d5704d17140d996378a",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41335553495847_96599e8b01d9f37269b5400833d7588d.bundle",
+        "sha256": "8d6fbb7215b6af9b06410b042c4a7c96230f631998533d5704d17140d996378a"
+      }
+    ]
+  },
+  {
+    "id": 6015601,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6015601,
+    "assetPath": "ui/badge/thumbnail_badges_6015601.unity3d",
+    "assetSha256": "e436fcb82c474f1840338d2e82caf2b8c2d3e65dbdc77922a9cfa713ecaa1e2b",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4172416C347537_b47de3271632d2c2f9a1c2082d2bd076.bundle",
+        "sha256": "e436fcb82c474f1840338d2e82caf2b8c2d3e65dbdc77922a9cfa713ecaa1e2b"
+      }
+    ]
+  },
+  {
+    "id": 6015602,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6015602,
+    "assetPath": "ui/badge/thumbnail_badges_6015602.unity3d",
+    "assetSha256": "95cea272d7b64809bea89cf8b85a0a07f1c5d40839dd7c30bf011130a8061b11",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4152724A55654A_8a4349971c43d322a9b87009b88daae4.bundle",
+        "sha256": "95cea272d7b64809bea89cf8b85a0a07f1c5d40839dd7c30bf011130a8061b11"
+      }
+    ]
+  },
+  {
+    "id": 6015603,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6015603,
+    "assetPath": "ui/badge/thumbnail_badges_6015603.unity3d",
+    "assetSha256": "78b452b18a6aeec16f90a9d759bb38fda028f00304516cefb81d67a1029e51fd",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/415A7172353931_4ad11ac1c79846c72440e52086dc9993.bundle",
+        "sha256": "78b452b18a6aeec16f90a9d759bb38fda028f00304516cefb81d67a1029e51fd"
+      }
+    ]
+  },
+  {
+    "id": 6015604,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6015604,
+    "assetPath": "ui/badge/thumbnail_badges_6015604.unity3d",
+    "assetSha256": "4aae56334655af5f58938a83fd0a4f194cece53a624339cc1ab314e548524fcb",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41426565766A59_c9bf816ea6e9ffdfc30e86e7426b29c5.bundle",
+        "sha256": "4aae56334655af5f58938a83fd0a4f194cece53a624339cc1ab314e548524fcb"
+      }
+    ]
+  },
+  {
+    "id": 6015605,
+    "honorType": 0,
+    "name": "",
+    "title": "",
+    "sortOrder": 6015605,
+    "assetPath": "ui/badge/thumbnail_badges_6015605.unity3d",
+    "assetSha256": "ab0f974dfd238f22da872f326dac5b0cab52e101bd57a38e790bbfb7acbf4f0e",
+    "rule": null,
+    "status": "unknown",
+    "source": [
+      {
+        "kind": "local_asset_catalog",
+        "path": "config/resources/catalog.json",
+        "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/417533686A6A6A_b067b629326efae31ef91cb4414ae6a7.bundle",
+        "sha256": "ab0f974dfd238f22da872f326dac5b0cab52e101bd57a38e790bbfb7acbf4f0e"
+      }
+    ]
+  }
+]

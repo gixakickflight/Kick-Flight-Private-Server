@@ -186,6 +186,30 @@ services:
       cdn:
         condition: service_healthy
 
+  badges:
+    build:
+      context: ..
+      dockerfile: deploy/badges/Dockerfile
+    image: kickflight/badges:alpine-3.21
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      KF_BADGES_PORT: "8766"
+      KF_BADGES_HOST: "0.0.0.0"
+      KF_BADGES_DB_PATH: /data/badges.sqlite3
+    volumes:
+      - badges-data:/data
+    expose:
+      - "8766"
+    ports:
+      - "127.0.0.1:8766:8766"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8766/badges/health\")'"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks: [backend]
+
   grpc:
     image: nginx:1.27-alpine
     restart: unless-stopped
@@ -209,6 +233,7 @@ volumes:
   geoip-data:
   caddy-data:
   caddy-config:
+  badges-data:
 
 networks:
   backend:
