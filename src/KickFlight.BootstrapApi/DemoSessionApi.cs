@@ -1984,6 +1984,11 @@ public sealed partial class DemoSessionApi
             // JetCoin one and is served in full.
             shopProductList = Array.Empty<object>(),
             goodsShopProductList = BuildGoodsShopProducts(economy),
+            // GoodsShopProductListInfo carries these two counts beside the product list, and the Discs tab draws its
+            // fragment-conversion section from them: without the fields the client falls back to its own baked
+            // numbers and the section renders with a blank banner. Zero products cost fragments, so both are zero.
+            costDiscFragmentProductCount = 0,
+            costDiscFragmentProductMinCost = 0,
             // The exchange tab's own scroller (ShopExchangeScroller) stays empty: no disc fragments are converted.
             discFragmentConversionDiscIdList = Array.Empty<int>(),
             // The badge on the mission button: steps reached and not yet claimed, over the rows MissionRows serves.
