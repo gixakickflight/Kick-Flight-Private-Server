@@ -11,9 +11,14 @@ const I18N_STRINGS = {
     unauthenticated_pill: "Unauthenticated",
     change_button: "Change",
     lang_toggle: "Español",
+    lang_select_label: "Language",
+    lang_en: "English",
+    lang_es: "Español",
     glyph_btn: "🔤 Glyph Key",
     unmapped_btn: "📋 Guide Notes",
     contributors_btn: "👥 Contributors",
+    announcements_btn: "📢 Announcements",
+    announcements_link: "📢 Announcements",
     search_placeholder: "Search by ID, name, or condition...",
     filter_category: "Category",
     cat_all: "All Categories",
@@ -29,9 +34,13 @@ const I18N_STRINGS = {
     filter_edited: "Show Edited Only",
     sync_status_synced: "Synced",
     sync_status_saving: "Autosaving...",
+    sync_status_pending: "{count} pending auto-save",
     sync_status_offline: "Offline (Drafts saved)",
     sync_status_error: "Sync error",
     badge_count: "Showing {count} of {total} badges",
+    badge_loading: "Loading badges...",
+    server_time: "Server: {time}",
+    alert_offline_mode: "Could not connect to badge server. Running in offline mode.",
     
     // Card fields
     card_name_label: "Badge Name (EN)",
@@ -43,6 +52,21 @@ const I18N_STRINGS = {
     card_last_edit: "Last edit by {player} ({time})",
     card_version: "v{version}",
     card_secret: "Secret Badge",
+    badge_art_alt: "Badge {id}",
+
+    // Accessibility labels
+    aria_lang_selector: "Language selector / Selector de idioma",
+    aria_search_input: "Search badges by ID, name, or condition",
+    aria_filter_category: "Filter badges by category",
+    aria_filter_status: "Filter badges by status",
+    aria_filter_edited: "Show only badges with edits",
+    aria_change_name: "Change contributor player name",
+    aria_glyph_btn: "Open alien glyph key reference",
+    aria_unmapped_btn: "Open unmapped guide requirements notes",
+    aria_contributors_btn: "Open contributors list and reward details",
+    aria_announcements_link: "Open updates and patch notes announcements",
+    aria_close_modal: "Close dialog",
+    aria_download_csv: "Download contributors list as CSV file",
 
     // Contributor Modal
     modal_title: "Kick Flight Contributor Name",
@@ -59,6 +83,8 @@ const I18N_STRINGS = {
     contrib_modal_desc: "Active contributors receive an exclusive in-game badge! Rewards are delivered manually by administrators based on your exact player name provided during edits (no automated granting).",
     contrib_export_btn: "Download CSV",
     contrib_no_contributors: "No community contributions recorded yet.",
+    contrib_loading: "Loading contributors...",
+    contrib_error: "Error loading contributors: {error}",
     contrib_col_player: "Player Name",
     contrib_col_edits: "Total Edits",
     contrib_col_badges: "Badges",
@@ -88,6 +114,8 @@ const I18N_STRINGS = {
     history_col_old: "Previous Value",
     history_col_new: "New Value",
     history_col_version: "Version",
+    history_empty_val: "(empty)",
+    history_error: "Could not load history: {error}",
     history_close_btn: "Close",
 
     // Conflict Notification
@@ -116,9 +144,14 @@ const I18N_STRINGS = {
     unauthenticated_pill: "No autenticado",
     change_button: "Cambiar",
     lang_toggle: "English",
+    lang_select_label: "Idioma",
+    lang_en: "English",
+    lang_es: "Español",
     glyph_btn: "🔤 Clave de Glifos",
     unmapped_btn: "📋 Notas de Guía",
     contributors_btn: "👥 Colaboradores",
+    announcements_btn: "📢 Anuncios",
+    announcements_link: "📢 Anuncios",
     search_placeholder: "Buscar por ID, nombre o condición...",
     filter_category: "Categoría",
     cat_all: "Todas las categorías",
@@ -134,9 +167,13 @@ const I18N_STRINGS = {
     filter_edited: "Mostrar solo editadas",
     sync_status_synced: "Sincronizado",
     sync_status_saving: "Guardando...",
+    sync_status_pending: "{count} guardado automático pendiente",
     sync_status_offline: "Sin conexión (Borrador guardado)",
     sync_status_error: "Error de sincronización",
     badge_count: "Mostrando {count} de {total} insignias",
+    badge_loading: "Cargando insignias...",
+    server_time: "Servidor: {time}",
+    alert_offline_mode: "No se pudo conectar al servidor de insignias. Ejecutando en modo sin conexión.",
     
     // Card fields
     card_name_label: "Nombre de insignia (EN)",
@@ -148,6 +185,21 @@ const I18N_STRINGS = {
     card_last_edit: "Última edición por {player} ({time})",
     card_version: "v{version}",
     card_secret: "Insignia Secreta",
+    badge_art_alt: "Insignia {id}",
+
+    // Accessibility labels
+    aria_lang_selector: "Selector de idioma / Language selector",
+    aria_search_input: "Buscar insignias por ID, nombre o condición",
+    aria_filter_category: "Filtrar insignias por categoría",
+    aria_filter_status: "Filtrar insignias por estado",
+    aria_filter_edited: "Mostrar solo insignias con ediciones",
+    aria_change_name: "Cambiar nombre de jugador colaborador",
+    aria_glyph_btn: "Abrir referencia de clave de glifos alienígenas",
+    aria_unmapped_btn: "Abrir notas de requisitos no mapeados de la guía",
+    aria_contributors_btn: "Abrir lista de colaboradores y detalles de recompensas",
+    aria_announcements_link: "Abrir actualizaciones y notas de parche",
+    aria_close_modal: "Cerrar diálogo",
+    aria_download_csv: "Descargar lista de colaboradores como archivo CSV",
 
     // Contributor Modal
     modal_title: "Nombre de Colaborador de Kick Flight",
@@ -164,6 +216,8 @@ const I18N_STRINGS = {
     contrib_modal_desc: "¡Los colaboradores activos reciben una insignia exclusiva dentro del juego! Las recompensas son entregadas manualmente por los administradores según el nombre de jugador exacto provisto al editar (sin otorgamiento automático).",
     contrib_export_btn: "Descargar CSV",
     contrib_no_contributors: "Aún no hay contribuciones comunitarias registradas.",
+    contrib_loading: "Cargando colaboradores...",
+    contrib_error: "Error al cargar colaboradores: {error}",
     contrib_col_player: "Nombre de Jugador",
     contrib_col_edits: "Ediciones",
     contrib_col_badges: "Insignias",
@@ -193,6 +247,8 @@ const I18N_STRINGS = {
     history_col_old: "Valor Anterior",
     history_col_new: "Nuevo Valor",
     history_col_version: "Versión",
+    history_empty_val: "(vacío)",
+    history_error: "No se pudo cargar el historial: {error}",
     history_close_btn: "Cerrar",
 
     // Conflict Notification
@@ -225,6 +281,11 @@ function setLanguage(lang) {
       localStorage.setItem("kf_badge_lang", lang);
     }
   } catch (e) {}
+  try {
+    if (typeof document !== "undefined" && document.cookie !== undefined) {
+      document.cookie = "kf_badge_lang=" + lang + "; path=/; max-age=31536000; SameSite=Lax";
+    }
+  } catch (e) {}
   if (typeof document !== "undefined" && document.documentElement) {
     document.documentElement.lang = lang;
   }
@@ -232,11 +293,18 @@ function setLanguage(lang) {
 
 function getStoredLanguage() {
   try {
-    const saved = localStorage.getItem("kf_badge_lang");
-    if (saved === "en" || saved === "es") return saved;
-    const browser = navigator.language || "";
-    if (browser.startsWith("es")) return "es";
+    if (typeof localStorage !== "undefined") {
+      const saved = localStorage.getItem("kf_badge_lang");
+      if (saved === "en" || saved === "es") return saved;
+    }
   } catch (e) {}
+  try {
+    if (typeof document !== "undefined" && document.cookie) {
+      const match = document.cookie.match(/(?:^|;\s*)kf_badge_lang=([a-z]{2})/);
+      if (match && (match[1] === "en" || match[1] === "es")) return match[1];
+    }
+  } catch (e) {}
+  // Default to English for first-time visitors regardless of browser locale
   return "en";
 }
 

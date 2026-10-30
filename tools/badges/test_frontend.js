@@ -63,6 +63,91 @@ describe("1. Internationalization (i18n.js)", () => {
     const text = i18n.t("conflict_server_version", { version: 42 });
     assert.strictEqual(text, "Server Version: v42");
   });
+
+  test("First-time visitor defaults to English regardless of browser locale", () => {
+    // Mock localStorage without saved lang
+    const mockStorage = new Map();
+    globalThis.localStorage = {
+      getItem: (k) => mockStorage.get(k) || null,
+      setItem: (k, v) => mockStorage.set(k, String(v)),
+      removeItem: (k) => mockStorage.delete(k),
+      clear: () => mockStorage.clear(),
+    };
+
+    // Even if browser language is Spanish
+    globalThis.navigator = { language: "es-ES", languages: ["es-ES", "es"] };
+    assert.strictEqual(i18n.getStoredLanguage(), "en", "First-time visitor must see English regardless of Spanish browser locale");
+
+    // Persisting Spanish
+    i18n.setLanguage("es");
+    assert.strictEqual(mockStorage.get("kf_badge_lang"), "es", "Language choice must persist to localStorage");
+    assert.strictEqual(i18n.getStoredLanguage(), "es", "Stored language must return 'es' once chosen");
+
+    // Switching back to English
+    i18n.setLanguage("en");
+    assert.strictEqual(mockStorage.get("kf_badge_lang"), "en", "Switching back to English must update localStorage");
+    assert.strictEqual(i18n.getStoredLanguage(), "en", "Stored language must return 'en'");
+  });
+
+  test("All UI labels, announcements, filters, and accessibility keys are complete", () => {
+    const requiredKeys = [
+      "app_title",
+      "app_subtitle",
+      "contributor_label",
+      "unauthenticated_pill",
+      "change_button",
+      "lang_toggle",
+      "glyph_btn",
+      "unmapped_btn",
+      "contributors_btn",
+      "announcements_btn",
+      "announcements_link",
+      "search_placeholder",
+      "filter_category",
+      "cat_all",
+      "cat_other",
+      "cat_battle",
+      "cat_kicker",
+      "filter_status",
+      "status_all",
+      "status_default",
+      "status_known",
+      "status_historical",
+      "status_unknown",
+      "filter_edited",
+      "sync_status_pending",
+      "badge_loading",
+      "server_time",
+      "badge_art_alt",
+      "aria_lang_selector",
+      "aria_search_input",
+      "aria_filter_category",
+      "aria_filter_status",
+      "aria_filter_edited",
+      "aria_change_name",
+      "aria_glyph_btn",
+      "aria_unmapped_btn",
+      "aria_contributors_btn",
+      "aria_announcements_link",
+      "aria_close_modal",
+      "aria_download_csv",
+      "contrib_loading",
+      "contrib_error",
+      "history_empty_val",
+      "history_error",
+      "alert_offline_mode",
+    ];
+
+    for (const lang of ["en", "es"]) {
+      i18n.setLanguage(lang);
+      for (const k of requiredKeys) {
+        const val = i18n.t(k, { count: 3, total: 211, time: "12:00", id: 101, version: 1, error: "err" });
+        assert.ok(val, `Missing translation for key '${k}' in language '${lang}'`);
+        assert.notStrictEqual(val, k, `Untranslated key '${k}' in language '${lang}'`);
+      }
+    }
+    i18n.setLanguage("en");
+  });
 });
 
 describe("2. In-flight Draft Acknowledgment & Newer Edit Retention", () => {

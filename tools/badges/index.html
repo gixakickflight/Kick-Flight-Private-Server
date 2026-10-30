@@ -391,6 +391,31 @@
       .card { grid-template-columns: 96px 1fr; }
       .art { width: 96px; height: 96px; }
     }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    .lang-select {
+      background: #19222e;
+      color: var(--text);
+      border: 1px solid var(--accent);
+      border-radius: 7px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .lang-select:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
   </style>
 </head>
 <body>
@@ -405,27 +430,41 @@
       <div class="user-pill">
         <span id="txt-contributor-lbl">Contributor</span>: <strong id="current-player-name">Guest</strong>
         <span class="unauth-badge" id="txt-unauth-pill">Unauthenticated</span>
-        <button id="btn-change-name" style="padding: 2px 7px; font-size: 11px;">Change</button>
+        <button id="btn-change-name" style="padding: 2px 7px; font-size: 11px;" aria-label="Change contributor player name">Change</button>
       </div>
       <div id="sync-pill" class="sync-pill">
         <span class="dot">●</span> <span id="sync-text">Synced</span>
       </div>
-      <button id="btn-toggle-lang" class="btn">Español</button>
-      <button id="btn-glyph" class="btn">🔤 Glyph Key</button>
-      <button id="btn-unmapped" class="btn">📋 Guide Notes</button>
-      <button id="btn-contributors" class="btn">👥 Contributors</button>
+      <div class="lang-selector-wrap" style="display:inline-flex; align-items:center; gap:6px;">
+        <label for="lang-select" class="sr-only" id="lbl-lang-select">Language / Idioma</label>
+        <select id="lang-select" class="lang-select" aria-label="Language selector / Selector de idioma">
+          <option value="en">English</option>
+          <option value="es">Español</option>
+        </select>
+        <select id="langSelect" class="sr-only" aria-hidden="true" tabindex="-1">
+          <option value="en">English</option>
+          <option value="es">Español</option>
+        </select>
+        <button id="btn-toggle-lang" class="btn" aria-label="Toggle language / Cambiar idioma">Español</button>
+      </div>
+      <button id="btn-glyph" class="btn" aria-label="Open alien glyph key reference">🔤 Glyph Key</button>
+      <button id="btn-unmapped" class="btn" aria-label="Open unmapped guide requirements notes">📋 Guide Notes</button>
+      <button id="btn-contributors" class="btn" aria-label="Open contributors list and reward details">👥 Contributors</button>
+      <a id="link-announcements" class="btn" href="/updates" target="_blank" rel="noopener" style="text-decoration:none;" aria-label="Open updates and patch notes announcements"><span id="txt-announcements-link">📢 Announcements</span></a>
     </div>
   </div>
 
   <div class="toolbar">
-    <input id="search-input" type="search" placeholder="Search by ID, name, or condition...">
-    <select id="filter-category">
+    <input id="search-input" type="search" placeholder="Search by ID, name, or condition..." aria-label="Search badges by ID, name, or condition">
+    <label for="filter-category" class="sr-only" id="lbl-filter-category">Category</label>
+    <select id="filter-category" aria-label="Filter badges by category">
       <option value="">All Categories</option>
       <option value="0">Other (0)</option>
       <option value="1">Battle (1)</option>
       <option value="2">Kicker (2)</option>
     </select>
-    <select id="filter-status">
+    <label for="filter-status" class="sr-only" id="lbl-filter-status">Status</label>
+    <select id="filter-status" aria-label="Filter badges by status">
       <option value="">All Statuses</option>
       <option value="default">Default</option>
       <option value="known">Known</option>
@@ -433,7 +472,7 @@
       <option value="unknown">Unknown</option>
     </select>
     <label class="checkbox-label">
-      <input type="checkbox" id="filter-edited"> <span id="txt-filter-edited">Show Edited Only</span>
+      <input type="checkbox" id="filter-edited" aria-label="Show only badges with edits"> <span id="txt-filter-edited">Show Edited Only</span>
     </label>
   </div>
 </header>
@@ -447,7 +486,7 @@
 
 <!-- Contributor Name Modal -->
 <div id="modal-contributor" class="modal-overlay" hidden>
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-contributor-title">
     <h2 id="modal-contributor-title">Kick Flight Contributor Name</h2>
     <p id="modal-contributor-desc">Please enter your Kick Flight player name to attribute your edits in the collaborative catalog.</p>
     <div class="modal-reward" id="modal-contributor-reward">
@@ -457,7 +496,7 @@
       ⚠️ Note: This self-entered name is NOT authenticated or verified against your Kick Flight account or password. Anyone can enter any display name; it is used solely to record who suggested each edit in the public audit log.
     </div>
     <div class="field">
-      <input type="text" id="input-player-name" maxlength="32" placeholder="Player name (1-32 chars)">
+      <input type="text" id="input-player-name" maxlength="32" placeholder="Player name (1-32 chars)" aria-label="Player name (1-32 chars)">
     </div>
     <div class="modal-footer">
       <button id="btn-save-player" class="primary">Continue to Catalog</button>
@@ -467,7 +506,7 @@
 
 <!-- Glyph Key Modal -->
 <div id="modal-glyph" class="modal-overlay" hidden>
-  <div class="modal wide">
+  <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="modal-glyph-title">
     <h2 id="modal-glyph-title">Kick Flight Glyph Key Reference</h2>
     <p class="subtitle" id="modal-glyph-sub">Reference sheet mapping in-game alien glyph shapes to standard alphanumeric characters (A-Z).</p>
     <p style="font-size: 12px; color: var(--muted);" id="modal-glyph-desc">
@@ -475,14 +514,14 @@
     </p>
     <img id="img-glyph" class="glyph-img" alt="Kick Flight Glyph Key Reference">
     <div class="modal-footer">
-      <button id="btn-close-glyph">Close</button>
+      <button id="btn-close-glyph" aria-label="Close dialog">Close</button>
     </div>
   </div>
 </div>
 
 <!-- Unmapped Requirements Modal -->
 <div id="modal-unmapped" class="modal-overlay" hidden>
-  <div class="modal wide">
+  <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="modal-unmapped-title">
     <h2 id="modal-unmapped-title">Historical Guide Unmapped Requirements</h2>
     <p style="font-size: 12px; color: var(--muted);" id="modal-unmapped-desc">
       These 14 requirements were transcribed from the historical RAR Japanese game guide (rar-games.jp). Their original badge IDs are unconfirmed. Match these conditions to unknown badges when visual evidence aligns.
@@ -500,39 +539,39 @@
       </table>
     </div>
     <div class="modal-footer">
-      <button id="btn-close-unmapped">Close</button>
+      <button id="btn-close-unmapped" aria-label="Close dialog">Close</button>
     </div>
   </div>
 </div>
 
 <!-- Audit History Modal -->
 <div id="modal-history" class="modal-overlay" hidden>
-  <div class="modal wide">
+  <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="modal-history-title">
     <h2 id="modal-history-title">Badge Edit History</h2>
     <div style="overflow-x: auto; max-height: 50vh;">
       <table class="data-table">
         <thead>
           <tr>
-            <th>Timestamp</th>
-            <th>Contributor</th>
-            <th>Field</th>
-            <th>Previous Value</th>
-            <th>New Value</th>
-            <th>Version</th>
+            <th id="th-history-time">Timestamp</th>
+            <th id="th-history-player">Contributor</th>
+            <th id="th-history-field">Field</th>
+            <th id="th-history-old">Previous Value</th>
+            <th id="th-history-new">New Value</th>
+            <th id="th-history-version">Version</th>
           </tr>
         </thead>
         <tbody id="history-table-body"></tbody>
       </table>
     </div>
     <div class="modal-footer">
-      <button id="btn-close-history">Close</button>
+      <button id="btn-close-history" aria-label="Close dialog">Close</button>
     </div>
   </div>
 </div>
 
 <!-- Contributors Leaderboard & Review Modal -->
 <div id="modal-contributors" class="modal-overlay" hidden>
-  <div class="modal wide">
+  <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="modal-contrib-title">
     <h2 id="modal-contrib-title">Badge Catalog Contributors & Rewards</h2>
     <div class="modal-reward" id="modal-contrib-desc">
       🎁 Active contributors receive an exclusive in-game badge! Rewards are delivered manually by administrators based on your exact player name provided during edits (no automated granting).
@@ -551,8 +590,8 @@
       </table>
     </div>
     <div class="modal-footer" style="justify-content: space-between;">
-      <a id="btn-contrib-export" class="btn" href="/badges/api/contributors?format=csv" download="kickflight_badge_contributors.csv" style="text-decoration:none; display:inline-flex; align-items:center;">Download CSV</a>
-      <button id="btn-close-contributors">Close</button>
+      <a id="btn-contrib-export" class="btn" href="/badges/api/contributors?format=csv" download="kickflight_badge_contributors.csv" style="text-decoration:none; display:inline-flex; align-items:center;" aria-label="Download contributors list as CSV file">Download CSV</a>
+      <button id="btn-close-contributors" aria-label="Close dialog">Close</button>
     </div>
   </div>
 </div>
@@ -802,46 +841,130 @@
   function applyLanguage(lang) {
     setLanguage(lang);
     state.lang = lang;
-    document.getElementById("btn-toggle-lang").textContent = t("lang_toggle");
+    document.title = t("app_title");
+    if (typeof document !== "undefined" && document.documentElement) {
+      document.documentElement.lang = lang;
+    }
+
+    const sel1 = document.getElementById("lang-select");
+    if (sel1) {
+      sel1.value = lang;
+      sel1.setAttribute("aria-label", t("aria_lang_selector"));
+    }
+    const sel2 = document.getElementById("langSelect");
+    if (sel2) sel2.value = lang;
+    const toggleBtn = document.getElementById("btn-toggle-lang");
+    if (toggleBtn) toggleBtn.textContent = t("lang_toggle");
+
     document.getElementById("txt-app-title").textContent = t("app_title");
     document.getElementById("txt-app-subtitle").textContent = t("app_subtitle");
     document.getElementById("txt-contributor-lbl").textContent = t("contributor_label");
     document.getElementById("txt-unauth-pill").textContent = t("unauthenticated_pill");
-    document.getElementById("btn-change-name").textContent = t("change_button");
-    document.getElementById("btn-glyph").textContent = t("glyph_btn");
-    document.getElementById("btn-unmapped").textContent = t("unmapped_btn");
-    document.getElementById("btn-contributors").textContent = t("contributors_btn");
-    document.getElementById("search-input").placeholder = t("search_placeholder");
+    const btnChangeName = document.getElementById("btn-change-name");
+    btnChangeName.textContent = t("change_button");
+    btnChangeName.setAttribute("aria-label", t("aria_change_name"));
+    const btnGlyph = document.getElementById("btn-glyph");
+    btnGlyph.textContent = t("glyph_btn");
+    btnGlyph.setAttribute("aria-label", t("aria_glyph_btn"));
+    const btnUnmapped = document.getElementById("btn-unmapped");
+    btnUnmapped.textContent = t("unmapped_btn");
+    btnUnmapped.setAttribute("aria-label", t("aria_unmapped_btn"));
+    const btnContrib = document.getElementById("btn-contributors");
+    btnContrib.textContent = t("contributors_btn");
+    btnContrib.setAttribute("aria-label", t("aria_contributors_btn"));
+    const txtAnn = document.getElementById("txt-announcements-link");
+    if (txtAnn) txtAnn.textContent = t("announcements_btn");
+    const linkAnn = document.getElementById("link-announcements");
+    if (linkAnn) linkAnn.setAttribute("aria-label", t("aria_announcements_link"));
+
+    const searchInput = document.getElementById("search-input");
+    searchInput.placeholder = t("search_placeholder");
+    searchInput.setAttribute("aria-label", t("aria_search_input"));
     document.getElementById("txt-filter-edited").textContent = t("filter_edited");
+    document.getElementById("filter-edited").setAttribute("aria-label", t("aria_filter_edited"));
+
+    // Category options and aria-label
+    const catSelect = document.getElementById("filter-category");
+    catSelect.setAttribute("aria-label", t("aria_filter_category"));
+    if (catSelect.options.length >= 4) {
+      catSelect.options[0].textContent = t("cat_all");
+      catSelect.options[1].textContent = t("cat_other");
+      catSelect.options[2].textContent = t("cat_battle");
+      catSelect.options[3].textContent = t("cat_kicker");
+    }
+
+    // Status options and aria-label
+    const statusSelect = document.getElementById("filter-status");
+    statusSelect.setAttribute("aria-label", t("aria_filter_status"));
+    if (statusSelect.options.length >= 5) {
+      statusSelect.options[0].textContent = t("status_all");
+      statusSelect.options[1].textContent = t("status_default");
+      statusSelect.options[2].textContent = t("status_known");
+      statusSelect.options[3].textContent = t("status_historical");
+      statusSelect.options[4].textContent = t("status_unknown");
+    }
 
     // Modal texts
     document.getElementById("modal-contributor-title").textContent = t("modal_title");
     document.getElementById("modal-contributor-desc").textContent = t("modal_desc");
     document.getElementById("modal-contributor-reward").textContent = t("modal_reward_notice");
     document.getElementById("modal-contributor-warning").textContent = t("modal_unauth_warning");
+    const nameInput = document.getElementById("input-player-name");
+    nameInput.placeholder = t("modal_input_placeholder");
+    nameInput.setAttribute("aria-label", t("modal_input_placeholder"));
     document.getElementById("btn-save-player").textContent = t("modal_save_btn");
 
     document.getElementById("modal-glyph-title").textContent = t("glyph_modal_title");
     document.getElementById("modal-glyph-sub").textContent = t("glyph_modal_subtitle");
     document.getElementById("modal-glyph-desc").textContent = t("glyph_modal_desc");
-    document.getElementById("btn-close-glyph").textContent = t("glyph_close_btn");
+    document.getElementById("img-glyph").alt = t("glyph_modal_title");
+    const btnCloseGlyph = document.getElementById("btn-close-glyph");
+    btnCloseGlyph.textContent = t("glyph_close_btn");
+    btnCloseGlyph.setAttribute("aria-label", t("aria_close_modal"));
 
     document.getElementById("modal-unmapped-title").textContent = t("unmapped_modal_title");
     document.getElementById("modal-unmapped-desc").textContent = t("unmapped_modal_desc");
     document.getElementById("th-unmapped-title").textContent = t("unmapped_col_name");
     document.getElementById("th-unmapped-cond").textContent = t("unmapped_col_condition");
     document.getElementById("th-unmapped-note").textContent = t("unmapped_col_note");
-    document.getElementById("btn-close-unmapped").textContent = t("unmapped_close_btn");
+    const btnCloseUnmapped = document.getElementById("btn-close-unmapped");
+    btnCloseUnmapped.textContent = t("unmapped_close_btn");
+    btnCloseUnmapped.setAttribute("aria-label", t("aria_close_modal"));
 
+    // Modal history headers
+    const thHistTime = document.getElementById("th-history-time");
+    if (thHistTime) thHistTime.textContent = t("history_col_time");
+    const thHistPlayer = document.getElementById("th-history-player");
+    if (thHistPlayer) thHistPlayer.textContent = t("history_col_player");
+    const thHistField = document.getElementById("th-history-field");
+    if (thHistField) thHistField.textContent = t("history_col_field");
+    const thHistOld = document.getElementById("th-history-old");
+    if (thHistOld) thHistOld.textContent = t("history_col_old");
+    const thHistNew = document.getElementById("th-history-new");
+    if (thHistNew) thHistNew.textContent = t("history_col_new");
+    const thHistVer = document.getElementById("th-history-version");
+    if (thHistVer) thHistVer.textContent = t("history_col_version");
+    const btnCloseHist = document.getElementById("btn-close-history");
+    if (btnCloseHist) {
+      btnCloseHist.textContent = t("history_close_btn");
+      btnCloseHist.setAttribute("aria-label", t("aria_close_modal"));
+    }
+
+    // Modal contributors
     document.getElementById("modal-contrib-title").textContent = t("contrib_modal_title");
     document.getElementById("modal-contrib-desc").textContent = t("contrib_modal_desc");
-    document.getElementById("btn-contrib-export").textContent = t("contrib_export_btn");
+    const btnExport = document.getElementById("btn-contrib-export");
+    btnExport.textContent = t("contrib_export_btn");
+    btnExport.setAttribute("aria-label", t("aria_download_csv"));
     document.getElementById("th-contrib-player").textContent = t("contrib_col_player");
     document.getElementById("th-contrib-edits").textContent = t("contrib_col_edits");
     document.getElementById("th-contrib-badges").textContent = t("contrib_col_badges");
     document.getElementById("th-contrib-last").textContent = t("contrib_col_last");
-    document.getElementById("btn-close-contributors").textContent = t("contrib_close_btn");
+    const btnCloseContrib = document.getElementById("btn-close-contributors");
+    btnCloseContrib.textContent = t("contrib_close_btn");
+    btnCloseContrib.setAttribute("aria-label", t("aria_close_modal"));
 
+    updateSyncPill();
     renderUnmappedTable();
     renderGrid();
   }
@@ -859,7 +982,7 @@
       txt.textContent = t("sync_status_offline");
     } else if (draftCount > 0) {
       pill.className = "sync-pill saving";
-      txt.textContent = `${draftCount} pending auto-save`;
+      txt.textContent = t("sync_status_pending", { count: draftCount });
     } else {
       pill.className = "sync-pill";
       txt.textContent = t("sync_status_synced");
@@ -923,7 +1046,7 @@
   async function openContributorsModal() {
     const modal = document.getElementById("modal-contributors");
     const tbody = document.getElementById("contrib-table-body");
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:16px;">Loading contributors...</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:16px;">${t("contrib_loading")}</td></tr>`;
     modal.hidden = false;
     try {
       const res = await fetch("/badges/api/contributors");
@@ -943,7 +1066,7 @@
         </tr>
       `).join("");
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:16px; color:var(--danger);">Error loading contributors: ${esc(e.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:16px; color:var(--danger);">${t("contrib_error", { error: esc(e.message) })}</td></tr>`;
     }
   }
 
@@ -952,9 +1075,24 @@
     document.getElementById("modal-contributors").hidden = true;
   });
 
-  document.getElementById("btn-toggle-lang").addEventListener("click", () => {
-    applyLanguage(state.lang === "en" ? "es" : "en");
-  });
+  const langSelect = document.getElementById("lang-select");
+  if (langSelect) {
+    langSelect.addEventListener("change", (e) => {
+      applyLanguage(e.target.value);
+    });
+  }
+  const langSelectAlt = document.getElementById("langSelect");
+  if (langSelectAlt) {
+    langSelectAlt.addEventListener("change", (e) => {
+      applyLanguage(e.target.value);
+    });
+  }
+  const toggleLangBtn = document.getElementById("btn-toggle-lang");
+  if (toggleLangBtn) {
+    toggleLangBtn.addEventListener("click", () => {
+      applyLanguage(state.lang === "en" ? "es" : "en");
+    });
+  }
 
   function renderUnmappedTable() {
     const tbody = document.getElementById("unmapped-table-body");
@@ -989,7 +1127,7 @@
     } catch (e) {
       console.error("Failed to load catalog:", e);
       state.offline = true;
-      showAlert("Could not connect to badge server. Running in offline mode.", "warn");
+      showAlert(t("alert_offline_mode"), "warn");
     }
     updateSyncPill();
   }
@@ -1028,7 +1166,9 @@
       total: state.badges.length,
     });
     if (state.serverTime) {
-      document.getElementById("server-time-text").textContent = `Server: ${new Date(state.serverTime).toLocaleTimeString()}`;
+      document.getElementById("server-time-text").textContent = t("server_time", {
+        time: new Date(state.serverTime).toLocaleTimeString()
+      });
     }
   }
 
@@ -1061,10 +1201,10 @@
       </div>
       ${renderConflictDiffHtml(badgeId, conflict)}
       <div style="display:flex; gap: 8px; flex-wrap: wrap; margin-top: 6px;">
-        <button class="btn btn-conflict-overwrite" type="button" style="background:#1b4437; border-color:#2a755d; font-size:11px; padding:4px 8px;">
+        <button class="btn btn-conflict-overwrite" type="button" aria-label="${esc(t('conflict_btn_overwrite'))} (#${badgeId})" style="background:#1b4437; border-color:#2a755d; font-size:11px; padding:4px 8px;">
           ✓ ${t("conflict_btn_overwrite")}
         </button>
-        <button class="btn btn-conflict-discard" type="button" style="background:#442025; border-color:#7c313c; font-size:11px; padding:4px 8px;">
+        <button class="btn btn-conflict-discard" type="button" aria-label="${esc(t('conflict_btn_discard'))} (#${badgeId})" style="background:#442025; border-color:#7c313c; font-size:11px; padding:4px 8px;">
           ✕ ${t("conflict_btn_discard")}
         </button>
       </div>
@@ -1139,7 +1279,7 @@
 
     const catLabels = { 0: t("cat_other"), 1: t("cat_battle"), 2: t("cat_kicker") };
     const catPill = card.querySelector(".pill-cat");
-    if (catPill) catPill.textContent = catLabels[b.category] || "Other";
+    if (catPill) catPill.textContent = catLabels[b.category] || (state.lang === "es" ? "Otra" : "Other");
 
     // Update footer info and history count
     const footerInfo = card.querySelector(".card-footer-info");
@@ -1151,7 +1291,15 @@
     const histBtn = card.querySelector(".btn-history");
     if (histBtn) {
       histBtn.textContent = t("card_history_btn", { count: b.edit_count || 0 });
+      histBtn.setAttribute("aria-label", `${t("card_history_btn", { count: b.edit_count || 0 })} (#${b.id})`);
     }
+
+    const fieldLabels = {
+      name: t("card_name_label"),
+      description: t("card_desc_label"),
+      requirements: t("card_req_label"),
+      notes: t("card_notes_label"),
+    };
 
     // Update fields
     ["name", "description", "requirements", "notes"].forEach(field => {
@@ -1162,6 +1310,7 @@
       if (dot) dot.style.display = isDraft ? "inline-block" : "none";
 
       if (input) {
+        input.setAttribute("aria-label", `${fieldLabels[field]} (#${b.id})`);
         if (isDraft) {
           // Retain local draft edit: do not overwrite!
           if (input.value !== draft.fields[field]) {
@@ -1230,10 +1379,10 @@
           </div>
           ${renderConflictDiffHtml(b.id, conflict)}
           <div style="display:flex; gap: 8px; flex-wrap: wrap; margin-top: 6px;">
-            <button class="btn btn-conflict-overwrite" type="button" style="background:#1b4437; border-color:#2a755d; font-size:11px; padding:4px 8px;">
+            <button class="btn btn-conflict-overwrite" type="button" aria-label="${esc(t('conflict_btn_overwrite'))} (#${b.id})" style="background:#1b4437; border-color:#2a755d; font-size:11px; padding:4px 8px;">
               ✓ ${t("conflict_btn_overwrite")}
             </button>
-            <button class="btn btn-conflict-discard" type="button" style="background:#442025; border-color:#7c313c; font-size:11px; padding:4px 8px;">
+            <button class="btn btn-conflict-discard" type="button" aria-label="${esc(t('conflict_btn_discard'))} (#${b.id})" style="background:#442025; border-color:#7c313c; font-size:11px; padding:4px 8px;">
               ✕ ${t("conflict_btn_discard")}
             </button>
           </div>
@@ -1244,7 +1393,7 @@
     card.innerHTML = `
       ${conflictHtml}
       <div class="art-wrap">
-        <img class="art" src="${b.image}" alt="Badge ${b.id}" loading="lazy">
+        <img class="art" src="${b.image}" alt="${esc(t('badge_art_alt', { id: b.id }))}" loading="lazy">
         <div class="meta-pills">
           <span class="badge-id">#${b.id}</span>
           <span class="pill pill-status ${b.status}">${t("status_" + b.status)}</span>
@@ -1259,7 +1408,7 @@
             <span>${t("card_name_label")}</span>
             <span class="dirty-dot" data-dirty-dot="name" style="${draft.fields.name !== undefined ? 'display:inline-block' : 'display:none'}"></span>
           </label>
-          <input type="text" maxlength="100" data-field="name" value="${esc(curName)}">
+          <input type="text" maxlength="100" data-field="name" aria-label="${esc(t('card_name_label'))} (#${b.id})" value="${esc(curName)}">
         </div>
 
         <div class="field">
@@ -1267,7 +1416,7 @@
             <span>${t("card_desc_label")}</span>
             <span class="dirty-dot" data-dirty-dot="description" style="${draft.fields.description !== undefined ? 'display:inline-block' : 'display:none'}"></span>
           </label>
-          <textarea maxlength="1000" rows="2" data-field="description">${esc(curDesc)}</textarea>
+          <textarea maxlength="1000" rows="2" data-field="description" aria-label="${esc(t('card_desc_label'))} (#${b.id})">${esc(curDesc)}</textarea>
         </div>
 
         <div class="field">
@@ -1275,7 +1424,7 @@
             <span>${t("card_req_label")}</span>
             <span class="dirty-dot" data-dirty-dot="requirements" style="${draft.fields.requirements !== undefined ? 'display:inline-block' : 'display:none'}"></span>
           </label>
-          <textarea maxlength="1000" rows="2" data-field="requirements">${esc(curReq)}</textarea>
+          <textarea maxlength="1000" rows="2" data-field="requirements" aria-label="${esc(t('card_req_label'))} (#${b.id})">${esc(curReq)}</textarea>
         </div>
 
         <div class="field">
@@ -1283,7 +1432,7 @@
             <span>${t("card_notes_label")}</span>
             <span class="dirty-dot" data-dirty-dot="notes" style="${draft.fields.notes !== undefined ? 'display:inline-block' : 'display:none'}"></span>
           </label>
-          <textarea maxlength="1000" rows="1" data-field="notes">${esc(curNotes)}</textarea>
+          <textarea maxlength="1000" rows="1" data-field="notes" aria-label="${esc(t('card_notes_label'))} (#${b.id})">${esc(curNotes)}</textarea>
         </div>
       </div>
 
@@ -1295,7 +1444,7 @@
 
       <div class="card-footer">
         <span class="card-footer-info">${b.updated_by ? t("card_last_edit", { player: esc(b.updated_by), time: new Date(b.updated_at).toLocaleTimeString() }) : ""}</span>
-        <button class="btn-history" data-badge-id="${b.id}" style="padding: 3px 8px; font-size: 11px;">
+        <button class="btn-history" data-badge-id="${b.id}" aria-label="${esc(t('card_history_btn', { count: b.edit_count || 0 }))} (#${b.id})" style="padding: 3px 8px; font-size: 11px;">
           ${t("card_history_btn", { count: b.edit_count || 0 })}
         </button>
       </div>
@@ -1344,8 +1493,8 @@
             <td>${esc(new Date(log.created_at).toLocaleString())}</td>
             <td><strong>${esc(log.player_name)}</strong></td>
             <td><code>${esc(log.field_name)}</code></td>
-            <td style="color:#e08282;">${esc(log.old_value || "(empty)")}</td>
-            <td style="color:#93e5a4;">${esc(log.new_value || "(empty)")}</td>
+            <td style="color:#e08282;">${esc(log.old_value || t("history_empty_val"))}</td>
+            <td style="color:#93e5a4;">${esc(log.new_value || t("history_empty_val"))}</td>
             <td>v${esc(log.badge_version)}</td>
           `;
           tbody.appendChild(tr);
@@ -1353,7 +1502,7 @@
       }
       document.getElementById("modal-history").hidden = false;
     } catch (e) {
-      showAlert(`Could not load history: ${e.message}`, "error");
+      showAlert(t("history_error", { error: esc(e.message) }), "error");
     }
   }
 
