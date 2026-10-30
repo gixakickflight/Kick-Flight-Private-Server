@@ -546,6 +546,10 @@ public sealed partial class DemoSessionApi
                 poolCost = (masterGoodsType, masterGoodsId, gacha.LotteryCostAmount);
             }
             var (costGoodsType, costGoodsId, costAmount) = poolCost.Value;
+            // The pull button draws its cost icon from ui/goods/thumbnail/<goodsId>, and the assets are named
+            // <goodsType>0001.unity3d. A raw Item row (7 for a kicker ticket) matches no asset and renders a
+            // white quad, so the id sent for display is the composite. Spending is economy's pool, not this.
+            costGoodsId = GoodsThumbnailId(costGoodsType, costGoodsId);
             gachaList.Add(BuildResponseGacha(gacha.Id, costGoodsType, costGoodsId, costAmount,
                 pool is { Open: true } ? GachaDrawableCount : 0,
                 gacha.EffectTopImageFilename, gacha.EffectBottomImageFilename, dropAmount: mapped?.Count ?? 1));
@@ -599,6 +603,10 @@ public sealed partial class DemoSessionApi
                 poolCost = (masterGoodsType, masterGoodsId, gacha.LotteryCostAmount);
             }
             var (costGoodsType, costGoodsId, costAmount) = poolCost.Value;
+            // The pull button draws its cost icon from ui/goods/thumbnail/<goodsId>, and the assets are named
+            // <goodsType>0001.unity3d. A raw Item row (7 for a kicker ticket) matches no asset and renders a
+            // white quad, so the id sent for display is the composite. Spending is economy's pool, not this.
+            costGoodsId = GoodsThumbnailId(costGoodsType, costGoodsId);
             gachaList.Add(BuildResponseGacha(gacha.Id, costGoodsType, costGoodsId, costAmount,
                 pool is { Open: true } ? GachaDrawableCount : 0,
                 gacha.EffectTopImageFilename, gacha.EffectBottomImageFilename));
@@ -639,6 +647,10 @@ public sealed partial class DemoSessionApi
     // The LotteryCost master row's goodsType/goodsId, for a gacha economy has no pool for: display only.
     private (int GoodsType, int GoodsId) CostOf(int lotteryCostId) =>
         _lotteryCostById.TryGetValue(lotteryCostId, out var cost) ? (cost.GoodsType, cost.GoodsId) : (0, 0);
+
+    // "<goodsType>0001": the variant the asset list carries for every goods type.
+    private static int GoodsThumbnailId(int goodsType, int fallbackId) =>
+        goodsType > 0 ? goodsType * 10000 + 1 : fallbackId;
 
     private static object BuildResponseGacha(int gachaId, int costGoodsType, int costGoodsId, int costAmount,
         int drawableCount, string effectTop, string effectBottom, int dropAmount = 1) => new
