@@ -119,7 +119,11 @@ public sealed partial class DemoSessionApi
 
             foreach (var el in JsonDocument.Parse(lotteryCostJson).RootElement.EnumerateArray())
             {
-                var row = new LotteryCostRow(IntOf(el, "id"), IntOf(el, "goodsType"), IntOf(el, "goodsId"));
+                // The pull button draws its cost icon from "ui/goods/thumbnail/<goodsId>", so the id is the
+                // composite the asset list carries (4010001 for a kicker ticket, 4020001 for a disc ticket),
+                // not the raw Item row the master file names. The raw id is kept as the spend side.
+                var costType = IntOf(el, "goodsType");
+                var row = new LotteryCostRow(IntOf(el, "id"), costType, costType * 10000 + 1);
                 _lotteryCostById[row.Id] = row;
             }
 

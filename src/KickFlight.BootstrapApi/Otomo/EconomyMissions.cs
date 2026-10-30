@@ -22,6 +22,9 @@ public static class EconomyMissions
 {
     public sealed record Reward(int GoodsType, int GoodsId, int Amount);
 
+    // "<goodsType>0001": the variant the asset list carries for every goods type.
+    public static int GoodsThumbnailId(int goodsType) => goodsType * 10000 + 1;
+
     public sealed record Step(int Index, long Target, IReadOnlyList<Reward> Rewards);
 
     public sealed record Mission(string TrackId, int MissionId, int MissionType, int TermType, string Title,
@@ -127,7 +130,10 @@ public static class EconomyMissions
             id = ++rewardId,
             missionTaskId = mission.TaskId(step.Index),
             goodsType = reward.GoodsType,
-            goodsId = reward.GoodsId,
+            // The client draws a reward icon by asking for "ui/goods/thumbnail/<goodsId>", and the assets are named
+            // "<goodsType>0001.unity3d". A raw item id (1 for JetCoin, 7 for a ticket) matches no asset, which is
+            // why every reward tile was a white square. The composite is what resolves.
+            goodsId = GoodsThumbnailId(reward.GoodsType),
             amount = reward.Amount
         }))).ToList();
         var terms = new[]
