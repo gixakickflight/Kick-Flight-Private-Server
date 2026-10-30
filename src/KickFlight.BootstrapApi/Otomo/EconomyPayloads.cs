@@ -176,8 +176,13 @@ public sealed class EconomyPayloads
         var rows = new List<object>();
         void Add(int goodsType, int goodsId, long amount)
         {
-            var original = new { goodsType, goodsId, amount = ToClientAmount(amount) };
-            rows.Add(new { goodsType, goodsId, amount = ToClientAmount(amount), originalReceivedReward = original });
+            // The receipt popup draws each reward icon from "ui/goods/thumbnail/<goodsId>", and the asset list
+            // holds those as "<goodsType>0001.unity3d": a raw Item row (1 for Jet Coins, 7 for a ticket) matches
+            // no asset and renders an empty frame. Discs and costumes keep their own ids - they are drawn from
+            // their own thumbnails, not from a goods sheet.
+            var displayId = goodsType is 101 or 102 or 302 or 303 or 401 or 402 ? goodsType * 10000 + 1 : goodsId;
+            var original = new { goodsType, goodsId = displayId, amount = ToClientAmount(amount) };
+            rows.Add(new { goodsType, goodsId = displayId, amount = ToClientAmount(amount), originalReceivedReward = original });
         }
 
         foreach (var (currency, delta) in PlayerDeltas(entries))

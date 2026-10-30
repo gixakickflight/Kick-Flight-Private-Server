@@ -1,5162 +1,5162 @@
 [
- {
-  "id": 1,
-  "key": "common.pointUnit",
-  "text": "Points"
- },
- {
-  "id": 2,
-  "key": "common.dataUpdateTitle",
-  "text": "Data update"
- },
- {
-  "id": 3,
-  "key": "common.dataUpdateDescription",
-  "text": "New data to download"
- },
- {
-  "id": 4,
-  "key": "common.dataUpdateReturnHomeDescription",
-  "text": "Returning to Home..."
- },
- {
-  "id": 5,
-  "key": "common.dataSize",
-  "text": "Data Size: {0}"
- },
- {
-  "id": 6,
-  "key": "common.ok",
-  "text": "Accept"
- },
- {
-  "id": 7,
-  "key": "common.changeHomeConfirmTitle",
-  "text": "Change Home Confirm"
- },
- {
-  "id": 8,
-  "key": "common.changeHomeConfirmDescription",
-  "text": "Change Home Confirm"
- },
- {
-  "id": 9,
-  "key": "common.achievement",
-  "text": "Achievement"
- },
- {
-  "id": 10,
-  "key": "common.gameCenterAccountLinkTitle",
-  "text": "Game Center Account Link"
- },
- {
-  "id": 11,
-  "key": "common.userIdTitleFormat",
-  "text": "User ID: {0:D12}"
- },
- {
-  "id": 12,
-  "key": "common.received",
-  "text": "Received"
- },
- {
-  "id": 13,
-  "key": "common.receive",
-  "text": "Receive"
- },
- {
-  "id": 14,
-  "key": "common.detail",
-  "text": "Details"
- },
- {
-  "id": 15,
-  "key": "common.battleRuleRegular",
-  "text": "Normal Battle"
- },
- {
-  "id": 16,
-  "key": "common.battleRuleRanker",
-  "text": "Rank Battle"
- },
- {
-  "id": 17,
-  "key": "common.battleRuleSeason",
-  "text": "Seasonal Battle"
- },
- {
-  "id": 18,
-  "key": "common.battleRuleFestival",
-  "text": "Kick-Flight Festival"
- },
- {
-  "id": 19,
-  "key": "common.battleRuleCustom",
-  "text": "Custom Battle"
- },
- {
-  "id": 20,
-  "key": "common.battleRuleRegularMatch",
-  "text": "Regular Match"
- },
- {
-  "id": 21,
-  "key": "common.battleRuleRankerMatch",
-  "text": "Ranked Match"
- },
- {
-  "id": 22,
-  "key": "common.battleRuleSeasonMatch",
-  "text": "Seasonal Match"
- },
- {
-  "id": 23,
-  "key": "common.battleRuleCustomMatch",
-  "text": "Custom Match"
- },
- {
-  "id": 24,
-  "key": "common.battleRuleFestivalMatch",
-  "text": "Kick-Flight Festival"
- },
- {
-  "id": 25,
-  "key": "common.ranking",
-  "text": "Ranking"
- },
- {
-  "id": 26,
-  "key": "common.chat",
-  "text": "Chat"
- },
- {
-  "id": 27,
-  "key": "common.skillGaugeMax",
-  "text": "Skill Gauge Max"
- },
- {
-  "id": 28,
-  "key": "common.rankUpDiscCountDescriptionFormat",
-  "text": "Rank Up Disc Count Description {0}"
- },
- {
-  "id": 29,
-  "key": "common.kickerTicket",
-  "text": "Kicker Ticket"
- },
- {
-  "id": 30,
-  "key": "common.lackTicket",
-  "text": "Insufficient Ticket"
- },
- {
-  "id": 31,
-  "key": "common.purchaseJetCoin",
-  "text": "Purchase Jet Coin"
- },
- {
-  "id": 32,
-  "key": "common.follow",
-  "text": "Follow"
- },
- {
-  "id": 33,
-  "key": "common.follower",
-  "text": "Followers"
- },
- {
-  "id": 34,
-  "key": "common.kickerPurchaseTitle",
-  "text": "Kicker Purchase"
- },
- {
-  "id": 35,
-  "key": "common.termsOfService",
-  "text": "Terms Of Service"
- },
- {
-  "id": 36,
-  "key": "common.characterVoiceFormat",
-  "text": "Character Voice {0}"
- },
- {
-  "id": 37,
-  "key": "common.levelTitle",
-  "text": "Lv"
- },
- {
-  "id": 38,
-  "key": "common.on",
-  "text": "On"
- },
- {
-  "id": 39,
-  "key": "common.off",
-  "text": "Off"
- },
- {
-  "id": 40,
-  "key": "common.sortTypeId",
-  "text": "Sort By ID"
- },
- {
-  "id": 41,
-  "key": "common.sortTypeGet",
-  "text": "Sort By Type"
- },
- {
-  "id": 42,
-  "key": "common.copyright",
-  "text": "Copyright"
- },
- {
-  "id": 43,
-  "key": "common.privacyPolicy",
-  "text": "Privacy Policy"
- },
- {
-  "id": 44,
-  "key": "common.lackJetCoinText",
-  "text": "Insufficient Jet Coins"
- },
- {
-  "id": 45,
-  "key": "common.toPurchaseWindow",
-  "text": "To Purchase Window"
- },
- {
-  "id": 46,
-  "key": "common.purchaseCancelTitle",
-  "text": "Purchase Cancel"
- },
- {
-  "id": 47,
-  "key": "common.purchaseCancelText",
-  "text": "Purchase Cancel"
- },
- {
-  "id": 48,
-  "key": "common.purchaseFailureTitle",
-  "text": "Purchase Failure"
- },
- {
-  "id": 49,
-  "key": "common.purchaseFailureText",
-  "text": "Purchase Failure"
- },
- {
-  "id": 50,
-  "key": "common.purchaseResultTitle",
-  "text": "Purchase Result"
- },
- {
-  "id": 51,
-  "key": "common.purchaseResultText",
-  "text": "Purchase Result"
- },
- {
-  "id": 52,
-  "key": "common.purchaseInvalidTitle",
-  "text": "Purchase Invalid"
- },
- {
-  "id": 53,
-  "key": "common.purchaseInvalidText",
-  "text": "Purchase Invalid"
- },
- {
-  "id": 54,
-  "key": "common.purchaseRetryTitle",
-  "text": "Purchase Retry"
- },
- {
-  "id": 55,
-  "key": "common.purchaseRetryText",
-  "text": "Purchase Retry"
- },
- {
-  "id": 56,
-  "key": "common.day",
-  "text": "day"
- },
- {
-  "id": 57,
-  "key": "common.days",
-  "text": "days"
- },
- {
-  "id": 58,
-  "key": "common.canNotReceive",
-  "text": "Can Not Receive"
- },
- {
-  "id": 59,
-  "key": "common.termsOfServiceDescriptionForJapanese",
-  "text": "Terms Of Service Description For Japanese"
- },
- {
-  "id": 60,
-  "key": "common.termsOfServiceDescription",
-  "text": "Terms Of Service"
- },
- {
-  "id": 61,
-  "key": "common.freePrice",
-  "text": "Free Price"
- },
- {
-  "id": 62,
-  "key": "common.premium",
-  "text": "Premium"
- },
- {
-  "id": 63,
-  "key": "common.remaining",
-  "text": "Remaining"
- },
- {
-  "id": 64,
-  "key": "common.selected",
-  "text": "Selected"
- },
- {
-  "id": 65,
-  "key": "common.battleRecord",
-  "text": "Battle History"
- },
- {
-  "id": 66,
-  "key": "common.account",
-  "text": "Account"
- },
- {
-  "id": 67,
-  "key": "common.help",
-  "text": "Help"
- },
- {
-  "id": 68,
-  "key": "common.notificationService",
-  "text": "Notification Service"
- },
- {
-  "id": 69,
-  "key": "common.faqTitle",
-  "text": "FAQ"
- },
- {
-  "id": 70,
-  "key": "common.question",
-  "text": "Question"
- },
- {
-  "id": 71,
-  "key": "common.bugReport",
-  "text": "Bug Report"
- },
- {
-  "id": 72,
-  "key": "common.online",
-  "text": "Online"
- },
- {
-  "id": 73,
-  "key": "common.offline",
-  "text": "Offline"
- },
- {
-  "id": 74,
-  "key": "common.inBattle",
-  "text": "In Battle"
- },
- {
-  "id": 75,
-  "key": "common.random",
-  "text": "Random"
- },
- {
-  "id": 76,
-  "key": "common.battlePlayerCount1vs1",
-  "text": "1 vs 1"
- },
- {
-  "id": 77,
-  "key": "common.battlePlayerCount2vs2",
-  "text": "2 vs 2"
- },
- {
-  "id": 78,
-  "key": "common.battlePlayerCount3vs3",
-  "text": "3 vs 3"
- },
- {
-  "id": 79,
-  "key": "common.battlePlayerCount4vs4",
-  "text": "4 vs 4"
- },
- {
-  "id": 80,
-  "key": "common.followListEmpty",
-  "text": "Follow List Empty"
- },
- {
-  "id": 81,
-  "key": "common.followerListEmpty",
-  "text": "Follower List Empty"
- },
- {
-  "id": 82,
-  "key": "common.idSearch",
-  "text": "ID Search"
- },
- {
-  "id": 83,
-  "key": "common.idSearchDescription",
-  "text": "ID Search"
- },
- {
-  "id": 84,
-  "key": "common.idSearchUserNotFound",
-  "text": "ID Search: User Not Found"
- },
- {
-  "id": 85,
-  "key": "common.idSearchDialogTitle",
-  "text": "ID Search Dialog"
- },
- {
-  "id": 86,
-  "key": "common.arNotAvailableTitle",
-  "text": "AR Not Available"
- },
- {
-  "id": 87,
-  "key": "common.arNotAvailableDescription",
-  "text": "AR Not Available"
- },
- {
-  "id": 88,
-  "key": "dataTransfer.error",
-  "text": "Error"
- },
- {
-  "id": 89,
-  "key": "dataTransfer.failed",
-  "text": "Failed"
- },
- {
-  "id": 90,
-  "key": "dataTransfer.gameCenterNotRegisted",
-  "text": "Game Center Not Registed"
- },
- {
-  "id": 91,
-  "key": "dataTransfer.googlePlayNotRegisted",
-  "text": "Google Play Not Registed"
- },
- {
-  "id": 92,
-  "key": "dataTransfer.id",
-  "text": "Id"
- },
- {
-  "id": 93,
-  "key": "dataTransfer.loginFinished",
-  "text": "Login Finished"
- },
- {
-  "id": 94,
-  "key": "dataTransfer.password",
-  "text": "Password"
- },
- {
-  "id": 95,
-  "key": "dataTransfer.title",
-  "text": "Title"
- },
- {
-  "id": 96,
-  "key": "dataTransfer.purchaseIncompleteDescription",
-  "text": "Purchase Incomplete"
- },
- {
-  "id": 97,
-  "key": "dataTransfer.register",
-  "text": "Register"
- },
- {
-  "id": 98,
-  "key": "dataTransfer.registerExecuteDescription",
-  "text": "Register Execute"
- },
- {
-  "id": 99,
-  "key": "dataTransfer.registerFinished",
-  "text": "Register Finished"
- },
- {
-  "id": 100,
-  "key": "dataTransfer.registerFinishedDescription",
-  "text": "Register Finished"
- },
- {
-  "id": 101,
-  "key": "dataTransfer.registerSelectGameCenter",
-  "text": "Register Select Game Center"
- },
- {
-  "id": 102,
-  "key": "dataTransfer.registerSelectGooglePlay",
-  "text": "Register Select Google Play"
- },
- {
-  "id": 103,
-  "key": "dataTransfer.loginSelectGameCenter",
-  "text": "Login Select Game Center"
- },
- {
-  "id": 104,
-  "key": "dataTransfer.loginSelectGooglePlay",
-  "text": "Login Select Google Play"
- },
- {
-  "id": 105,
-  "key": "common.suddenDeath",
-  "text": "Sudden Death"
- },
- {
-  "id": 106,
-  "key": "matchTypeDescription.regular",
-  "text": "Battle against players from around the world."
- },
- {
-  "id": 107,
-  "key": "matchTypeDescription.ranker",
-  "text": "Fierce combat with S ranks"
- },
- {
-  "id": 108,
-  "key": "matchTypeDescription.season",
-  "text": "Season {0}"
- },
- {
-  "id": 109,
-  "key": "matchTypeDescription.custom",
-  "text": "Compete freely with your friends!"
- },
- {
-  "id": 110,
-  "key": "kicker.ticketGetTitle",
-  "text": "Ticket Get"
- },
- {
-  "id": 111,
-  "key": "common.getKickerTicketTitle",
-  "text": "Get Kicker Ticket"
- },
- {
-  "id": 112,
-  "key": "capsule.setupping",
-  "text": "Setupping"
- },
- {
-  "id": 113,
-  "key": "capsule.setuped",
-  "text": "Setuped"
- },
- {
-  "id": 114,
-  "key": "capsule.slotAttentionOK",
-  "text": "Slot Attention OK"
- },
- {
-  "id": 115,
-  "key": "capsule.slotAttentionDescription",
-  "text": "Slot Attention"
- },
- {
-  "id": 116,
-  "key": "capsule.slotAttentionTitle",
-  "text": "Slot Attention"
- },
- {
-  "id": 117,
-  "key": "disc.drawFreeTitle",
-  "text": "Draw Free Title"
- },
- {
-  "id": 118,
-  "key": "disc.nextDropRewardTitleFormat",
-  "text": "Next Drop Reward: {0}"
- },
- {
-  "id": 119,
-  "key": "disc.set",
-  "text": "Disc"
- },
- {
-  "id": 120,
-  "key": "disc.sort",
-  "text": "Sort"
- },
- {
-  "id": 121,
-  "key": "gear.analysis",
-  "text": "Analysis"
- },
- {
-  "id": 122,
-  "key": "gear.notPossession",
-  "text": "Not Possession"
- },
- {
-  "id": 123,
-  "key": "gear.setTitle",
-  "text": "Set"
- },
- {
-  "id": 124,
-  "key": "gear.notSetDesripction",
-  "text": "Not Set Desripction"
- },
- {
-  "id": 125,
-  "key": "shop.gachaTutorialPack",
-  "text": "Gacha Tutorial Pack"
- },
- {
-  "id": 126,
-  "key": "shop.discFreePop",
-  "text": "Disc Free Pop"
- },
- {
-  "id": 127,
-  "key": "social.facebookAuth",
-  "text": "Facebook Auth"
- },
- {
-  "id": 128,
-  "key": "social.twitterAuth",
-  "text": "Twitter Auth"
- },
- {
-  "id": 129,
-  "key": "social.facebookAuthDescription",
-  "text": "Facebook Auth"
- },
- {
-  "id": 130,
-  "key": "social.twitterAuthDescription",
-  "text": "Twitter Auth"
- },
- {
-  "id": 131,
-  "key": "social.twitterAccountLinkTitle",
-  "text": "Twitter Account Link"
- },
- {
-  "id": 132,
-  "key": "social.twitterAccountDisconnectExecute",
-  "text": "Twitteraccountdisconnectexecute: {0}"
- },
- {
-  "id": 133,
-  "key": "social.accountMessage",
-  "text": "Account"
- },
- {
-  "id": 134,
-  "key": "social.twitterAccountLinkExecute",
-  "text": "Twitter Account Link Execute"
- },
- {
-  "id": 135,
-  "key": "social.twitterAccountDisconnectExecute",
-  "text": "Twitter Account Disconnect Execute"
- },
- {
-  "id": 136,
-  "key": "social.facebookFriendSettingLinkExecute",
-  "text": "Facebook Friend Setting Link Execute"
- },
- {
-  "id": 137,
-  "key": "social.facebookFriendSettingDisconnectExecute",
-  "text": "Facebook Friend Setting Disconnect Execute"
- },
- {
-  "id": 138,
-  "key": "social.twitterFriendSettingLinkExecute",
-  "text": "Twitter Friend Setting Link Execute"
- },
- {
-  "id": 139,
-  "key": "social.twitterFriendSettingDisconnectExecute",
-  "text": "Twitter Friend Setting Disconnect Execute"
- },
- {
-  "id": 140,
-  "key": "social.facebookListEmpty",
-  "text": "Facebook List Empty"
- },
- {
-  "id": 141,
-  "key": "social.twitterListEmpty",
-  "text": "Twitter List Empty"
- },
- {
-  "id": 142,
-  "key": "present.limitTitle",
-  "text": "Limit"
- },
- {
-  "id": 143,
-  "key": "present.receiveDay",
-  "text": "Receive Day"
- },
- {
-  "id": 144,
-  "key": "present.limitTitleLongFormat",
-  "text": "Limit Title Long {0}"
- },
- {
-  "id": 145,
-  "key": "present.receiveDayLongFormat",
-  "text": "Receive Day Long {0}"
- },
- {
-  "id": 146,
-  "key": "mission.limitTitle",
-  "text": "Limit"
- },
- {
-  "id": 147,
-  "key": "mission.recieveLimit",
-  "text": "Recieve Limit"
- },
- {
-  "id": 148,
-  "key": "missionWindow.limitTitleFormat",
-  "text": "Limit Title {0}"
- },
- {
-  "id": 149,
-  "key": "applicationQuit.title",
-  "text": "Title"
- },
- {
-  "id": 150,
-  "key": "applicationQuit.description",
-  "text": "Description"
- },
- {
-  "id": 151,
-  "key": "battleRuleDescription.scramble50",
-  "text": "Scramble50: {0}"
- },
- {
-  "id": 152,
-  "key": "battleRuleDescription.flagBattle",
-  "text": "Flag Battle"
- },
- {
-  "id": 153,
-  "key": "matching.codeTitleFormat",
-  "text": "Code Title {0}"
- },
- {
-  "id": 154,
-  "key": "matching.customCodeTitleFormat",
-  "text": "Custom Code Title {0}"
- },
- {
-  "id": 155,
-  "key": "matching.regulerFixedLevelDescription",
-  "text": "Rank is fixed in standard battles"
- },
- {
-  "id": 156,
-  "key": "matching.festivalFixedLevelDescription",
-  "text": "Festival Fixed Lv"
- },
- {
-  "id": 157,
-  "key": "matching.inputCode",
-  "text": "Enter lobby code"
- },
- {
-  "id": 158,
-  "key": "matching.inputCustomCode",
-  "text": "Input Custom Code"
- },
- {
-  "id": 159,
-  "key": "matching.customKickerDescription",
-  "text": "Custom Kicker"
- },
- {
-  "id": 160,
-  "key": "matching.customDiscDescription",
-  "text": "Custom Disc"
- },
- {
-  "id": 161,
-  "key": "game.skillDescriptionAttributeChange",
-  "text": "Skill Description Attribute Change"
- },
- {
-  "id": 162,
-  "key": "game.skillDescriptionAttributeChanged",
-  "text": "Skill Description Attribute Changed"
- },
- {
-  "id": 163,
-  "key": "gameReady.ruleTitle",
-  "text": "Rule"
- },
- {
-  "id": 164,
-  "key": "gameReady.ruleScramble50",
-  "text": "Rulescramble50: {0}"
- },
- {
-  "id": 165,
-  "key": "gameReady.ruleFlagBattle",
-  "text": "Rule Flag Battle"
- },
- {
-  "id": 166,
-  "key": "gameReady.ruleBallShoot",
-  "text": "Rule Ball Shoot"
- },
- {
-  "id": 167,
-  "key": "error.titleError",
-  "text": "Title Error"
- },
- {
-  "id": 168,
-  "key": "error.titleDownloadError",
-  "text": "Title Download Error"
- },
- {
-  "id": 169,
-  "key": "error.titleNetworkError",
-  "text": "Title Network Error"
- },
- {
-  "id": 170,
-  "key": "error.titleReachableError",
-  "text": "Title Reachable Error"
- },
- {
-  "id": 171,
-  "key": "error.titleTimeoutError",
-  "text": "Title Timeout Error"
- },
- {
-  "id": 172,
-  "key": "error.titleDisconnectError",
-  "text": "Title Disconnect Error"
- },
- {
-  "id": 173,
-  "key": "error.titleIoStorageError",
-  "text": "Title Io Storage Error"
- },
- {
-  "id": 174,
-  "key": "error.title.teamBattle",
-  "text": "Team Battle"
- },
- {
-  "id": 175,
-  "key": "error.title.battleJoin",
-  "text": "Battle Join"
- },
- {
-  "id": 176,
-  "key": "error.title.teamDissolution",
-  "text": "Team Dissolution"
- },
- {
-  "id": 177,
-  "key": "error.title.timeout",
-  "text": "Timeout"
- },
- {
-  "id": 178,
-  "key": "error.title.banToTitle",
-  "text": "Ban To"
- },
- {
-  "id": 179,
-  "key": "error.title.forceUpdateToTitle",
-  "text": "Update required"
- },
- {
-  "id": 180,
-  "key": "error.title.agreementUpdateToTitle",
-  "text": "Agreement Update To"
- },
- {
-  "id": 181,
-  "key": "error.title.invalidSpd",
-  "text": "Invalid Spd"
- },
- {
-  "id": 182,
-  "key": "error.title.warning",
-  "text": "Warning"
- },
- {
-  "id": 183,
-  "key": "error.title.reconnecting",
-  "text": "Reconnecting"
- },
- {
-  "id": 184,
-  "key": "error.title.reconnectFailed",
-  "text": "Reconnect Failed"
- },
- {
-  "id": 185,
-  "key": "error.title.purchaseInit",
-  "text": "Purchase Init"
- },
- {
-  "id": 186,
-  "key": "error.title.purchaseMonthlyLimit",
-  "text": "Purchase Monthly Limit"
- },
- {
-  "id": 187,
-  "key": "error.title.matchingError",
-  "text": "Matching Error"
- },
- {
-  "id": 188,
-  "key": "error.title.chatRoomCommentMinLength",
-  "text": "Chat Room Comment Min Length"
- },
- {
-  "id": 189,
-  "key": "error.title.chatRoomCommentMaxLength",
-  "text": "Chat Room Comment Max Length"
- },
- {
-  "id": 190,
-  "key": "error.title.chatRoomCommentNgWord",
-  "text": "Chat Room Comment Ng Word"
- },
- {
-  "id": 191,
-  "key": "error.message",
-  "text": "Message"
- },
- {
-  "id": 192,
-  "key": "error.message.roomPlayerOver",
-  "text": "Room Player Over"
- },
- {
-  "id": 193,
-  "key": "error.message.blueRoomPlayerOver",
-  "text": "Blue Room Player Over"
- },
- {
-  "id": 194,
-  "key": "error.message.redRoomPlayerOver",
-  "text": "Red Room Player Over"
- },
- {
-  "id": 195,
-  "key": "error.message.roomEnd",
-  "text": "Room End"
- },
- {
-  "id": 196,
-  "key": "error.message.codeNothing",
-  "text": "Code Nothing"
- },
- {
-  "id": 197,
-  "key": "error.message.teamDissolution",
-  "text": "Team Dissolution"
- },
- {
-  "id": 198,
-  "key": "error.message.timeout",
-  "text": "Timeout"
- },
- {
-  "id": 199,
-  "key": "error.message.banToTitle",
-  "text": "Ban To"
- },
- {
-  "id": 200,
-  "key": "error.message.forceUpdateToTitle",
-  "text": "A new version of Kick Flight is available. Download it from kick-flight-fenix.us.ci and install it to keep playing."
- },
- {
-  "id": 201,
-  "key": "error.message.agreementUpdateToTitle",
-  "text": "Agreement Update To"
- },
- {
-  "id": 202,
-  "key": "error.message.purchaseInit",
-  "text": "Purchase Init"
- },
- {
-  "id": 203,
-  "key": "error.message.purchaseMonthlyLimit",
-  "text": "Purchase Monthly Limit"
- },
- {
-  "id": 204,
-  "key": "error.message.matchingError",
-  "text": "Matching Error"
- },
- {
-  "id": 205,
-  "key": "error.message.teamTimeout",
-  "text": "Team Timeout"
- },
- {
-  "id": 206,
-  "key": "error.message.chatRoomCommentMinLength",
-  "text": "Chat Room Comment Min Length"
- },
- {
-  "id": 207,
-  "key": "error.message.chatRoomCommentMaxLength",
-  "text": "Chat Room Comment Max Length"
- },
- {
-  "id": 208,
-  "key": "error.message.chatRoomCommentNgWord",
-  "text": "Chat Room Comment Ng Word"
- },
- {
-  "id": 209,
-  "key": "error.agreement.forceUpdate",
-  "text": "Force Update"
- },
- {
-  "id": 210,
-  "key": "error.message.invalidSpd",
-  "text": "Invalid Spd"
- },
- {
-  "id": 211,
-  "key": "error.codeFormat",
-  "text": "Code {0}"
- },
- {
-  "id": 212,
-  "key": "error.maintenanceTitle",
-  "text": "Maintenance"
- },
- {
-  "id": 213,
-  "key": "error.maintenanceDescription",
-  "text": "The server is under maintenance. Please try again in a few minutes."
- },
- {
-  "id": 214,
-  "key": "error.message.reconnecting",
-  "text": "Reconnecting"
- },
- {
-  "id": 215,
-  "key": "error.message.reconnectFailed",
-  "text": "Reconnect Failed"
- },
- {
-  "id": 216,
-  "key": "error.message.reconnectRoomFailed",
-  "text": "Reconnect Room Failed"
- },
- {
-  "id": 217,
-  "key": "error.message.pingAlert",
-  "text": "Ping Alert"
- },
- {
-  "id": 218,
-  "key": "killLog.unknowsAttackText",
-  "text": "Unknows Attack"
- },
- {
-  "id": 219,
-  "key": "killLog.guardianFormat",
-  "text": "Guardian {0}"
- },
- {
-  "id": 220,
-  "key": "killLog.defeatFormat",
-  "text": "Defeat {0}"
- },
- {
-  "id": 221,
-  "key": "attackType.default",
-  "text": "Normal Attack"
- },
- {
-  "id": 222,
-  "key": "attackType.skill",
-  "text": "Ability"
- },
- {
-  "id": 223,
-  "key": "tutorial.defaultPlayerName",
-  "text": "Pilot"
- },
- {
-  "id": 224,
-  "key": "inGameTutorial.moveTitle",
-  "text": "Move"
- },
- {
-  "id": 225,
-  "key": "inGameTutorial.attackTitle",
-  "text": "Attack"
- },
- {
-  "id": 226,
-  "key": "inGameTutorial.attackGuardianTitle",
-  "text": "Attack Guardian"
- },
- {
-  "id": 227,
-  "key": "inGameTutorial.attackGuardianDescription",
-  "text": "Attack Guardian"
- },
- {
-  "id": 228,
-  "key": "inGameTutorial.autoAttackTitle",
-  "text": "Auto Attack"
- },
- {
-  "id": 229,
-  "key": "inGameTutorial.autoAttackDescription",
-  "text": "Fly close to a locked-on enemy to attack them automatically."
- },
- {
-  "id": 230,
-  "key": "inGameTutorial.timesUnit",
-  "text": "Times Unit"
- },
- {
-  "id": 231,
-  "key": "inGameTutorial.boostDashTitleFormat",
-  "text": "Boost Acceleration"
- },
- {
-  "id": 232,
-  "key": "inGameTutorial.boostDashDescription",
-  "text": "Press and hold to accelerate to top speed."
- },
- {
-  "id": 233,
-  "key": "inGameTutorial.boostDashSubDescription",
-  "text": "Boost is consumed while accelerating"
- },
- {
-  "id": 234,
-  "key": "inGameTutorial.catchCrystalTitleFormat",
-  "text": "Collect the Crystals!"
- },
- {
-  "id": 235,
-  "key": "inGameTutorial.catchCrystalSubDescription",
-  "text": "Pass through the floating crystals to collect them."
- },
- {
-  "id": 236,
-  "key": "inGameTutorial.crysrtalUnit",
-  "text": "Crystals"
- },
- {
-  "id": 237,
-  "key": "inGameTutorial.depositCrystalTitle",
-  "text": "Deposit Crystals"
- },
- {
-  "id": 238,
-  "key": "inGameTutorial.depositCrystalDescription",
-  "text": "Take the crystals to your team's guardian to deposit points."
- },
- {
-  "id": 239,
-  "key": "inGameTutorial.depositCrystalDescription2",
-  "text": "Deposit crystals before you get taken down."
- },
- {
-  "id": 240,
-  "key": "inGameTutorial.depositCrystalDescription3",
-  "text": "The team with the most crystals when time runs out wins."
- },
- {
-  "id": 241,
-  "key": "inGameTutorial.endDescriptionFormat",
-  "text": "End Description {0}"
- },
- {
-  "id": 242,
-  "key": "inGameTutorial.flipTurnTitleFormat",
-  "text": "Flip Turn"
- },
- {
-  "id": 243,
-  "key": "inGameTutorial.hitDiscSkillTitleFormat",
-  "text": "Disc Usage"
- },
- {
-  "id": 244,
-  "key": "inGameTutorial.hitDiscSkillDescription",
-  "text": "Slide the equipped disc upward to unleash its ability."
- },
- {
-  "id": 245,
-  "key": "inGameTutorial.hitKickerSkillTitleFormat",
-  "text": "Kicker Skill"
- },
- {
-  "id": 246,
-  "key": "inGameTutorial.hitKickerSkillDescription",
-  "text": "Tap the icon to use your Special Skill. "
- },
- {
-  "id": 247,
-  "key": "inGameTutorial.moveTitleFormat",
-  "text": "Three-Dimensional Flight"
- },
- {
-  "id": 248,
-  "key": "inGameTutorial.moveDistanceUnit",
-  "text": "m"
- },
- {
-  "id": 249,
-  "key": "inGameTutorial.moveSubDescription",
-  "text": "Swipe to move freely through 3D airspace."
- },
- {
-  "id": 250,
-  "key": "inGameTutorial.startDescriptionFormat",
-  "text": "Start Description {0}"
- },
- {
-  "id": 251,
-  "key": "inGameTutorial.turnAvoidTitleFormat",
-  "text": "Dodge"
- },
- {
-  "id": 252,
-  "key": "inGameTutorial.toBattleDescription",
-  "text": "To Battle"
- },
- {
-  "id": 253,
-  "key": "inGameTutorial.underFlickTitleFormat",
-  "text": "Flick Down"
- },
- {
-  "id": 254,
-  "key": "inGameTutorial.specialSkillTitleFormat",
-  "text": "Special Skill"
- },
- {
-  "id": 255,
-  "key": "inGameTutorial.specialSkillDescription",
-  "text": "Tap the Special Ability button when the gauge is full."
- },
- {
-  "id": 256,
-  "key": "inGameTutorial.enemyUserName",
-  "text": "Practice Opponent"
- },
- {
-  "id": 257,
-  "key": "outGameTutorial.capsule1",
-  "text": "You've obtained a combat capsule!"
- },
- {
-  "id": 258,
-  "key": "outGameTutorial.capsule2",
-  "text": "Open capsules to get new discs and Disc Force."
- },
- {
-  "id": 259,
-  "key": "outGameTutorial.growDisc1",
-  "text": "You can level up your discs using Disc Force."
- },
- {
-  "id": 260,
-  "key": "outGameTutorial.growDisc2",
-  "text": "Upgrade the discs to boost your health and attack damage."
- },
- {
-  "id": 261,
-  "key": "outGameTutorial.discGacha1",
-  "text": "Use the disc gacha to expand your collection."
- },
- {
-  "id": 262,
-  "key": "outGameTutorial.discGacha2",
-  "text": "Obtain higher-rarity discs with devastating abilities!"
- },
- {
-  "id": 263,
-  "key": "outGameTutorial.discGacha3",
-  "text": "Configure your decks to adapt to each combat mode."
- },
- {
-  "id": 264,
-  "key": "outGameTutorial.kickerScout1",
-  "text": "Recruit new Kickers using Kicker Tickets."
- },
- {
-  "id": 265,
-  "key": "outGameTutorial.changeKicker1",
-  "text": "Switch your kicker based on your favorite playstyle."
- },
- {
-  "id": 266,
-  "key": "outGameTutorial.inputName1",
-  "text": "Enter your name: "
- },
- {
-  "id": 267,
-  "key": "outGameTutorial.inputName2",
-  "text": "You can change your name later in settings."
- },
- {
-  "id": 268,
-  "key": "premium.description",
-  "text": "Kick-Flight Premium Pass"
- },
- {
-  "id": 269,
-  "key": "premium.missionDescription",
-  "text": "Exclusive missions with additional daily rewards."
- },
- {
-  "id": 270,
-  "key": "premium.capsuleSlotDescription",
-  "text": "Expanded capsule slots to store more loot at once."
- },
- {
-  "id": 271,
-  "key": "premium.discForceDescription",
-  "text": "50% Disc Force earnings multiplier in all battles."
- },
- {
-  "id": 272,
-  "key": "premium.precautionsTitle",
-  "text": "Precautions"
- },
- {
-  "id": 273,
-  "key": "premium.precautionsMessage",
-  "text": "Precautions"
- },
- {
-  "id": 274,
-  "key": "premium.purchase",
-  "text": "Purchase"
- },
- {
-  "id": 275,
-  "key": "premium.missionRewardList",
-  "text": "Mission Reward List"
- },
- {
-  "id": 276,
-  "key": "premium.popText",
-  "text": "Pop"
- },
- {
-  "id": 277,
-  "key": "premium.remainingDays",
-  "text": "Remaining Days"
- },
- {
-  "id": 278,
-  "key": "premium.remainingHours",
-  "text": "Remaining Hours"
- },
- {
-  "id": 279,
-  "key": "premium.remainingMinutes",
-  "text": "Remaining Minutes"
- },
- {
-  "id": 280,
-  "key": "premium.remainingSeconds",
-  "text": "Remaining Seconds"
- },
- {
-  "id": 281,
-  "key": "premium.guideText",
-  "text": "Guide"
- },
- {
-  "id": 282,
-  "key": "shop.lockRankPackDescription",
-  "text": "Lock Rank Pack"
- },
- {
-  "id": 283,
-  "key": "shop.addItemMessage",
-  "text": "Add Item"
- },
- {
-  "id": 284,
-  "key": "shopProduct.detail",
-  "text": "Detail"
- },
- {
-  "id": 285,
-  "key": "shopProduct.notices",
-  "text": "Notices"
- },
- {
-  "id": 286,
-  "key": "localPush.setupCapsule",
-  "text": "Setup Capsule"
- },
- {
-  "id": 287,
-  "key": "localPush.gachaFree",
-  "text": "Gacha Free"
- },
- {
-  "id": 288,
-  "key": "replay.channelUpdateTimeAnnounce",
-  "text": "Channel Update Time Announce"
- },
- {
-  "id": 289,
-  "key": "replay.localDataAnnounce",
-  "text": "Local Data Announce"
- },
- {
-  "id": 290,
-  "key": "battleDisconnect.warningTitle",
-  "text": "Disconnected from Battle"
- },
- {
-  "id": 291,
-  "key": "battleDisconnect.warningText1",
-  "text": "Leaving a battle in progress hurts your team."
- },
- {
-  "id": 292,
-  "key": "battleDisconnect.warningText2",
-  "text": "Intentional disconnections may result in temporary penalties."
- },
- {
-  "id": 293,
-  "key": "battleDisconnect.penaltyText1",
-  "text": "Battle point penalty applied."
- },
- {
-  "id": 294,
-  "key": "battleDisconnect.penaltyText2",
-  "text": "Please wait a moment before searching for a match again."
- },
- {
-  "id": 295,
-  "key": "battleDisconnect.resultText",
-  "text": "Disconnected from Battle"
- },
- {
-  "id": 296,
-  "key": "common.ability",
-  "text": "Ability"
- },
- {
-  "id": 297,
-  "key": "common.show",
-  "text": "Show"
- },
- {
-  "id": 298,
-  "key": "common.hide",
-  "text": "Hide"
- },
- {
-  "id": 299,
-  "key": "common.pickup",
-  "text": "Pickup"
- },
- {
-  "id": 300,
-  "key": "common.rank",
-  "text": "Rank"
- },
- {
-  "id": 301,
-  "key": "common.rankFormat",
-  "text": "Rank {0}"
- },
- {
-  "id": 302,
-  "key": "common.enableGetDiscRank",
-  "text": "Rank required: {0}"
- },
- {
-  "id": 303,
-  "key": "common.minutesAgo",
-  "text": "{0} min ago"
- },
- {
-  "id": 304,
-  "key": "common.daysAgo",
-  "text": "{0} days ago"
- },
- {
-  "id": 305,
-  "key": "common.hoursAgo",
-  "text": "{0} hours ago"
- },
- {
-  "id": 306,
-  "key": "common.secondsAgo",
-  "text": "{0} s ago"
- },
- {
-  "id": 307,
-  "key": "gacha.dailyLimitMessage",
-  "text": "Daily Limit"
- },
- {
-  "id": 308,
-  "key": "gacha.limitMessage",
-  "text": "Limit"
- },
- {
-  "id": 309,
-  "key": "gacha.limitCount",
-  "text": "Limit Count {0}"
- },
- {
-  "id": 310,
-  "key": "gacha.paidOnlyMessage",
-  "text": "Paid Only"
- },
- {
-  "id": 311,
-  "key": "gacha.discPurchaseConfirm",
-  "text": "Do you wish to confirm your purchase?"
- },
- {
-  "id": 312,
-  "key": "battleRankDiscProvisionRate",
-  "text": "Battle Rank Disc Provision Rate"
- },
- {
-  "id": 313,
-  "key": "gachaDetail.getDiscRank",
-  "text": "Disc Rank {0}"
- },
- {
-  "id": 314,
-  "key": "gachaDetail.unlockRank",
-  "text": "Unlock Rank {0}"
- },
- {
-  "id": 315,
-  "key": "loginBonus.day",
-  "text": "Day"
- },
- {
-  "id": 316,
-  "key": "itemExchange.title",
-  "text": "Title"
- },
- {
-  "id": 317,
-  "key": "itemExchange.message",
-  "text": "Message"
- },
- {
-  "id": 318,
-  "key": "disableDevice.title",
-  "text": "Title"
- },
- {
-  "id": 319,
-  "key": "disableDevice.message",
-  "text": "Message"
- },
- {
-  "id": 320,
-  "key": "game.lastSeconds30",
-  "text": "Lastseconds30: {0}"
- },
- {
-  "id": 321,
-  "key": "game.lastMinutes1",
-  "text": "Lastminutes1: {0}"
- },
- {
-  "id": 322,
-  "key": "loading.remainCount",
-  "text": "Remain Count {0}"
- },
- {
-  "id": 323,
-  "key": "matching.waitCount",
-  "text": "Wait Count {0}"
- },
- {
-  "id": 324,
-  "key": "matching.waitingMember",
-  "text": "Waiting for participant"
- },
- {
-  "id": 325,
-  "key": "realFriend.rewardNumberFormat",
-  "text": "Reward Number {0}"
- },
- {
-  "id": 326,
-  "key": "realFriend.rewardProgressFormat",
-  "text": "Reward Progress {0}"
- },
- {
-  "id": 327,
-  "key": "realFriend.rewardDetail.beforeRenewal",
-  "text": "Before Renewal"
- },
- {
-  "id": 328,
-  "key": "realFriend.rewardDetail.afterRenewal",
-  "text": "After Renewal"
- },
- {
-  "id": 329,
-  "key": "realFriend.warning.beforeRenewal",
-  "text": "Before Renewal"
- },
- {
-  "id": 330,
-  "key": "realFriend.warning.afterRenewal",
-  "text": "After Renewal"
- },
- {
-  "id": 331,
-  "key": "replayReward.messageKickerMvp",
-  "text": "Message Kicker Mvp"
- },
- {
-  "id": 332,
-  "key": "replayReward.messageKicker",
-  "text": "Message Kicker"
- },
- {
-  "id": 333,
-  "key": "replayReward.messageRank",
-  "text": "Message Rank"
- },
- {
-  "id": 334,
-  "key": "replayReward.messagePickup",
-  "text": "Message Pickup"
- },
- {
-  "id": 335,
-  "key": "replayReward.honorific",
-  "text": "Honorific"
- },
- {
-  "id": 336,
-  "key": "replayReward.publishTerm",
-  "text": "Publish Term"
- },
- {
-  "id": 337,
-  "key": "replay.publishEndAttention",
-  "text": "Publish End Attention"
- },
- {
-  "id": 338,
-  "key": "common.last",
-  "text": "Last"
- },
- {
-  "id": 339,
-  "key": "common.lastDay",
-  "text": "Last Day"
- },
- {
-  "id": 340,
-  "key": "common.lastHour",
-  "text": "Last {0} h"
- },
- {
-  "id": 341,
-  "key": "common.lastMinute",
-  "text": "Last {0} min"
- },
- {
-  "id": 342,
-  "key": "common.lastSecond",
-  "text": "Last {0}s"
- },
- {
-  "id": 343,
-  "key": "common.nextOpenDay",
-  "text": "Open in {0} days"
- },
- {
-  "id": 344,
-  "key": "common.nextOpenHour",
-  "text": "Open in {0} h"
- },
- {
-  "id": 345,
-  "key": "common.nextOpenMinute",
-  "text": "Open in {0} min"
- },
- {
-  "id": 346,
-  "key": "common.nextOpenSecond",
-  "text": "Open in {0} s"
- },
- {
-  "id": 347,
-  "key": "battleRule.openRank",
-  "text": "Rank"
- },
- {
-  "id": 348,
-  "key": "battleRule.openRuleText2",
-  "text": "Unlocks in {0}"
- },
- {
-  "id": 349,
-  "key": "battleRule.openRuleText3",
-  "text": "Available in {0}"
- },
- {
-  "id": 350,
-  "key": "mission.dailyClearTitle",
-  "text": "Daily Clear"
- },
- {
-  "id": 351,
-  "key": "mission.limitedClearTitle",
-  "text": "Limited Clear"
- },
- {
-  "id": 352,
-  "key": "mission.festivalClearTitle",
-  "text": "Festival Clear"
- },
- {
-  "id": 353,
-  "key": "mission.clearTitle",
-  "text": "Clear"
- },
- {
-  "id": 354,
-  "key": "training.allClearDescription",
-  "text": "All Clear"
- },
- {
-  "id": 355,
-  "key": "training.allClearMessage",
-  "text": "All Clear"
- },
- {
-  "id": 356,
-  "key": "training.nextAvailable",
-  "text": "Next Available"
- },
- {
-  "id": 357,
-  "key": "training.homeRankerDisable",
-  "text": "Home Ranker Disable"
- },
- {
-  "id": 358,
-  "key": "training.resultRankerDisable",
-  "text": "Result Ranker Disable"
- },
- {
-  "id": 359,
-  "key": "shop.unlockRankFormat",
-  "text": "Unlocks at {0} Rank"
- },
- {
-  "id": 360,
-  "key": "game.crystalDeposite",
-  "text": "Deposit Crystals"
- },
- {
-  "id": 361,
-  "key": "common.purchase",
-  "text": "Purchase"
- },
- {
-  "id": 362,
-  "key": "inGameTutorial.countDownMessage",
-  "text": "Battle Start!"
- },
- {
-  "id": 363,
-  "key": "common.requestCameraAuthTitle",
-  "text": "Request Camera Auth"
- },
- {
-  "id": 364,
-  "key": "common.requestCameraAuthDescription",
-  "text": "Request Camera Auth"
- },
- {
-  "id": 365,
-  "key": "skillActionType.shotAttackDetail",
-  "text": "Guided long-range shot"
- },
- {
-  "id": 366,
-  "key": "skillActionType.aroundAttackDetail",
-  "text": "Area of Effect Attack"
- },
- {
-  "id": 367,
-  "key": "skillActionType.moveAttackDetail",
-  "text": "Lunging forward attack"
- },
- {
-  "id": 368,
-  "key": "skillActionType.frontAttackDetail",
-  "text": "Attack in a short-range in front"
- },
- {
-  "id": 369,
-  "key": "challenge.badgeGet",
-  "text": "Badge Get"
- },
- {
-  "id": 370,
-  "key": "challenge.secretBadgeGet",
-  "text": "Secret Badge Get"
- },
- {
-  "id": 371,
-  "key": "social.followNum",
-  "text": "Follow Num"
- },
- {
-  "id": 372,
-  "key": "social.followerNum",
-  "text": "Follower Num"
- },
- {
-  "id": 373,
-  "key": "purchaseAlert.message",
-  "text": "Message"
- },
- {
-  "id": 374,
-  "key": "common.ageUnder",
-  "text": "Age Under"
- },
- {
-  "id": 375,
-  "key": "common.ageOver",
-  "text": "Age Over"
- },
- {
-  "id": 376,
-  "key": "common.purchaseLimit",
-  "text": "Purchase Limit"
- },
- {
-  "id": 377,
-  "key": "common.purchaseNoLimit",
-  "text": "Purchase No Limit"
- },
- {
-  "id": 378,
-  "key": "birthdayRegistration.day",
-  "text": "Day"
- },
- {
-  "id": 379,
-  "key": "campaign.discForceMessage",
-  "text": "Disc Force"
- },
- {
-  "id": 380,
-  "key": "campaign.capsuleMessage",
-  "text": "Capsule"
- },
- {
-  "id": 381,
-  "key": "campaign.capsuleDropMessage",
-  "text": "Capsule Drop"
- },
- {
-  "id": 382,
-  "key": "noInputNotification.forceDisconnectTitle",
-  "text": "Force Disconnect"
- },
- {
-  "id": 383,
-  "key": "noInputNotification.forceDisconnectMessage",
-  "text": "Force Disconnect"
- },
- {
-  "id": 384,
-  "key": "remainDateTimeFormat.dhm",
-  "text": "Dhm"
- },
- {
-  "id": 385,
-  "key": "remainDateTimeFormat.hms",
-  "text": "Hms"
- },
- {
-  "id": 386,
-  "key": "common.paidFree",
-  "text": "Paid / Free"
- },
- {
-  "id": 387,
-  "key": "common.possession",
-  "text": "Possessed: {0}"
- },
- {
-  "id": 388,
-  "key": "common.discForce",
-  "text": "Disc Force"
- },
- {
-  "id": 389,
-  "key": "shop.purchaseDiscForce",
-  "text": "Purchase Disc Force"
- },
- {
-  "id": 390,
-  "key": "inApp.trainingTitle",
-  "text": "Training"
- },
- {
-  "id": 391,
-  "key": "inApp.discLevelUpTitle",
-  "text": "Disc Lv Up"
- },
- {
-  "id": 392,
-  "key": "rankingReward.rankFormat",
-  "text": "Rank {0}"
- },
- {
-  "id": 393,
-  "key": "ranking.empty",
-  "text": "Empty"
- },
- {
-  "id": 394,
-  "key": "ranking.localEmpty",
-  "text": "Local Empty"
- },
- {
-  "id": 395,
-  "key": "ranking.followEmpty",
-  "text": "Follow Empty"
- },
- {
-  "id": 396,
-  "key": "ranking.aggregate",
-  "text": "Aggregate"
- },
- {
-  "id": 397,
-  "key": "ranking.finish",
-  "text": "Finish"
- },
- {
-  "id": 398,
-  "key": "ranking.rank",
-  "text": "Rank"
- },
- {
-  "id": 399,
-  "key": "season.termFormat",
-  "text": "Term {0}"
- },
- {
-  "id": 400,
-  "key": "friendMatch.invite",
-  "text": "Invite"
- },
- {
-  "id": 401,
-  "key": "friendMatch.invited",
-  "text": "Invited"
- },
- {
-  "id": 402,
-  "key": "friendMatch.inviting",
-  "text": "Inviting"
- },
- {
-  "id": 403,
-  "key": "friendMatch.rankerDisable",
-  "text": "Ranker Disable"
- },
- {
-  "id": 404,
-  "key": "friendMatch.leaveTeam",
-  "text": "Leave Team"
- },
- {
-  "id": 405,
-  "key": "exchange.monthLimit",
-  "text": "Month Limit"
- },
- {
-  "id": 406,
-  "key": "exchange.limit",
-  "text": "Limit"
- },
- {
-  "id": 407,
-  "key": "exchange.monthEnd",
-  "text": "Month End"
- },
- {
-  "id": 408,
-  "key": "exchange.end",
-  "text": "End"
- },
- {
-  "id": 409,
-  "key": "exchangeConfirm.amount",
-  "text": "Amount"
- },
- {
-  "id": 410,
-  "key": "exchangeComfirm.discAmount",
-  "text": "Disc Amount"
- },
- {
-  "id": 411,
-  "key": "exchangeConfirm.message",
-  "text": "Message"
- },
- {
-  "id": 412,
-  "key": "exchangeComfirm.discMessage",
-  "text": "Disc"
- },
- {
-  "id": 413,
-  "key": "exchangeRefresh.title",
-  "text": "Title"
- },
- {
-  "id": 414,
-  "key": "exchangeRefresh.impossibleTitle",
-  "text": "Impossible"
- },
- {
-  "id": 415,
-  "key": "exchangeRefresh.impossibleDescription",
-  "text": "Impossible"
- },
- {
-  "id": 416,
-  "key": "exchangeRefresh.notUpdateTitle",
-  "text": "Not Update"
- },
- {
-  "id": 417,
-  "key": "exchangeRefresh.notUpdateDescription",
-  "text": "Not Update"
- },
- {
-  "id": 418,
-  "key": "pickUp.by",
-  "text": "By"
- },
- {
-  "id": 419,
-  "key": "social.inviteLineMessage",
-  "text": "Invite Line"
- },
- {
-  "id": 420,
-  "key": "socialGiftee.lineMessage",
-  "text": "Line"
- },
- {
-  "id": 421,
-  "key": "common.lackKickPoint",
-  "text": "Insufficient Kicker Points"
- },
- {
-  "id": 422,
-  "key": "exchangeResult.direct",
-  "text": "Direct"
- },
- {
-  "id": 423,
-  "key": "exchangeResult.present",
-  "text": "Present"
- },
- {
-  "id": 424,
-  "key": "exchangeConfirm.title",
-  "text": "Title"
- },
- {
-  "id": 425,
-  "key": "challenge.empty",
-  "text": "Empty"
- },
- {
-  "id": 426,
-  "key": "seasonPassMission.value",
-  "text": "Value"
- },
- {
-  "id": 427,
-  "key": "seasonPassMission.endTitle",
-  "text": "End"
- },
- {
-  "id": 428,
-  "key": "seasonPassMission.endMessage",
-  "text": "End"
- },
- {
-  "id": 429,
-  "key": "seasonPassMission.lockMessage",
-  "text": "Lock"
- },
- {
-  "id": 430,
-  "key": "seasonPassMission.empty",
-  "text": "Empty"
- },
- {
-  "id": 431,
-  "key": "common.all",
-  "text": "All"
- },
- {
-  "id": 432,
-  "key": "battleSummary.battleCount",
-  "text": "Battle Count {0}"
- },
- {
-  "id": 433,
-  "key": "battleSummary.winCount",
-  "text": "Win Count {0}"
- },
- {
-  "id": 434,
-  "key": "battleSummary.mvpCount",
-  "text": "MVP: {0}"
- },
- {
-  "id": 435,
-  "key": "battleSummary.goodCount",
-  "text": "Good Count {0}"
- },
- {
-  "id": 436,
-  "key": "battleSummary.killCount",
-  "text": "Kill Count {0}"
- },
- {
-  "id": 437,
-  "key": "battleSummary.killAssistCount",
-  "text": "Kill Assist Count {0}"
- },
- {
-  "id": 438,
-  "key": "battleSummary.assistCount",
-  "text": "Assist Count {0}"
- },
- {
-  "id": 439,
-  "key": "battleSummary.usedDiscSkillCount",
-  "text": "Discs used: {0}"
- },
- {
-  "id": 440,
-  "key": "battleSummary.usedKickerSkillCount",
-  "text": "Kicker Skills used: {0}"
- },
- {
-  "id": 441,
-  "key": "battleSummary.usedSpecialSkillCount",
-  "text": "Special Skills used: {0}"
- },
- {
-  "id": 442,
-  "key": "battleSummary.killedCount",
-  "text": "Killed Count {0}"
- },
- {
-  "id": 443,
-  "key": "battleSummary.acquiredCrystalCount",
-  "text": "Acquired Crystal Count {0}"
- },
- {
-  "id": 444,
-  "key": "battleSummary.releasedCrystalCount",
-  "text": "Released Crystal Count {0}"
- },
- {
-  "id": 445,
-  "key": "battleSummary.flagGoalCount",
-  "text": "Flag Goal Count {0}"
- },
- {
-  "id": 446,
-  "key": "battleSummary.enemyFlagDropCount",
-  "text": "Enemy Flag Drop Count {0}"
- },
- {
-  "id": 447,
-  "key": "battleSummary.ballShootPoint",
-  "text": "Ball Shoot Point"
- },
- {
-  "id": 448,
-  "key": "battleSummary.ballDropCount",
-  "text": "Ball Drop Count {0}"
- },
- {
-  "id": 449,
-  "key": "battleSummary.rankFormat",
-  "text": "Rank {0}"
- },
- {
-  "id": 450,
-  "key": "battleSummary.movingDistance",
-  "text": "Distance covered: {0} m"
- },
- {
-  "id": 451,
-  "key": "battle.backHome",
-  "text": "Return to Home"
- },
- {
-  "id": 452,
-  "key": "socialGiftee.rewardButton",
-  "text": "Reward Button"
- },
- {
-  "id": 453,
-  "key": "socialGiftee.rewardButtonEnd",
-  "text": "Reward Button End"
- },
- {
-  "id": 454,
-  "key": "socialGiftee.topMessage",
-  "text": "Top"
- },
- {
-  "id": 455,
-  "key": "socialGiftee.topMessageEnd",
-  "text": "Top Message End"
- },
- {
-  "id": 456,
-  "key": "socialGiftee.tweetText",
-  "text": "Tweet"
- },
- {
-  "id": 457,
-  "key": "{0}pt",
-  "text": "{0} pt"
- },
- {
-  "id": 458,
-  "key": "battle.single",
-  "text": "Solo"
- },
- {
-  "id": 459,
-  "key": "battle.team",
-  "text": "Team"
- },
- {
-  "id": 460,
-  "key": "battle.start",
-  "text": "Battle"
- },
- {
-  "id": 461,
-  "key": "common.cancel",
-  "text": "Cancel"
- },
- {
-  "id": 462,
-  "key": "common.close",
-  "text": "Close"
- },
- {
-  "id": 463,
-  "key": "common.back",
-  "text": "Back"
- },
- {
-  "id": 464,
-  "key": "common.next",
-  "text": "Next"
- },
- {
-  "id": 465,
-  "key": "common.battle",
-  "text": "Battle"
- },
- {
-  "id": 466,
-  "key": "common.kicker",
-  "text": "Kickers"
- },
- {
-  "id": 467,
-  "key": "common.disc",
-  "text": "Discs"
- },
- {
-  "id": 468,
-  "key": "common.gacha",
-  "text": "Capsules"
- },
- {
-  "id": 469,
-  "key": "common.shop",
-  "text": "Shop"
- },
- {
-  "id": 470,
-  "key": "battleRule.rule",
-  "text": "Rule"
- },
- {
-  "id": 471,
-  "key": "common.rule",
-  "text": "Rule"
- },
- {
-  "id": 472,
-  "key": "battle.rules",
-  "text": "Rules"
- },
- {
-  "id": 473,
-  "key": "common.rules",
-  "text": "Rules"
- },
- {
-  "id": 474,
-  "key": "rule",
-  "text": "Rule"
- },
- {
-  "id": 475,
-  "key": "rules",
-  "text": "Rules"
- },
- {
-  "id": 476,
-  "key": "custom.join",
-  "text": "Join Battle"
- },
- {
-  "id": 477,
-  "key": "custom.search",
-  "text": "Search for Participants"
- },
- {
-  "id": 478,
-  "key": "custom.challenge",
-  "text": "Challenge"
- },
- {
-  "id": 479,
-  "key": "matching.join",
-  "text": "Join Battle"
- },
- {
-  "id": 480,
-  "key": "matching.search",
-  "text": "Search Participants"
- },
- {
-  "id": 481,
-  "key": "matching.challenge",
-  "text": "Challenge"
- },
- {
-  "id": 482,
-  "key": "customMatch.join",
-  "text": "Join match"
- },
- {
-  "id": 483,
-  "key": "customMatch.search",
-  "text": "Search for Participants"
- },
- {
-  "id": 484,
-  "key": "customMatch.challenge",
-  "text": "Challenge"
- },
- {
-  "id": 485,
-  "key": "common.ruleShort",
-  "text": "Rules"
- },
- {
-  "id": 486,
-  "key": "matching.single",
-  "text": "Solo"
- },
- {
-  "id": 487,
-  "key": "matching.team",
-  "text": "Team"
- },
- {
-  "id": 488,
-  "key": "matching.joinTeam",
-  "text": "Join Team"
- },
- {
-  "id": 489,
-  "key": "matching.memberRecruting",
-  "text": "Recruiting members"
- },
- {
-  "id": 490,
-  "key": "common.challenge",
-  "text": "Challenge"
- },
- {
-  "id": 491,
-  "key": "battle.rankerDisable",
-  "text": "Off-season"
- },
- {
-  "id": 492,
-  "key": "common.rankUp",
-  "text": "Rank Up!"
- },
- {
-  "id": 493,
-  "key": "common.rankUpTitle",
-  "text": "Rank Up!"
- },
- {
-  "id": 494,
-  "key": "common.explainRule",
-  "text": "Rules"
- },
- {
-  "id": 495,
-  "key": "matching.battleStart",
-  "text": "Start Battle!"
- },
- {
-  "id": 496,
-  "key": "matching.waitMemberTitle",
-  "text": "Waiting for participant"
- },
- {
-  "id": 497,
-  "key": "matching.teamWaitTitle",
-  "text": "Waiting Room"
- },
- {
-  "id": 498,
-  "key": "matching.teamListTitle",
-  "text": "Team List"
- },
- {
-  "id": 499,
-  "key": "matching.teamDecide",
-  "text": "Set Team"
- },
- {
-  "id": 500,
-  "key": "matching.selfDeck",
-  "text": "Deck: "
- },
- {
-  "id": 501,
-  "key": "common.dayName",
-  "text": "d"
- },
- {
-  "id": 502,
-  "key": "common.kickerSkill",
-  "text": "Kicker Skill"
- },
- {
-  "id": 503,
-  "key": "common.specialSkill",
-  "text": "Special Skill"
- },
- {
-  "id": 504,
-  "key": "common.specialSkillCut",
-  "text": "Special Skill Cut"
- },
- {
-  "id": 505,
-  "key": "common.characterSelect",
-  "text": "Kicker Select"
- },
- {
-  "id": 506,
-  "key": "common.costumeAndGear",
-  "text": "Costumes and Gears"
- },
- {
-  "id": 507,
-  "key": "common.gear",
-  "text": "Gears"
- },
- {
-  "id": 508,
-  "key": "common.gearSet",
-  "text": "Equip Gear"
- },
- {
-  "id": 509,
-  "key": "common.guardianRank",
-  "text": "Guardian Rank"
- },
- {
-  "id": 510,
-  "key": "common.levelUp",
-  "text": "Lv Up!"
- },
- {
-  "id": 511,
-  "key": "common.levelUpTitle",
-  "text": "Lv Up"
- },
- {
-  "id": 512,
-  "key": "common.levelUpBonus",
-  "text": "Lv Up Bonus"
- },
- {
-  "id": 513,
-  "key": "common.winReward",
-  "text": "Win Rewards"
- },
- {
-  "id": 514,
-  "key": "common.remainCount",
-  "text": "Remain Count {0}"
- },
- {
-  "id": 515,
-  "key": "common.remainCount8",
-  "text": "Remain Count8"
- },
- {
-  "id": 516,
-  "key": "common.tap",
-  "text": "Tap to continue"
- },
- {
-  "id": 517,
-  "key": "common.tips",
-  "text": "Tips"
- },
- {
-  "id": 518,
-  "key": "common.training",
-  "text": "Training"
- },
- {
-  "id": 519,
-  "key": "common.tutorial",
-  "text": "Tutorial"
- },
- {
-  "id": 520,
-  "key": "common.try",
-  "text": "Try"
- },
- {
-  "id": 521,
-  "key": "common.replay",
-  "text": "Replay"
- },
- {
-  "id": 522,
-  "key": "common.friend",
-  "text": "Friends"
- },
- {
-  "id": 523,
-  "key": "common.friendFollow",
-  "text": "Follow"
- },
- {
-  "id": 524,
-  "key": "common.friendFollowing",
-  "text": "Following"
- },
- {
-  "id": 525,
-  "key": "common.download",
-  "text": "Download"
- },
- {
-  "id": 526,
-  "key": "common.loading",
-  "text": "Loading"
- },
- {
-  "id": 527,
-  "key": "common.confirm",
-  "text": "Confirm"
- },
- {
-  "id": 528,
-  "key": "common.complete",
-  "text": "Complete"
- },
- {
-  "id": 529,
-  "key": "common.detailSetting",
-  "text": "Details"
- },
- {
-  "id": 530,
-  "key": "common.info",
-  "text": "Notices"
- },
- {
-  "id": 531,
-  "key": "common.informationTitle",
-  "text": "Notices"
- },
- {
-  "id": 532,
-  "key": "common.latestInformation",
-  "text": "Latest Information"
- },
- {
-  "id": 533,
-  "key": "common.menuTitle",
-  "text": "Menu"
- },
- {
-  "id": 534,
-  "key": "common.toShop",
-  "text": "Go to Shop"
- },
- {
-  "id": 535,
-  "key": "common.profile",
-  "text": "Profile"
- },
- {
-  "id": 536,
-  "key": "common.mvp",
-  "text": "MVP"
- },
- {
-  "id": 537,
-  "key": "ageConfirm.message",
-  "text": "Message"
- },
- {
-  "id": 538,
-  "key": "ageConfirm.warning",
-  "text": "Warning"
- },
- {
-  "id": 539,
-  "key": "arReplay.detection",
-  "text": "Detection"
- },
- {
-  "id": 540,
-  "key": "arReplay.manipulate",
-  "text": "Manipulate"
- },
- {
-  "id": 541,
-  "key": "arReplay.tapPlane",
-  "text": "Tap Plane"
- },
- {
-  "id": 542,
-  "key": "attackDistanceType.long",
-  "text": "Long range"
- },
- {
-  "id": 543,
-  "key": "attackDistanceType.short",
-  "text": "Short range"
- },
- {
-  "id": 544,
-  "key": "attackType.ability",
-  "text": "Passive"
- },
- {
-  "id": 545,
-  "key": "attackType.condition",
-  "text": "Status effect"
- },
- {
-  "id": 546,
-  "key": "attackType.dashAttack",
-  "text": "Dash attack"
- },
- {
-  "id": 547,
-  "key": "attackType.kickerSkill",
-  "text": "Kicker Skill"
- },
- {
-  "id": 548,
-  "key": "attackType.specialSkill",
-  "text": "Special Skill"
- },
- {
-  "id": 549,
-  "key": "attackType.summonTrapAttack",
-  "text": "Turret"
- },
- {
-  "id": 550,
-  "key": "attackType.trapSkill",
-  "text": "Trap"
- },
- {
-  "id": 551,
-  "key": "attackType.weaponBullet",
-  "text": "Basic attack"
- },
- {
-  "id": 552,
-  "key": "attackType.weaponDirect",
-  "text": "Basic attack"
- },
- {
-  "id": 553,
-  "key": "attributeType.fire",
-  "text": "Fire"
- },
- {
-  "id": 554,
-  "key": "attributeType.none",
-  "text": "None"
- },
- {
-  "id": 555,
-  "key": "attributeType.water",
-  "text": "Water"
- },
- {
-  "id": 556,
-  "key": "attributeType.wind",
-  "text": "Wind"
- },
- {
-  "id": 557,
-  "key": "badge.set",
-  "text": "Set badge"
- },
- {
-  "id": 558,
-  "key": "battle.continueBattle",
-  "text": "Continue"
- },
- {
-  "id": 559,
-  "key": "battleRule.openText",
-  "text": "Open"
- },
- {
-  "id": 560,
-  "key": "battleRule.rankerOpen",
-  "text": "Ranker Open"
- },
- {
-  "id": 561,
-  "key": "battleRuleDescription.ballShoot1",
-  "text": "Ball Shoot1"
- },
- {
-  "id": 562,
-  "key": "battleRuleDescription.ballShoot1Title",
-  "text": "Ball Shoot1"
- },
- {
-  "id": 563,
-  "key": "battleRuleDescription.ballShoot2",
-  "text": "Ball Shoot2"
- },
- {
-  "id": 564,
-  "key": "battleRuleDescription.ballShoot2Title",
-  "text": "Ball Shoot2"
- },
- {
-  "id": 565,
-  "key": "battleRuleDescription.ballShoot3",
-  "text": "Ball Shoot3"
- },
- {
-  "id": 566,
-  "key": "battleRuleDescription.ballShoot3Title",
-  "text": "Ball Shoot3"
- },
- {
-  "id": 567,
-  "key": "battleRuleDescription.ballShoot4",
-  "text": "Ball Shoot4"
- },
- {
-  "id": 568,
-  "key": "battleRuleDescription.ballShoot4Title",
-  "text": "Ball Shoot4"
- },
- {
-  "id": 569,
-  "key": "battleRuleDescription.ballShoot5",
-  "text": "Ball Shoot5"
- },
- {
-  "id": 570,
-  "key": "battleRuleDescription.ballShoot5Title",
-  "text": "Ball Shoot5"
- },
- {
-  "id": 571,
-  "key": "battleRuleDescription.ballShoot6",
-  "text": "Ball Shoot6"
- },
- {
-  "id": 572,
-  "key": "battleRuleDescription.ballShoot6Title",
-  "text": "Ball Shoot6"
- },
- {
-  "id": 573,
-  "key": "battleRuleDescription.festival1",
-  "text": "Festival1"
- },
- {
-  "id": 574,
-  "key": "battleRuleDescription.festival1Title",
-  "text": "Festival1"
- },
- {
-  "id": 575,
-  "key": "battleRuleDescription.festival2",
-  "text": "Festival2"
- },
- {
-  "id": 576,
-  "key": "battleRuleDescription.festival2Title",
-  "text": "Festival2"
- },
- {
-  "id": 577,
-  "key": "battleRuleDescription.festival3",
-  "text": "Festival3"
- },
- {
-  "id": 578,
-  "key": "battleRuleDescription.festival3Title",
-  "text": "Festival3"
- },
- {
-  "id": 579,
-  "key": "battleRuleDescription.festival4",
-  "text": "Festival4"
- },
- {
-  "id": 580,
-  "key": "battleRuleDescription.festival4Title",
-  "text": "Festival4"
- },
- {
-  "id": 581,
-  "key": "battleRuleDescription.festival5",
-  "text": "Festival5"
- },
- {
-  "id": 582,
-  "key": "battleRuleDescription.festival5Title",
-  "text": "Festival5"
- },
- {
-  "id": 583,
-  "key": "battleRuleDescription.festivalRule1",
-  "text": "Festival Rule1"
- },
- {
-  "id": 584,
-  "key": "battleRuleDescription.festivalRule1Title",
-  "text": "Festival Rule1"
- },
- {
-  "id": 585,
-  "key": "battleRuleDescription.flagBattle1",
-  "text": "Flag Battle1"
- },
- {
-  "id": 586,
-  "key": "battleRuleDescription.flagBattle1Title",
-  "text": "Flag Battle1"
- },
- {
-  "id": 587,
-  "key": "battleRuleDescription.flagBattle2",
-  "text": "Flag Battle2"
- },
- {
-  "id": 588,
-  "key": "battleRuleDescription.flagBattle2Title",
-  "text": "Flag Battle2"
- },
- {
-  "id": 589,
-  "key": "battleRuleDescription.flagBattle3",
-  "text": "Flag Battle3"
- },
- {
-  "id": 590,
-  "key": "battleRuleDescription.flagBattle3Title",
-  "text": "Flag Battle3"
- },
- {
-  "id": 591,
-  "key": "battleRuleDescription.flagBattle4",
-  "text": "Flag Battle4"
- },
- {
-  "id": 592,
-  "key": "battleRuleDescription.flagBattle4Title",
-  "text": "Flag Battle4"
- },
- {
-  "id": 593,
-  "key": "battleRuleDescription.flagBattle5",
-  "text": "Flag Battle5"
- },
- {
-  "id": 594,
-  "key": "battleRuleDescription.flagBattle5Title",
-  "text": "Flag Battle5"
- },
- {
-  "id": 595,
-  "key": "battleRuleDescription.scramble1",
-  "text": "Scramble1"
- },
- {
-  "id": 596,
-  "key": "battleRuleDescription.scramble1Title",
-  "text": "Scramble1"
- },
- {
-  "id": 597,
-  "key": "battleRuleDescription.scramble2",
-  "text": "Scramble2"
- },
- {
-  "id": 598,
-  "key": "battleRuleDescription.scramble2Title",
-  "text": "Scramble2"
- },
- {
-  "id": 599,
-  "key": "battleRuleDescription.scramble3",
-  "text": "Scramble3"
- },
- {
-  "id": 600,
-  "key": "battleRuleDescription.scramble3Title",
-  "text": "Scramble3"
- },
- {
-  "id": 601,
-  "key": "battleRuleDescription.scramble4",
-  "text": "Scramble4"
- },
- {
-  "id": 602,
-  "key": "battleRuleDescription.scramble4Title",
-  "text": "Scramble4"
- },
- {
-  "id": 603,
-  "key": "battleRuleType.ballShoot",
-  "text": "Rapid Ball"
- },
- {
-  "id": 604,
-  "key": "battleRuleType.flagBattle",
-  "text": "Flag Flight"
- },
- {
-  "id": 605,
-  "key": "battleRuleType.scramble50",
-  "text": "Crystal Scramble"
- },
- {
-  "id": 606,
-  "key": "battleRuleType.trial",
-  "text": "Trial"
- },
- {
-  "id": 607,
-  "key": "battleSummary.battleLog",
-  "text": "Battle Log"
- },
- {
-  "id": 608,
-  "key": "battleSummary.battleRank",
-  "text": "Battle Rank"
- },
- {
-  "id": 609,
-  "key": "battleSummary.festivalEmpty",
-  "text": "Festival Empty"
- },
- {
-  "id": 610,
-  "key": "battleSummary.festivalLog",
-  "text": "Festival Log"
- },
- {
-  "id": 611,
-  "key": "battleSummary.festivalPoint",
-  "text": "Festival Point"
- },
- {
-  "id": 612,
-  "key": "battleSummary.festivalTeam",
-  "text": "Festival Team"
- },
- {
-  "id": 613,
-  "key": "battleSummary.festivalTeamRate",
-  "text": "Festival Team Rate"
- },
- {
-  "id": 614,
-  "key": "battleSummary.seasonEmpty",
-  "text": "Season Empty"
- },
- {
-  "id": 615,
-  "key": "battleSummary.seasonLog",
-  "text": "Season Log"
- },
- {
-  "id": 616,
-  "key": "battleSummary.useKickerTitle",
-  "text": "Use Kicker"
- },
- {
-  "id": 617,
-  "key": "battleSummary.winRate",
-  "text": "Win Rate"
- },
- {
-  "id": 618,
-  "key": "birthdayRegistration.button",
-  "text": "Button"
- },
- {
-  "id": 619,
-  "key": "birthdayRegistration.confirmButton",
-  "text": "Confirm Button"
- },
- {
-  "id": 620,
-  "key": "boost.empty",
-  "text": "No boost"
- },
- {
-  "id": 621,
-  "key": "cacheClear.description",
-  "text": "Delete the downloaded game data. It will be downloaded again the next time you play."
- },
- {
-  "id": 622,
-  "key": "capsule.setupInstantOpen",
-  "text": "Setup Instant Open"
- },
- {
-  "id": 623,
-  "key": "capsule.setupUntilOpen",
-  "text": "Setup Until Open"
- },
- {
-  "id": 624,
-  "key": "challenge.addReward",
-  "text": "Bonus reward"
- },
- {
-  "id": 625,
-  "key": "chat.commentAttention",
-  "text": "Comment Attention"
- },
- {
-  "id": 626,
-  "key": "chat.consecutivePostsAttentionDescription",
-  "text": "Consecutive Posts Attention"
- },
- {
-  "id": 627,
-  "key": "chat.consecutivePostsAttentionTitle",
-  "text": "Consecutive Posts Attention"
- },
- {
-  "id": 628,
-  "key": "chat.send",
-  "text": "Send"
- },
- {
-  "id": 629,
-  "key": "common.agree",
-  "text": "Agree"
- },
- {
-  "id": 630,
-  "key": "common.battleMode",
-  "text": "Battle mode"
- },
- {
-  "id": 631,
-  "key": "common.battlePlayerCount",
-  "text": "Number of players:"
- },
- {
-  "id": 632,
-  "key": "common.cacheClear",
-  "text": "Clear cache"
- },
- {
-  "id": 633,
-  "key": "common.confirmPurchase",
-  "text": "Confirm purchase"
- },
- {
-  "id": 634,
-  "key": "common.copy",
-  "text": "Copy"
- },
- {
-  "id": 635,
-  "key": "common.disagree",
-  "text": "Disagree"
- },
- {
-  "id": 636,
-  "key": "common.exchange",
-  "text": "Exchange"
- },
- {
-  "id": 637,
-  "key": "common.facebookAuth",
-  "text": "Facebook login"
- },
- {
-  "id": 638,
-  "key": "common.idSearchDialogDescription",
-  "text": "Enter a player ID."
- },
- {
-  "id": 639,
-  "key": "common.inputNameDescription",
-  "text": "Enter your name."
- },
- {
-  "id": 640,
-  "key": "common.kickerPurchaseConfirm",
-  "text": "Buy this Kicker?"
- },
- {
-  "id": 641,
-  "key": "common.kickerPurchaseExecute",
-  "text": "Buy"
- },
- {
-  "id": 642,
-  "key": "common.language",
-  "text": "Language"
- },
- {
-  "id": 643,
-  "key": "common.languageChangeTitle",
-  "text": "Change language"
- },
- {
-  "id": 644,
-  "key": "common.live",
-  "text": "Live"
- },
- {
-  "id": 645,
-  "key": "common.menuOtherTitle",
-  "text": "Other"
- },
- {
-  "id": 646,
-  "key": "common.monthName",
-  "text": "{0}"
- },
- {
-  "id": 647,
-  "key": "common.nameChangeRuleDescription",
-  "text": "Up to 10 characters."
- },
- {
-  "id": 648,
-  "key": "common.nameChangeRuleWarning",
-  "text": "Offensive names are not allowed."
- },
- {
-  "id": 649,
-  "key": "common.nameEditDescription",
-  "text": "Enter a new name."
- },
- {
-  "id": 650,
-  "key": "common.nameEditWarning",
-  "text": "Names that break the rules may be changed."
- },
- {
-  "id": 651,
-  "key": "common.notPossessDisc",
-  "text": "You do not own this disc"
- },
- {
-  "id": 652,
-  "key": "common.notPossession",
-  "text": "Not owned"
- },
- {
-  "id": 653,
-  "key": "common.officialTwitter",
-  "text": "Official Twitter"
- },
- {
-  "id": 654,
-  "key": "common.paid",
-  "text": "Paid"
- },
- {
-  "id": 655,
-  "key": "common.playStart",
-  "text": "Play"
- },
- {
-  "id": 656,
-  "key": "common.possessionableDisk",
-  "text": "Discs you can own"
- },
- {
-  "id": 657,
-  "key": "common.premiumMemberBonus",
-  "text": "Premium bonus"
- },
- {
-  "id": 658,
-  "key": "common.privacyPolicyAgree",
-  "text": "I agree to the Privacy Policy"
- },
- {
-  "id": 659,
-  "key": "common.purchaseAlert",
-  "text": "Purchase alert"
- },
- {
-  "id": 660,
-  "key": "common.rankUpDiskRelease",
-  "text": "Unlocked at rank up"
- },
- {
-  "id": 661,
-  "key": "common.scout",
-  "text": "Scout"
- },
- {
-  "id": 662,
-  "key": "common.search",
-  "text": "Search"
- },
- {
-  "id": 663,
-  "key": "common.social",
-  "text": "Social"
- },
- {
-  "id": 664,
-  "key": "common.sort",
-  "text": "Sort"
- },
- {
-  "id": 665,
-  "key": "common.stage",
-  "text": "Stage"
- },
- {
-  "id": 666,
-  "key": "common.start",
-  "text": "Start"
- },
- {
-  "id": 667,
-  "key": "common.sum",
-  "text": "Total"
- },
- {
-  "id": 668,
-  "key": "common.termsOfServiceAgree",
-  "text": "I agree to the Terms of Service"
- },
- {
-  "id": 669,
-  "key": "common.tweet",
-  "text": "Tweet"
- },
- {
-  "id": 670,
-  "key": "common.untilHolding",
-  "text": "Held until"
- },
- {
-  "id": 671,
-  "key": "common.up",
-  "text": "UP"
- },
- {
-  "id": 672,
-  "key": "common.watchAr",
-  "text": "AR view"
- },
- {
-  "id": 673,
-  "key": "common.watching",
-  "text": "Watching"
- },
- {
-  "id": 674,
-  "key": "common.yearName",
-  "text": "{0}"
- },
- {
-  "id": 675,
-  "key": "conditionType.attackRate",
-  "text": "Attack Power"
- },
- {
-  "id": 676,
-  "key": "conditionType.attackSpeedRate",
-  "text": "Attack Speed"
- },
- {
-  "id": 677,
-  "key": "conditionType.autoMove",
-  "text": "Auto move"
- },
- {
-  "id": 678,
-  "key": "conditionType.blowoffCollider",
-  "text": "Knockup Collider"
- },
- {
-  "id": 679,
-  "key": "conditionType.boostHealSpeedRate",
-  "text": "Boost Recovery"
- },
- {
-  "id": 680,
-  "key": "conditionType.burn",
-  "text": "Burn"
- },
- {
-  "id": 681,
-  "key": "conditionType.confusion",
-  "text": "Confusion"
- },
- {
-  "id": 682,
-  "key": "conditionType.damageRate",
-  "text": "Damage cut"
- },
- {
-  "id": 683,
-  "key": "conditionType.defenseRate",
-  "text": "DEF change"
- },
- {
-  "id": 684,
-  "key": "conditionType.dot",
-  "text": "Dot"
- },
- {
-  "id": 685,
-  "key": "conditionType.drain",
-  "text": "Drain"
- },
- {
-  "id": 686,
-  "key": "conditionType.gravity",
-  "text": "Gravity"
- },
- {
-  "id": 687,
-  "key": "conditionType.inhale",
-  "text": "Vortex"
- },
- {
-  "id": 688,
-  "key": "conditionType.none",
-  "text": "None"
- },
- {
-  "id": 689,
-  "key": "conditionType.oneShotKiller",
-  "text": "One-shot"
- },
- {
-  "id": 690,
-  "key": "conditionType.panda",
-  "text": "Panda"
- },
- {
-  "id": 691,
-  "key": "conditionType.paralysis",
-  "text": "Paralysis"
- },
- {
-  "id": 692,
-  "key": "conditionType.poison",
-  "text": "Poison"
- },
- {
-  "id": 693,
-  "key": "conditionType.prison",
-  "text": "Prison"
- },
- {
-  "id": 694,
-  "key": "conditionType.pullIn",
-  "text": "Pull In"
- },
- {
-  "id": 695,
-  "key": "conditionType.regeneration",
-  "text": "Regeneration"
- },
- {
-  "id": 696,
-  "key": "conditionType.restraint",
-  "text": "Restraint"
- },
- {
-  "id": 697,
-  "key": "conditionType.restrainted",
-  "text": "Restrainted"
- },
- {
-  "id": 698,
-  "key": "conditionType.rocketLauncherTarget",
-  "text": "Rocket Launcher Target"
- },
- {
-  "id": 699,
-  "key": "conditionType.shieldAll",
-  "text": "Shield"
- },
- {
-  "id": 700,
-  "key": "conditionType.shieldForward",
-  "text": "Front shield"
- },
- {
-  "id": 701,
-  "key": "conditionType.silent",
-  "text": "Skill seal"
- },
- {
-  "id": 702,
-  "key": "conditionType.smog",
-  "text": "Smog"
- },
- {
-  "id": 703,
-  "key": "conditionType.smogDisturb",
-  "text": "Smog Disturb"
- },
- {
-  "id": 704,
-  "key": "conditionType.smogProtection",
-  "text": "Smog Protection"
- },
- {
-  "id": 705,
-  "key": "conditionType.specialSkillGaugeRate",
-  "text": "SS gauge"
- },
- {
-  "id": 706,
-  "key": "conditionType.speedRate",
-  "text": "Speed change"
- },
- {
-  "id": 707,
-  "key": "conditionType.stealth",
-  "text": "Stealth"
- },
- {
-  "id": 708,
-  "key": "conditionType.stun",
-  "text": "Stun"
- },
- {
-  "id": 709,
-  "key": "customMatch.addAi",
-  "text": "Add Ai"
- },
- {
-  "id": 710,
-  "key": "customMatch.changeTeamTitle",
-  "text": "Change Team"
- },
- {
-  "id": 711,
-  "key": "customMatch.createBattle",
-  "text": "Create Battle"
- },
- {
-  "id": 712,
-  "key": "customMatch.createBattleSpectator",
-  "text": "Create Battle Spectator"
- },
- {
-  "id": 713,
-  "key": "customMatch.disableGear",
-  "text": "Disable Gear"
- },
- {
-  "id": 714,
-  "key": "customMatch.fixDiscLevel",
-  "text": "Fix Disc Lv"
- },
- {
-  "id": 715,
-  "key": "customMatch.inGameSecret",
-  "text": "In Game Secret"
- },
- {
-  "id": 716,
-  "key": "customMatch.invite",
-  "text": "Invite"
- },
- {
-  "id": 717,
-  "key": "customMatch.joinBlue",
-  "text": "Join Blue"
- },
- {
-  "id": 718,
-  "key": "customMatch.joinEither",
-  "text": "Join Either"
- },
- {
-  "id": 719,
-  "key": "customMatch.joinRed",
-  "text": "Join Red"
- },
- {
-  "id": 720,
-  "key": "customMatch.secret",
-  "text": "Secret"
- },
- {
-  "id": 721,
-  "key": "customMatch.spectatorTitle",
-  "text": "Spectator"
- },
- {
-  "id": 722,
-  "key": "customMatch.watch",
-  "text": "Watch"
- },
- {
-  "id": 723,
-  "key": "dataTransfer.idRegisterDescription",
-  "text": "Id Register"
- },
- {
-  "id": 724,
-  "key": "dataTransfer.loginButtonText",
-  "text": "Login Button"
- },
- {
-  "id": 725,
-  "key": "dataTransfer.loginDescription",
-  "text": "Login"
- },
- {
-  "id": 726,
-  "key": "dataTransfer.loginExecuteDescription",
-  "text": "Login Execute"
- },
- {
-  "id": 727,
-  "key": "dataTransfer.loginExecuteWarning",
-  "text": "Login Execute Warning"
- },
- {
-  "id": 728,
-  "key": "dataTransfer.loginSelectDescription",
-  "text": "Login Select"
- },
- {
-  "id": 729,
-  "key": "dataTransfer.loginSelectIdPassword",
-  "text": "Login Select Id Password"
- },
- {
-  "id": 730,
-  "key": "dataTransfer.loginSettingDescription",
-  "text": "Login Setting"
- },
- {
-  "id": 731,
-  "key": "dataTransfer.notices",
-  "text": "Notices"
- },
- {
-  "id": 732,
-  "key": "dataTransfer.noticesDescription",
-  "text": "Notices"
- },
- {
-  "id": 733,
-  "key": "dataTransfer.passwordNotice",
-  "text": "Password Notice"
- },
- {
-  "id": 734,
-  "key": "dataTransfer.registerButtonText",
-  "text": "Register Button"
- },
- {
-  "id": 735,
-  "key": "dataTransfer.registerDescription",
-  "text": "Register"
- },
- {
-  "id": 736,
-  "key": "dataTransfer.registerIdDescription",
-  "text": "Register Id"
- },
- {
-  "id": 737,
-  "key": "dataTransfer.registerSelectDescription",
-  "text": "Register Select"
- },
- {
-  "id": 738,
-  "key": "dataTransfer.registerSelectIdPassword",
-  "text": "Register Select Id Password"
- },
- {
-  "id": 739,
-  "key": "dataTransfer.registerSelectWarning",
-  "text": "Register Select Warning"
- },
- {
-  "id": 740,
-  "key": "dataTransfer.registerSettingDescription",
-  "text": "Register Setting"
- },
- {
-  "id": 741,
-  "key": "dataTransfer.resetDescription",
-  "text": "Reset"
- },
- {
-  "id": 742,
-  "key": "dataTransfer.resetWarning",
-  "text": "Reset Warning"
- },
- {
-  "id": 743,
-  "key": "dataTransfer.resultCopy",
-  "text": "Result Copy"
- },
- {
-  "id": 744,
-  "key": "dataTransfer.resultOnceOnly",
-  "text": "Result Once Only"
- },
- {
-  "id": 745,
-  "key": "dataTransfer.selectGameCenter",
-  "text": "Select Game Center"
- },
- {
-  "id": 746,
-  "key": "dataUsage.buttonText",
-  "text": "Button"
- },
- {
-  "id": 747,
-  "key": "dataUsage.mainMessage",
-  "text": "Main"
- },
- {
-  "id": 748,
-  "key": "dataUsage.privacyPolicy",
-  "text": "Privacy Policy"
- },
- {
-  "id": 749,
-  "key": "dataUsage.subMessage",
-  "text": "Sub"
- },
- {
-  "id": 750,
-  "key": "dataUsage.subTitle",
-  "text": "Sub"
- },
- {
-  "id": 751,
-  "key": "disc.swapTitle",
-  "text": "Swap discs"
- },
- {
-  "id": 752,
-  "key": "download.confirmDescription",
-  "text": "Download the latest game data?"
- },
- {
-  "id": 753,
-  "key": "download.downloading",
-  "text": "Downloading..."
- },
- {
-  "id": 754,
-  "key": "download.downloadingAttention",
-  "text": "Please do not close the app while downloading."
- },
- {
-  "id": 755,
-  "key": "download.recommendWifi",
-  "text": "A Wi-Fi connection is recommended."
- },
- {
-  "id": 756,
-  "key": "endOfService.message",
-  "text": "Message"
- },
- {
-  "id": 757,
-  "key": "exchange.attention",
-  "text": "Attention"
- },
- {
-  "id": 758,
-  "key": "exchange.endTime",
-  "text": "End Time"
- },
- {
-  "id": 759,
-  "key": "exchangeConfirm.button",
-  "text": "Button"
- },
- {
-  "id": 760,
-  "key": "exchangeInfo.attention",
-  "text": "Attention"
- },
- {
-  "id": 761,
-  "key": "exchangeInfo.message",
-  "text": "Message"
- },
- {
-  "id": 762,
-  "key": "exchangeInfo.message2",
-  "text": "Message2"
- },
- {
-  "id": 763,
-  "key": "exchangeInfo.message3",
-  "text": "Message3"
- },
- {
-  "id": 764,
-  "key": "exchangeRefresh.button",
-  "text": "Button"
- },
- {
-  "id": 765,
-  "key": "exchangeRefresh.description",
-  "text": "Description"
- },
- {
-  "id": 766,
-  "key": "exchangeResult.message",
-  "text": "Message"
- },
- {
-  "id": 767,
-  "key": "festival.aggregate",
-  "text": "Aggregate"
- },
- {
-  "id": 768,
-  "key": "festival.aggregateClose",
-  "text": "Aggregate Close"
- },
- {
-  "id": 769,
-  "key": "festival.detailEmpty",
-  "text": "Detail Empty"
- },
- {
-  "id": 770,
-  "key": "festival.detailTeam",
-  "text": "Detail Team"
- },
- {
-  "id": 771,
-  "key": "festival.festivalPoint",
-  "text": "Festival Point"
- },
- {
-  "id": 772,
-  "key": "festival.getFestivalPoint",
-  "text": "Get Festival Point"
- },
- {
-  "id": 773,
-  "key": "festival.joinTeam",
-  "text": "Join Team"
- },
- {
-  "id": 774,
-  "key": "festival.missionValue",
-  "text": "Mission Value"
- },
- {
-  "id": 775,
-  "key": "festival.pointRatio",
-  "text": "Point Ratio"
- },
- {
-  "id": 776,
-  "key": "festival.pointRatioIfWin",
-  "text": "Point Ratio If Win"
- },
- {
-  "id": 777,
-  "key": "festival.presentMessage",
-  "text": "Present"
- },
- {
-  "id": 778,
-  "key": "festival.rankerMatchClose",
-  "text": "Ranker Match Close"
- },
- {
-  "id": 779,
-  "key": "festival.resultDraw",
-  "text": "Result Draw"
- },
- {
-  "id": 780,
-  "key": "festival.resultMessage",
-  "text": "Result"
- },
- {
-  "id": 781,
-  "key": "festival.resultPoint",
-  "text": "Result Point"
- },
- {
-  "id": 782,
-  "key": "festival.resultVote",
-  "text": "Result Vote"
- },
- {
-  "id": 783,
-  "key": "festival.ruleTitle",
-  "text": "Rule"
- },
- {
-  "id": 784,
-  "key": "filter.attribute",
-  "text": "Attribute"
- },
- {
-  "id": 785,
-  "key": "filter.rarity",
-  "text": "Rarity"
- },
- {
-  "id": 786,
-  "key": "filter.title",
-  "text": "Filter"
- },
- {
-  "id": 787,
-  "key": "filter.type",
-  "text": "Type"
- },
- {
-  "id": 788,
-  "key": "friendMatch.InviteAndCreateTeamTitle",
-  "text": "Invite And Create Team"
- },
- {
-  "id": 789,
-  "key": "friendMatch.allowAdditionalInvitation",
-  "text": "Allow Additional Invitation"
- },
- {
-  "id": 790,
-  "key": "friendMatch.invitationList",
-  "text": "Invitation List"
- },
- {
-  "id": 791,
-  "key": "friendMatch.invitationNotice",
-  "text": "Invitation Notice"
- },
- {
-  "id": 792,
-  "key": "friendMatch.inviteFriend",
-  "text": "Invite Friend"
- },
- {
-  "id": 793,
-  "key": "friendMatch.join",
-  "text": "Join"
- },
- {
-  "id": 794,
-  "key": "friendMatch.noInvitation",
-  "text": "No Invitation"
- },
- {
-  "id": 795,
-  "key": "friendMatch.noOnlineFriend",
-  "text": "No Online Friend"
- },
- {
-  "id": 796,
-  "key": "gacha.battleRankDiscProvisionRate",
-  "text": "Drop rates"
- },
- {
-  "id": 797,
-  "key": "gacha.discFragmentGet",
-  "text": "Disc fragments obtained"
- },
- {
-  "id": 798,
-  "key": "gacha.discSystem",
-  "text": "About discs"
- },
- {
-  "id": 799,
-  "key": "gacha.newDisc",
-  "text": "NEW"
- },
- {
-  "id": 800,
-  "key": "gachaDetail.attension",
-  "text": "Attension"
- },
- {
-  "id": 801,
-  "key": "gachaDetail.discForce",
-  "text": "Disc Force"
- },
- {
-  "id": 802,
-  "key": "gachaDetail.enableGetKicker",
-  "text": "Enable Get Kicker"
- },
- {
-  "id": 803,
-  "key": "gachaDetail.getKickerTitle",
-  "text": "Get Kicker"
- },
- {
-  "id": 804,
-  "key": "gachaDetail.newDisc",
-  "text": "New Disc"
- },
- {
-  "id": 805,
-  "key": "gachaDetail.rankAppearance",
-  "text": "Rank Appearance"
- },
- {
-  "id": 806,
-  "key": "gachaDetail.rarityAppearance",
-  "text": "Rarity Appearance"
- },
- {
-  "id": 807,
-  "key": "game.crystalLost",
-  "text": "Crystals lost"
- },
- {
-  "id": 808,
-  "key": "gear.analysisDetail",
-  "text": "Analysis details"
- },
- {
-  "id": 809,
-  "key": "gear.analysisExecute",
-  "text": "Analyse"
- },
- {
-  "id": 810,
-  "key": "gear.analysisSet",
-  "text": "Analyse"
- },
- {
-  "id": 811,
-  "key": "gear.bonus",
-  "text": "Gear bonus"
- },
- {
-  "id": 812,
-  "key": "gear.bonusDescription",
-  "text": "Same-color gear grants a bonus."
- },
- {
-  "id": 813,
-  "key": "gear.deleteDescription",
-  "text": "Delete this gear?"
- },
- {
-  "id": 814,
-  "key": "gear.overrideDescription",
-  "text": "Replace the equipped gear?"
- },
- {
-  "id": 815,
-  "key": "gear.setConfirm",
-  "text": "Equip this gear?"
- },
- {
-  "id": 816,
-  "key": "gear.setCostumeTitle",
-  "text": "Choose a costume"
- },
- {
-  "id": 817,
-  "key": "gear.setExecute",
-  "text": "Equip"
- },
- {
-  "id": 818,
-  "key": "gear.setPositionTitle",
-  "text": "Choose a slot"
- },
- {
-  "id": 819,
-  "key": "gearColorType.blue",
-  "text": "Blue"
- },
- {
-  "id": 820,
-  "key": "gearColorType.green",
-  "text": "Green"
- },
- {
-  "id": 821,
-  "key": "gearColorType.red",
-  "text": "Red"
- },
- {
-  "id": 822,
-  "key": "gearColorType.white",
-  "text": "White"
- },
- {
-  "id": 823,
-  "key": "gearColorType.yellow",
-  "text": "Yellow"
- },
- {
-  "id": 824,
-  "key": "kickerar.detection",
-  "text": "Detection"
- },
- {
-  "id": 825,
-  "key": "kickerar.manipulate",
-  "text": "Manipulate"
- },
- {
-  "id": 826,
-  "key": "kickerar.tapPlane",
-  "text": "Tap Plane"
- },
- {
-  "id": 827,
-  "key": "language.change",
-  "text": "Change language"
- },
- {
-  "id": 828,
-  "key": "languageChangeConfirm.description",
-  "text": "Change the language? The game will restart."
- },
- {
-  "id": 829,
-  "key": "mission.clearMessage",
-  "text": "Mission complete!"
- },
- {
-  "id": 830,
-  "key": "missionListType.badge",
-  "text": "Badge"
- },
- {
-  "id": 831,
-  "key": "missionListType.daily",
-  "text": "Daily"
- },
- {
-  "id": 832,
-  "key": "missionListType.festival",
-  "text": "Festival"
- },
- {
-  "id": 833,
-  "key": "missionListType.limited",
-  "text": "Limited"
- },
- {
-  "id": 834,
-  "key": "missionListType.none",
-  "text": "None"
- },
- {
-  "id": 835,
-  "key": "missionListType.season",
-  "text": "Season"
- },
- {
-  "id": 836,
-  "key": "pickUp.empty",
-  "text": "Empty"
- },
- {
-  "id": 837,
-  "key": "playerNameInput.placeholder",
-  "text": "Placeholder"
- },
- {
-  "id": 838,
-  "key": "poseDirectionType.default",
-  "text": "Default"
- },
- {
-  "id": 839,
-  "key": "poseDirectionType.down",
-  "text": "Down"
- },
- {
-  "id": 840,
-  "key": "poseDirectionType.left",
-  "text": "Left"
- },
- {
-  "id": 841,
-  "key": "poseDirectionType.right",
-  "text": "Right"
- },
- {
-  "id": 842,
-  "key": "poseDirectionType.up",
-  "text": "Up"
- },
- {
-  "id": 843,
-  "key": "present.countAttention",
-  "text": "Up to {0} presents"
- },
- {
-  "id": 844,
-  "key": "present.empty",
-  "text": "No presents"
- },
- {
-  "id": 845,
-  "key": "present.limitAttention",
-  "text": "Some presents expire soon"
- },
- {
-  "id": 846,
-  "key": "presentListType.history",
-  "text": "History"
- },
- {
-  "id": 847,
-  "key": "presentListType.limited",
-  "text": "Limited"
- },
- {
-  "id": 848,
-  "key": "presentListType.none",
-  "text": "None"
- },
- {
-  "id": 849,
-  "key": "presentListType.unlimited",
-  "text": "Unlimited"
- },
- {
-  "id": 850,
-  "key": "purchaseAlert.button",
-  "text": "Button"
- },
- {
-  "id": 851,
-  "key": "qr.attention",
-  "text": "Attention"
- },
- {
-  "id": 852,
-  "key": "qr.create",
-  "text": "Create"
- },
- {
-  "id": 853,
-  "key": "qr.description",
-  "text": "Description"
- },
- {
-  "id": 854,
-  "key": "qr.readQR",
-  "text": "Read QR"
- },
- {
-  "id": 855,
-  "key": "qr.readerDescription",
-  "text": "Reader"
- },
- {
-  "id": 856,
-  "key": "qr.readerTitle",
-  "text": "Reader"
- },
- {
-  "id": 857,
-  "key": "qr.selectDescription",
-  "text": "Select"
- },
- {
-  "id": 858,
-  "key": "rankerMatch.open",
-  "text": "Open"
- },
- {
-  "id": 859,
-  "key": "rankerMatch.ruleUpdate",
-  "text": "Rule Update"
- },
- {
-  "id": 860,
-  "key": "rankerMatch.warning",
-  "text": "Warning"
- },
- {
-  "id": 861,
-  "key": "ranking.buttonReward",
-  "text": "Button Reward"
- },
- {
-  "id": 862,
-  "key": "ranking.follow",
-  "text": "Follow"
- },
- {
-  "id": 863,
-  "key": "ranking.local",
-  "text": "Local"
- },
- {
-  "id": 864,
-  "key": "ranking.personal",
-  "text": "Personal"
- },
- {
-  "id": 865,
-  "key": "ranking.world",
-  "text": "World"
- },
- {
-  "id": 866,
-  "key": "rankingResult.buttonRanking",
-  "text": "Button Ranking"
- },
- {
-  "id": 867,
-  "key": "rankingResult.message",
-  "text": "Message"
- },
- {
-  "id": 868,
-  "key": "rankingReward.attentionMessage",
-  "text": "Attention"
- },
- {
-  "id": 869,
-  "key": "rankingReward.attentionTitle",
-  "text": "Attention"
- },
- {
-  "id": 870,
-  "key": "rankingReward.buttonPoint",
-  "text": "Button Point"
- },
- {
-  "id": 871,
-  "key": "rankingReward.getTitle",
-  "text": "Get"
- },
- {
-  "id": 872,
-  "key": "rankingReward.message",
-  "text": "Message"
- },
- {
-  "id": 873,
-  "key": "rankingReward.pointMessage",
-  "text": "Point"
- },
- {
-  "id": 874,
-  "key": "rankingReward.title",
-  "text": "Title"
- },
- {
-  "id": 875,
-  "key": "rarity.all",
-  "text": "All"
- },
- {
-  "id": 876,
-  "key": "realFriend.captionTitle",
-  "text": "Caption"
- },
- {
-  "id": 877,
-  "key": "realFriend.detailDescription",
-  "text": "Detail"
- },
- {
-  "id": 878,
-  "key": "realFriend.rewardGetTitle",
-  "text": "Reward Get"
- },
- {
-  "id": 879,
-  "key": "realFriend.rewardNotesFormat",
-  "text": "Reward Notes {0}"
- },
- {
-  "id": 880,
-  "key": "realFriend.warningDescription",
-  "text": "Warning"
- },
- {
-  "id": 881,
-  "key": "realFriend.warningTitle",
-  "text": "Warning"
- },
- {
-  "id": 882,
-  "key": "rebate.amountOfPaidJetCoin",
-  "text": "Amount Of Paid Jet Coin"
- },
- {
-  "id": 883,
-  "key": "rebate.buttonText",
-  "text": "Button"
- },
- {
-  "id": 884,
-  "key": "rebate.infoCopy",
-  "text": "Info Copy"
- },
- {
-  "id": 885,
-  "key": "rebate.message1",
-  "text": "Message1"
- },
- {
-  "id": 886,
-  "key": "rebate.message3",
-  "text": "Message3"
- },
- {
-  "id": 887,
-  "key": "rebate.noUserId",
-  "text": "No User Id"
- },
- {
-  "id": 888,
-  "key": "rebate.userId",
-  "text": "User Id"
- },
- {
-  "id": 889,
-  "key": "replay.empty",
-  "text": "No replays"
- },
- {
-  "id": 890,
-  "key": "replay.invalidVersionAnnounce",
-  "text": "This replay was recorded with another version."
- },
- {
-  "id": 891,
-  "key": "replay.zip",
-  "text": "Zip"
- },
- {
-  "id": 892,
-  "key": "replayReward.attention",
-  "text": "Attention"
- },
- {
-  "id": 893,
-  "key": "replayReward.publishChannel",
-  "text": "Publish Channel"
- },
- {
-  "id": 894,
-  "key": "replayReward.publishReward",
-  "text": "Publish Reward"
- },
- {
-  "id": 895,
-  "key": "replayReward.subMessage",
-  "text": "Sub"
- },
- {
-  "id": 896,
-  "key": "result.regularEndRankMessage",
-  "text": "Rank"
- },
- {
-  "id": 897,
-  "key": "review.androidButton",
-  "text": "Rate on Google Play"
- },
- {
-  "id": 898,
-  "key": "review.androidMessage1",
-  "text": "Enjoying Kick-Flight?"
- },
- {
-  "id": 899,
-  "key": "review.androidMessage2",
-  "text": "A review would help us a lot!"
- },
- {
-  "id": 900,
-  "key": "roleType.attack",
-  "text": "Attack"
- },
- {
-  "id": 901,
-  "key": "roleType.speed",
-  "text": "Speed"
- },
- {
-  "id": 902,
-  "key": "roleType.support",
-  "text": "Support"
- },
- {
-  "id": 903,
-  "key": "roleType.tank",
-  "text": "Tank"
- },
- {
-  "id": 904,
-  "key": "seasonEnd.message",
-  "text": "Message"
- },
- {
-  "id": 905,
-  "key": "seasonPassDetail.attention",
-  "text": "Attention"
- },
- {
-  "id": 906,
-  "key": "seasonPassDetail.message",
-  "text": "Message"
- },
- {
-  "id": 907,
-  "key": "seasonPassGuide.button",
-  "text": "Button"
- },
- {
-  "id": 908,
-  "key": "seasonPassGuide.message",
-  "text": "Message"
- },
- {
-  "id": 909,
-  "key": "setting.battle",
-  "text": "Battle"
- },
- {
-  "id": 910,
-  "key": "setting.battleControlDefault",
-  "text": "Default"
- },
- {
-  "id": 911,
-  "key": "setting.battleControlReverse",
-  "text": "Reversed"
- },
- {
-  "id": 912,
-  "key": "setting.dominantLeftHand",
-  "text": "Left-handed"
- },
- {
-  "id": 913,
-  "key": "setting.dominantRightHand",
-  "text": "Right-handed"
- },
- {
-  "id": 914,
-  "key": "setting.execute",
-  "text": "Apply"
- },
- {
-  "id": 915,
-  "key": "setting.exit",
-  "text": "Quit"
- },
- {
-  "id": 916,
-  "key": "setting.exitReplay",
-  "text": "Quit replay"
- },
- {
-  "id": 917,
-  "key": "setting.exitReplayTitle",
-  "text": "Quit replay?"
- },
- {
-  "id": 918,
-  "key": "setting.exitTraining",
-  "text": "Quit training"
- },
- {
-  "id": 919,
-  "key": "setting.exitTrainingTitle",
-  "text": "Quit training?"
- },
- {
-  "id": 920,
-  "key": "setting.exitTrial",
-  "text": "Quit trial"
- },
- {
-  "id": 921,
-  "key": "setting.exitTrialTitle",
-  "text": "Quit trial?"
- },
- {
-  "id": 922,
-  "key": "setting.exitTutorial",
-  "text": "Quit tutorial"
- },
- {
-  "id": 923,
-  "key": "setting.exitTutorialTitle",
-  "text": "Quit tutorial?"
- },
- {
-  "id": 924,
-  "key": "setting.graphics",
-  "text": "Graphics"
- },
- {
-  "id": 925,
-  "key": "setting.graphicsCustom",
-  "text": "Custom"
- },
- {
-  "id": 926,
-  "key": "setting.graphicsHigh",
-  "text": "High"
- },
- {
-  "id": 927,
-  "key": "setting.graphicsLow",
-  "text": "Low"
- },
- {
-  "id": 928,
-  "key": "setting.graphicsMiddle",
-  "text": "Medium"
- },
- {
-  "id": 929,
-  "key": "setting.sound",
-  "text": "Sound"
- },
- {
-  "id": 930,
-  "key": "setting.textChat",
-  "text": "Text chat"
- },
- {
-  "id": 931,
-  "key": "setting.title",
-  "text": "Settings"
- },
- {
-  "id": 932,
-  "key": "setting.trialSettingTitle",
-  "text": "Trial settings"
- },
- {
-  "id": 933,
-  "key": "shop.exchangeDiscFragmentDescription",
-  "text": "Exchange fragments for discs"
- },
- {
-  "id": 934,
-  "key": "shop.exchangeDiscFragmentEmpty",
-  "text": "No disc fragments"
- },
- {
-  "id": 935,
-  "key": "shop.exchangeDiscFragmentPrecautions",
-  "text": "Fragments cannot be refunded."
- },
- {
-  "id": 936,
-  "key": "shop.limitAttentionMessage",
-  "text": "Limited-time offer"
- },
- {
-  "id": 937,
-  "key": "shop.stampGet",
-  "text": "Stamp obtained"
- },
- {
-  "id": 938,
-  "key": "skillCategoryType.attack",
-  "text": "ATK"
- },
- {
-  "id": 939,
-  "key": "skillCategoryType.buff",
-  "text": "BUFF"
- },
- {
-  "id": 940,
-  "key": "skillCategoryType.heal",
-  "text": "HEAL"
- },
- {
-  "id": 941,
-  "key": "skillCategoryType.move",
-  "text": "MOVE"
- },
- {
-  "id": 942,
-  "key": "skillCategoryType.trap",
-  "text": "TRAP"
- },
- {
-  "id": 943,
-  "key": "skillCategoryType.warp",
-  "text": "WARP"
- },
- {
-  "id": 944,
-  "key": "social.friendSettingDescription",
-  "text": "Friend Setting"
- },
- {
-  "id": 945,
-  "key": "social.inviteFriend",
-  "text": "Invite Friend"
- },
- {
-  "id": 946,
-  "key": "social.inviteLine",
-  "text": "Invite Line"
- },
- {
-  "id": 947,
-  "key": "social.twitterAccountLinkDescription",
-  "text": "Twitter Account Link"
- },
- {
-  "id": 948,
-  "key": "socialGiftee.attention",
-  "text": "Attention"
- },
- {
-  "id": 949,
-  "key": "socialGiftee.attentionTitle",
-  "text": "Attention"
- },
- {
-  "id": 950,
-  "key": "socialGiftee.dowbleChance",
-  "text": "Dowble Chance"
- },
- {
-  "id": 951,
-  "key": "socialGiftee.dowbleChanceEnable",
-  "text": "Double Chance Enable"
- },
- {
-  "id": 952,
-  "key": "socialGiftee.dowbleChanceStep",
-  "text": "Double Chance Step"
- },
- {
-  "id": 953,
-  "key": "socialGiftee.footer",
-  "text": "Footer"
- },
- {
-  "id": 954,
-  "key": "socialGiftee.footerReward",
-  "text": "Footer Reward"
- },
- {
-  "id": 955,
-  "key": "socialGiftee.getStep",
-  "text": "Get Step"
- },
- {
-  "id": 956,
-  "key": "socialGiftee.getStepTitle",
-  "text": "Get Step"
- },
- {
-  "id": 957,
-  "key": "socialGiftee.message1",
-  "text": "Message1"
- },
- {
-  "id": 958,
-  "key": "socialGiftee.message2",
-  "text": "Message2"
- },
- {
-  "id": 959,
-  "key": "socialGiftee.qr",
-  "text": "QR"
- },
- {
-  "id": 960,
-  "key": "socialGiftee.title1",
-  "text": "Title1"
- },
- {
-  "id": 961,
-  "key": "socialGiftee.title2",
-  "text": "Title2"
- },
- {
-  "id": 962,
-  "key": "socialGiftee.tweetAttention",
-  "text": "Tweet Attention"
- },
- {
-  "id": 963,
-  "key": "socialGiftee.tweetButton",
-  "text": "Tweet Button"
- },
- {
-  "id": 964,
-  "key": "socialGiftee.tweetTag",
-  "text": "Tweet Tag"
- },
- {
-  "id": 965,
-  "key": "sort.amount",
-  "text": "Owned"
- },
- {
-  "id": 966,
-  "key": "sort.attack",
-  "text": "ATK"
- },
- {
-  "id": 967,
-  "key": "sort.default",
-  "text": "Default"
- },
- {
-  "id": 968,
-  "key": "sort.displayOrder",
-  "text": "Order"
- },
- {
-  "id": 969,
-  "key": "sort.hp",
-  "text": "HP"
- },
- {
-  "id": 970,
-  "key": "sort.level",
-  "text": "Lv"
- },
- {
-  "id": 971,
-  "key": "sort.rarity",
-  "text": "Rarity"
- },
- {
-  "id": 972,
-  "key": "sort.switchTitle",
-  "text": "Sort"
- },
- {
-  "id": 973,
-  "key": "sortType.amount",
-  "text": "Owned"
- },
- {
-  "id": 974,
-  "key": "sortType.attack",
-  "text": "ATK"
- },
- {
-  "id": 975,
-  "key": "sortType.coolTime",
-  "text": "Cooldown"
- },
- {
-  "id": 976,
-  "key": "sortType.default",
-  "text": "Default"
- },
- {
-  "id": 977,
-  "key": "sortType.get",
-  "text": "Obtained"
- },
- {
-  "id": 978,
-  "key": "sortType.hp",
-  "text": "HP"
- },
- {
-  "id": 979,
-  "key": "sortType.kickerCompatibility",
-  "text": "Kicker match"
- },
- {
-  "id": 980,
-  "key": "sortType.level",
-  "text": "Lv"
- },
- {
-  "id": 981,
-  "key": "sortType.rarity",
-  "text": "Rarity"
- },
- {
-  "id": 982,
-  "key": "stamp.empty",
-  "text": "Empty"
- },
- {
-  "id": 983,
-  "key": "trial.title",
-  "text": "Trial"
- },
- {
-  "id": 984,
-  "key": "tutorial.graphicSettingDescription",
-  "text": "You can change the graphics quality in Settings."
- },
- {
-  "id": 985,
-  "key": "tutorial.usm",
-  "text": "Usm"
- },
- {
-  "id": 986,
-  "key": "tutorialMovie.button",
-  "text": "Button"
- },
- {
-  "id": 987,
-  "key": "tutorialMovie.replay",
-  "text": "Replay"
- },
- {
-  "id": 988,
-  "key": "type.all",
-  "text": "All"
- },
- {
-  "id": 989,
-  "key": "type.attack",
-  "text": "ATK"
- },
- {
-  "id": 990,
-  "key": "type.buff",
-  "text": "BUFF"
- },
- {
-  "id": 991,
-  "key": "type.heal",
-  "text": "HEAL"
- },
- {
-  "id": 992,
-  "key": "type.move",
-  "text": "MOVE"
- },
- {
-  "id": 993,
-  "key": "type.trap",
-  "text": "TRAP"
- },
- {
-  "id": 994,
-  "key": "type.warp",
-  "text": "WARP"
- },
- {
-  "id": 995,
-  "key": "weaponType.bat",
-  "text": "Bat"
- },
- {
-  "id": 996,
-  "key": "weaponType.bowgun",
-  "text": "Bowgun"
- },
- {
-  "id": 997,
-  "key": "weaponType.drone",
-  "text": "Drone"
- },
- {
-  "id": 998,
-  "key": "weaponType.gun",
-  "text": "Gun"
- },
- {
-  "id": 999,
-  "key": "weaponType.hammer",
-  "text": "Hammer"
- },
- {
-  "id": 1000,
-  "key": "weaponType.japaneseSword",
-  "text": "Katana"
- },
- {
-  "id": 1001,
-  "key": "weaponType.laser",
-  "text": "Laser"
- },
- {
-  "id": 1002,
-  "key": "weaponType.nunchaku",
-  "text": "Nunchaku"
- },
- {
-  "id": 1003,
-  "key": "weaponType.punchGlove",
-  "text": "Gauntlets"
- },
- {
-  "id": 1004,
-  "key": "weaponType.rocketLauncher",
-  "text": "Rocket launcher"
- },
- {
-  "id": 1005,
-  "key": "weaponType.shield",
-  "text": "Shield"
- },
- {
-  "id": 1006,
-  "key": "weaponType.sword",
-  "text": "Sword"
- },
- {
-  "id": 1007,
-  "key": "weaponType.throwingStar",
-  "text": "Shuriken"
- },
- {
-  "id": 1008,
-  "key": "weaponType.twoGuns",
-  "text": "Twin guns"
- },
- {
-  "id": 1009,
-  "key": "setting.activeGuardian",
-  "text": "Guardian"
- },
- {
-  "id": 1010,
-  "key": "setting.assistKickTurn",
-  "text": "Assist kick turn"
- },
- {
-  "id": 1011,
-  "key": "setting.bgm",
-  "text": "BGM"
- },
- {
-  "id": 1012,
-  "key": "setting.dominantHand",
-  "text": "Dominant hand"
- },
- {
-  "id": 1013,
-  "key": "setting.enemySpMax",
-  "text": "Fill enemy SP"
- },
- {
-  "id": 1014,
-  "key": "setting.flickSensitivity",
-  "text": "Flick sensitivity"
- },
- {
-  "id": 1015,
-  "key": "setting.graphicsAntiAliasing",
-  "text": "Anti-aliasing"
- },
- {
-  "id": 1016,
-  "key": "setting.graphicsBloom",
-  "text": "Bloom"
- },
- {
-  "id": 1017,
-  "key": "setting.graphicsBlur",
-  "text": "Blur"
- },
- {
-  "id": 1018,
-  "key": "setting.graphicsDof",
-  "text": "Depth of field"
- },
- {
-  "id": 1019,
-  "key": "setting.graphicsResolutin",
-  "text": "Resolution"
- },
- {
-  "id": 1020,
-  "key": "setting.graphicsShadow",
-  "text": "Shadows"
- },
- {
-  "id": 1021,
-  "key": "setting.graphicsStencil",
-  "text": "Stencil mask"
- },
- {
-  "id": 1022,
-  "key": "setting.infinitySkill",
-  "text": "Infinite cooldowns"
- },
- {
-  "id": 1023,
-  "key": "setting.moveAttackFreeCurve",
-  "text": "Charge turn rate"
- },
- {
-  "id": 1024,
-  "key": "setting.reverseHorizontalFlick",
-  "text": "Reverse horizontal flick"
- },
- {
-  "id": 1025,
-  "key": "setting.reverseHorizontalSwipe",
-  "text": "Reverse horizontal swipe"
- },
- {
-  "id": 1026,
-  "key": "setting.reverseVerticalFlick",
-  "text": "Reverse vertical flick"
- },
- {
-  "id": 1027,
-  "key": "setting.reverseVerticalSwipe",
-  "text": "Reverse vertical swipe"
- },
- {
-  "id": 1028,
-  "key": "setting.se",
-  "text": "SE"
- },
- {
-  "id": 1029,
-  "key": "setting.swipeSensitivity",
-  "text": "Swipe sensitivity"
- },
- {
-  "id": 1030,
-  "key": "setting.tapLockOn",
-  "text": "Tap lock-on"
- },
- {
-  "id": 1031,
-  "key": "setting.vibration",
-  "text": "Vibration"
- },
- {
-  "id": 1032,
-  "key": "setting.voice",
-  "text": "Voice"
- }
+  {
+    "id": 1,
+    "key": "common.pointUnit",
+    "text": "Points"
+  },
+  {
+    "id": 2,
+    "key": "common.dataUpdateTitle",
+    "text": "Data update"
+  },
+  {
+    "id": 3,
+    "key": "common.dataUpdateDescription",
+    "text": "New data to download"
+  },
+  {
+    "id": 4,
+    "key": "common.dataUpdateReturnHomeDescription",
+    "text": "Returning to Home..."
+  },
+  {
+    "id": 5,
+    "key": "common.dataSize",
+    "text": "Data Size: {0}"
+  },
+  {
+    "id": 6,
+    "key": "common.ok",
+    "text": "Accept"
+  },
+  {
+    "id": 7,
+    "key": "common.changeHomeConfirmTitle",
+    "text": "Change Home Confirm"
+  },
+  {
+    "id": 8,
+    "key": "common.changeHomeConfirmDescription",
+    "text": "Change Home Confirm"
+  },
+  {
+    "id": 9,
+    "key": "common.achievement",
+    "text": "Achievement"
+  },
+  {
+    "id": 10,
+    "key": "common.gameCenterAccountLinkTitle",
+    "text": "Game Center Account Link"
+  },
+  {
+    "id": 11,
+    "key": "common.userIdTitleFormat",
+    "text": "User ID: {0:D12}"
+  },
+  {
+    "id": 12,
+    "key": "common.received",
+    "text": "Received"
+  },
+  {
+    "id": 13,
+    "key": "common.receive",
+    "text": "Receive"
+  },
+  {
+    "id": 14,
+    "key": "common.detail",
+    "text": "Details"
+  },
+  {
+    "id": 15,
+    "key": "common.battleRuleRegular",
+    "text": "Normal Battle"
+  },
+  {
+    "id": 16,
+    "key": "common.battleRuleRanker",
+    "text": "Rank Battle"
+  },
+  {
+    "id": 17,
+    "key": "common.battleRuleSeason",
+    "text": "Seasonal Battle"
+  },
+  {
+    "id": 18,
+    "key": "common.battleRuleFestival",
+    "text": "Kick-Flight Festival"
+  },
+  {
+    "id": 19,
+    "key": "common.battleRuleCustom",
+    "text": "Custom Battle"
+  },
+  {
+    "id": 20,
+    "key": "common.battleRuleRegularMatch",
+    "text": "Regular Match"
+  },
+  {
+    "id": 21,
+    "key": "common.battleRuleRankerMatch",
+    "text": "Ranked Match"
+  },
+  {
+    "id": 22,
+    "key": "common.battleRuleSeasonMatch",
+    "text": "Seasonal Match"
+  },
+  {
+    "id": 23,
+    "key": "common.battleRuleCustomMatch",
+    "text": "Custom Match"
+  },
+  {
+    "id": 24,
+    "key": "common.battleRuleFestivalMatch",
+    "text": "Kick-Flight Festival"
+  },
+  {
+    "id": 25,
+    "key": "common.ranking",
+    "text": "Ranking"
+  },
+  {
+    "id": 26,
+    "key": "common.chat",
+    "text": "Chat"
+  },
+  {
+    "id": 27,
+    "key": "common.skillGaugeMax",
+    "text": "Skill Gauge Max"
+  },
+  {
+    "id": 28,
+    "key": "common.rankUpDiscCountDescriptionFormat",
+    "text": "Rank Up Disc Count Description {0}"
+  },
+  {
+    "id": 29,
+    "key": "common.kickerTicket",
+    "text": "Kicker Ticket"
+  },
+  {
+    "id": 30,
+    "key": "common.lackTicket",
+    "text": "Insufficient Ticket"
+  },
+  {
+    "id": 31,
+    "key": "common.purchaseJetCoin",
+    "text": "Purchase Jet Coin"
+  },
+  {
+    "id": 32,
+    "key": "common.follow",
+    "text": "Follow"
+  },
+  {
+    "id": 33,
+    "key": "common.follower",
+    "text": "Followers"
+  },
+  {
+    "id": 34,
+    "key": "common.kickerPurchaseTitle",
+    "text": "Kicker Purchase"
+  },
+  {
+    "id": 35,
+    "key": "common.termsOfService",
+    "text": "Terms Of Service"
+  },
+  {
+    "id": 36,
+    "key": "common.characterVoiceFormat",
+    "text": "Character Voice {0}"
+  },
+  {
+    "id": 37,
+    "key": "common.levelTitle",
+    "text": "Lv"
+  },
+  {
+    "id": 38,
+    "key": "common.on",
+    "text": "On"
+  },
+  {
+    "id": 39,
+    "key": "common.off",
+    "text": "Off"
+  },
+  {
+    "id": 40,
+    "key": "common.sortTypeId",
+    "text": "Sort By ID"
+  },
+  {
+    "id": 41,
+    "key": "common.sortTypeGet",
+    "text": "Sort By Type"
+  },
+  {
+    "id": 42,
+    "key": "common.copyright",
+    "text": "Copyright"
+  },
+  {
+    "id": 43,
+    "key": "common.privacyPolicy",
+    "text": "Privacy Policy"
+  },
+  {
+    "id": 44,
+    "key": "common.lackJetCoinText",
+    "text": "Insufficient Jet Coins"
+  },
+  {
+    "id": 45,
+    "key": "common.toPurchaseWindow",
+    "text": "To Purchase Window"
+  },
+  {
+    "id": 46,
+    "key": "common.purchaseCancelTitle",
+    "text": "Purchase Cancel"
+  },
+  {
+    "id": 47,
+    "key": "common.purchaseCancelText",
+    "text": "Purchase Cancel"
+  },
+  {
+    "id": 48,
+    "key": "common.purchaseFailureTitle",
+    "text": "Purchase Failure"
+  },
+  {
+    "id": 49,
+    "key": "common.purchaseFailureText",
+    "text": "Purchase Failure"
+  },
+  {
+    "id": 50,
+    "key": "common.purchaseResultTitle",
+    "text": "Purchase Result"
+  },
+  {
+    "id": 51,
+    "key": "common.purchaseResultText",
+    "text": "Purchase Result"
+  },
+  {
+    "id": 52,
+    "key": "common.purchaseInvalidTitle",
+    "text": "Purchase Invalid"
+  },
+  {
+    "id": 53,
+    "key": "common.purchaseInvalidText",
+    "text": "Purchase Invalid"
+  },
+  {
+    "id": 54,
+    "key": "common.purchaseRetryTitle",
+    "text": "Purchase Retry"
+  },
+  {
+    "id": 55,
+    "key": "common.purchaseRetryText",
+    "text": "Purchase Retry"
+  },
+  {
+    "id": 56,
+    "key": "common.day",
+    "text": "day"
+  },
+  {
+    "id": 57,
+    "key": "common.days",
+    "text": "days"
+  },
+  {
+    "id": 58,
+    "key": "common.canNotReceive",
+    "text": "Can Not Receive"
+  },
+  {
+    "id": 59,
+    "key": "common.termsOfServiceDescriptionForJapanese",
+    "text": "Terms Of Service Description For Japanese"
+  },
+  {
+    "id": 60,
+    "key": "common.termsOfServiceDescription",
+    "text": "Terms Of Service"
+  },
+  {
+    "id": 61,
+    "key": "common.freePrice",
+    "text": "Free Price"
+  },
+  {
+    "id": 62,
+    "key": "common.premium",
+    "text": "Premium"
+  },
+  {
+    "id": 63,
+    "key": "common.remaining",
+    "text": "Remaining"
+  },
+  {
+    "id": 64,
+    "key": "common.selected",
+    "text": "Selected"
+  },
+  {
+    "id": 65,
+    "key": "common.battleRecord",
+    "text": "Battle History"
+  },
+  {
+    "id": 66,
+    "key": "common.account",
+    "text": "Account"
+  },
+  {
+    "id": 67,
+    "key": "common.help",
+    "text": "Help"
+  },
+  {
+    "id": 68,
+    "key": "common.notificationService",
+    "text": "Notification Service"
+  },
+  {
+    "id": 69,
+    "key": "common.faqTitle",
+    "text": "FAQ"
+  },
+  {
+    "id": 70,
+    "key": "common.question",
+    "text": "Question"
+  },
+  {
+    "id": 71,
+    "key": "common.bugReport",
+    "text": "Bug Report"
+  },
+  {
+    "id": 72,
+    "key": "common.online",
+    "text": "Online"
+  },
+  {
+    "id": 73,
+    "key": "common.offline",
+    "text": "Offline"
+  },
+  {
+    "id": 74,
+    "key": "common.inBattle",
+    "text": "In Battle"
+  },
+  {
+    "id": 75,
+    "key": "common.random",
+    "text": "Random"
+  },
+  {
+    "id": 76,
+    "key": "common.battlePlayerCount1vs1",
+    "text": "1 vs 1"
+  },
+  {
+    "id": 77,
+    "key": "common.battlePlayerCount2vs2",
+    "text": "2 vs 2"
+  },
+  {
+    "id": 78,
+    "key": "common.battlePlayerCount3vs3",
+    "text": "3 vs 3"
+  },
+  {
+    "id": 79,
+    "key": "common.battlePlayerCount4vs4",
+    "text": "4 vs 4"
+  },
+  {
+    "id": 80,
+    "key": "common.followListEmpty",
+    "text": "Follow List Empty"
+  },
+  {
+    "id": 81,
+    "key": "common.followerListEmpty",
+    "text": "Follower List Empty"
+  },
+  {
+    "id": 82,
+    "key": "common.idSearch",
+    "text": "ID Search"
+  },
+  {
+    "id": 83,
+    "key": "common.idSearchDescription",
+    "text": "ID Search"
+  },
+  {
+    "id": 84,
+    "key": "common.idSearchUserNotFound",
+    "text": "ID Search: User Not Found"
+  },
+  {
+    "id": 85,
+    "key": "common.idSearchDialogTitle",
+    "text": "ID Search Dialog"
+  },
+  {
+    "id": 86,
+    "key": "common.arNotAvailableTitle",
+    "text": "AR Not Available"
+  },
+  {
+    "id": 87,
+    "key": "common.arNotAvailableDescription",
+    "text": "AR Not Available"
+  },
+  {
+    "id": 88,
+    "key": "dataTransfer.error",
+    "text": "Error"
+  },
+  {
+    "id": 89,
+    "key": "dataTransfer.failed",
+    "text": "Failed"
+  },
+  {
+    "id": 90,
+    "key": "dataTransfer.gameCenterNotRegisted",
+    "text": "Game Center Not Registed"
+  },
+  {
+    "id": 91,
+    "key": "dataTransfer.googlePlayNotRegisted",
+    "text": "Google Play Not Registed"
+  },
+  {
+    "id": 92,
+    "key": "dataTransfer.id",
+    "text": "Id"
+  },
+  {
+    "id": 93,
+    "key": "dataTransfer.loginFinished",
+    "text": "Login Finished"
+  },
+  {
+    "id": 94,
+    "key": "dataTransfer.password",
+    "text": "Password"
+  },
+  {
+    "id": 95,
+    "key": "dataTransfer.title",
+    "text": "Title"
+  },
+  {
+    "id": 96,
+    "key": "dataTransfer.purchaseIncompleteDescription",
+    "text": "Purchase Incomplete"
+  },
+  {
+    "id": 97,
+    "key": "dataTransfer.register",
+    "text": "Register"
+  },
+  {
+    "id": 98,
+    "key": "dataTransfer.registerExecuteDescription",
+    "text": "Register Execute"
+  },
+  {
+    "id": 99,
+    "key": "dataTransfer.registerFinished",
+    "text": "Register Finished"
+  },
+  {
+    "id": 100,
+    "key": "dataTransfer.registerFinishedDescription",
+    "text": "Register Finished"
+  },
+  {
+    "id": 101,
+    "key": "dataTransfer.registerSelectGameCenter",
+    "text": "Register Select Game Center"
+  },
+  {
+    "id": 102,
+    "key": "dataTransfer.registerSelectGooglePlay",
+    "text": "Register Select Google Play"
+  },
+  {
+    "id": 103,
+    "key": "dataTransfer.loginSelectGameCenter",
+    "text": "Login Select Game Center"
+  },
+  {
+    "id": 104,
+    "key": "dataTransfer.loginSelectGooglePlay",
+    "text": "Login Select Google Play"
+  },
+  {
+    "id": 105,
+    "key": "common.suddenDeath",
+    "text": "Sudden Death"
+  },
+  {
+    "id": 106,
+    "key": "matchTypeDescription.regular",
+    "text": "Battle against players from around the world."
+  },
+  {
+    "id": 107,
+    "key": "matchTypeDescription.ranker",
+    "text": "Fierce combat with S ranks"
+  },
+  {
+    "id": 108,
+    "key": "matchTypeDescription.season",
+    "text": "Season {0}"
+  },
+  {
+    "id": 109,
+    "key": "matchTypeDescription.custom",
+    "text": "Compete freely with your friends!"
+  },
+  {
+    "id": 110,
+    "key": "kicker.ticketGetTitle",
+    "text": "Ticket Get"
+  },
+  {
+    "id": 111,
+    "key": "common.getKickerTicketTitle",
+    "text": "Get Kicker Ticket"
+  },
+  {
+    "id": 112,
+    "key": "capsule.setupping",
+    "text": "Setupping"
+  },
+  {
+    "id": 113,
+    "key": "capsule.setuped",
+    "text": "Setuped"
+  },
+  {
+    "id": 114,
+    "key": "capsule.slotAttentionOK",
+    "text": "Slot Attention OK"
+  },
+  {
+    "id": 115,
+    "key": "capsule.slotAttentionDescription",
+    "text": "Slot Attention"
+  },
+  {
+    "id": 116,
+    "key": "capsule.slotAttentionTitle",
+    "text": "Slot Attention"
+  },
+  {
+    "id": 117,
+    "key": "disc.drawFreeTitle",
+    "text": "Draw Free Title"
+  },
+  {
+    "id": 118,
+    "key": "disc.nextDropRewardTitleFormat",
+    "text": "Next Drop Reward: {0}"
+  },
+  {
+    "id": 119,
+    "key": "disc.set",
+    "text": "Disc"
+  },
+  {
+    "id": 120,
+    "key": "disc.sort",
+    "text": "Sort"
+  },
+  {
+    "id": 121,
+    "key": "gear.analysis",
+    "text": "Analysis"
+  },
+  {
+    "id": 122,
+    "key": "gear.notPossession",
+    "text": "Not Possession"
+  },
+  {
+    "id": 123,
+    "key": "gear.setTitle",
+    "text": "Set"
+  },
+  {
+    "id": 124,
+    "key": "gear.notSetDesripction",
+    "text": "Not Set Desripction"
+  },
+  {
+    "id": 125,
+    "key": "shop.gachaTutorialPack",
+    "text": "Gacha Tutorial Pack"
+  },
+  {
+    "id": 126,
+    "key": "shop.discFreePop",
+    "text": "Disc Free Pop"
+  },
+  {
+    "id": 127,
+    "key": "social.facebookAuth",
+    "text": "Facebook Auth"
+  },
+  {
+    "id": 128,
+    "key": "social.twitterAuth",
+    "text": "Twitter Auth"
+  },
+  {
+    "id": 129,
+    "key": "social.facebookAuthDescription",
+    "text": "Facebook Auth"
+  },
+  {
+    "id": 130,
+    "key": "social.twitterAuthDescription",
+    "text": "Twitter Auth"
+  },
+  {
+    "id": 131,
+    "key": "social.twitterAccountLinkTitle",
+    "text": "Twitter Account Link"
+  },
+  {
+    "id": 132,
+    "key": "social.twitterAccountDisconnectExecute",
+    "text": "Twitteraccountdisconnectexecute: {0}"
+  },
+  {
+    "id": 133,
+    "key": "social.accountMessage",
+    "text": "Account"
+  },
+  {
+    "id": 134,
+    "key": "social.twitterAccountLinkExecute",
+    "text": "Twitter Account Link Execute"
+  },
+  {
+    "id": 135,
+    "key": "social.twitterAccountDisconnectExecute",
+    "text": "Twitter Account Disconnect Execute"
+  },
+  {
+    "id": 136,
+    "key": "social.facebookFriendSettingLinkExecute",
+    "text": "Facebook Friend Setting Link Execute"
+  },
+  {
+    "id": 137,
+    "key": "social.facebookFriendSettingDisconnectExecute",
+    "text": "Facebook Friend Setting Disconnect Execute"
+  },
+  {
+    "id": 138,
+    "key": "social.twitterFriendSettingLinkExecute",
+    "text": "Twitter Friend Setting Link Execute"
+  },
+  {
+    "id": 139,
+    "key": "social.twitterFriendSettingDisconnectExecute",
+    "text": "Twitter Friend Setting Disconnect Execute"
+  },
+  {
+    "id": 140,
+    "key": "social.facebookListEmpty",
+    "text": "Facebook List Empty"
+  },
+  {
+    "id": 141,
+    "key": "social.twitterListEmpty",
+    "text": "Twitter List Empty"
+  },
+  {
+    "id": 142,
+    "key": "present.limitTitle",
+    "text": "Limit"
+  },
+  {
+    "id": 143,
+    "key": "present.receiveDay",
+    "text": "Receive Day"
+  },
+  {
+    "id": 144,
+    "key": "present.limitTitleLongFormat",
+    "text": "Limit Title Long {0}"
+  },
+  {
+    "id": 145,
+    "key": "present.receiveDayLongFormat",
+    "text": "Receive Day Long {0}"
+  },
+  {
+    "id": 146,
+    "key": "mission.limitTitle",
+    "text": "Limit"
+  },
+  {
+    "id": 147,
+    "key": "mission.recieveLimit",
+    "text": "Recieve Limit"
+  },
+  {
+    "id": 148,
+    "key": "missionWindow.limitTitleFormat",
+    "text": "Limit Title {0}"
+  },
+  {
+    "id": 149,
+    "key": "applicationQuit.title",
+    "text": "Title"
+  },
+  {
+    "id": 150,
+    "key": "applicationQuit.description",
+    "text": "Description"
+  },
+  {
+    "id": 151,
+    "key": "battleRuleDescription.scramble50",
+    "text": "Scramble50: {0}"
+  },
+  {
+    "id": 152,
+    "key": "battleRuleDescription.flagBattle",
+    "text": "Flag Battle"
+  },
+  {
+    "id": 153,
+    "key": "matching.codeTitleFormat",
+    "text": "Code Title {0}"
+  },
+  {
+    "id": 154,
+    "key": "matching.customCodeTitleFormat",
+    "text": "Custom Code Title {0}"
+  },
+  {
+    "id": 155,
+    "key": "matching.regulerFixedLevelDescription",
+    "text": "Rank is fixed in standard battles"
+  },
+  {
+    "id": 156,
+    "key": "matching.festivalFixedLevelDescription",
+    "text": "Festival Fixed Lv"
+  },
+  {
+    "id": 157,
+    "key": "matching.inputCode",
+    "text": "Enter lobby code"
+  },
+  {
+    "id": 158,
+    "key": "matching.inputCustomCode",
+    "text": "Input Custom Code"
+  },
+  {
+    "id": 159,
+    "key": "matching.customKickerDescription",
+    "text": "Custom Kicker"
+  },
+  {
+    "id": 160,
+    "key": "matching.customDiscDescription",
+    "text": "Custom Disc"
+  },
+  {
+    "id": 161,
+    "key": "game.skillDescriptionAttributeChange",
+    "text": "Skill Description Attribute Change"
+  },
+  {
+    "id": 162,
+    "key": "game.skillDescriptionAttributeChanged",
+    "text": "Skill Description Attribute Changed"
+  },
+  {
+    "id": 163,
+    "key": "gameReady.ruleTitle",
+    "text": "Rule"
+  },
+  {
+    "id": 164,
+    "key": "gameReady.ruleScramble50",
+    "text": "Rulescramble50: {0}"
+  },
+  {
+    "id": 165,
+    "key": "gameReady.ruleFlagBattle",
+    "text": "Rule Flag Battle"
+  },
+  {
+    "id": 166,
+    "key": "gameReady.ruleBallShoot",
+    "text": "Rule Ball Shoot"
+  },
+  {
+    "id": 167,
+    "key": "error.titleError",
+    "text": "Title Error"
+  },
+  {
+    "id": 168,
+    "key": "error.titleDownloadError",
+    "text": "Title Download Error"
+  },
+  {
+    "id": 169,
+    "key": "error.titleNetworkError",
+    "text": "Title Network Error"
+  },
+  {
+    "id": 170,
+    "key": "error.titleReachableError",
+    "text": "Title Reachable Error"
+  },
+  {
+    "id": 171,
+    "key": "error.titleTimeoutError",
+    "text": "Title Timeout Error"
+  },
+  {
+    "id": 172,
+    "key": "error.titleDisconnectError",
+    "text": "Title Disconnect Error"
+  },
+  {
+    "id": 173,
+    "key": "error.titleIoStorageError",
+    "text": "Title Io Storage Error"
+  },
+  {
+    "id": 174,
+    "key": "error.title.teamBattle",
+    "text": "Team Battle"
+  },
+  {
+    "id": 175,
+    "key": "error.title.battleJoin",
+    "text": "Battle Join"
+  },
+  {
+    "id": 176,
+    "key": "error.title.teamDissolution",
+    "text": "Team Dissolution"
+  },
+  {
+    "id": 177,
+    "key": "error.title.timeout",
+    "text": "Timeout"
+  },
+  {
+    "id": 178,
+    "key": "error.title.banToTitle",
+    "text": "Ban To"
+  },
+  {
+    "id": 179,
+    "key": "error.title.forceUpdateToTitle",
+    "text": "Update required"
+  },
+  {
+    "id": 180,
+    "key": "error.title.agreementUpdateToTitle",
+    "text": "Agreement Update To"
+  },
+  {
+    "id": 181,
+    "key": "error.title.invalidSpd",
+    "text": "Invalid Spd"
+  },
+  {
+    "id": 182,
+    "key": "error.title.warning",
+    "text": "Warning"
+  },
+  {
+    "id": 183,
+    "key": "error.title.reconnecting",
+    "text": "Reconnecting"
+  },
+  {
+    "id": 184,
+    "key": "error.title.reconnectFailed",
+    "text": "Reconnect Failed"
+  },
+  {
+    "id": 185,
+    "key": "error.title.purchaseInit",
+    "text": "Purchase Init"
+  },
+  {
+    "id": 186,
+    "key": "error.title.purchaseMonthlyLimit",
+    "text": "Purchase Monthly Limit"
+  },
+  {
+    "id": 187,
+    "key": "error.title.matchingError",
+    "text": "Matching Error"
+  },
+  {
+    "id": 188,
+    "key": "error.title.chatRoomCommentMinLength",
+    "text": "Chat Room Comment Min Length"
+  },
+  {
+    "id": 189,
+    "key": "error.title.chatRoomCommentMaxLength",
+    "text": "Chat Room Comment Max Length"
+  },
+  {
+    "id": 190,
+    "key": "error.title.chatRoomCommentNgWord",
+    "text": "Chat Room Comment Ng Word"
+  },
+  {
+    "id": 191,
+    "key": "error.message",
+    "text": "Message"
+  },
+  {
+    "id": 192,
+    "key": "error.message.roomPlayerOver",
+    "text": "Room Player Over"
+  },
+  {
+    "id": 193,
+    "key": "error.message.blueRoomPlayerOver",
+    "text": "Blue Room Player Over"
+  },
+  {
+    "id": 194,
+    "key": "error.message.redRoomPlayerOver",
+    "text": "Red Room Player Over"
+  },
+  {
+    "id": 195,
+    "key": "error.message.roomEnd",
+    "text": "Room End"
+  },
+  {
+    "id": 196,
+    "key": "error.message.codeNothing",
+    "text": "Code Nothing"
+  },
+  {
+    "id": 197,
+    "key": "error.message.teamDissolution",
+    "text": "Team Dissolution"
+  },
+  {
+    "id": 198,
+    "key": "error.message.timeout",
+    "text": "Timeout"
+  },
+  {
+    "id": 199,
+    "key": "error.message.banToTitle",
+    "text": "Ban To"
+  },
+  {
+    "id": 200,
+    "key": "error.message.forceUpdateToTitle",
+    "text": "A new version of Kick Flight is available. Download it from kick-flight-fenix.us.ci and install it to keep playing."
+  },
+  {
+    "id": 201,
+    "key": "error.message.agreementUpdateToTitle",
+    "text": "Agreement Update To"
+  },
+  {
+    "id": 202,
+    "key": "error.message.purchaseInit",
+    "text": "Purchase Init"
+  },
+  {
+    "id": 203,
+    "key": "error.message.purchaseMonthlyLimit",
+    "text": "Purchase Monthly Limit"
+  },
+  {
+    "id": 204,
+    "key": "error.message.matchingError",
+    "text": "Matching Error"
+  },
+  {
+    "id": 205,
+    "key": "error.message.teamTimeout",
+    "text": "Team Timeout"
+  },
+  {
+    "id": 206,
+    "key": "error.message.chatRoomCommentMinLength",
+    "text": "Chat Room Comment Min Length"
+  },
+  {
+    "id": 207,
+    "key": "error.message.chatRoomCommentMaxLength",
+    "text": "Chat Room Comment Max Length"
+  },
+  {
+    "id": 208,
+    "key": "error.message.chatRoomCommentNgWord",
+    "text": "Chat Room Comment Ng Word"
+  },
+  {
+    "id": 209,
+    "key": "error.agreement.forceUpdate",
+    "text": "Force Update"
+  },
+  {
+    "id": 210,
+    "key": "error.message.invalidSpd",
+    "text": "Invalid Spd"
+  },
+  {
+    "id": 211,
+    "key": "error.codeFormat",
+    "text": "Code {0}"
+  },
+  {
+    "id": 212,
+    "key": "error.maintenanceTitle",
+    "text": "Maintenance"
+  },
+  {
+    "id": 213,
+    "key": "error.maintenanceDescription",
+    "text": "The server is under maintenance. Please try again in a few minutes."
+  },
+  {
+    "id": 214,
+    "key": "error.message.reconnecting",
+    "text": "Reconnecting"
+  },
+  {
+    "id": 215,
+    "key": "error.message.reconnectFailed",
+    "text": "Reconnect Failed"
+  },
+  {
+    "id": 216,
+    "key": "error.message.reconnectRoomFailed",
+    "text": "Reconnect Room Failed"
+  },
+  {
+    "id": 217,
+    "key": "error.message.pingAlert",
+    "text": "Ping Alert"
+  },
+  {
+    "id": 218,
+    "key": "killLog.unknowsAttackText",
+    "text": "Unknows Attack"
+  },
+  {
+    "id": 219,
+    "key": "killLog.guardianFormat",
+    "text": "Guardian {0}"
+  },
+  {
+    "id": 220,
+    "key": "killLog.defeatFormat",
+    "text": "Defeat {0}"
+  },
+  {
+    "id": 221,
+    "key": "attackType.default",
+    "text": "Normal Attack"
+  },
+  {
+    "id": 222,
+    "key": "attackType.skill",
+    "text": "Ability"
+  },
+  {
+    "id": 223,
+    "key": "tutorial.defaultPlayerName",
+    "text": "Pilot"
+  },
+  {
+    "id": 224,
+    "key": "inGameTutorial.moveTitle",
+    "text": "Move"
+  },
+  {
+    "id": 225,
+    "key": "inGameTutorial.attackTitle",
+    "text": "Attack"
+  },
+  {
+    "id": 226,
+    "key": "inGameTutorial.attackGuardianTitle",
+    "text": "Attack Guardian"
+  },
+  {
+    "id": 227,
+    "key": "inGameTutorial.attackGuardianDescription",
+    "text": "Attack Guardian"
+  },
+  {
+    "id": 228,
+    "key": "inGameTutorial.autoAttackTitle",
+    "text": "Auto Attack"
+  },
+  {
+    "id": 229,
+    "key": "inGameTutorial.autoAttackDescription",
+    "text": "Fly close to a locked-on enemy to attack them automatically."
+  },
+  {
+    "id": 230,
+    "key": "inGameTutorial.timesUnit",
+    "text": "Times Unit"
+  },
+  {
+    "id": 231,
+    "key": "inGameTutorial.boostDashTitleFormat",
+    "text": "Boost Acceleration"
+  },
+  {
+    "id": 232,
+    "key": "inGameTutorial.boostDashDescription",
+    "text": "Press and hold to accelerate to top speed."
+  },
+  {
+    "id": 233,
+    "key": "inGameTutorial.boostDashSubDescription",
+    "text": "Boost is consumed while accelerating"
+  },
+  {
+    "id": 234,
+    "key": "inGameTutorial.catchCrystalTitleFormat",
+    "text": "Collect the Crystals!"
+  },
+  {
+    "id": 235,
+    "key": "inGameTutorial.catchCrystalSubDescription",
+    "text": "Pass through the floating crystals to collect them."
+  },
+  {
+    "id": 236,
+    "key": "inGameTutorial.crysrtalUnit",
+    "text": "Crystals"
+  },
+  {
+    "id": 237,
+    "key": "inGameTutorial.depositCrystalTitle",
+    "text": "Deposit Crystals"
+  },
+  {
+    "id": 238,
+    "key": "inGameTutorial.depositCrystalDescription",
+    "text": "Take the crystals to your team's guardian to deposit points."
+  },
+  {
+    "id": 239,
+    "key": "inGameTutorial.depositCrystalDescription2",
+    "text": "Deposit crystals before you get taken down."
+  },
+  {
+    "id": 240,
+    "key": "inGameTutorial.depositCrystalDescription3",
+    "text": "The team with the most crystals when time runs out wins."
+  },
+  {
+    "id": 241,
+    "key": "inGameTutorial.endDescriptionFormat",
+    "text": "End Description {0}"
+  },
+  {
+    "id": 242,
+    "key": "inGameTutorial.flipTurnTitleFormat",
+    "text": "Flip Turn"
+  },
+  {
+    "id": 243,
+    "key": "inGameTutorial.hitDiscSkillTitleFormat",
+    "text": "Disc Usage"
+  },
+  {
+    "id": 244,
+    "key": "inGameTutorial.hitDiscSkillDescription",
+    "text": "Slide the equipped disc upward to unleash its ability."
+  },
+  {
+    "id": 245,
+    "key": "inGameTutorial.hitKickerSkillTitleFormat",
+    "text": "Kicker Skill"
+  },
+  {
+    "id": 246,
+    "key": "inGameTutorial.hitKickerSkillDescription",
+    "text": "Tap the icon to use your Special Skill. "
+  },
+  {
+    "id": 247,
+    "key": "inGameTutorial.moveTitleFormat",
+    "text": "Three-Dimensional Flight"
+  },
+  {
+    "id": 248,
+    "key": "inGameTutorial.moveDistanceUnit",
+    "text": "m"
+  },
+  {
+    "id": 249,
+    "key": "inGameTutorial.moveSubDescription",
+    "text": "Swipe to move freely through 3D airspace."
+  },
+  {
+    "id": 250,
+    "key": "inGameTutorial.startDescriptionFormat",
+    "text": "Start Description {0}"
+  },
+  {
+    "id": 251,
+    "key": "inGameTutorial.turnAvoidTitleFormat",
+    "text": "Dodge"
+  },
+  {
+    "id": 252,
+    "key": "inGameTutorial.toBattleDescription",
+    "text": "To Battle"
+  },
+  {
+    "id": 253,
+    "key": "inGameTutorial.underFlickTitleFormat",
+    "text": "Flick Down"
+  },
+  {
+    "id": 254,
+    "key": "inGameTutorial.specialSkillTitleFormat",
+    "text": "Special Skill"
+  },
+  {
+    "id": 255,
+    "key": "inGameTutorial.specialSkillDescription",
+    "text": "Tap the Special Ability button when the gauge is full."
+  },
+  {
+    "id": 256,
+    "key": "inGameTutorial.enemyUserName",
+    "text": "Practice Opponent"
+  },
+  {
+    "id": 257,
+    "key": "outGameTutorial.capsule1",
+    "text": "You've obtained a combat capsule!"
+  },
+  {
+    "id": 258,
+    "key": "outGameTutorial.capsule2",
+    "text": "Open capsules to get new discs and Disc Force."
+  },
+  {
+    "id": 259,
+    "key": "outGameTutorial.growDisc1",
+    "text": "You can level up your discs using Disc Force."
+  },
+  {
+    "id": 260,
+    "key": "outGameTutorial.growDisc2",
+    "text": "Upgrade the discs to boost your health and attack damage."
+  },
+  {
+    "id": 261,
+    "key": "outGameTutorial.discGacha1",
+    "text": "Use the disc gacha to expand your collection."
+  },
+  {
+    "id": 262,
+    "key": "outGameTutorial.discGacha2",
+    "text": "Obtain higher-rarity discs with devastating abilities!"
+  },
+  {
+    "id": 263,
+    "key": "outGameTutorial.discGacha3",
+    "text": "Configure your decks to adapt to each combat mode."
+  },
+  {
+    "id": 264,
+    "key": "outGameTutorial.kickerScout1",
+    "text": "Recruit new Kickers using Kicker Tickets."
+  },
+  {
+    "id": 265,
+    "key": "outGameTutorial.changeKicker1",
+    "text": "Switch your kicker based on your favorite playstyle."
+  },
+  {
+    "id": 266,
+    "key": "outGameTutorial.inputName1",
+    "text": "Enter your name: "
+  },
+  {
+    "id": 267,
+    "key": "outGameTutorial.inputName2",
+    "text": "You can change your name later in settings."
+  },
+  {
+    "id": 268,
+    "key": "premium.description",
+    "text": "Kick-Flight Premium Pass"
+  },
+  {
+    "id": 269,
+    "key": "premium.missionDescription",
+    "text": "Exclusive missions with additional daily rewards."
+  },
+  {
+    "id": 270,
+    "key": "premium.capsuleSlotDescription",
+    "text": "Expanded capsule slots to store more loot at once."
+  },
+  {
+    "id": 271,
+    "key": "premium.discForceDescription",
+    "text": "50% Disc Force earnings multiplier in all battles."
+  },
+  {
+    "id": 272,
+    "key": "premium.precautionsTitle",
+    "text": "Precautions"
+  },
+  {
+    "id": 273,
+    "key": "premium.precautionsMessage",
+    "text": "Precautions"
+  },
+  {
+    "id": 274,
+    "key": "premium.purchase",
+    "text": "Purchase"
+  },
+  {
+    "id": 275,
+    "key": "premium.missionRewardList",
+    "text": "Mission Reward List"
+  },
+  {
+    "id": 276,
+    "key": "premium.popText",
+    "text": "Pop"
+  },
+  {
+    "id": 277,
+    "key": "premium.remainingDays",
+    "text": "Remaining Days"
+  },
+  {
+    "id": 278,
+    "key": "premium.remainingHours",
+    "text": "Remaining Hours"
+  },
+  {
+    "id": 279,
+    "key": "premium.remainingMinutes",
+    "text": "Remaining Minutes"
+  },
+  {
+    "id": 280,
+    "key": "premium.remainingSeconds",
+    "text": "Remaining Seconds"
+  },
+  {
+    "id": 281,
+    "key": "premium.guideText",
+    "text": "Guide"
+  },
+  {
+    "id": 282,
+    "key": "shop.lockRankPackDescription",
+    "text": "Lock Rank Pack"
+  },
+  {
+    "id": 283,
+    "key": "shop.addItemMessage",
+    "text": "Add Item"
+  },
+  {
+    "id": 284,
+    "key": "shopProduct.detail",
+    "text": "Detail"
+  },
+  {
+    "id": 285,
+    "key": "shopProduct.notices",
+    "text": "Notices"
+  },
+  {
+    "id": 286,
+    "key": "localPush.setupCapsule",
+    "text": "Setup Capsule"
+  },
+  {
+    "id": 287,
+    "key": "localPush.gachaFree",
+    "text": "Gacha Free"
+  },
+  {
+    "id": 288,
+    "key": "replay.channelUpdateTimeAnnounce",
+    "text": "Channel Update Time Announce"
+  },
+  {
+    "id": 289,
+    "key": "replay.localDataAnnounce",
+    "text": "Local Data Announce"
+  },
+  {
+    "id": 290,
+    "key": "battleDisconnect.warningTitle",
+    "text": "Disconnected from Battle"
+  },
+  {
+    "id": 291,
+    "key": "battleDisconnect.warningText1",
+    "text": "Leaving a battle in progress hurts your team."
+  },
+  {
+    "id": 292,
+    "key": "battleDisconnect.warningText2",
+    "text": "Intentional disconnections may result in temporary penalties."
+  },
+  {
+    "id": 293,
+    "key": "battleDisconnect.penaltyText1",
+    "text": "Battle point penalty applied."
+  },
+  {
+    "id": 294,
+    "key": "battleDisconnect.penaltyText2",
+    "text": "Please wait a moment before searching for a match again."
+  },
+  {
+    "id": 295,
+    "key": "battleDisconnect.resultText",
+    "text": "Disconnected from Battle"
+  },
+  {
+    "id": 296,
+    "key": "common.ability",
+    "text": "Ability"
+  },
+  {
+    "id": 297,
+    "key": "common.show",
+    "text": "Show"
+  },
+  {
+    "id": 298,
+    "key": "common.hide",
+    "text": "Hide"
+  },
+  {
+    "id": 299,
+    "key": "common.pickup",
+    "text": "Pickup"
+  },
+  {
+    "id": 300,
+    "key": "common.rank",
+    "text": "Rank"
+  },
+  {
+    "id": 301,
+    "key": "common.rankFormat",
+    "text": "Rank {0}"
+  },
+  {
+    "id": 302,
+    "key": "common.enableGetDiscRank",
+    "text": "Rank required: {0}"
+  },
+  {
+    "id": 303,
+    "key": "common.minutesAgo",
+    "text": "{0} min ago"
+  },
+  {
+    "id": 304,
+    "key": "common.daysAgo",
+    "text": "{0} days ago"
+  },
+  {
+    "id": 305,
+    "key": "common.hoursAgo",
+    "text": "{0} hours ago"
+  },
+  {
+    "id": 306,
+    "key": "common.secondsAgo",
+    "text": "{0} s ago"
+  },
+  {
+    "id": 307,
+    "key": "gacha.dailyLimitMessage",
+    "text": "Daily Limit"
+  },
+  {
+    "id": 308,
+    "key": "gacha.limitMessage",
+    "text": "Limit"
+  },
+  {
+    "id": 309,
+    "key": "gacha.limitCount",
+    "text": "Limit Count {0}"
+  },
+  {
+    "id": 310,
+    "key": "gacha.paidOnlyMessage",
+    "text": "Paid Only"
+  },
+  {
+    "id": 311,
+    "key": "gacha.discPurchaseConfirm",
+    "text": "Do you wish to confirm your purchase?"
+  },
+  {
+    "id": 312,
+    "key": "battleRankDiscProvisionRate",
+    "text": "Battle Rank Disc Provision Rate"
+  },
+  {
+    "id": 313,
+    "key": "gachaDetail.getDiscRank",
+    "text": "Disc Rank {0}"
+  },
+  {
+    "id": 314,
+    "key": "gachaDetail.unlockRank",
+    "text": "Unlock Rank {0}"
+  },
+  {
+    "id": 315,
+    "key": "loginBonus.day",
+    "text": "Day"
+  },
+  {
+    "id": 316,
+    "key": "itemExchange.title",
+    "text": "Title"
+  },
+  {
+    "id": 317,
+    "key": "itemExchange.message",
+    "text": "Message"
+  },
+  {
+    "id": 318,
+    "key": "disableDevice.title",
+    "text": "Title"
+  },
+  {
+    "id": 319,
+    "key": "disableDevice.message",
+    "text": "Message"
+  },
+  {
+    "id": 320,
+    "key": "game.lastSeconds30",
+    "text": "Lastseconds30: {0}"
+  },
+  {
+    "id": 321,
+    "key": "game.lastMinutes1",
+    "text": "Lastminutes1: {0}"
+  },
+  {
+    "id": 322,
+    "key": "loading.remainCount",
+    "text": "Remain Count {0}"
+  },
+  {
+    "id": 323,
+    "key": "matching.waitCount",
+    "text": "Wait Count {0}"
+  },
+  {
+    "id": 324,
+    "key": "matching.waitingMember",
+    "text": "Waiting for participant"
+  },
+  {
+    "id": 325,
+    "key": "realFriend.rewardNumberFormat",
+    "text": "Reward Number {0}"
+  },
+  {
+    "id": 326,
+    "key": "realFriend.rewardProgressFormat",
+    "text": "Reward Progress {0}"
+  },
+  {
+    "id": 327,
+    "key": "realFriend.rewardDetail.beforeRenewal",
+    "text": "Before Renewal"
+  },
+  {
+    "id": 328,
+    "key": "realFriend.rewardDetail.afterRenewal",
+    "text": "After Renewal"
+  },
+  {
+    "id": 329,
+    "key": "realFriend.warning.beforeRenewal",
+    "text": "Before Renewal"
+  },
+  {
+    "id": 330,
+    "key": "realFriend.warning.afterRenewal",
+    "text": "After Renewal"
+  },
+  {
+    "id": 331,
+    "key": "replayReward.messageKickerMvp",
+    "text": "Message Kicker Mvp"
+  },
+  {
+    "id": 332,
+    "key": "replayReward.messageKicker",
+    "text": "Message Kicker"
+  },
+  {
+    "id": 333,
+    "key": "replayReward.messageRank",
+    "text": "Message Rank"
+  },
+  {
+    "id": 334,
+    "key": "replayReward.messagePickup",
+    "text": "Message Pickup"
+  },
+  {
+    "id": 335,
+    "key": "replayReward.honorific",
+    "text": "Honorific"
+  },
+  {
+    "id": 336,
+    "key": "replayReward.publishTerm",
+    "text": "Publish Term"
+  },
+  {
+    "id": 337,
+    "key": "replay.publishEndAttention",
+    "text": "Publish End Attention"
+  },
+  {
+    "id": 338,
+    "key": "common.last",
+    "text": "Last"
+  },
+  {
+    "id": 339,
+    "key": "common.lastDay",
+    "text": "Last Day"
+  },
+  {
+    "id": 340,
+    "key": "common.lastHour",
+    "text": "Last {0} h"
+  },
+  {
+    "id": 341,
+    "key": "common.lastMinute",
+    "text": "Last {0} min"
+  },
+  {
+    "id": 342,
+    "key": "common.lastSecond",
+    "text": "Last {0}s"
+  },
+  {
+    "id": 343,
+    "key": "common.nextOpenDay",
+    "text": "Open in {0} days"
+  },
+  {
+    "id": 344,
+    "key": "common.nextOpenHour",
+    "text": "Open in {0} h"
+  },
+  {
+    "id": 345,
+    "key": "common.nextOpenMinute",
+    "text": "Open in {0} min"
+  },
+  {
+    "id": 346,
+    "key": "common.nextOpenSecond",
+    "text": "Open in {0} s"
+  },
+  {
+    "id": 347,
+    "key": "battleRule.openRank",
+    "text": "Rank"
+  },
+  {
+    "id": 348,
+    "key": "battleRule.openRuleText2",
+    "text": "Unlocks in {0}"
+  },
+  {
+    "id": 349,
+    "key": "battleRule.openRuleText3",
+    "text": "Available in {0}"
+  },
+  {
+    "id": 350,
+    "key": "mission.dailyClearTitle",
+    "text": "Daily Clear"
+  },
+  {
+    "id": 351,
+    "key": "mission.limitedClearTitle",
+    "text": "Limited Clear"
+  },
+  {
+    "id": 352,
+    "key": "mission.festivalClearTitle",
+    "text": "Festival Clear"
+  },
+  {
+    "id": 353,
+    "key": "mission.clearTitle",
+    "text": "Clear"
+  },
+  {
+    "id": 354,
+    "key": "training.allClearDescription",
+    "text": "All Clear"
+  },
+  {
+    "id": 355,
+    "key": "training.allClearMessage",
+    "text": "All Clear"
+  },
+  {
+    "id": 356,
+    "key": "training.nextAvailable",
+    "text": "Next Available"
+  },
+  {
+    "id": 357,
+    "key": "training.homeRankerDisable",
+    "text": "Home Ranker Disable"
+  },
+  {
+    "id": 358,
+    "key": "training.resultRankerDisable",
+    "text": "Result Ranker Disable"
+  },
+  {
+    "id": 359,
+    "key": "shop.unlockRankFormat",
+    "text": "Unlocks at {0} Rank"
+  },
+  {
+    "id": 360,
+    "key": "game.crystalDeposite",
+    "text": "Deposit Crystals"
+  },
+  {
+    "id": 361,
+    "key": "common.purchase",
+    "text": "Purchase"
+  },
+  {
+    "id": 362,
+    "key": "inGameTutorial.countDownMessage",
+    "text": "Battle Start!"
+  },
+  {
+    "id": 363,
+    "key": "common.requestCameraAuthTitle",
+    "text": "Request Camera Auth"
+  },
+  {
+    "id": 364,
+    "key": "common.requestCameraAuthDescription",
+    "text": "Request Camera Auth"
+  },
+  {
+    "id": 365,
+    "key": "skillActionType.shotAttackDetail",
+    "text": "Guided long-range shot"
+  },
+  {
+    "id": 366,
+    "key": "skillActionType.aroundAttackDetail",
+    "text": "Area of Effect Attack"
+  },
+  {
+    "id": 367,
+    "key": "skillActionType.moveAttackDetail",
+    "text": "Lunging forward attack"
+  },
+  {
+    "id": 368,
+    "key": "skillActionType.frontAttackDetail",
+    "text": "Attack in a short-range in front"
+  },
+  {
+    "id": 369,
+    "key": "challenge.badgeGet",
+    "text": "Badge Get"
+  },
+  {
+    "id": 370,
+    "key": "challenge.secretBadgeGet",
+    "text": "Secret Badge Get"
+  },
+  {
+    "id": 371,
+    "key": "social.followNum",
+    "text": "Follow Num"
+  },
+  {
+    "id": 372,
+    "key": "social.followerNum",
+    "text": "Follower Num"
+  },
+  {
+    "id": 373,
+    "key": "purchaseAlert.message",
+    "text": "Message"
+  },
+  {
+    "id": 374,
+    "key": "common.ageUnder",
+    "text": "Age Under"
+  },
+  {
+    "id": 375,
+    "key": "common.ageOver",
+    "text": "Age Over"
+  },
+  {
+    "id": 376,
+    "key": "common.purchaseLimit",
+    "text": "Purchase Limit"
+  },
+  {
+    "id": 377,
+    "key": "common.purchaseNoLimit",
+    "text": "Purchase No Limit"
+  },
+  {
+    "id": 378,
+    "key": "birthdayRegistration.day",
+    "text": "Day"
+  },
+  {
+    "id": 379,
+    "key": "campaign.discForceMessage",
+    "text": "Disc Force"
+  },
+  {
+    "id": 380,
+    "key": "campaign.capsuleMessage",
+    "text": "Capsule"
+  },
+  {
+    "id": 381,
+    "key": "campaign.capsuleDropMessage",
+    "text": "Capsule Drop"
+  },
+  {
+    "id": 382,
+    "key": "noInputNotification.forceDisconnectTitle",
+    "text": "Force Disconnect"
+  },
+  {
+    "id": 383,
+    "key": "noInputNotification.forceDisconnectMessage",
+    "text": "Force Disconnect"
+  },
+  {
+    "id": 384,
+    "key": "remainDateTimeFormat.dhm",
+    "text": "Dhm"
+  },
+  {
+    "id": 385,
+    "key": "remainDateTimeFormat.hms",
+    "text": "Hms"
+  },
+  {
+    "id": 386,
+    "key": "common.paidFree",
+    "text": "Paid / Free"
+  },
+  {
+    "id": 387,
+    "key": "common.possession",
+    "text": "Owned:"
+  },
+  {
+    "id": 388,
+    "key": "common.discForce",
+    "text": "Disc Force"
+  },
+  {
+    "id": 389,
+    "key": "shop.purchaseDiscForce",
+    "text": "Purchase Disc Force"
+  },
+  {
+    "id": 390,
+    "key": "inApp.trainingTitle",
+    "text": "Training"
+  },
+  {
+    "id": 391,
+    "key": "inApp.discLevelUpTitle",
+    "text": "Disc Lv Up"
+  },
+  {
+    "id": 392,
+    "key": "rankingReward.rankFormat",
+    "text": "Rank {0}"
+  },
+  {
+    "id": 393,
+    "key": "ranking.empty",
+    "text": "Empty"
+  },
+  {
+    "id": 394,
+    "key": "ranking.localEmpty",
+    "text": "Local Empty"
+  },
+  {
+    "id": 395,
+    "key": "ranking.followEmpty",
+    "text": "Follow Empty"
+  },
+  {
+    "id": 396,
+    "key": "ranking.aggregate",
+    "text": "Aggregate"
+  },
+  {
+    "id": 397,
+    "key": "ranking.finish",
+    "text": "Finish"
+  },
+  {
+    "id": 398,
+    "key": "ranking.rank",
+    "text": "Rank"
+  },
+  {
+    "id": 399,
+    "key": "season.termFormat",
+    "text": "Term {0}"
+  },
+  {
+    "id": 400,
+    "key": "friendMatch.invite",
+    "text": "Invite"
+  },
+  {
+    "id": 401,
+    "key": "friendMatch.invited",
+    "text": "Invited"
+  },
+  {
+    "id": 402,
+    "key": "friendMatch.inviting",
+    "text": "Inviting"
+  },
+  {
+    "id": 403,
+    "key": "friendMatch.rankerDisable",
+    "text": "Ranker Disable"
+  },
+  {
+    "id": 404,
+    "key": "friendMatch.leaveTeam",
+    "text": "Leave Team"
+  },
+  {
+    "id": 405,
+    "key": "exchange.monthLimit",
+    "text": "Month Limit"
+  },
+  {
+    "id": 406,
+    "key": "exchange.limit",
+    "text": "Limit"
+  },
+  {
+    "id": 407,
+    "key": "exchange.monthEnd",
+    "text": "Month End"
+  },
+  {
+    "id": 408,
+    "key": "exchange.end",
+    "text": "End"
+  },
+  {
+    "id": 409,
+    "key": "exchangeConfirm.amount",
+    "text": "Amount"
+  },
+  {
+    "id": 410,
+    "key": "exchangeComfirm.discAmount",
+    "text": "Disc Amount"
+  },
+  {
+    "id": 411,
+    "key": "exchangeConfirm.message",
+    "text": "Message"
+  },
+  {
+    "id": 412,
+    "key": "exchangeComfirm.discMessage",
+    "text": "Disc"
+  },
+  {
+    "id": 413,
+    "key": "exchangeRefresh.title",
+    "text": "Title"
+  },
+  {
+    "id": 414,
+    "key": "exchangeRefresh.impossibleTitle",
+    "text": "Impossible"
+  },
+  {
+    "id": 415,
+    "key": "exchangeRefresh.impossibleDescription",
+    "text": "Impossible"
+  },
+  {
+    "id": 416,
+    "key": "exchangeRefresh.notUpdateTitle",
+    "text": "Not Update"
+  },
+  {
+    "id": 417,
+    "key": "exchangeRefresh.notUpdateDescription",
+    "text": "Not Update"
+  },
+  {
+    "id": 418,
+    "key": "pickUp.by",
+    "text": "By"
+  },
+  {
+    "id": 419,
+    "key": "social.inviteLineMessage",
+    "text": "Invite Line"
+  },
+  {
+    "id": 420,
+    "key": "socialGiftee.lineMessage",
+    "text": "Line"
+  },
+  {
+    "id": 421,
+    "key": "common.lackKickPoint",
+    "text": "Insufficient Kicker Points"
+  },
+  {
+    "id": 422,
+    "key": "exchangeResult.direct",
+    "text": "Direct"
+  },
+  {
+    "id": 423,
+    "key": "exchangeResult.present",
+    "text": "Present"
+  },
+  {
+    "id": 424,
+    "key": "exchangeConfirm.title",
+    "text": "Title"
+  },
+  {
+    "id": 425,
+    "key": "challenge.empty",
+    "text": "Empty"
+  },
+  {
+    "id": 426,
+    "key": "seasonPassMission.value",
+    "text": "Value"
+  },
+  {
+    "id": 427,
+    "key": "seasonPassMission.endTitle",
+    "text": "End"
+  },
+  {
+    "id": 428,
+    "key": "seasonPassMission.endMessage",
+    "text": "End"
+  },
+  {
+    "id": 429,
+    "key": "seasonPassMission.lockMessage",
+    "text": "Lock"
+  },
+  {
+    "id": 430,
+    "key": "seasonPassMission.empty",
+    "text": "Empty"
+  },
+  {
+    "id": 431,
+    "key": "common.all",
+    "text": "All"
+  },
+  {
+    "id": 432,
+    "key": "battleSummary.battleCount",
+    "text": "Battle Count {0}"
+  },
+  {
+    "id": 433,
+    "key": "battleSummary.winCount",
+    "text": "Win Count {0}"
+  },
+  {
+    "id": 434,
+    "key": "battleSummary.mvpCount",
+    "text": "MVP: {0}"
+  },
+  {
+    "id": 435,
+    "key": "battleSummary.goodCount",
+    "text": "Good Count {0}"
+  },
+  {
+    "id": 436,
+    "key": "battleSummary.killCount",
+    "text": "Kill Count {0}"
+  },
+  {
+    "id": 437,
+    "key": "battleSummary.killAssistCount",
+    "text": "Kill Assist Count {0}"
+  },
+  {
+    "id": 438,
+    "key": "battleSummary.assistCount",
+    "text": "Assist Count {0}"
+  },
+  {
+    "id": 439,
+    "key": "battleSummary.usedDiscSkillCount",
+    "text": "Discs used: {0}"
+  },
+  {
+    "id": 440,
+    "key": "battleSummary.usedKickerSkillCount",
+    "text": "Kicker Skills used: {0}"
+  },
+  {
+    "id": 441,
+    "key": "battleSummary.usedSpecialSkillCount",
+    "text": "Special Skills used: {0}"
+  },
+  {
+    "id": 442,
+    "key": "battleSummary.killedCount",
+    "text": "Killed Count {0}"
+  },
+  {
+    "id": 443,
+    "key": "battleSummary.acquiredCrystalCount",
+    "text": "Acquired Crystal Count {0}"
+  },
+  {
+    "id": 444,
+    "key": "battleSummary.releasedCrystalCount",
+    "text": "Released Crystal Count {0}"
+  },
+  {
+    "id": 445,
+    "key": "battleSummary.flagGoalCount",
+    "text": "Flag Goal Count {0}"
+  },
+  {
+    "id": 446,
+    "key": "battleSummary.enemyFlagDropCount",
+    "text": "Enemy Flag Drop Count {0}"
+  },
+  {
+    "id": 447,
+    "key": "battleSummary.ballShootPoint",
+    "text": "Ball Shoot Point"
+  },
+  {
+    "id": 448,
+    "key": "battleSummary.ballDropCount",
+    "text": "Ball Drop Count {0}"
+  },
+  {
+    "id": 449,
+    "key": "battleSummary.rankFormat",
+    "text": "Rank {0}"
+  },
+  {
+    "id": 450,
+    "key": "battleSummary.movingDistance",
+    "text": "Distance covered: {0} m"
+  },
+  {
+    "id": 451,
+    "key": "battle.backHome",
+    "text": "Return to Home"
+  },
+  {
+    "id": 452,
+    "key": "socialGiftee.rewardButton",
+    "text": "Reward Button"
+  },
+  {
+    "id": 453,
+    "key": "socialGiftee.rewardButtonEnd",
+    "text": "Reward Button End"
+  },
+  {
+    "id": 454,
+    "key": "socialGiftee.topMessage",
+    "text": "Top"
+  },
+  {
+    "id": 455,
+    "key": "socialGiftee.topMessageEnd",
+    "text": "Top Message End"
+  },
+  {
+    "id": 456,
+    "key": "socialGiftee.tweetText",
+    "text": "Tweet"
+  },
+  {
+    "id": 457,
+    "key": "{0}pt",
+    "text": "{0} pt"
+  },
+  {
+    "id": 458,
+    "key": "battle.single",
+    "text": "Solo"
+  },
+  {
+    "id": 459,
+    "key": "battle.team",
+    "text": "Team"
+  },
+  {
+    "id": 460,
+    "key": "battle.start",
+    "text": "Battle"
+  },
+  {
+    "id": 461,
+    "key": "common.cancel",
+    "text": "Cancel"
+  },
+  {
+    "id": 462,
+    "key": "common.close",
+    "text": "Close"
+  },
+  {
+    "id": 463,
+    "key": "common.back",
+    "text": "Back"
+  },
+  {
+    "id": 464,
+    "key": "common.next",
+    "text": "Next"
+  },
+  {
+    "id": 465,
+    "key": "common.battle",
+    "text": "Battle"
+  },
+  {
+    "id": 466,
+    "key": "common.kicker",
+    "text": "Kickers"
+  },
+  {
+    "id": 467,
+    "key": "common.disc",
+    "text": "Discs"
+  },
+  {
+    "id": 468,
+    "key": "common.gacha",
+    "text": "Capsules"
+  },
+  {
+    "id": 469,
+    "key": "common.shop",
+    "text": "Shop"
+  },
+  {
+    "id": 470,
+    "key": "battleRule.rule",
+    "text": "Rule"
+  },
+  {
+    "id": 471,
+    "key": "common.rule",
+    "text": "Rule"
+  },
+  {
+    "id": 472,
+    "key": "battle.rules",
+    "text": "Rules"
+  },
+  {
+    "id": 473,
+    "key": "common.rules",
+    "text": "Rules"
+  },
+  {
+    "id": 474,
+    "key": "rule",
+    "text": "Rule"
+  },
+  {
+    "id": 475,
+    "key": "rules",
+    "text": "Rules"
+  },
+  {
+    "id": 476,
+    "key": "custom.join",
+    "text": "Join Battle"
+  },
+  {
+    "id": 477,
+    "key": "custom.search",
+    "text": "Search for Participants"
+  },
+  {
+    "id": 478,
+    "key": "custom.challenge",
+    "text": "Challenge"
+  },
+  {
+    "id": 479,
+    "key": "matching.join",
+    "text": "Join Battle"
+  },
+  {
+    "id": 480,
+    "key": "matching.search",
+    "text": "Search Participants"
+  },
+  {
+    "id": 481,
+    "key": "matching.challenge",
+    "text": "Challenge"
+  },
+  {
+    "id": 482,
+    "key": "customMatch.join",
+    "text": "Join match"
+  },
+  {
+    "id": 483,
+    "key": "customMatch.search",
+    "text": "Search for Participants"
+  },
+  {
+    "id": 484,
+    "key": "customMatch.challenge",
+    "text": "Challenge"
+  },
+  {
+    "id": 485,
+    "key": "common.ruleShort",
+    "text": "Rules"
+  },
+  {
+    "id": 486,
+    "key": "matching.single",
+    "text": "Solo"
+  },
+  {
+    "id": 487,
+    "key": "matching.team",
+    "text": "Team"
+  },
+  {
+    "id": 488,
+    "key": "matching.joinTeam",
+    "text": "Join Team"
+  },
+  {
+    "id": 489,
+    "key": "matching.memberRecruting",
+    "text": "Recruiting members"
+  },
+  {
+    "id": 490,
+    "key": "common.challenge",
+    "text": "Challenge"
+  },
+  {
+    "id": 491,
+    "key": "battle.rankerDisable",
+    "text": "Off-season"
+  },
+  {
+    "id": 492,
+    "key": "common.rankUp",
+    "text": "Rank Up!"
+  },
+  {
+    "id": 493,
+    "key": "common.rankUpTitle",
+    "text": "Rank Up!"
+  },
+  {
+    "id": 494,
+    "key": "common.explainRule",
+    "text": "Rules"
+  },
+  {
+    "id": 495,
+    "key": "matching.battleStart",
+    "text": "Start Battle!"
+  },
+  {
+    "id": 496,
+    "key": "matching.waitMemberTitle",
+    "text": "Waiting for participant"
+  },
+  {
+    "id": 497,
+    "key": "matching.teamWaitTitle",
+    "text": "Waiting Room"
+  },
+  {
+    "id": 498,
+    "key": "matching.teamListTitle",
+    "text": "Team List"
+  },
+  {
+    "id": 499,
+    "key": "matching.teamDecide",
+    "text": "Set Team"
+  },
+  {
+    "id": 500,
+    "key": "matching.selfDeck",
+    "text": "Deck: "
+  },
+  {
+    "id": 501,
+    "key": "common.dayName",
+    "text": "d"
+  },
+  {
+    "id": 502,
+    "key": "common.kickerSkill",
+    "text": "Kicker Skill"
+  },
+  {
+    "id": 503,
+    "key": "common.specialSkill",
+    "text": "Special Skill"
+  },
+  {
+    "id": 504,
+    "key": "common.specialSkillCut",
+    "text": "Special Skill Cut"
+  },
+  {
+    "id": 505,
+    "key": "common.characterSelect",
+    "text": "Kicker Select"
+  },
+  {
+    "id": 506,
+    "key": "common.costumeAndGear",
+    "text": "Costumes and Gears"
+  },
+  {
+    "id": 507,
+    "key": "common.gear",
+    "text": "Gears"
+  },
+  {
+    "id": 508,
+    "key": "common.gearSet",
+    "text": "Equip Gear"
+  },
+  {
+    "id": 509,
+    "key": "common.guardianRank",
+    "text": "Guardian Rank"
+  },
+  {
+    "id": 510,
+    "key": "common.levelUp",
+    "text": "Lv Up!"
+  },
+  {
+    "id": 511,
+    "key": "common.levelUpTitle",
+    "text": "Lv Up"
+  },
+  {
+    "id": 512,
+    "key": "common.levelUpBonus",
+    "text": "Lv Up Bonus"
+  },
+  {
+    "id": 513,
+    "key": "common.winReward",
+    "text": "Win Rewards"
+  },
+  {
+    "id": 514,
+    "key": "common.remainCount",
+    "text": "Remain Count {0}"
+  },
+  {
+    "id": 515,
+    "key": "common.remainCount8",
+    "text": "Remain Count8"
+  },
+  {
+    "id": 516,
+    "key": "common.tap",
+    "text": "Tap to continue"
+  },
+  {
+    "id": 517,
+    "key": "common.tips",
+    "text": "Tips"
+  },
+  {
+    "id": 518,
+    "key": "common.training",
+    "text": "Training"
+  },
+  {
+    "id": 519,
+    "key": "common.tutorial",
+    "text": "Tutorial"
+  },
+  {
+    "id": 520,
+    "key": "common.try",
+    "text": "Try"
+  },
+  {
+    "id": 521,
+    "key": "common.replay",
+    "text": "Replay"
+  },
+  {
+    "id": 522,
+    "key": "common.friend",
+    "text": "Friends"
+  },
+  {
+    "id": 523,
+    "key": "common.friendFollow",
+    "text": "Follow"
+  },
+  {
+    "id": 524,
+    "key": "common.friendFollowing",
+    "text": "Following"
+  },
+  {
+    "id": 525,
+    "key": "common.download",
+    "text": "Download"
+  },
+  {
+    "id": 526,
+    "key": "common.loading",
+    "text": "Loading"
+  },
+  {
+    "id": 527,
+    "key": "common.confirm",
+    "text": "Confirm"
+  },
+  {
+    "id": 528,
+    "key": "common.complete",
+    "text": "Complete"
+  },
+  {
+    "id": 529,
+    "key": "common.detailSetting",
+    "text": "Details"
+  },
+  {
+    "id": 530,
+    "key": "common.info",
+    "text": "Notices"
+  },
+  {
+    "id": 531,
+    "key": "common.informationTitle",
+    "text": "Notices"
+  },
+  {
+    "id": 532,
+    "key": "common.latestInformation",
+    "text": "Latest Information"
+  },
+  {
+    "id": 533,
+    "key": "common.menuTitle",
+    "text": "Menu"
+  },
+  {
+    "id": 534,
+    "key": "common.toShop",
+    "text": "Go to Shop"
+  },
+  {
+    "id": 535,
+    "key": "common.profile",
+    "text": "Profile"
+  },
+  {
+    "id": 536,
+    "key": "common.mvp",
+    "text": "MVP"
+  },
+  {
+    "id": 537,
+    "key": "ageConfirm.message",
+    "text": "Message"
+  },
+  {
+    "id": 538,
+    "key": "ageConfirm.warning",
+    "text": "Warning"
+  },
+  {
+    "id": 539,
+    "key": "arReplay.detection",
+    "text": "Detection"
+  },
+  {
+    "id": 540,
+    "key": "arReplay.manipulate",
+    "text": "Manipulate"
+  },
+  {
+    "id": 541,
+    "key": "arReplay.tapPlane",
+    "text": "Tap Plane"
+  },
+  {
+    "id": 542,
+    "key": "attackDistanceType.long",
+    "text": "Long range"
+  },
+  {
+    "id": 543,
+    "key": "attackDistanceType.short",
+    "text": "Short range"
+  },
+  {
+    "id": 544,
+    "key": "attackType.ability",
+    "text": "Passive"
+  },
+  {
+    "id": 545,
+    "key": "attackType.condition",
+    "text": "Status effect"
+  },
+  {
+    "id": 546,
+    "key": "attackType.dashAttack",
+    "text": "Dash attack"
+  },
+  {
+    "id": 547,
+    "key": "attackType.kickerSkill",
+    "text": "Kicker Skill"
+  },
+  {
+    "id": 548,
+    "key": "attackType.specialSkill",
+    "text": "Special Skill"
+  },
+  {
+    "id": 549,
+    "key": "attackType.summonTrapAttack",
+    "text": "Turret"
+  },
+  {
+    "id": 550,
+    "key": "attackType.trapSkill",
+    "text": "Trap"
+  },
+  {
+    "id": 551,
+    "key": "attackType.weaponBullet",
+    "text": "Basic attack"
+  },
+  {
+    "id": 552,
+    "key": "attackType.weaponDirect",
+    "text": "Basic attack"
+  },
+  {
+    "id": 553,
+    "key": "attributeType.fire",
+    "text": "Fire"
+  },
+  {
+    "id": 554,
+    "key": "attributeType.none",
+    "text": "None"
+  },
+  {
+    "id": 555,
+    "key": "attributeType.water",
+    "text": "Water"
+  },
+  {
+    "id": 556,
+    "key": "attributeType.wind",
+    "text": "Wind"
+  },
+  {
+    "id": 557,
+    "key": "badge.set",
+    "text": "Set badge"
+  },
+  {
+    "id": 558,
+    "key": "battle.continueBattle",
+    "text": "Continue"
+  },
+  {
+    "id": 559,
+    "key": "battleRule.openText",
+    "text": "Open"
+  },
+  {
+    "id": 560,
+    "key": "battleRule.rankerOpen",
+    "text": "Ranker Open"
+  },
+  {
+    "id": 561,
+    "key": "battleRuleDescription.ballShoot1",
+    "text": "Ball Shoot1"
+  },
+  {
+    "id": 562,
+    "key": "battleRuleDescription.ballShoot1Title",
+    "text": "Ball Shoot1"
+  },
+  {
+    "id": 563,
+    "key": "battleRuleDescription.ballShoot2",
+    "text": "Ball Shoot2"
+  },
+  {
+    "id": 564,
+    "key": "battleRuleDescription.ballShoot2Title",
+    "text": "Ball Shoot2"
+  },
+  {
+    "id": 565,
+    "key": "battleRuleDescription.ballShoot3",
+    "text": "Ball Shoot3"
+  },
+  {
+    "id": 566,
+    "key": "battleRuleDescription.ballShoot3Title",
+    "text": "Ball Shoot3"
+  },
+  {
+    "id": 567,
+    "key": "battleRuleDescription.ballShoot4",
+    "text": "Ball Shoot4"
+  },
+  {
+    "id": 568,
+    "key": "battleRuleDescription.ballShoot4Title",
+    "text": "Ball Shoot4"
+  },
+  {
+    "id": 569,
+    "key": "battleRuleDescription.ballShoot5",
+    "text": "Ball Shoot5"
+  },
+  {
+    "id": 570,
+    "key": "battleRuleDescription.ballShoot5Title",
+    "text": "Ball Shoot5"
+  },
+  {
+    "id": 571,
+    "key": "battleRuleDescription.ballShoot6",
+    "text": "Ball Shoot6"
+  },
+  {
+    "id": 572,
+    "key": "battleRuleDescription.ballShoot6Title",
+    "text": "Ball Shoot6"
+  },
+  {
+    "id": 573,
+    "key": "battleRuleDescription.festival1",
+    "text": "Festival1"
+  },
+  {
+    "id": 574,
+    "key": "battleRuleDescription.festival1Title",
+    "text": "Festival1"
+  },
+  {
+    "id": 575,
+    "key": "battleRuleDescription.festival2",
+    "text": "Festival2"
+  },
+  {
+    "id": 576,
+    "key": "battleRuleDescription.festival2Title",
+    "text": "Festival2"
+  },
+  {
+    "id": 577,
+    "key": "battleRuleDescription.festival3",
+    "text": "Festival3"
+  },
+  {
+    "id": 578,
+    "key": "battleRuleDescription.festival3Title",
+    "text": "Festival3"
+  },
+  {
+    "id": 579,
+    "key": "battleRuleDescription.festival4",
+    "text": "Festival4"
+  },
+  {
+    "id": 580,
+    "key": "battleRuleDescription.festival4Title",
+    "text": "Festival4"
+  },
+  {
+    "id": 581,
+    "key": "battleRuleDescription.festival5",
+    "text": "Festival5"
+  },
+  {
+    "id": 582,
+    "key": "battleRuleDescription.festival5Title",
+    "text": "Festival5"
+  },
+  {
+    "id": 583,
+    "key": "battleRuleDescription.festivalRule1",
+    "text": "Festival Rule1"
+  },
+  {
+    "id": 584,
+    "key": "battleRuleDescription.festivalRule1Title",
+    "text": "Festival Rule1"
+  },
+  {
+    "id": 585,
+    "key": "battleRuleDescription.flagBattle1",
+    "text": "Flag Battle1"
+  },
+  {
+    "id": 586,
+    "key": "battleRuleDescription.flagBattle1Title",
+    "text": "Flag Battle1"
+  },
+  {
+    "id": 587,
+    "key": "battleRuleDescription.flagBattle2",
+    "text": "Flag Battle2"
+  },
+  {
+    "id": 588,
+    "key": "battleRuleDescription.flagBattle2Title",
+    "text": "Flag Battle2"
+  },
+  {
+    "id": 589,
+    "key": "battleRuleDescription.flagBattle3",
+    "text": "Flag Battle3"
+  },
+  {
+    "id": 590,
+    "key": "battleRuleDescription.flagBattle3Title",
+    "text": "Flag Battle3"
+  },
+  {
+    "id": 591,
+    "key": "battleRuleDescription.flagBattle4",
+    "text": "Flag Battle4"
+  },
+  {
+    "id": 592,
+    "key": "battleRuleDescription.flagBattle4Title",
+    "text": "Flag Battle4"
+  },
+  {
+    "id": 593,
+    "key": "battleRuleDescription.flagBattle5",
+    "text": "Flag Battle5"
+  },
+  {
+    "id": 594,
+    "key": "battleRuleDescription.flagBattle5Title",
+    "text": "Flag Battle5"
+  },
+  {
+    "id": 595,
+    "key": "battleRuleDescription.scramble1",
+    "text": "Scramble1"
+  },
+  {
+    "id": 596,
+    "key": "battleRuleDescription.scramble1Title",
+    "text": "Scramble1"
+  },
+  {
+    "id": 597,
+    "key": "battleRuleDescription.scramble2",
+    "text": "Scramble2"
+  },
+  {
+    "id": 598,
+    "key": "battleRuleDescription.scramble2Title",
+    "text": "Scramble2"
+  },
+  {
+    "id": 599,
+    "key": "battleRuleDescription.scramble3",
+    "text": "Scramble3"
+  },
+  {
+    "id": 600,
+    "key": "battleRuleDescription.scramble3Title",
+    "text": "Scramble3"
+  },
+  {
+    "id": 601,
+    "key": "battleRuleDescription.scramble4",
+    "text": "Scramble4"
+  },
+  {
+    "id": 602,
+    "key": "battleRuleDescription.scramble4Title",
+    "text": "Scramble4"
+  },
+  {
+    "id": 603,
+    "key": "battleRuleType.ballShoot",
+    "text": "Rapid Ball"
+  },
+  {
+    "id": 604,
+    "key": "battleRuleType.flagBattle",
+    "text": "Flag Flight"
+  },
+  {
+    "id": 605,
+    "key": "battleRuleType.scramble50",
+    "text": "Crystal Scramble"
+  },
+  {
+    "id": 606,
+    "key": "battleRuleType.trial",
+    "text": "Trial"
+  },
+  {
+    "id": 607,
+    "key": "battleSummary.battleLog",
+    "text": "Battle Log"
+  },
+  {
+    "id": 608,
+    "key": "battleSummary.battleRank",
+    "text": "Battle Rank"
+  },
+  {
+    "id": 609,
+    "key": "battleSummary.festivalEmpty",
+    "text": "Festival Empty"
+  },
+  {
+    "id": 610,
+    "key": "battleSummary.festivalLog",
+    "text": "Festival Log"
+  },
+  {
+    "id": 611,
+    "key": "battleSummary.festivalPoint",
+    "text": "Festival Point"
+  },
+  {
+    "id": 612,
+    "key": "battleSummary.festivalTeam",
+    "text": "Festival Team"
+  },
+  {
+    "id": 613,
+    "key": "battleSummary.festivalTeamRate",
+    "text": "Festival Team Rate"
+  },
+  {
+    "id": 614,
+    "key": "battleSummary.seasonEmpty",
+    "text": "Season Empty"
+  },
+  {
+    "id": 615,
+    "key": "battleSummary.seasonLog",
+    "text": "Season Log"
+  },
+  {
+    "id": 616,
+    "key": "battleSummary.useKickerTitle",
+    "text": "Use Kicker"
+  },
+  {
+    "id": 617,
+    "key": "battleSummary.winRate",
+    "text": "Win Rate"
+  },
+  {
+    "id": 618,
+    "key": "birthdayRegistration.button",
+    "text": "Button"
+  },
+  {
+    "id": 619,
+    "key": "birthdayRegistration.confirmButton",
+    "text": "Confirm Button"
+  },
+  {
+    "id": 620,
+    "key": "boost.empty",
+    "text": "No boost"
+  },
+  {
+    "id": 621,
+    "key": "cacheClear.description",
+    "text": "Delete the downloaded game data. It will be downloaded again the next time you play."
+  },
+  {
+    "id": 622,
+    "key": "capsule.setupInstantOpen",
+    "text": "Setup Instant Open"
+  },
+  {
+    "id": 623,
+    "key": "capsule.setupUntilOpen",
+    "text": "Setup Until Open"
+  },
+  {
+    "id": 624,
+    "key": "challenge.addReward",
+    "text": "Bonus reward"
+  },
+  {
+    "id": 625,
+    "key": "chat.commentAttention",
+    "text": "Comment Attention"
+  },
+  {
+    "id": 626,
+    "key": "chat.consecutivePostsAttentionDescription",
+    "text": "Consecutive Posts Attention"
+  },
+  {
+    "id": 627,
+    "key": "chat.consecutivePostsAttentionTitle",
+    "text": "Consecutive Posts Attention"
+  },
+  {
+    "id": 628,
+    "key": "chat.send",
+    "text": "Send"
+  },
+  {
+    "id": 629,
+    "key": "common.agree",
+    "text": "Agree"
+  },
+  {
+    "id": 630,
+    "key": "common.battleMode",
+    "text": "Battle mode"
+  },
+  {
+    "id": 631,
+    "key": "common.battlePlayerCount",
+    "text": "Number of players:"
+  },
+  {
+    "id": 632,
+    "key": "common.cacheClear",
+    "text": "Clear cache"
+  },
+  {
+    "id": 633,
+    "key": "common.confirmPurchase",
+    "text": "Confirm purchase"
+  },
+  {
+    "id": 634,
+    "key": "common.copy",
+    "text": "Copy"
+  },
+  {
+    "id": 635,
+    "key": "common.disagree",
+    "text": "Disagree"
+  },
+  {
+    "id": 636,
+    "key": "common.exchange",
+    "text": "Exchange"
+  },
+  {
+    "id": 637,
+    "key": "common.facebookAuth",
+    "text": "Facebook login"
+  },
+  {
+    "id": 638,
+    "key": "common.idSearchDialogDescription",
+    "text": "Enter a player ID."
+  },
+  {
+    "id": 639,
+    "key": "common.inputNameDescription",
+    "text": "Enter your name."
+  },
+  {
+    "id": 640,
+    "key": "common.kickerPurchaseConfirm",
+    "text": "Buy this Kicker?"
+  },
+  {
+    "id": 641,
+    "key": "common.kickerPurchaseExecute",
+    "text": "Buy"
+  },
+  {
+    "id": 642,
+    "key": "common.language",
+    "text": "Language"
+  },
+  {
+    "id": 643,
+    "key": "common.languageChangeTitle",
+    "text": "Change language"
+  },
+  {
+    "id": 644,
+    "key": "common.live",
+    "text": "Live"
+  },
+  {
+    "id": 645,
+    "key": "common.menuOtherTitle",
+    "text": "Other"
+  },
+  {
+    "id": 646,
+    "key": "common.monthName",
+    "text": "{0}"
+  },
+  {
+    "id": 647,
+    "key": "common.nameChangeRuleDescription",
+    "text": "Up to 10 characters."
+  },
+  {
+    "id": 648,
+    "key": "common.nameChangeRuleWarning",
+    "text": "Offensive names are not allowed."
+  },
+  {
+    "id": 649,
+    "key": "common.nameEditDescription",
+    "text": "Enter a new name."
+  },
+  {
+    "id": 650,
+    "key": "common.nameEditWarning",
+    "text": "Names that break the rules may be changed."
+  },
+  {
+    "id": 651,
+    "key": "common.notPossessDisc",
+    "text": "You do not own this disc"
+  },
+  {
+    "id": 652,
+    "key": "common.notPossession",
+    "text": "Not owned"
+  },
+  {
+    "id": 653,
+    "key": "common.officialTwitter",
+    "text": "Official Twitter"
+  },
+  {
+    "id": 654,
+    "key": "common.paid",
+    "text": "Paid"
+  },
+  {
+    "id": 655,
+    "key": "common.playStart",
+    "text": "Play"
+  },
+  {
+    "id": 656,
+    "key": "common.possessionableDisk",
+    "text": "Discs you can own"
+  },
+  {
+    "id": 657,
+    "key": "common.premiumMemberBonus",
+    "text": "Premium bonus"
+  },
+  {
+    "id": 658,
+    "key": "common.privacyPolicyAgree",
+    "text": "I agree to the Privacy Policy"
+  },
+  {
+    "id": 659,
+    "key": "common.purchaseAlert",
+    "text": "Purchase alert"
+  },
+  {
+    "id": 660,
+    "key": "common.rankUpDiskRelease",
+    "text": "Unlocked at rank up"
+  },
+  {
+    "id": 661,
+    "key": "common.scout",
+    "text": "Scout"
+  },
+  {
+    "id": 662,
+    "key": "common.search",
+    "text": "Search"
+  },
+  {
+    "id": 663,
+    "key": "common.social",
+    "text": "Social"
+  },
+  {
+    "id": 664,
+    "key": "common.sort",
+    "text": "Sort"
+  },
+  {
+    "id": 665,
+    "key": "common.stage",
+    "text": "Stage"
+  },
+  {
+    "id": 666,
+    "key": "common.start",
+    "text": "Start"
+  },
+  {
+    "id": 667,
+    "key": "common.sum",
+    "text": "Total"
+  },
+  {
+    "id": 668,
+    "key": "common.termsOfServiceAgree",
+    "text": "I agree to the Terms of Service"
+  },
+  {
+    "id": 669,
+    "key": "common.tweet",
+    "text": "Tweet"
+  },
+  {
+    "id": 670,
+    "key": "common.untilHolding",
+    "text": "Held until"
+  },
+  {
+    "id": 671,
+    "key": "common.up",
+    "text": "UP"
+  },
+  {
+    "id": 672,
+    "key": "common.watchAr",
+    "text": "AR view"
+  },
+  {
+    "id": 673,
+    "key": "common.watching",
+    "text": "Watching"
+  },
+  {
+    "id": 674,
+    "key": "common.yearName",
+    "text": "{0}"
+  },
+  {
+    "id": 675,
+    "key": "conditionType.attackRate",
+    "text": "Attack Power"
+  },
+  {
+    "id": 676,
+    "key": "conditionType.attackSpeedRate",
+    "text": "Attack Speed"
+  },
+  {
+    "id": 677,
+    "key": "conditionType.autoMove",
+    "text": "Auto move"
+  },
+  {
+    "id": 678,
+    "key": "conditionType.blowoffCollider",
+    "text": "Knockup Collider"
+  },
+  {
+    "id": 679,
+    "key": "conditionType.boostHealSpeedRate",
+    "text": "Boost Recovery"
+  },
+  {
+    "id": 680,
+    "key": "conditionType.burn",
+    "text": "Burn"
+  },
+  {
+    "id": 681,
+    "key": "conditionType.confusion",
+    "text": "Confusion"
+  },
+  {
+    "id": 682,
+    "key": "conditionType.damageRate",
+    "text": "Damage cut"
+  },
+  {
+    "id": 683,
+    "key": "conditionType.defenseRate",
+    "text": "DEF change"
+  },
+  {
+    "id": 684,
+    "key": "conditionType.dot",
+    "text": "Dot"
+  },
+  {
+    "id": 685,
+    "key": "conditionType.drain",
+    "text": "Drain"
+  },
+  {
+    "id": 686,
+    "key": "conditionType.gravity",
+    "text": "Gravity"
+  },
+  {
+    "id": 687,
+    "key": "conditionType.inhale",
+    "text": "Vortex"
+  },
+  {
+    "id": 688,
+    "key": "conditionType.none",
+    "text": "None"
+  },
+  {
+    "id": 689,
+    "key": "conditionType.oneShotKiller",
+    "text": "One-shot"
+  },
+  {
+    "id": 690,
+    "key": "conditionType.panda",
+    "text": "Panda"
+  },
+  {
+    "id": 691,
+    "key": "conditionType.paralysis",
+    "text": "Paralysis"
+  },
+  {
+    "id": 692,
+    "key": "conditionType.poison",
+    "text": "Poison"
+  },
+  {
+    "id": 693,
+    "key": "conditionType.prison",
+    "text": "Prison"
+  },
+  {
+    "id": 694,
+    "key": "conditionType.pullIn",
+    "text": "Pull In"
+  },
+  {
+    "id": 695,
+    "key": "conditionType.regeneration",
+    "text": "Regeneration"
+  },
+  {
+    "id": 696,
+    "key": "conditionType.restraint",
+    "text": "Restraint"
+  },
+  {
+    "id": 697,
+    "key": "conditionType.restrainted",
+    "text": "Restrainted"
+  },
+  {
+    "id": 698,
+    "key": "conditionType.rocketLauncherTarget",
+    "text": "Rocket Launcher Target"
+  },
+  {
+    "id": 699,
+    "key": "conditionType.shieldAll",
+    "text": "Shield"
+  },
+  {
+    "id": 700,
+    "key": "conditionType.shieldForward",
+    "text": "Front shield"
+  },
+  {
+    "id": 701,
+    "key": "conditionType.silent",
+    "text": "Skill seal"
+  },
+  {
+    "id": 702,
+    "key": "conditionType.smog",
+    "text": "Smog"
+  },
+  {
+    "id": 703,
+    "key": "conditionType.smogDisturb",
+    "text": "Smog Disturb"
+  },
+  {
+    "id": 704,
+    "key": "conditionType.smogProtection",
+    "text": "Smog Protection"
+  },
+  {
+    "id": 705,
+    "key": "conditionType.specialSkillGaugeRate",
+    "text": "SS gauge"
+  },
+  {
+    "id": 706,
+    "key": "conditionType.speedRate",
+    "text": "Speed change"
+  },
+  {
+    "id": 707,
+    "key": "conditionType.stealth",
+    "text": "Stealth"
+  },
+  {
+    "id": 708,
+    "key": "conditionType.stun",
+    "text": "Stun"
+  },
+  {
+    "id": 709,
+    "key": "customMatch.addAi",
+    "text": "Add Ai"
+  },
+  {
+    "id": 710,
+    "key": "customMatch.changeTeamTitle",
+    "text": "Change Team"
+  },
+  {
+    "id": 711,
+    "key": "customMatch.createBattle",
+    "text": "Create Battle"
+  },
+  {
+    "id": 712,
+    "key": "customMatch.createBattleSpectator",
+    "text": "Create Battle Spectator"
+  },
+  {
+    "id": 713,
+    "key": "customMatch.disableGear",
+    "text": "Disable Gear"
+  },
+  {
+    "id": 714,
+    "key": "customMatch.fixDiscLevel",
+    "text": "Fix Disc Lv"
+  },
+  {
+    "id": 715,
+    "key": "customMatch.inGameSecret",
+    "text": "In Game Secret"
+  },
+  {
+    "id": 716,
+    "key": "customMatch.invite",
+    "text": "Invite"
+  },
+  {
+    "id": 717,
+    "key": "customMatch.joinBlue",
+    "text": "Join Blue"
+  },
+  {
+    "id": 718,
+    "key": "customMatch.joinEither",
+    "text": "Join Either"
+  },
+  {
+    "id": 719,
+    "key": "customMatch.joinRed",
+    "text": "Join Red"
+  },
+  {
+    "id": 720,
+    "key": "customMatch.secret",
+    "text": "Secret"
+  },
+  {
+    "id": 721,
+    "key": "customMatch.spectatorTitle",
+    "text": "Spectator"
+  },
+  {
+    "id": 722,
+    "key": "customMatch.watch",
+    "text": "Watch"
+  },
+  {
+    "id": 723,
+    "key": "dataTransfer.idRegisterDescription",
+    "text": "Id Register"
+  },
+  {
+    "id": 724,
+    "key": "dataTransfer.loginButtonText",
+    "text": "Login Button"
+  },
+  {
+    "id": 725,
+    "key": "dataTransfer.loginDescription",
+    "text": "Login"
+  },
+  {
+    "id": 726,
+    "key": "dataTransfer.loginExecuteDescription",
+    "text": "Login Execute"
+  },
+  {
+    "id": 727,
+    "key": "dataTransfer.loginExecuteWarning",
+    "text": "Login Execute Warning"
+  },
+  {
+    "id": 728,
+    "key": "dataTransfer.loginSelectDescription",
+    "text": "Login Select"
+  },
+  {
+    "id": 729,
+    "key": "dataTransfer.loginSelectIdPassword",
+    "text": "Login Select Id Password"
+  },
+  {
+    "id": 730,
+    "key": "dataTransfer.loginSettingDescription",
+    "text": "Login Setting"
+  },
+  {
+    "id": 731,
+    "key": "dataTransfer.notices",
+    "text": "Notices"
+  },
+  {
+    "id": 732,
+    "key": "dataTransfer.noticesDescription",
+    "text": "Notices"
+  },
+  {
+    "id": 733,
+    "key": "dataTransfer.passwordNotice",
+    "text": "Password Notice"
+  },
+  {
+    "id": 734,
+    "key": "dataTransfer.registerButtonText",
+    "text": "Register Button"
+  },
+  {
+    "id": 735,
+    "key": "dataTransfer.registerDescription",
+    "text": "Register"
+  },
+  {
+    "id": 736,
+    "key": "dataTransfer.registerIdDescription",
+    "text": "Register Id"
+  },
+  {
+    "id": 737,
+    "key": "dataTransfer.registerSelectDescription",
+    "text": "Register Select"
+  },
+  {
+    "id": 738,
+    "key": "dataTransfer.registerSelectIdPassword",
+    "text": "Register Select Id Password"
+  },
+  {
+    "id": 739,
+    "key": "dataTransfer.registerSelectWarning",
+    "text": "Register Select Warning"
+  },
+  {
+    "id": 740,
+    "key": "dataTransfer.registerSettingDescription",
+    "text": "Register Setting"
+  },
+  {
+    "id": 741,
+    "key": "dataTransfer.resetDescription",
+    "text": "Reset"
+  },
+  {
+    "id": 742,
+    "key": "dataTransfer.resetWarning",
+    "text": "Reset Warning"
+  },
+  {
+    "id": 743,
+    "key": "dataTransfer.resultCopy",
+    "text": "Result Copy"
+  },
+  {
+    "id": 744,
+    "key": "dataTransfer.resultOnceOnly",
+    "text": "Result Once Only"
+  },
+  {
+    "id": 745,
+    "key": "dataTransfer.selectGameCenter",
+    "text": "Select Game Center"
+  },
+  {
+    "id": 746,
+    "key": "dataUsage.buttonText",
+    "text": "Button"
+  },
+  {
+    "id": 747,
+    "key": "dataUsage.mainMessage",
+    "text": "Main"
+  },
+  {
+    "id": 748,
+    "key": "dataUsage.privacyPolicy",
+    "text": "Privacy Policy"
+  },
+  {
+    "id": 749,
+    "key": "dataUsage.subMessage",
+    "text": "Sub"
+  },
+  {
+    "id": 750,
+    "key": "dataUsage.subTitle",
+    "text": "Sub"
+  },
+  {
+    "id": 751,
+    "key": "disc.swapTitle",
+    "text": "Swap discs"
+  },
+  {
+    "id": 752,
+    "key": "download.confirmDescription",
+    "text": "Download the latest game data?"
+  },
+  {
+    "id": 753,
+    "key": "download.downloading",
+    "text": "Downloading..."
+  },
+  {
+    "id": 754,
+    "key": "download.downloadingAttention",
+    "text": "Please do not close the app while downloading."
+  },
+  {
+    "id": 755,
+    "key": "download.recommendWifi",
+    "text": "A Wi-Fi connection is recommended."
+  },
+  {
+    "id": 756,
+    "key": "endOfService.message",
+    "text": "Message"
+  },
+  {
+    "id": 757,
+    "key": "exchange.attention",
+    "text": "Attention"
+  },
+  {
+    "id": 758,
+    "key": "exchange.endTime",
+    "text": "End Time"
+  },
+  {
+    "id": 759,
+    "key": "exchangeConfirm.button",
+    "text": "Button"
+  },
+  {
+    "id": 760,
+    "key": "exchangeInfo.attention",
+    "text": "Attention"
+  },
+  {
+    "id": 761,
+    "key": "exchangeInfo.message",
+    "text": "Message"
+  },
+  {
+    "id": 762,
+    "key": "exchangeInfo.message2",
+    "text": "Message2"
+  },
+  {
+    "id": 763,
+    "key": "exchangeInfo.message3",
+    "text": "Message3"
+  },
+  {
+    "id": 764,
+    "key": "exchangeRefresh.button",
+    "text": "Button"
+  },
+  {
+    "id": 765,
+    "key": "exchangeRefresh.description",
+    "text": "Description"
+  },
+  {
+    "id": 766,
+    "key": "exchangeResult.message",
+    "text": "Message"
+  },
+  {
+    "id": 767,
+    "key": "festival.aggregate",
+    "text": "Aggregate"
+  },
+  {
+    "id": 768,
+    "key": "festival.aggregateClose",
+    "text": "Aggregate Close"
+  },
+  {
+    "id": 769,
+    "key": "festival.detailEmpty",
+    "text": "Detail Empty"
+  },
+  {
+    "id": 770,
+    "key": "festival.detailTeam",
+    "text": "Detail Team"
+  },
+  {
+    "id": 771,
+    "key": "festival.festivalPoint",
+    "text": "Festival Point"
+  },
+  {
+    "id": 772,
+    "key": "festival.getFestivalPoint",
+    "text": "Get Festival Point"
+  },
+  {
+    "id": 773,
+    "key": "festival.joinTeam",
+    "text": "Join Team"
+  },
+  {
+    "id": 774,
+    "key": "festival.missionValue",
+    "text": "Mission Value"
+  },
+  {
+    "id": 775,
+    "key": "festival.pointRatio",
+    "text": "Point Ratio"
+  },
+  {
+    "id": 776,
+    "key": "festival.pointRatioIfWin",
+    "text": "Point Ratio If Win"
+  },
+  {
+    "id": 777,
+    "key": "festival.presentMessage",
+    "text": "Present"
+  },
+  {
+    "id": 778,
+    "key": "festival.rankerMatchClose",
+    "text": "Ranker Match Close"
+  },
+  {
+    "id": 779,
+    "key": "festival.resultDraw",
+    "text": "Result Draw"
+  },
+  {
+    "id": 780,
+    "key": "festival.resultMessage",
+    "text": "Result"
+  },
+  {
+    "id": 781,
+    "key": "festival.resultPoint",
+    "text": "Result Point"
+  },
+  {
+    "id": 782,
+    "key": "festival.resultVote",
+    "text": "Result Vote"
+  },
+  {
+    "id": 783,
+    "key": "festival.ruleTitle",
+    "text": "Rule"
+  },
+  {
+    "id": 784,
+    "key": "filter.attribute",
+    "text": "Attribute"
+  },
+  {
+    "id": 785,
+    "key": "filter.rarity",
+    "text": "Rarity"
+  },
+  {
+    "id": 786,
+    "key": "filter.title",
+    "text": "Filter"
+  },
+  {
+    "id": 787,
+    "key": "filter.type",
+    "text": "Type"
+  },
+  {
+    "id": 788,
+    "key": "friendMatch.InviteAndCreateTeamTitle",
+    "text": "Invite And Create Team"
+  },
+  {
+    "id": 789,
+    "key": "friendMatch.allowAdditionalInvitation",
+    "text": "Allow Additional Invitation"
+  },
+  {
+    "id": 790,
+    "key": "friendMatch.invitationList",
+    "text": "Invitation List"
+  },
+  {
+    "id": 791,
+    "key": "friendMatch.invitationNotice",
+    "text": "Invitation Notice"
+  },
+  {
+    "id": 792,
+    "key": "friendMatch.inviteFriend",
+    "text": "Invite Friend"
+  },
+  {
+    "id": 793,
+    "key": "friendMatch.join",
+    "text": "Join"
+  },
+  {
+    "id": 794,
+    "key": "friendMatch.noInvitation",
+    "text": "No Invitation"
+  },
+  {
+    "id": 795,
+    "key": "friendMatch.noOnlineFriend",
+    "text": "No Online Friend"
+  },
+  {
+    "id": 796,
+    "key": "gacha.battleRankDiscProvisionRate",
+    "text": "Drop rates"
+  },
+  {
+    "id": 797,
+    "key": "gacha.discFragmentGet",
+    "text": "Disc fragments obtained"
+  },
+  {
+    "id": 798,
+    "key": "gacha.discSystem",
+    "text": "About discs"
+  },
+  {
+    "id": 799,
+    "key": "gacha.newDisc",
+    "text": "NEW"
+  },
+  {
+    "id": 800,
+    "key": "gachaDetail.attension",
+    "text": "Attension"
+  },
+  {
+    "id": 801,
+    "key": "gachaDetail.discForce",
+    "text": "Disc Force"
+  },
+  {
+    "id": 802,
+    "key": "gachaDetail.enableGetKicker",
+    "text": "Enable Get Kicker"
+  },
+  {
+    "id": 803,
+    "key": "gachaDetail.getKickerTitle",
+    "text": "Get Kicker"
+  },
+  {
+    "id": 804,
+    "key": "gachaDetail.newDisc",
+    "text": "New Disc"
+  },
+  {
+    "id": 805,
+    "key": "gachaDetail.rankAppearance",
+    "text": "Rank Appearance"
+  },
+  {
+    "id": 806,
+    "key": "gachaDetail.rarityAppearance",
+    "text": "Rarity Appearance"
+  },
+  {
+    "id": 807,
+    "key": "game.crystalLost",
+    "text": "Crystals lost"
+  },
+  {
+    "id": 808,
+    "key": "gear.analysisDetail",
+    "text": "Analysis details"
+  },
+  {
+    "id": 809,
+    "key": "gear.analysisExecute",
+    "text": "Analyse"
+  },
+  {
+    "id": 810,
+    "key": "gear.analysisSet",
+    "text": "Analyse"
+  },
+  {
+    "id": 811,
+    "key": "gear.bonus",
+    "text": "Gear bonus"
+  },
+  {
+    "id": 812,
+    "key": "gear.bonusDescription",
+    "text": "Same-color gear grants a bonus."
+  },
+  {
+    "id": 813,
+    "key": "gear.deleteDescription",
+    "text": "Delete this gear?"
+  },
+  {
+    "id": 814,
+    "key": "gear.overrideDescription",
+    "text": "Replace the equipped gear?"
+  },
+  {
+    "id": 815,
+    "key": "gear.setConfirm",
+    "text": "Equip this gear?"
+  },
+  {
+    "id": 816,
+    "key": "gear.setCostumeTitle",
+    "text": "Choose a costume"
+  },
+  {
+    "id": 817,
+    "key": "gear.setExecute",
+    "text": "Equip"
+  },
+  {
+    "id": 818,
+    "key": "gear.setPositionTitle",
+    "text": "Choose a slot"
+  },
+  {
+    "id": 819,
+    "key": "gearColorType.blue",
+    "text": "Blue"
+  },
+  {
+    "id": 820,
+    "key": "gearColorType.green",
+    "text": "Green"
+  },
+  {
+    "id": 821,
+    "key": "gearColorType.red",
+    "text": "Red"
+  },
+  {
+    "id": 822,
+    "key": "gearColorType.white",
+    "text": "White"
+  },
+  {
+    "id": 823,
+    "key": "gearColorType.yellow",
+    "text": "Yellow"
+  },
+  {
+    "id": 824,
+    "key": "kickerar.detection",
+    "text": "Detection"
+  },
+  {
+    "id": 825,
+    "key": "kickerar.manipulate",
+    "text": "Manipulate"
+  },
+  {
+    "id": 826,
+    "key": "kickerar.tapPlane",
+    "text": "Tap Plane"
+  },
+  {
+    "id": 827,
+    "key": "language.change",
+    "text": "Change language"
+  },
+  {
+    "id": 828,
+    "key": "languageChangeConfirm.description",
+    "text": "Change the language? The game will restart."
+  },
+  {
+    "id": 829,
+    "key": "mission.clearMessage",
+    "text": "Mission complete!"
+  },
+  {
+    "id": 830,
+    "key": "missionListType.badge",
+    "text": "Badge"
+  },
+  {
+    "id": 831,
+    "key": "missionListType.daily",
+    "text": "Daily"
+  },
+  {
+    "id": 832,
+    "key": "missionListType.festival",
+    "text": "Festival"
+  },
+  {
+    "id": 833,
+    "key": "missionListType.limited",
+    "text": "Limited"
+  },
+  {
+    "id": 834,
+    "key": "missionListType.none",
+    "text": "None"
+  },
+  {
+    "id": 835,
+    "key": "missionListType.season",
+    "text": "Season"
+  },
+  {
+    "id": 836,
+    "key": "pickUp.empty",
+    "text": "Empty"
+  },
+  {
+    "id": 837,
+    "key": "playerNameInput.placeholder",
+    "text": "Placeholder"
+  },
+  {
+    "id": 838,
+    "key": "poseDirectionType.default",
+    "text": "Default"
+  },
+  {
+    "id": 839,
+    "key": "poseDirectionType.down",
+    "text": "Down"
+  },
+  {
+    "id": 840,
+    "key": "poseDirectionType.left",
+    "text": "Left"
+  },
+  {
+    "id": 841,
+    "key": "poseDirectionType.right",
+    "text": "Right"
+  },
+  {
+    "id": 842,
+    "key": "poseDirectionType.up",
+    "text": "Up"
+  },
+  {
+    "id": 843,
+    "key": "present.countAttention",
+    "text": "Up to {0} presents"
+  },
+  {
+    "id": 844,
+    "key": "present.empty",
+    "text": "No presents"
+  },
+  {
+    "id": 845,
+    "key": "present.limitAttention",
+    "text": "Some presents expire soon"
+  },
+  {
+    "id": 846,
+    "key": "presentListType.history",
+    "text": "History"
+  },
+  {
+    "id": 847,
+    "key": "presentListType.limited",
+    "text": "Limited"
+  },
+  {
+    "id": 848,
+    "key": "presentListType.none",
+    "text": "None"
+  },
+  {
+    "id": 849,
+    "key": "presentListType.unlimited",
+    "text": "Unlimited"
+  },
+  {
+    "id": 850,
+    "key": "purchaseAlert.button",
+    "text": "Button"
+  },
+  {
+    "id": 851,
+    "key": "qr.attention",
+    "text": "Attention"
+  },
+  {
+    "id": 852,
+    "key": "qr.create",
+    "text": "Create"
+  },
+  {
+    "id": 853,
+    "key": "qr.description",
+    "text": "Description"
+  },
+  {
+    "id": 854,
+    "key": "qr.readQR",
+    "text": "Read QR"
+  },
+  {
+    "id": 855,
+    "key": "qr.readerDescription",
+    "text": "Reader"
+  },
+  {
+    "id": 856,
+    "key": "qr.readerTitle",
+    "text": "Reader"
+  },
+  {
+    "id": 857,
+    "key": "qr.selectDescription",
+    "text": "Select"
+  },
+  {
+    "id": 858,
+    "key": "rankerMatch.open",
+    "text": "Open"
+  },
+  {
+    "id": 859,
+    "key": "rankerMatch.ruleUpdate",
+    "text": "Rule Update"
+  },
+  {
+    "id": 860,
+    "key": "rankerMatch.warning",
+    "text": "Warning"
+  },
+  {
+    "id": 861,
+    "key": "ranking.buttonReward",
+    "text": "Button Reward"
+  },
+  {
+    "id": 862,
+    "key": "ranking.follow",
+    "text": "Follow"
+  },
+  {
+    "id": 863,
+    "key": "ranking.local",
+    "text": "Local"
+  },
+  {
+    "id": 864,
+    "key": "ranking.personal",
+    "text": "Personal"
+  },
+  {
+    "id": 865,
+    "key": "ranking.world",
+    "text": "World"
+  },
+  {
+    "id": 866,
+    "key": "rankingResult.buttonRanking",
+    "text": "Button Ranking"
+  },
+  {
+    "id": 867,
+    "key": "rankingResult.message",
+    "text": "Message"
+  },
+  {
+    "id": 868,
+    "key": "rankingReward.attentionMessage",
+    "text": "Attention"
+  },
+  {
+    "id": 869,
+    "key": "rankingReward.attentionTitle",
+    "text": "Attention"
+  },
+  {
+    "id": 870,
+    "key": "rankingReward.buttonPoint",
+    "text": "Button Point"
+  },
+  {
+    "id": 871,
+    "key": "rankingReward.getTitle",
+    "text": "Get"
+  },
+  {
+    "id": 872,
+    "key": "rankingReward.message",
+    "text": "Message"
+  },
+  {
+    "id": 873,
+    "key": "rankingReward.pointMessage",
+    "text": "Point"
+  },
+  {
+    "id": 874,
+    "key": "rankingReward.title",
+    "text": "Title"
+  },
+  {
+    "id": 875,
+    "key": "rarity.all",
+    "text": "All"
+  },
+  {
+    "id": 876,
+    "key": "realFriend.captionTitle",
+    "text": "Caption"
+  },
+  {
+    "id": 877,
+    "key": "realFriend.detailDescription",
+    "text": "Detail"
+  },
+  {
+    "id": 878,
+    "key": "realFriend.rewardGetTitle",
+    "text": "Reward Get"
+  },
+  {
+    "id": 879,
+    "key": "realFriend.rewardNotesFormat",
+    "text": "Reward Notes {0}"
+  },
+  {
+    "id": 880,
+    "key": "realFriend.warningDescription",
+    "text": "Warning"
+  },
+  {
+    "id": 881,
+    "key": "realFriend.warningTitle",
+    "text": "Warning"
+  },
+  {
+    "id": 882,
+    "key": "rebate.amountOfPaidJetCoin",
+    "text": "Amount Of Paid Jet Coin"
+  },
+  {
+    "id": 883,
+    "key": "rebate.buttonText",
+    "text": "Button"
+  },
+  {
+    "id": 884,
+    "key": "rebate.infoCopy",
+    "text": "Info Copy"
+  },
+  {
+    "id": 885,
+    "key": "rebate.message1",
+    "text": "Message1"
+  },
+  {
+    "id": 886,
+    "key": "rebate.message3",
+    "text": "Message3"
+  },
+  {
+    "id": 887,
+    "key": "rebate.noUserId",
+    "text": "No User Id"
+  },
+  {
+    "id": 888,
+    "key": "rebate.userId",
+    "text": "User Id"
+  },
+  {
+    "id": 889,
+    "key": "replay.empty",
+    "text": "No replays"
+  },
+  {
+    "id": 890,
+    "key": "replay.invalidVersionAnnounce",
+    "text": "This replay was recorded with another version."
+  },
+  {
+    "id": 891,
+    "key": "replay.zip",
+    "text": "Zip"
+  },
+  {
+    "id": 892,
+    "key": "replayReward.attention",
+    "text": "Attention"
+  },
+  {
+    "id": 893,
+    "key": "replayReward.publishChannel",
+    "text": "Publish Channel"
+  },
+  {
+    "id": 894,
+    "key": "replayReward.publishReward",
+    "text": "Publish Reward"
+  },
+  {
+    "id": 895,
+    "key": "replayReward.subMessage",
+    "text": "Sub"
+  },
+  {
+    "id": 896,
+    "key": "result.regularEndRankMessage",
+    "text": "Rank"
+  },
+  {
+    "id": 897,
+    "key": "review.androidButton",
+    "text": "Rate on Google Play"
+  },
+  {
+    "id": 898,
+    "key": "review.androidMessage1",
+    "text": "Enjoying Kick-Flight?"
+  },
+  {
+    "id": 899,
+    "key": "review.androidMessage2",
+    "text": "A review would help us a lot!"
+  },
+  {
+    "id": 900,
+    "key": "roleType.attack",
+    "text": "Attack"
+  },
+  {
+    "id": 901,
+    "key": "roleType.speed",
+    "text": "Speed"
+  },
+  {
+    "id": 902,
+    "key": "roleType.support",
+    "text": "Support"
+  },
+  {
+    "id": 903,
+    "key": "roleType.tank",
+    "text": "Tank"
+  },
+  {
+    "id": 904,
+    "key": "seasonEnd.message",
+    "text": "Message"
+  },
+  {
+    "id": 905,
+    "key": "seasonPassDetail.attention",
+    "text": "Attention"
+  },
+  {
+    "id": 906,
+    "key": "seasonPassDetail.message",
+    "text": "Message"
+  },
+  {
+    "id": 907,
+    "key": "seasonPassGuide.button",
+    "text": "Button"
+  },
+  {
+    "id": 908,
+    "key": "seasonPassGuide.message",
+    "text": "Message"
+  },
+  {
+    "id": 909,
+    "key": "setting.battle",
+    "text": "Battle"
+  },
+  {
+    "id": 910,
+    "key": "setting.battleControlDefault",
+    "text": "Default"
+  },
+  {
+    "id": 911,
+    "key": "setting.battleControlReverse",
+    "text": "Reversed"
+  },
+  {
+    "id": 912,
+    "key": "setting.dominantLeftHand",
+    "text": "Left-handed"
+  },
+  {
+    "id": 913,
+    "key": "setting.dominantRightHand",
+    "text": "Right-handed"
+  },
+  {
+    "id": 914,
+    "key": "setting.execute",
+    "text": "Apply"
+  },
+  {
+    "id": 915,
+    "key": "setting.exit",
+    "text": "Quit"
+  },
+  {
+    "id": 916,
+    "key": "setting.exitReplay",
+    "text": "Quit replay"
+  },
+  {
+    "id": 917,
+    "key": "setting.exitReplayTitle",
+    "text": "Quit replay?"
+  },
+  {
+    "id": 918,
+    "key": "setting.exitTraining",
+    "text": "Quit training"
+  },
+  {
+    "id": 919,
+    "key": "setting.exitTrainingTitle",
+    "text": "Quit training?"
+  },
+  {
+    "id": 920,
+    "key": "setting.exitTrial",
+    "text": "Quit trial"
+  },
+  {
+    "id": 921,
+    "key": "setting.exitTrialTitle",
+    "text": "Quit trial?"
+  },
+  {
+    "id": 922,
+    "key": "setting.exitTutorial",
+    "text": "Quit tutorial"
+  },
+  {
+    "id": 923,
+    "key": "setting.exitTutorialTitle",
+    "text": "Quit tutorial?"
+  },
+  {
+    "id": 924,
+    "key": "setting.graphics",
+    "text": "Graphics"
+  },
+  {
+    "id": 925,
+    "key": "setting.graphicsCustom",
+    "text": "Custom"
+  },
+  {
+    "id": 926,
+    "key": "setting.graphicsHigh",
+    "text": "High"
+  },
+  {
+    "id": 927,
+    "key": "setting.graphicsLow",
+    "text": "Low"
+  },
+  {
+    "id": 928,
+    "key": "setting.graphicsMiddle",
+    "text": "Medium"
+  },
+  {
+    "id": 929,
+    "key": "setting.sound",
+    "text": "Sound"
+  },
+  {
+    "id": 930,
+    "key": "setting.textChat",
+    "text": "Text chat"
+  },
+  {
+    "id": 931,
+    "key": "setting.title",
+    "text": "Settings"
+  },
+  {
+    "id": 932,
+    "key": "setting.trialSettingTitle",
+    "text": "Trial settings"
+  },
+  {
+    "id": 933,
+    "key": "shop.exchangeDiscFragmentDescription",
+    "text": "Exchange fragments for discs"
+  },
+  {
+    "id": 934,
+    "key": "shop.exchangeDiscFragmentEmpty",
+    "text": "No disc fragments"
+  },
+  {
+    "id": 935,
+    "key": "shop.exchangeDiscFragmentPrecautions",
+    "text": "Fragments cannot be refunded."
+  },
+  {
+    "id": 936,
+    "key": "shop.limitAttentionMessage",
+    "text": "Limited-time offer"
+  },
+  {
+    "id": 937,
+    "key": "shop.stampGet",
+    "text": "Stamp obtained"
+  },
+  {
+    "id": 938,
+    "key": "skillCategoryType.attack",
+    "text": "ATK"
+  },
+  {
+    "id": 939,
+    "key": "skillCategoryType.buff",
+    "text": "BUFF"
+  },
+  {
+    "id": 940,
+    "key": "skillCategoryType.heal",
+    "text": "HEAL"
+  },
+  {
+    "id": 941,
+    "key": "skillCategoryType.move",
+    "text": "MOVE"
+  },
+  {
+    "id": 942,
+    "key": "skillCategoryType.trap",
+    "text": "TRAP"
+  },
+  {
+    "id": 943,
+    "key": "skillCategoryType.warp",
+    "text": "WARP"
+  },
+  {
+    "id": 944,
+    "key": "social.friendSettingDescription",
+    "text": "Friend Setting"
+  },
+  {
+    "id": 945,
+    "key": "social.inviteFriend",
+    "text": "Invite Friend"
+  },
+  {
+    "id": 946,
+    "key": "social.inviteLine",
+    "text": "Invite Line"
+  },
+  {
+    "id": 947,
+    "key": "social.twitterAccountLinkDescription",
+    "text": "Twitter Account Link"
+  },
+  {
+    "id": 948,
+    "key": "socialGiftee.attention",
+    "text": "Attention"
+  },
+  {
+    "id": 949,
+    "key": "socialGiftee.attentionTitle",
+    "text": "Attention"
+  },
+  {
+    "id": 950,
+    "key": "socialGiftee.dowbleChance",
+    "text": "Dowble Chance"
+  },
+  {
+    "id": 951,
+    "key": "socialGiftee.dowbleChanceEnable",
+    "text": "Double Chance Enable"
+  },
+  {
+    "id": 952,
+    "key": "socialGiftee.dowbleChanceStep",
+    "text": "Double Chance Step"
+  },
+  {
+    "id": 953,
+    "key": "socialGiftee.footer",
+    "text": "Footer"
+  },
+  {
+    "id": 954,
+    "key": "socialGiftee.footerReward",
+    "text": "Footer Reward"
+  },
+  {
+    "id": 955,
+    "key": "socialGiftee.getStep",
+    "text": "Get Step"
+  },
+  {
+    "id": 956,
+    "key": "socialGiftee.getStepTitle",
+    "text": "Get Step"
+  },
+  {
+    "id": 957,
+    "key": "socialGiftee.message1",
+    "text": "Message1"
+  },
+  {
+    "id": 958,
+    "key": "socialGiftee.message2",
+    "text": "Message2"
+  },
+  {
+    "id": 959,
+    "key": "socialGiftee.qr",
+    "text": "QR"
+  },
+  {
+    "id": 960,
+    "key": "socialGiftee.title1",
+    "text": "Title1"
+  },
+  {
+    "id": 961,
+    "key": "socialGiftee.title2",
+    "text": "Title2"
+  },
+  {
+    "id": 962,
+    "key": "socialGiftee.tweetAttention",
+    "text": "Tweet Attention"
+  },
+  {
+    "id": 963,
+    "key": "socialGiftee.tweetButton",
+    "text": "Tweet Button"
+  },
+  {
+    "id": 964,
+    "key": "socialGiftee.tweetTag",
+    "text": "Tweet Tag"
+  },
+  {
+    "id": 965,
+    "key": "sort.amount",
+    "text": "Owned"
+  },
+  {
+    "id": 966,
+    "key": "sort.attack",
+    "text": "ATK"
+  },
+  {
+    "id": 967,
+    "key": "sort.default",
+    "text": "Default"
+  },
+  {
+    "id": 968,
+    "key": "sort.displayOrder",
+    "text": "Order"
+  },
+  {
+    "id": 969,
+    "key": "sort.hp",
+    "text": "HP"
+  },
+  {
+    "id": 970,
+    "key": "sort.level",
+    "text": "Lv"
+  },
+  {
+    "id": 971,
+    "key": "sort.rarity",
+    "text": "Rarity"
+  },
+  {
+    "id": 972,
+    "key": "sort.switchTitle",
+    "text": "Sort"
+  },
+  {
+    "id": 973,
+    "key": "sortType.amount",
+    "text": "Owned"
+  },
+  {
+    "id": 974,
+    "key": "sortType.attack",
+    "text": "ATK"
+  },
+  {
+    "id": 975,
+    "key": "sortType.coolTime",
+    "text": "Cooldown"
+  },
+  {
+    "id": 976,
+    "key": "sortType.default",
+    "text": "Default"
+  },
+  {
+    "id": 977,
+    "key": "sortType.get",
+    "text": "Obtained"
+  },
+  {
+    "id": 978,
+    "key": "sortType.hp",
+    "text": "HP"
+  },
+  {
+    "id": 979,
+    "key": "sortType.kickerCompatibility",
+    "text": "Kicker match"
+  },
+  {
+    "id": 980,
+    "key": "sortType.level",
+    "text": "Lv"
+  },
+  {
+    "id": 981,
+    "key": "sortType.rarity",
+    "text": "Rarity"
+  },
+  {
+    "id": 982,
+    "key": "stamp.empty",
+    "text": "Empty"
+  },
+  {
+    "id": 983,
+    "key": "trial.title",
+    "text": "Trial"
+  },
+  {
+    "id": 984,
+    "key": "tutorial.graphicSettingDescription",
+    "text": "You can change the graphics quality in Settings."
+  },
+  {
+    "id": 985,
+    "key": "tutorial.usm",
+    "text": "Usm"
+  },
+  {
+    "id": 986,
+    "key": "tutorialMovie.button",
+    "text": "Button"
+  },
+  {
+    "id": 987,
+    "key": "tutorialMovie.replay",
+    "text": "Replay"
+  },
+  {
+    "id": 988,
+    "key": "type.all",
+    "text": "All"
+  },
+  {
+    "id": 989,
+    "key": "type.attack",
+    "text": "ATK"
+  },
+  {
+    "id": 990,
+    "key": "type.buff",
+    "text": "BUFF"
+  },
+  {
+    "id": 991,
+    "key": "type.heal",
+    "text": "HEAL"
+  },
+  {
+    "id": 992,
+    "key": "type.move",
+    "text": "MOVE"
+  },
+  {
+    "id": 993,
+    "key": "type.trap",
+    "text": "TRAP"
+  },
+  {
+    "id": 994,
+    "key": "type.warp",
+    "text": "WARP"
+  },
+  {
+    "id": 995,
+    "key": "weaponType.bat",
+    "text": "Bat"
+  },
+  {
+    "id": 996,
+    "key": "weaponType.bowgun",
+    "text": "Bowgun"
+  },
+  {
+    "id": 997,
+    "key": "weaponType.drone",
+    "text": "Drone"
+  },
+  {
+    "id": 998,
+    "key": "weaponType.gun",
+    "text": "Gun"
+  },
+  {
+    "id": 999,
+    "key": "weaponType.hammer",
+    "text": "Hammer"
+  },
+  {
+    "id": 1000,
+    "key": "weaponType.japaneseSword",
+    "text": "Katana"
+  },
+  {
+    "id": 1001,
+    "key": "weaponType.laser",
+    "text": "Laser"
+  },
+  {
+    "id": 1002,
+    "key": "weaponType.nunchaku",
+    "text": "Nunchaku"
+  },
+  {
+    "id": 1003,
+    "key": "weaponType.punchGlove",
+    "text": "Gauntlets"
+  },
+  {
+    "id": 1004,
+    "key": "weaponType.rocketLauncher",
+    "text": "Rocket launcher"
+  },
+  {
+    "id": 1005,
+    "key": "weaponType.shield",
+    "text": "Shield"
+  },
+  {
+    "id": 1006,
+    "key": "weaponType.sword",
+    "text": "Sword"
+  },
+  {
+    "id": 1007,
+    "key": "weaponType.throwingStar",
+    "text": "Shuriken"
+  },
+  {
+    "id": 1008,
+    "key": "weaponType.twoGuns",
+    "text": "Twin guns"
+  },
+  {
+    "id": 1009,
+    "key": "setting.activeGuardian",
+    "text": "Guardian"
+  },
+  {
+    "id": 1010,
+    "key": "setting.assistKickTurn",
+    "text": "Assist kick turn"
+  },
+  {
+    "id": 1011,
+    "key": "setting.bgm",
+    "text": "BGM"
+  },
+  {
+    "id": 1012,
+    "key": "setting.dominantHand",
+    "text": "Dominant hand"
+  },
+  {
+    "id": 1013,
+    "key": "setting.enemySpMax",
+    "text": "Fill enemy SP"
+  },
+  {
+    "id": 1014,
+    "key": "setting.flickSensitivity",
+    "text": "Flick sensitivity"
+  },
+  {
+    "id": 1015,
+    "key": "setting.graphicsAntiAliasing",
+    "text": "Anti-aliasing"
+  },
+  {
+    "id": 1016,
+    "key": "setting.graphicsBloom",
+    "text": "Bloom"
+  },
+  {
+    "id": 1017,
+    "key": "setting.graphicsBlur",
+    "text": "Blur"
+  },
+  {
+    "id": 1018,
+    "key": "setting.graphicsDof",
+    "text": "Depth of field"
+  },
+  {
+    "id": 1019,
+    "key": "setting.graphicsResolutin",
+    "text": "Resolution"
+  },
+  {
+    "id": 1020,
+    "key": "setting.graphicsShadow",
+    "text": "Shadows"
+  },
+  {
+    "id": 1021,
+    "key": "setting.graphicsStencil",
+    "text": "Stencil mask"
+  },
+  {
+    "id": 1022,
+    "key": "setting.infinitySkill",
+    "text": "Infinite cooldowns"
+  },
+  {
+    "id": 1023,
+    "key": "setting.moveAttackFreeCurve",
+    "text": "Charge turn rate"
+  },
+  {
+    "id": 1024,
+    "key": "setting.reverseHorizontalFlick",
+    "text": "Reverse horizontal flick"
+  },
+  {
+    "id": 1025,
+    "key": "setting.reverseHorizontalSwipe",
+    "text": "Reverse horizontal swipe"
+  },
+  {
+    "id": 1026,
+    "key": "setting.reverseVerticalFlick",
+    "text": "Reverse vertical flick"
+  },
+  {
+    "id": 1027,
+    "key": "setting.reverseVerticalSwipe",
+    "text": "Reverse vertical swipe"
+  },
+  {
+    "id": 1028,
+    "key": "setting.se",
+    "text": "SE"
+  },
+  {
+    "id": 1029,
+    "key": "setting.swipeSensitivity",
+    "text": "Swipe sensitivity"
+  },
+  {
+    "id": 1030,
+    "key": "setting.tapLockOn",
+    "text": "Tap lock-on"
+  },
+  {
+    "id": 1031,
+    "key": "setting.vibration",
+    "text": "Vibration"
+  },
+  {
+    "id": 1032,
+    "key": "setting.voice",
+    "text": "Voice"
+  }
 ]
