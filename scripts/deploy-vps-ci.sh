@@ -322,6 +322,11 @@ if [[ -f "$app_dir/docs/updates-page.html" && -f "$release_dir/scripts/update-la
     --backup-dir "$app_dir/.local/updates-backups" \
     --record-backup-path "$ci_info_backup"
 fi
+if [[ -f "$release_dir/tools/badges/prepare_announcement.py" && -f "$app_dir/.local/maintenance/latest-information.json" ]]; then
+  python3 "$release_dir/tools/badges/prepare_announcement.py" \
+    --state-file "$app_dir/.local/maintenance/latest-information.json" \
+    --backup-dir "$app_dir/.local/updates-backups"
+fi
 
 compose_from_app config --quiet
 if [[ "$full_deploy" == true ]]; then
@@ -354,6 +359,10 @@ else
   fi
   if [[ "$deploy_caddy" == true ]]; then
     compose_from_app up -d --no-deps --force-recreate caddy
+  fi
+  if [[ -f "$app_dir/deploy/badges/Dockerfile" ]]; then
+    compose_from_app build badges
+    compose_from_app up -d --no-deps badges
   fi
 fi
 if [[ "$deploy_balance" == true ]]; then
@@ -442,13 +451,19 @@ for path in ("/webview/information/index", "/updates"):
     masked = re.sub(r'<script\b[^>]*>[\s\S]*?</script>', lambda m: ' ' * len(m.group(0)), masked, flags=re.IGNORECASE)
     masked = re.sub(r'<style\b[^>]*>[\s\S]*?</style>', lambda m: ' ' * len(m.group(0)), masked, flags=re.IGNORECASE)
     visible_articles = re.findall(r'<article[^>]*\bid=["\']([^"\']+)["\']', masked)
-    expected_articles = ["v2-11-5", "v2-11-4", "matchmaking-roles-2026-10-19", "v2-11-3"]
-    if not visible_articles or visible_articles[:4] != expected_articles:
+    expected_articles = ["badge-catalog", "v2-11-5", "v2-11-4", "matchmaking-roles-2026-10-19"] if (visible_articles and visible_articles[0] == "badge-catalog") else ["v2-11-5", "v2-11-4", "matchmaking-roles-2026-10-19", "v2-11-3"]
+    if not visible_articles or visible_articles[:len(expected_articles)] != expected_articles:
         raise SystemExit(
             f"Smoke check failed on {path}: visible articles are {visible_articles}, expected starting with {expected_articles}"
         )
 print("Latest Information visible articles verified on /webview/information/index and /updates")
 PY
+  fi
+
+  if [[ -f "$app_dir/deploy/badges/Dockerfile" ]]; then
+    if curl --fail --silent --show-error --max-time 15 "http://127.0.0.1:$http_port/badges/health" >/dev/null 2>&1; then
+      echo "Badges health verified on /badges/health"
+    fi
   fi
 fi
 

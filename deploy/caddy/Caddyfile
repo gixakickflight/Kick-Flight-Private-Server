@@ -6,6 +6,16 @@ kick-flight-fenix.us.ci {
 			header_up X-Real-IP {remote_host}
 		}
 	}
+	@badgesBackup path /badges/api/backup /badges/api/backup/*
+	handle @badgesBackup {
+		respond 404
+	}
+	@badges path /badges /badges/*
+	handle @badges {
+		reverse_proxy 127.0.0.1:8766 {
+			header_up X-Real-IP {remote_host}
+		}
+	}
 	handle {
 		reverse_proxy 127.0.0.1:18080 {
 			header_up X-Real-IP {remote_host}

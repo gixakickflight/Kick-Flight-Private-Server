@@ -1,0 +1,1754 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kick Flight Collaborative Badge Catalog</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #10141b;
+      --panel: #1b222d;
+      --panel-hover: #222c3a;
+      --line: #303b4b;
+      --muted: #aab5c5;
+      --text: #f3f6fa;
+      --accent: #57d7d0;
+      --accent-hover: #79e7e1;
+      --good: #93e5a4;
+      --warn: #ffcf83;
+      --danger: #ff8b8b;
+      --purple: #bb9af7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.5 system-ui, -apple-system, sans-serif;
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(16, 20, 27, 0.95);
+      border-bottom: 1px solid var(--line);
+      padding: 14px max(18px, calc((100vw - 1440px)/2));
+      backdrop-filter: blur(12px);
+    }
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    h1 {
+      font-size: 20px;
+      margin: 0 0 4px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .user-pill {
+      background: #111720;
+      border: 1px solid var(--line);
+      padding: 6px 12px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+    }
+    .unauth-badge {
+      background: #3b3524;
+      color: var(--warn);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    .sync-pill {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      background: #19271e;
+      color: var(--good);
+      border: 1px solid #285437;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .sync-pill.saving { background: #3b3524; color: var(--warn); border-color: #63532c; }
+    .sync-pill.offline { background: #381f24; color: var(--danger); border-color: #6a2e37; }
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+      align-items: center;
+    }
+    input[type=search], select, input[type=text], textarea {
+      font: inherit;
+      background: #111720;
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 7px 10px;
+      min-width: 0;
+    }
+    .toolbar input[type=search] { flex: 2; min-width: 220px; }
+    .toolbar select { flex: 1; min-width: 140px; }
+    button, .btn {
+      font: inherit;
+      background: #243140;
+      color: var(--text);
+      border: 1px solid #40536a;
+      border-radius: 7px;
+      padding: 7px 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    button:hover, .btn:hover {
+      background: #2f3f52;
+      border-color: var(--accent);
+    }
+    button.primary {
+      background: #184b49;
+      color: #9cf5f0;
+      border-color: #2b7774;
+    }
+    button.primary:hover {
+      background: #226462;
+    }
+    .checkbox-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .count-bar {
+      max-width: 1440px;
+      margin: 12px auto 0;
+      padding: 0 18px;
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .grid {
+      max-width: 1440px;
+      margin: 14px auto 40px;
+      padding: 0 18px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 14px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      display: grid;
+      grid-template-columns: 112px 1fr;
+      gap: 14px;
+      align-content: start;
+      position: relative;
+    }
+    .card.has-draft {
+      border-color: #8c7738;
+      box-shadow: 0 0 10px rgba(255, 207, 131, 0.1);
+    }
+    .card.has-conflict {
+      border-color: var(--danger);
+      box-shadow: 0 0 12px rgba(255, 139, 139, 0.25);
+    }
+    .art-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .art {
+      width: 112px;
+      height: 112px;
+      object-fit: contain;
+      background: #111720;
+      border-radius: 10px;
+      border: 1px solid #232c39;
+    }
+    .meta-pills {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      width: 100%;
+    }
+    .badge-id {
+      font: 700 12px ui-monospace, monospace;
+      color: #cfdae8;
+      text-align: center;
+    }
+    .pill {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      padding: 2px 6px;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 600;
+    }
+    .pill.unknown { background: #3c321a; color: var(--warn); }
+    .pill.historical { background: #1a373b; color: #8de4e2; }
+    .pill.known { background: #1c3823; color: var(--good); }
+    .pill.default { background: #322344; color: var(--purple); }
+    .pill.cat { background: #262f3d; color: var(--muted); }
+    .fields {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .field label {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 500;
+      display: flex;
+      justify-content: space-between;
+    }
+    .field textarea {
+      resize: vertical;
+      min-height: 54px;
+    }
+    .dirty-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--warn);
+      margin-left: 4px;
+    }
+    .card-footer {
+      grid-column: 1 / -1;
+      border-top: 1px solid var(--line);
+      padding-top: 10px;
+      margin-top: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--muted);
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    details.provenance {
+      grid-column: 1 / -1;
+      font-size: 11px;
+      color: var(--muted);
+      background: #141a23;
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid #232c39;
+    }
+    details.provenance summary {
+      cursor: pointer;
+      color: #9eb1c7;
+      user-select: none;
+    }
+    details.provenance pre {
+      margin: 6px 0 0;
+      white-space: pre-wrap;
+      word-break: break-all;
+      font-size: 10px;
+      color: #8da2bb;
+    }
+    .conflict-banner {
+      grid-column: 1 / -1;
+      background: #3d1c22;
+      border: 1px solid #732a35;
+      color: #ffb8b8;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    /* Modals */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(8, 10, 15, 0.85);
+      backdrop-filter: blur(6px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-overlay[hidden] { display: none !important; }
+    .modal {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      width: 100%;
+      max-width: 580px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 22px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.6);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .modal.wide { max-width: 860px; }
+    .modal h2 { margin: 0 0 6px; font-size: 18px; }
+    .modal-warning {
+      background: #2b2518;
+      border: 1px solid #63532c;
+      color: #edd89e;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .modal-reward {
+      background: #142e2b;
+      border: 1px solid #236965;
+      color: #79ece5;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .glyph-img {
+      width: 100%;
+      max-height: 60vh;
+      object-fit: contain;
+      background: #111720;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+    }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    table.data-table th, table.data-table td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+    }
+    table.data-table th { background: #141a23; color: var(--muted); }
+    table.data-table tr:nth-child(even) { background: #151b24; }
+
+    /* Alert Banner */
+    #global-alert {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      max-width: 440px;
+      z-index: 2000;
+      padding: 14px 18px;
+      border-radius: 10px;
+      font-size: 13px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border: 1px solid transparent;
+      display: none;
+      animation: slideIn 0.2s ease-out;
+    }
+    @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    #global-alert.error { background: #3d1c22; border-color: #8c3240; color: #ffd6d6; }
+    #global-alert.warn { background: #3a2e16; border-color: #82662c; color: #ffebbc; }
+    #global-alert.success { background: #193322; border-color: #2f6942; color: #d1f7dc; }
+
+    @media (max-width: 650px) {
+      .grid { grid-template-columns: 1fr; padding: 0 10px; }
+      .card { grid-template-columns: 96px 1fr; }
+      .art { width: 96px; height: 96px; }
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    .lang-select {
+      background: #19222e;
+      color: var(--text);
+      border: 1px solid var(--accent);
+      border-radius: 7px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .lang-select:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <div>
+      <h1 id="txt-app-title">Kick Flight Collaborative Badge Catalog</h1>
+      <p class="subtitle" id="txt-app-subtitle">Community restoration of all 211 badges. English-first catalog with attribution and versioning.</p>
+    </div>
+    <div class="header-right">
+      <div class="user-pill">
+        <span id="txt-contributor-lbl">Contributor</span>: <strong id="current-player-name">Guest</strong>
+        <span class="unauth-badge" id="txt-unauth-pill">Unauthenticated</span>
+        <button id="btn-change-name" style="padding: 2px 7px; font-size: 11px;" aria-label="Change contributor player name">Change</button>
+      </div>
+      <div id="sync-pill" class="sync-pill">
+        <span class="dot">●</span> <span id="sync-text">Synced</span>
+      </div>
+      <div class="lang-selector-wrap" style="display:inline-flex; align-items:center; gap:6px;">
+        <label for="lang-select" class="sr-only" id="lbl-lang-select">Language / Idioma</label>
+        <select id="lang-select" class="lang-select" aria-label="Language selector / Selector de idioma">
+          <option value="en">English</option>
+          <option value="es">Español</option>
+        </select>
+        <select id="langSelect" class="sr-only" aria-hidden="true" tabindex="-1">
+          <option value="en">English</option>
+          <option value="es">Español</option>
+        </select>
+        <button id="btn-toggle-lang" class="btn" aria-label="Toggle language / Cambiar idioma">Español</button>
+      </div>
+      <button id="btn-glyph" class="btn" aria-label="Open alien glyph key reference">🔤 Glyph Key</button>
+      <button id="btn-unmapped" class="btn" aria-label="Open unmapped guide requirements notes">📋 Guide Notes</button>
+      <button id="btn-contributors" class="btn" aria-label="Open contributors list and reward details">👥 Contributors</button>
+      <a id="link-announcements" class="btn" href="/updates" target="_blank" rel="noopener" style="text-decoration:none;" aria-label="Open updates and patch notes announcements"><span id="txt-announcements-link">📢 Announcements</span></a>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <input id="search-input" type="search" placeholder="Search by ID, name, or condition..." aria-label="Search badges by ID, name, or condition">
+    <label for="filter-category" class="sr-only" id="lbl-filter-category">Category</label>
+    <select id="filter-category" aria-label="Filter badges by category">
+      <option value="">All Categories</option>
+      <option value="0">Other (0)</option>
+      <option value="1">Battle (1)</option>
+      <option value="2">Kicker (2)</option>
+    </select>
+    <label for="filter-status" class="sr-only" id="lbl-filter-status">Status</label>
+    <select id="filter-status" aria-label="Filter badges by status">
+      <option value="">All Statuses</option>
+      <option value="default">Default</option>
+      <option value="known">Known</option>
+      <option value="historical">Historical</option>
+      <option value="unknown">Unknown</option>
+    </select>
+    <label class="checkbox-label">
+      <input type="checkbox" id="filter-edited" aria-label="Show only badges with edits"> <span id="txt-filter-edited">Show Edited Only</span>
+    </label>
+  </div>
+</header>
+
+<div class="count-bar">
+  <span id="badge-count-text">Loading badges...</span>
+  <span id="server-time-text"></span>
+</div>
+
+<main id="badge-grid" class="grid"></main>
+
+<!-- Contributor Name Modal -->
+<div id="modal-contributor" class="modal-overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-contributor-title">
+    <h2 id="modal-contributor-title">Kick Flight Contributor Name</h2>
+    <p id="modal-contributor-desc">Please enter your Kick Flight player name to attribute your edits in the collaborative catalog.</p>
+    <div class="modal-reward" id="modal-contributor-reward">
+      🎁 Exclusive Contributor Badge: Active contributors receive an exclusive in-game badge! Rewards are delivered manually by administrators based on your exact player name (no automated granting).
+    </div>
+    <div class="modal-warning" id="modal-contributor-warning">
+      ⚠️ Note: This self-entered name is NOT authenticated or verified against your Kick Flight account or password. Anyone can enter any display name; it is used solely to record who suggested each edit in the public audit log.
+    </div>
+    <div class="field">
+      <input type="text" id="input-player-name" maxlength="32" placeholder="Player name (1-32 chars)" aria-label="Player name (1-32 chars)">
+    </div>
+    <div class="modal-footer">
+      <button id="btn-save-player" class="primary">Continue to Catalog</button>
+    </div>
+  </div>
+</div>
+
+<!-- Glyph Key Modal -->
+<div id="modal-glyph" class="modal-overlay" hidden>
+  <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="modal-glyph-title">
+    <h2 id="modal-glyph-title">Kick Flight Glyph Key Reference</h2>
+    <p class="subtitle" id="modal-glyph-sub">Reference sheet mapping in-game alien glyph shapes to standard alphanumeric characters (A-Z).</p>
+    <p style="font-size: 12px; color: var(--muted);" id="modal-glyph-desc">
+      This reference was decoded from the original game textures and sprite assets. Use it to decipher the stylized writing on badge banners and ribbons.
+    </p>
+    <img id="img-glyph" class="glyph-img" alt="Kick Flight Glyph Key Reference">
+    <div class="modal-footer">
+      <button id="btn-close-glyph" aria-label="Close dialog">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Unmapped Requirements Modal -->
+<div id="modal-unmapped" class="modal-overlay" hidden>
+  <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="modal-unmapped-title">
+    <h2 id="modal-unmapped-title">Historical Guide Unmapped Requirements</h2>
+    <p style="font-size: 12px; color: var(--muted);" id="modal-unmapped-desc">
+      These 14 requirements were transcribed from the historical RAR Japanese game guide (rar-games.jp). Their original badge IDs are unconfirmed. Match these conditions to unknown badges when visual evidence aligns.
+    </p>
+    <div style="overflow-x: auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th id="th-unmapped-title">Transcribed Title</th>
+            <th id="th-unmapped-cond">Condition</th>
+            <th id="th-unmapped-note">Reference Notes</th>
+          </tr>
+        </thead>
+        <tbody id="unmapped-table-body"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button id="btn-close-unmapped" aria-label="Close dialog">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Audit History Modal -->
+<div id="modal-history" class="modal-overlay" hidden>
+  <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="modal-history-title">
+    <h2 id="modal-history-title">Badge Edit History</h2>
+    <div style="overflow-x: auto; max-height: 50vh;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th id="th-history-time">Timestamp</th>
+            <th id="th-history-player">Contributor</th>
+            <th id="th-history-field">Field</th>
+            <th id="th-history-old">Previous Value</th>
+            <th id="th-history-new">New Value</th>
+            <th id="th-history-version">Version</th>
+          </tr>
+        </thead>
+        <tbody id="history-table-body"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button id="btn-close-history" aria-label="Close dialog">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Contributors Leaderboard & Review Modal -->
+<div id="modal-contributors" class="modal-overlay" hidden>
+  <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="modal-contrib-title">
+    <h2 id="modal-contrib-title">Badge Catalog Contributors & Rewards</h2>
+    <div class="modal-reward" id="modal-contrib-desc">
+      🎁 Active contributors receive an exclusive in-game badge! Rewards are delivered manually by administrators based on your exact player name provided during edits (no automated granting).
+    </div>
+    <div style="overflow-x: auto; max-height: 50vh; margin-top: 10px;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th id="th-contrib-player">Player Name</th>
+            <th id="th-contrib-edits">Total Edits</th>
+            <th id="th-contrib-badges">Badges</th>
+            <th id="th-contrib-last">Last Active</th>
+          </tr>
+        </thead>
+        <tbody id="contrib-table-body"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer" style="justify-content: space-between;">
+      <a id="btn-contrib-export" class="btn" href="/badges/api/contributors?format=csv" download="kickflight_badge_contributors.csv" style="text-decoration:none; display:inline-flex; align-items:center;" aria-label="Download contributors list as CSV file">Download CSV</a>
+      <button id="btn-close-contributors" aria-label="Close dialog">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Global Alert Toast -->
+<div id="global-alert"></div>
+
+<script src="/badges/i18n.js"></script>
+<script>
+(() => {
+  // Application State
+  const state = {
+    badges: [],
+    badgeMap: new Map(),
+    unmapped: [],
+    glyphImage: "",
+    playerName: "",
+    lang: getStoredLanguage(),
+    serverTime: null,
+    pollTimer: null,
+    pollIntervalMs: 30000, // 30 seconds poll
+    drafts: {}, // { [badgeId]: { name, description, requirements, notes, baseVersion } }
+    conflicts: {}, // { [badgeId]: { serverVersion, serverFields } }
+    syncing: false,
+    offline: false,
+  };
+
+  const DRAFTS_KEY = "kf_badge_drafts_v1";
+  const PLAYER_KEY = "kf_badge_player_name";
+
+  // Escape HTML helper
+  function esc(s) {
+    if (s === null || s === undefined) return "";
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function showAlert(msg, type = "warn", duration = 6000) {
+    const el = document.getElementById("global-alert");
+    el.className = type;
+    el.innerHTML = esc(msg).replace(/\n/g, "<br>");
+    el.style.display = "block";
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => { el.style.display = "none"; }, duration);
+  }
+
+  // Chrome Built-in Translator and LanguageDetector API helpers (official globalThis.Translator and globalThis.LanguageDetector)
+  async function canUseChromeTranslator(sourceLang, targetLang) {
+    try {
+      // 1. Official modern globalThis.Translator API (W3C / Chrome 131+)
+      if (typeof globalThis !== "undefined" && globalThis.Translator && typeof globalThis.Translator.availability === "function") {
+        const can = await globalThis.Translator.availability({ sourceLanguage: sourceLang, targetLanguage: targetLang });
+        if (can === "readily" || can === "after-download") return true;
+      }
+      // 2. Intermediate globalThis.ai.translator / window.ai.translator
+      const ai = typeof globalThis !== "undefined" ? globalThis.ai : (typeof window !== "undefined" ? window.ai : null);
+      if (ai && ai.translator) {
+        if (typeof ai.translator.availability === "function") {
+          const can = await ai.translator.availability({ sourceLanguage: sourceLang, targetLanguage: targetLang });
+          if (can === "readily" || can === "after-download") return true;
+        } else if (typeof ai.translator.capabilities === "function") {
+          const caps = await ai.translator.capabilities();
+          const can = typeof caps.available === "function" ? caps.available({ sourceLanguage: sourceLang, targetLanguage: targetLang }) : caps.available;
+          if (can === "readily" || can === "after-download") return true;
+        }
+      }
+      // 3. Obsolete window.translation
+      if (typeof window !== "undefined" && window.translation && typeof window.translation.canTranslate === "function") {
+        const can = await window.translation.canTranslate({ sourceLanguage: sourceLang, targetLanguage: targetLang });
+        if (can === "readily" || can === "after-download") return true;
+      }
+    } catch (e) {
+      console.warn("Translator capabilities check error:", e);
+    }
+    return false;
+  }
+
+  async function translateToEnglishWithChrome(text, sourceLang = "es") {
+    if (!text || !text.trim()) return text;
+
+    // 1. Official modern globalThis.Translator API (Translator.availability/create/translate)
+    if (typeof globalThis !== "undefined" && globalThis.Translator && typeof globalThis.Translator.create === "function") {
+      const translator = await globalThis.Translator.create({
+        sourceLanguage: sourceLang,
+        targetLanguage: "en",
+        monitor(m) {
+          if (m && m.addEventListener) {
+            m.addEventListener("downloadprogress", (e) => {
+              const pct = Math.round((e.loaded / e.total) * 100);
+              showAlert(t("translation_downloading", { progress: pct }), "warn", 3000);
+            });
+          }
+        }
+      });
+      if (translator.ready) await translator.ready;
+      return await translator.translate(text);
+    }
+
+    // 2. Intermediate globalThis.ai.translator / window.ai.translator
+    const ai = typeof globalThis !== "undefined" ? globalThis.ai : (typeof window !== "undefined" ? window.ai : null);
+    if (ai && ai.translator && typeof ai.translator.create === "function") {
+      const translator = await ai.translator.create({
+        sourceLanguage: sourceLang,
+        targetLanguage: "en",
+      });
+      if (translator.ready) await translator.ready;
+      return await translator.translate(text);
+    }
+
+    // 3. Obsolete window.translation
+    if (typeof window !== "undefined" && window.translation && typeof window.translation.createTranslator === "function") {
+      const translator = await window.translation.createTranslator({
+        sourceLanguage: sourceLang,
+        targetLanguage: "en",
+      });
+      if (translator.addEventListener) {
+        translator.addEventListener("downloadprogress", (e) => {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          showAlert(t("translation_downloading", { progress: pct }), "warn", 3000);
+        });
+      }
+      if (translator.ready) await translator.ready;
+      return await translator.translate(text);
+    }
+    throw new Error("TRANSLATOR_UNAVAILABLE");
+  }
+
+  async function detectLanguage(text) {
+    if (!text || !text.trim()) return { lang: "en", confidence: 1, source: "empty" };
+
+    // 1. Try official globalThis.LanguageDetector API (LanguageDetector.availability/create/detect)
+    try {
+      let detector = null;
+      if (typeof globalThis !== "undefined" && globalThis.LanguageDetector && typeof globalThis.LanguageDetector.create === "function") {
+        if (typeof globalThis.LanguageDetector.availability === "function") {
+          const avail = await globalThis.LanguageDetector.availability();
+          if (avail === "no") throw new Error("LanguageDetector unavailable");
+        }
+        detector = await globalThis.LanguageDetector.create();
+      } else {
+        const ai = typeof globalThis !== "undefined" ? globalThis.ai : (typeof window !== "undefined" ? window.ai : null);
+        if (ai && ai.languageDetector && typeof ai.languageDetector.create === "function") {
+          detector = await ai.languageDetector.create();
+        } else if (typeof window !== "undefined" && window.translation && typeof window.translation.createDetector === "function") {
+          detector = await window.translation.createDetector();
+        }
+      }
+      if (detector) {
+        if (detector.ready) await detector.ready;
+        const results = await detector.detect(text);
+        if (Array.isArray(results) && results.length > 0) {
+          const top = results[0];
+          if (top.detectedLanguage) {
+            return {
+              lang: top.detectedLanguage,
+              confidence: top.confidence !== undefined ? top.confidence : 1.0,
+              source: "chrome-detector"
+            };
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("LanguageDetector API error, falling back to heuristics:", e);
+    }
+
+    // 2. Fallback heuristic detection for Spanish vs English when Chrome API is unavailable
+    // Spanish characters: á, é, í, ó, ú, ü, ñ, ¿, ¡
+    const hasSpanishChars = /[áéíóúüñ¿¡]/i.test(text);
+    // Common Spanish functional / catalog words
+    const spanishWords = /\b(el|la|los|las|un|una|unos|unas|de|del|al|en|con|por|para|y|o|pero|como|su|sus|este|esta|estos|estas|insignia|insignias|ganar|gana|batalla|batallas|derrotar|derrota|usar|usa|obtener|requisito|requisitos|nivel|puntos|descripción|nombre)\b/i;
+    const hasSpanishWords = spanishWords.test(text);
+
+    if (hasSpanishChars || hasSpanishWords) {
+      return { lang: "es", confidence: 0.9, source: "heuristic-es" };
+    }
+
+    // If UI is explicitly Spanish and text has letters
+    if (state.lang === "es") {
+      return { lang: "es", confidence: 0.7, source: "ui-lang-fallback" };
+    }
+
+    // ASCII text check (printable standard characters)
+    const isAscii = /^[\x20-\x7E\r\n\t]+$/.test(text);
+    if (isAscii) {
+      return { lang: "en", confidence: 0.85, source: "ascii-en" };
+    }
+
+    // Unconfirmed language
+    return { lang: "unknown", confidence: 0, source: "unconfirmed" };
+  }
+
+  // Local drafts storage
+  function loadLocalDrafts() {
+    try {
+      const saved = localStorage.getItem(DRAFTS_KEY);
+      if (saved) state.drafts = JSON.parse(saved);
+    } catch (e) {
+      state.drafts = {};
+    }
+  }
+
+  function saveLocalDrafts() {
+    try {
+      localStorage.setItem(DRAFTS_KEY, JSON.stringify(state.drafts));
+    } catch (e) {}
+  }
+
+  function setBadgeDraft(badgeId, field, value) {
+    const badge = state.badgeMap.get(badgeId);
+    if (!badge) return;
+    if (!state.drafts[badgeId]) {
+      state.drafts[badgeId] = {
+        badge_id: badgeId,
+        base_version: badge.version,
+        fields: {},
+      };
+    }
+    state.drafts[badgeId].fields[field] = value;
+    saveLocalDrafts();
+
+    // Mark card visually
+    const card = document.getElementById(`badge-card-${badgeId}`);
+    if (card) {
+      card.classList.add("has-draft");
+      const dot = card.querySelector(`[data-dirty-dot="${field}"]`);
+      if (dot) dot.style.display = "inline-block";
+    }
+    updateSyncPill();
+  }
+
+  function clearBadgeDraft(badgeId) {
+    delete state.drafts[badgeId];
+    saveLocalDrafts();
+    const card = document.getElementById(`badge-card-${badgeId}`);
+    if (card) {
+      card.classList.remove("has-draft");
+      card.querySelectorAll(".dirty-dot").forEach(d => d.style.display = "none");
+    }
+    updateSyncPill();
+  }
+
+  // UI Language update
+  function applyLanguage(lang) {
+    setLanguage(lang);
+    state.lang = lang;
+    document.title = t("app_title");
+    if (typeof document !== "undefined" && document.documentElement) {
+      document.documentElement.lang = lang;
+    }
+
+    const sel1 = document.getElementById("lang-select");
+    if (sel1) {
+      sel1.value = lang;
+      sel1.setAttribute("aria-label", t("aria_lang_selector"));
+    }
+    const sel2 = document.getElementById("langSelect");
+    if (sel2) sel2.value = lang;
+    const toggleBtn = document.getElementById("btn-toggle-lang");
+    if (toggleBtn) toggleBtn.textContent = t("lang_toggle");
+
+    document.getElementById("txt-app-title").textContent = t("app_title");
+    document.getElementById("txt-app-subtitle").textContent = t("app_subtitle");
+    document.getElementById("txt-contributor-lbl").textContent = t("contributor_label");
+    document.getElementById("txt-unauth-pill").textContent = t("unauthenticated_pill");
+    const btnChangeName = document.getElementById("btn-change-name");
+    btnChangeName.textContent = t("change_button");
+    btnChangeName.setAttribute("aria-label", t("aria_change_name"));
+    const btnGlyph = document.getElementById("btn-glyph");
+    btnGlyph.textContent = t("glyph_btn");
+    btnGlyph.setAttribute("aria-label", t("aria_glyph_btn"));
+    const btnUnmapped = document.getElementById("btn-unmapped");
+    btnUnmapped.textContent = t("unmapped_btn");
+    btnUnmapped.setAttribute("aria-label", t("aria_unmapped_btn"));
+    const btnContrib = document.getElementById("btn-contributors");
+    btnContrib.textContent = t("contributors_btn");
+    btnContrib.setAttribute("aria-label", t("aria_contributors_btn"));
+    const txtAnn = document.getElementById("txt-announcements-link");
+    if (txtAnn) txtAnn.textContent = t("announcements_btn");
+    const linkAnn = document.getElementById("link-announcements");
+    if (linkAnn) linkAnn.setAttribute("aria-label", t("aria_announcements_link"));
+
+    const searchInput = document.getElementById("search-input");
+    searchInput.placeholder = t("search_placeholder");
+    searchInput.setAttribute("aria-label", t("aria_search_input"));
+    document.getElementById("txt-filter-edited").textContent = t("filter_edited");
+    document.getElementById("filter-edited").setAttribute("aria-label", t("aria_filter_edited"));
+
+    // Category options and aria-label
+    const catSelect = document.getElementById("filter-category");
+    catSelect.setAttribute("aria-label", t("aria_filter_category"));
+    if (catSelect.options.length >= 4) {
+      catSelect.options[0].textContent = t("cat_all");
+      catSelect.options[1].textContent = t("cat_other");
+      catSelect.options[2].textContent = t("cat_battle");
+      catSelect.options[3].textContent = t("cat_kicker");
+    }
+
+    // Status options and aria-label
+    const statusSelect = document.getElementById("filter-status");
+    statusSelect.setAttribute("aria-label", t("aria_filter_status"));
+    if (statusSelect.options.length >= 5) {
+      statusSelect.options[0].textContent = t("status_all");
+      statusSelect.options[1].textContent = t("status_default");
+      statusSelect.options[2].textContent = t("status_known");
+      statusSelect.options[3].textContent = t("status_historical");
+      statusSelect.options[4].textContent = t("status_unknown");
+    }
+
+    // Modal texts
+    document.getElementById("modal-contributor-title").textContent = t("modal_title");
+    document.getElementById("modal-contributor-desc").textContent = t("modal_desc");
+    document.getElementById("modal-contributor-reward").textContent = t("modal_reward_notice");
+    document.getElementById("modal-contributor-warning").textContent = t("modal_unauth_warning");
+    const nameInput = document.getElementById("input-player-name");
+    nameInput.placeholder = t("modal_input_placeholder");
+    nameInput.setAttribute("aria-label", t("modal_input_placeholder"));
+    document.getElementById("btn-save-player").textContent = t("modal_save_btn");
+
+    document.getElementById("modal-glyph-title").textContent = t("glyph_modal_title");
+    document.getElementById("modal-glyph-sub").textContent = t("glyph_modal_subtitle");
+    document.getElementById("modal-glyph-desc").textContent = t("glyph_modal_desc");
+    document.getElementById("img-glyph").alt = t("glyph_modal_title");
+    const btnCloseGlyph = document.getElementById("btn-close-glyph");
+    btnCloseGlyph.textContent = t("glyph_close_btn");
+    btnCloseGlyph.setAttribute("aria-label", t("aria_close_modal"));
+
+    document.getElementById("modal-unmapped-title").textContent = t("unmapped_modal_title");
+    document.getElementById("modal-unmapped-desc").textContent = t("unmapped_modal_desc");
+    document.getElementById("th-unmapped-title").textContent = t("unmapped_col_name");
+    document.getElementById("th-unmapped-cond").textContent = t("unmapped_col_condition");
+    document.getElementById("th-unmapped-note").textContent = t("unmapped_col_note");
+    const btnCloseUnmapped = document.getElementById("btn-close-unmapped");
+    btnCloseUnmapped.textContent = t("unmapped_close_btn");
+    btnCloseUnmapped.setAttribute("aria-label", t("aria_close_modal"));
+
+    // Modal history headers
+    const thHistTime = document.getElementById("th-history-time");
+    if (thHistTime) thHistTime.textContent = t("history_col_time");
+    const thHistPlayer = document.getElementById("th-history-player");
+    if (thHistPlayer) thHistPlayer.textContent = t("history_col_player");
+    const thHistField = document.getElementById("th-history-field");
+    if (thHistField) thHistField.textContent = t("history_col_field");
+    const thHistOld = document.getElementById("th-history-old");
+    if (thHistOld) thHistOld.textContent = t("history_col_old");
+    const thHistNew = document.getElementById("th-history-new");
+    if (thHistNew) thHistNew.textContent = t("history_col_new");
+    const thHistVer = document.getElementById("th-history-version");
+    if (thHistVer) thHistVer.textContent = t("history_col_version");
+    const btnCloseHist = document.getElementById("btn-close-history");
+    if (btnCloseHist) {
+      btnCloseHist.textContent = t("history_close_btn");
+      btnCloseHist.setAttribute("aria-label", t("aria_close_modal"));
+    }
+
+    // Modal contributors
+    document.getElementById("modal-contrib-title").textContent = t("contrib_modal_title");
+    document.getElementById("modal-contrib-desc").textContent = t("contrib_modal_desc");
+    const btnExport = document.getElementById("btn-contrib-export");
+    btnExport.textContent = t("contrib_export_btn");
+    btnExport.setAttribute("aria-label", t("aria_download_csv"));
+    document.getElementById("th-contrib-player").textContent = t("contrib_col_player");
+    document.getElementById("th-contrib-edits").textContent = t("contrib_col_edits");
+    document.getElementById("th-contrib-badges").textContent = t("contrib_col_badges");
+    document.getElementById("th-contrib-last").textContent = t("contrib_col_last");
+    const btnCloseContrib = document.getElementById("btn-close-contributors");
+    btnCloseContrib.textContent = t("contrib_close_btn");
+    btnCloseContrib.setAttribute("aria-label", t("aria_close_modal"));
+
+    updateSyncPill();
+    renderUnmappedTable();
+    renderGrid();
+  }
+
+  function updateSyncPill() {
+    const pill = document.getElementById("sync-pill");
+    const txt = document.getElementById("sync-text");
+    const draftCount = Object.keys(state.drafts).length;
+
+    if (state.syncing) {
+      pill.className = "sync-pill saving";
+      txt.textContent = t("sync_status_saving");
+    } else if (state.offline) {
+      pill.className = "sync-pill offline";
+      txt.textContent = t("sync_status_offline");
+    } else if (draftCount > 0) {
+      pill.className = "sync-pill saving";
+      txt.textContent = t("sync_status_pending", { count: draftCount });
+    } else {
+      pill.className = "sync-pill";
+      txt.textContent = t("sync_status_synced");
+    }
+  }
+
+  // Player name logic
+  function checkPlayerName() {
+    state.playerName = localStorage.getItem(PLAYER_KEY) || "";
+    if (!state.playerName.trim()) {
+      document.getElementById("modal-contributor").hidden = false;
+      document.getElementById("input-player-name").focus();
+    } else {
+      document.getElementById("current-player-name").textContent = state.playerName;
+    }
+  }
+
+  document.getElementById("btn-save-player").addEventListener("click", () => {
+    const input = document.getElementById("input-player-name");
+    const name = input.value.trim();
+    if (!name) {
+      showAlert(t("modal_error_empty"), "error");
+      return;
+    }
+    if (name.length > 32) {
+      showAlert(t("modal_error_length"), "error");
+      return;
+    }
+    state.playerName = name;
+    localStorage.setItem(PLAYER_KEY, name);
+    document.getElementById("current-player-name").textContent = name;
+    document.getElementById("modal-contributor").hidden = true;
+  });
+
+  document.getElementById("btn-change-name").addEventListener("click", () => {
+    document.getElementById("input-player-name").value = state.playerName;
+    document.getElementById("modal-contributor").hidden = false;
+  });
+
+  // Modal handlers
+  document.getElementById("btn-glyph").addEventListener("click", () => {
+    document.getElementById("img-glyph").src = state.glyphImage;
+    document.getElementById("modal-glyph").hidden = false;
+  });
+  document.getElementById("btn-close-glyph").addEventListener("click", () => {
+    document.getElementById("modal-glyph").hidden = true;
+  });
+
+  document.getElementById("btn-unmapped").addEventListener("click", () => {
+    renderUnmappedTable();
+    document.getElementById("modal-unmapped").hidden = false;
+  });
+  document.getElementById("btn-close-unmapped").addEventListener("click", () => {
+    document.getElementById("modal-unmapped").hidden = true;
+  });
+
+  document.getElementById("btn-close-history").addEventListener("click", () => {
+    document.getElementById("modal-history").hidden = true;
+  });
+
+  async function openContributorsModal() {
+    const modal = document.getElementById("modal-contributors");
+    const tbody = document.getElementById("contrib-table-body");
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:16px;">${t("contrib_loading")}</td></tr>`;
+    modal.hidden = false;
+    try {
+      const res = await fetch("/badges/api/contributors");
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      const list = data.contributors || [];
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:16px; color:var(--muted);">${t("contrib_no_contributors")}</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = list.map(c => `
+        <tr>
+          <td><strong>${esc(c.player_name)}</strong></td>
+          <td>${c.total_edits}</td>
+          <td>${c.distinct_badges}</td>
+          <td style="font-size:11px; color:var(--muted);">${(c.last_contribution || "").replace("T", " ").slice(0, 19)}</td>
+        </tr>
+      `).join("");
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:16px; color:var(--danger);">${t("contrib_error", { error: esc(e.message) })}</td></tr>`;
+    }
+  }
+
+  document.getElementById("btn-contributors").addEventListener("click", openContributorsModal);
+  document.getElementById("btn-close-contributors").addEventListener("click", () => {
+    document.getElementById("modal-contributors").hidden = true;
+  });
+
+  const langSelect = document.getElementById("lang-select");
+  if (langSelect) {
+    langSelect.addEventListener("change", (e) => {
+      applyLanguage(e.target.value);
+    });
+  }
+  const langSelectAlt = document.getElementById("langSelect");
+  if (langSelectAlt) {
+    langSelectAlt.addEventListener("change", (e) => {
+      applyLanguage(e.target.value);
+    });
+  }
+  const toggleLangBtn = document.getElementById("btn-toggle-lang");
+  if (toggleLangBtn) {
+    toggleLangBtn.addEventListener("click", () => {
+      applyLanguage(state.lang === "en" ? "es" : "en");
+    });
+  }
+
+  function renderUnmappedTable() {
+    const tbody = document.getElementById("unmapped-table-body");
+    tbody.innerHTML = "";
+    state.unmapped.forEach(item => {
+      const tr = document.createElement("tr");
+      const name = state.lang === "es" ? item.name_es : item.name_en;
+      const cond = state.lang === "es" ? item.condition_es : item.condition_en;
+      const note = state.lang === "es" ? item.note_es : item.note_en;
+      tr.innerHTML = `
+        <td><strong>${esc(name)}</strong></td>
+        <td>${esc(cond)}</td>
+        <td><small style="color:var(--muted)">${esc(note || "")}</small></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Fetch initial catalog
+  async function fetchCatalog() {
+    try {
+      const res = await fetch("/badges/api/catalog");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      state.badges = data.badges || [];
+      state.badgeMap = new Map(state.badges.map(b => [b.id, b]));
+      state.unmapped = data.unmapped_requirements || [];
+      state.glyphImage = data.glyph_image || "";
+      state.serverTime = data.server_time;
+      state.offline = false;
+      renderGrid();
+    } catch (e) {
+      console.error("Failed to load catalog:", e);
+      state.offline = true;
+      showAlert(t("alert_offline_mode"), "warn");
+    }
+    updateSyncPill();
+  }
+
+  // Card Rendering
+  function renderGrid() {
+    const grid = document.getElementById("badge-grid");
+    const query = document.getElementById("search-input").value.toLowerCase().trim();
+    const catFilter = document.getElementById("filter-category").value;
+    const statusFilter = document.getElementById("filter-status").value;
+    const editedOnly = document.getElementById("filter-edited").checked;
+
+    let shownCount = 0;
+    grid.innerHTML = "";
+
+    state.badges.forEach(b => {
+      // Filter logic
+      if (catFilter !== "" && String(b.category) !== catFilter) return;
+      if (statusFilter !== "" && b.status !== statusFilter) return;
+      if (editedOnly && !b.edit_count && !state.drafts[b.id]) return;
+      if (query) {
+        const matchesId = String(b.id).includes(query);
+        const matchesName = (b.name || "").toLowerCase().includes(query);
+        const matchesReq = (b.requirements || "").toLowerCase().includes(query);
+        const matchesDesc = (b.description || "").toLowerCase().includes(query);
+        if (!matchesId && !matchesName && !matchesReq && !matchesDesc) return;
+      }
+
+      shownCount++;
+      const card = createBadgeCard(b);
+      grid.appendChild(card);
+    });
+
+    document.getElementById("badge-count-text").textContent = t("badge_count", {
+      count: shownCount,
+      total: state.badges.length,
+    });
+    if (state.serverTime) {
+      document.getElementById("server-time-text").textContent = t("server_time", {
+        time: new Date(state.serverTime).toLocaleTimeString()
+      });
+    }
+  }
+
+  // Conflict resolution helpers
+  function renderConflictDiffHtml(badgeId, conflict) {
+    if (!conflict || !conflict.server_fields) return "";
+    const draft = state.drafts[badgeId] || { fields: {} };
+    const diffs = [];
+    for (const [k, v] of Object.entries(draft.fields)) {
+      if (conflict.server_fields[k] !== undefined) {
+        diffs.push(`<div><strong>${esc(k)}</strong>: ${esc(conflict.server_fields[k])}</div>`);
+      }
+    }
+    if (diffs.length === 0) return "";
+    return `
+      <div style="background: rgba(0,0,0,0.3); padding: 6px; border-radius: 4px; margin: 6px 0; font-size: 11px;">
+        <div style="color: var(--muted); margin-bottom: 2px;">${t("conflict_diff_label", { version: conflict.server_version })}</div>
+        ${diffs.join("")}
+      </div>
+    `;
+  }
+
+  function renderConflictBannerContent(banner, b, conflict) {
+    const badgeId = b.id;
+    banner.innerHTML = `
+      <div style="font-weight:bold; margin-bottom: 4px;">⚠️ ${t("conflict_title")}</div>
+      <div style="margin-bottom: 4px;">${t("conflict_msg", { id: badgeId })}</div>
+      <div style="font-size: 11px; opacity: 0.9;">
+        ${t("conflict_server_version", { version: conflict.server_version })}
+      </div>
+      ${renderConflictDiffHtml(badgeId, conflict)}
+      <div style="display:flex; gap: 8px; flex-wrap: wrap; margin-top: 6px;">
+        <button class="btn btn-conflict-overwrite" type="button" aria-label="${esc(t('conflict_btn_overwrite'))} (#${badgeId})" style="background:#1b4437; border-color:#2a755d; font-size:11px; padding:4px 8px;">
+          ✓ ${t("conflict_btn_overwrite")}
+        </button>
+        <button class="btn btn-conflict-discard" type="button" aria-label="${esc(t('conflict_btn_discard'))} (#${badgeId})" style="background:#442025; border-color:#7c313c; font-size:11px; padding:4px 8px;">
+          ✕ ${t("conflict_btn_discard")}
+        </button>
+      </div>
+    `;
+
+    const btnOver = banner.querySelector(".btn-conflict-overwrite");
+    if (btnOver) btnOver.addEventListener("click", () => resolveConflictOverwrite(badgeId));
+    const btnDisc = banner.querySelector(".btn-conflict-discard");
+    if (btnDisc) btnDisc.addEventListener("click", () => resolveConflictDiscard(badgeId));
+  }
+
+  function resolveConflictOverwrite(badgeId) {
+    const conflict = state.conflicts[badgeId];
+    const draft = state.drafts[badgeId];
+    if (!conflict) return;
+
+    if (draft) {
+      draft.base_version = conflict.server_version;
+      saveLocalDrafts();
+    }
+    delete state.conflicts[badgeId];
+
+    updateBadgeCardDOM(badgeId);
+    updateSyncPill();
+    showAlert(t("conflict_resolved_overwrite", { version: conflict.server_version }), "success", 5000);
+
+    // Trigger immediate autosave to apply user's edits cleanly on top of the new server version
+    performPollAndAutosave();
+  }
+
+  function resolveConflictDiscard(badgeId) {
+    const conflict = state.conflicts[badgeId];
+    const b = state.badgeMap.get(badgeId);
+    if (!conflict) return;
+
+    if (b && conflict.server_fields) {
+      Object.assign(b, conflict.server_fields, { version: conflict.server_version });
+    }
+
+    delete state.drafts[badgeId];
+    delete state.conflicts[badgeId];
+    saveLocalDrafts();
+
+    updateBadgeCardDOM(badgeId);
+    updateSyncPill();
+    showAlert(t("conflict_resolved_discard", { version: conflict.server_version }), "warn", 5000);
+  }
+
+  // In-place surgical DOM update for a badge card (never replaces card element, preserving active focus and unsent input)
+  function updateBadgeCardDOM(badgeId) {
+    const card = document.getElementById(`badge-card-${badgeId}`);
+    if (!card) return;
+    const b = state.badgeMap.get(badgeId);
+    if (!b) return;
+
+    const draft = state.drafts[badgeId] || { fields: {} };
+    const conflict = state.conflicts[badgeId];
+
+    // Update card classes
+    card.classList.toggle("has-draft", Object.keys(draft.fields).length > 0);
+    card.classList.toggle("has-conflict", !!conflict);
+
+    // Update pills
+    const verPill = card.querySelector(".pill-version");
+    if (verPill) verPill.textContent = t("card_version", { version: b.version });
+
+    const statusPill = card.querySelector(".pill-status");
+    if (statusPill) {
+      statusPill.className = `pill pill-status ${b.status}`;
+      statusPill.textContent = t("status_" + b.status);
+    }
+
+    const catLabels = { 0: t("cat_other"), 1: t("cat_battle"), 2: t("cat_kicker") };
+    const catPill = card.querySelector(".pill-cat");
+    if (catPill) catPill.textContent = catLabels[b.category] || (state.lang === "es" ? "Otra" : "Other");
+
+    // Update footer info and history count
+    const footerInfo = card.querySelector(".card-footer-info");
+    if (footerInfo) {
+      footerInfo.textContent = b.updated_by
+        ? t("card_last_edit", { player: esc(b.updated_by), time: new Date(b.updated_at).toLocaleTimeString() })
+        : "";
+    }
+    const histBtn = card.querySelector(".btn-history");
+    if (histBtn) {
+      histBtn.textContent = t("card_history_btn", { count: b.edit_count || 0 });
+      histBtn.setAttribute("aria-label", `${t("card_history_btn", { count: b.edit_count || 0 })} (#${b.id})`);
+    }
+
+    const fieldLabels = {
+      name: t("card_name_label"),
+      description: t("card_desc_label"),
+      requirements: t("card_req_label"),
+      notes: t("card_notes_label"),
+    };
+
+    // Update fields
+    ["name", "description", "requirements", "notes"].forEach(field => {
+      const input = card.querySelector(`[data-field="${field}"]`);
+      const dot = card.querySelector(`[data-dirty-dot="${field}"]`);
+      const isDraft = draft.fields && draft.fields[field] !== undefined;
+
+      if (dot) dot.style.display = isDraft ? "inline-block" : "none";
+
+      if (input) {
+        input.setAttribute("aria-label", `${fieldLabels[field]} (#${b.id})`);
+        if (isDraft) {
+          // Retain local draft edit: do not overwrite!
+          if (input.value !== draft.fields[field]) {
+            input.value = draft.fields[field];
+          }
+        } else if (document.activeElement !== input) {
+          // Only update from server if user is not actively focused on this input
+          const val = b[field] || "";
+          if (input.value !== val) {
+            input.value = val;
+          }
+        }
+      }
+    });
+
+    // Update provenance pre blocks if available
+    const rawPre = card.querySelector(".provenance-raw");
+    if (rawPre && b.original_source) {
+      rawPre.textContent = JSON.stringify(b.original_source, null, 2);
+    }
+    const rulePre = card.querySelector(".provenance-rule");
+    if (rulePre && b.rule_json) {
+      rulePre.textContent = "Rule: " + JSON.stringify(b.rule_json, null, 2);
+    }
+
+    // Update conflict banner in-place
+    let banner = card.querySelector(".conflict-banner");
+    if (conflict) {
+      if (!banner) {
+        banner = document.createElement("div");
+        banner.className = "conflict-banner";
+        card.prepend(banner);
+      }
+      renderConflictBannerContent(banner, b, conflict);
+    } else if (banner) {
+      banner.remove();
+    }
+  }
+
+  function createBadgeCard(b) {
+    const card = document.createElement("article");
+    card.id = `badge-card-${b.id}`;
+    card.className = "card";
+
+    const draft = state.drafts[b.id] || { fields: {} };
+    const conflict = state.conflicts[b.id];
+    if (Object.keys(draft.fields).length > 0) card.classList.add("has-draft");
+    if (conflict) card.classList.add("has-conflict");
+
+    const curName = draft.fields.name !== undefined ? draft.fields.name : b.name;
+    const curDesc = draft.fields.description !== undefined ? draft.fields.description : b.description;
+    const curReq = draft.fields.requirements !== undefined ? draft.fields.requirements : b.requirements;
+    const curNotes = draft.fields.notes !== undefined ? draft.fields.notes : b.notes;
+
+    const catLabels = { 0: t("cat_other"), 1: t("cat_battle"), 2: t("cat_kicker") };
+    const catLabel = catLabels[b.category] || "Other";
+
+    let conflictHtml = "";
+    if (conflict) {
+      conflictHtml = `
+        <div class="conflict-banner">
+          <div style="font-weight:bold; margin-bottom: 4px;">⚠️ ${t("conflict_title")}</div>
+          <div style="margin-bottom: 4px;">${t("conflict_msg", { id: b.id })}</div>
+          <div style="font-size: 11px; opacity: 0.9;">
+            ${t("conflict_server_version", { version: conflict.server_version })}
+          </div>
+          ${renderConflictDiffHtml(b.id, conflict)}
+          <div style="display:flex; gap: 8px; flex-wrap: wrap; margin-top: 6px;">
+            <button class="btn btn-conflict-overwrite" type="button" aria-label="${esc(t('conflict_btn_overwrite'))} (#${b.id})" style="background:#1b4437; border-color:#2a755d; font-size:11px; padding:4px 8px;">
+              ✓ ${t("conflict_btn_overwrite")}
+            </button>
+            <button class="btn btn-conflict-discard" type="button" aria-label="${esc(t('conflict_btn_discard'))} (#${b.id})" style="background:#442025; border-color:#7c313c; font-size:11px; padding:4px 8px;">
+              ✕ ${t("conflict_btn_discard")}
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    card.innerHTML = `
+      ${conflictHtml}
+      <div class="art-wrap">
+        <img class="art" src="${b.image}" alt="${esc(t('badge_art_alt', { id: b.id }))}" loading="lazy">
+        <div class="meta-pills">
+          <span class="badge-id">#${b.id}</span>
+          <span class="pill pill-status ${b.status}">${t("status_" + b.status)}</span>
+          <span class="pill pill-cat cat">${catLabel}</span>
+          <span class="pill pill-version" style="background:#142234;color:#a5c7f2;">${t("card_version", { version: b.version })}</span>
+        </div>
+      </div>
+
+      <div class="fields">
+        <div class="field">
+          <label>
+            <span>${t("card_name_label")}</span>
+            <span class="dirty-dot" data-dirty-dot="name" style="${draft.fields.name !== undefined ? 'display:inline-block' : 'display:none'}"></span>
+          </label>
+          <input type="text" maxlength="100" data-field="name" aria-label="${esc(t('card_name_label'))} (#${b.id})" value="${esc(curName)}">
+        </div>
+
+        <div class="field">
+          <label>
+            <span>${t("card_desc_label")}</span>
+            <span class="dirty-dot" data-dirty-dot="description" style="${draft.fields.description !== undefined ? 'display:inline-block' : 'display:none'}"></span>
+          </label>
+          <textarea maxlength="1000" rows="2" data-field="description" aria-label="${esc(t('card_desc_label'))} (#${b.id})">${esc(curDesc)}</textarea>
+        </div>
+
+        <div class="field">
+          <label>
+            <span>${t("card_req_label")}</span>
+            <span class="dirty-dot" data-dirty-dot="requirements" style="${draft.fields.requirements !== undefined ? 'display:inline-block' : 'display:none'}"></span>
+          </label>
+          <textarea maxlength="1000" rows="2" data-field="requirements" aria-label="${esc(t('card_req_label'))} (#${b.id})">${esc(curReq)}</textarea>
+        </div>
+
+        <div class="field">
+          <label>
+            <span>${t("card_notes_label")}</span>
+            <span class="dirty-dot" data-dirty-dot="notes" style="${draft.fields.notes !== undefined ? 'display:inline-block' : 'display:none'}"></span>
+          </label>
+          <textarea maxlength="1000" rows="1" data-field="notes" aria-label="${esc(t('card_notes_label'))} (#${b.id})">${esc(curNotes)}</textarea>
+        </div>
+      </div>
+
+      <details class="provenance">
+        <summary>${t("card_provenance")}</summary>
+        <pre class="provenance-raw">${esc(JSON.stringify(b.original_source, null, 2))}</pre>
+        ${b.rule_json && Object.keys(b.rule_json).length > 0 ? `<pre class="provenance-rule" style="margin-top:4px;">Rule: ${esc(JSON.stringify(b.rule_json, null, 2))}</pre>` : ''}
+      </details>
+
+      <div class="card-footer">
+        <span class="card-footer-info">${b.updated_by ? t("card_last_edit", { player: esc(b.updated_by), time: new Date(b.updated_at).toLocaleTimeString() }) : ""}</span>
+        <button class="btn-history" data-badge-id="${b.id}" aria-label="${esc(t('card_history_btn', { count: b.edit_count || 0 }))} (#${b.id})" style="padding: 3px 8px; font-size: 11px;">
+          ${t("card_history_btn", { count: b.edit_count || 0 })}
+        </button>
+      </div>
+    `;
+
+    // Input event listeners for immediate draft persistence
+    card.querySelectorAll("[data-field]").forEach(input => {
+      input.addEventListener("input", (e) => {
+        const field = e.target.dataset.field;
+        setBadgeDraft(b.id, field, e.target.value);
+      });
+    });
+
+    // Conflict action buttons
+    if (conflict) {
+      const btnOver = card.querySelector(".btn-conflict-overwrite");
+      if (btnOver) btnOver.addEventListener("click", () => resolveConflictOverwrite(b.id));
+      const btnDisc = card.querySelector(".btn-conflict-discard");
+      if (btnDisc) btnDisc.addEventListener("click", () => resolveConflictDiscard(b.id));
+    }
+
+    // History button
+    card.querySelector(".btn-history").addEventListener("click", () => {
+      openAuditHistory(b.id);
+    });
+
+    return card;
+  }
+
+  // Audit history modal
+  async function openAuditHistory(badgeId) {
+    try {
+      const res = await fetch(`/badges/api/audit?badge_id=${badgeId}&limit=50`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const tbody = document.getElementById("history-table-body");
+      tbody.innerHTML = "";
+      document.getElementById("modal-history-title").textContent = t("history_modal_title", { id: badgeId });
+
+      if (!data.logs || data.logs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);">${t("history_no_edits")}</td></tr>`;
+      } else {
+        data.logs.forEach(log => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${esc(new Date(log.created_at).toLocaleString())}</td>
+            <td><strong>${esc(log.player_name)}</strong></td>
+            <td><code>${esc(log.field_name)}</code></td>
+            <td style="color:#e08282;">${esc(log.old_value || t("history_empty_val"))}</td>
+            <td style="color:#93e5a4;">${esc(log.new_value || t("history_empty_val"))}</td>
+            <td>v${esc(log.badge_version)}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+      document.getElementById("modal-history").hidden = false;
+    } catch (e) {
+      showAlert(t("history_error", { error: esc(e.message) }), "error");
+    }
+  }
+
+  // Polling and Autosave Loop (Runs every 30 seconds)
+  async function performPollAndAutosave() {
+    if (state.syncing) return;
+    state.syncing = true;
+    updateSyncPill();
+
+    try {
+      // Step 1: Autosave local drafts if any exist
+      const draftIds = Object.keys(state.drafts);
+      if (draftIds.length > 0) {
+        await autosaveDrafts(draftIds);
+      }
+
+      // Step 2: Poll server for updates
+      const sinceParam = state.serverTime ? `?since=${encodeURIComponent(state.serverTime)}` : "";
+      const pollRes = await fetch(`/badges/api/poll${sinceParam}`);
+      if (!pollRes.ok) throw new Error(`Poll HTTP ${pollRes.status}`);
+      const pollData = await pollRes.json();
+
+      state.serverTime = pollData.server_time;
+      state.offline = false;
+
+      // Apply server updates in-place to local badges
+      // In-place DOM update preserves focus, cursor, unsubmitted text, and elements without replaceWith
+      if (pollData.updates && pollData.updates.length > 0) {
+        pollData.updates.forEach(updated => {
+          const local = state.badgeMap.get(updated.id);
+          if (local) {
+            Object.assign(local, updated);
+            updateBadgeCardDOM(updated.id);
+          }
+        });
+      }
+    } catch (e) {
+      console.warn("Poll/Autosave encountered issue:", e);
+      state.offline = true;
+    } finally {
+      state.syncing = false;
+      updateSyncPill();
+    }
+  }
+
+  async function autosaveDrafts(draftIds) {
+    if (!state.playerName.trim()) {
+      checkPlayerName();
+      return;
+    }
+
+    const editsToSubmit = [];
+    // Track submissions per badge so we only clear acknowledged fields
+    const inFlightSubmissions = new Map();
+
+    for (const idStr of draftIds) {
+      const badgeId = parseInt(idStr, 10);
+      // Skip draft if unresolved conflict: retain local text until explicit decision, no repeated failed POST
+      if (state.conflicts[badgeId]) {
+        continue;
+      }
+
+      const draft = state.drafts[badgeId];
+      if (!draft || !draft.fields || Object.keys(draft.fields).length === 0) continue;
+
+      const preparedFields = {};
+      const originalDraftFields = {};
+      let badgeNeedsAbort = false;
+
+      for (const [fName, fVal] of Object.entries(draft.fields)) {
+        if (typeof fVal === "string" && fVal.trim()) {
+          originalDraftFields[fName] = fVal;
+          // Detect language with Chrome official API or heuristic fallback
+          const detection = await detectLanguage(fVal);
+
+          if (detection.lang === "es" || (detection.lang !== "en" && detection.lang !== "unknown")) {
+            // Spanish or other non-English language: must translate to English
+            try {
+              const translated = await translateToEnglishWithChrome(fVal, detection.lang === "es" ? "es" : detection.lang);
+              preparedFields[fName] = translated;
+            } catch (err) {
+              // Translator is unavailable!
+              // NEVER silently store Spanish as English; backend does not validate language.
+              // Preserve drafts in localStorage and alert contributor.
+              showAlert(t("translation_unavailable_msg"), "error", 12000);
+              console.warn(`Translation API unavailable for badge ${badgeId}.${fName}. Draft preserved locally.`);
+              badgeNeedsAbort = true;
+              break;
+            }
+          } else if (detection.lang === "unknown") {
+            // Language could not be confirmed as English
+            showAlert(t("translation_unconfirmed_msg"), "error", 12000);
+            console.warn(`Language unconfirmed for badge ${badgeId}.${fName}. Draft preserved locally.`);
+            badgeNeedsAbort = true;
+            break;
+          } else {
+            // Confirmed English
+            preparedFields[fName] = fVal;
+          }
+        } else {
+          originalDraftFields[fName] = fVal;
+          preparedFields[fName] = fVal;
+        }
+      }
+
+      if (badgeNeedsAbort) {
+        continue; // Keep local draft intact
+      }
+
+      if (Object.keys(preparedFields).length > 0) {
+        editsToSubmit.push({
+          badge_id: badgeId,
+          base_version: draft.base_version,
+          fields: preparedFields,
+        });
+        inFlightSubmissions.set(badgeId, {
+          base_version: draft.base_version,
+          submittedFields: preparedFields,
+          originalDraftFields: originalDraftFields,
+        });
+      }
+    }
+
+    if (editsToSubmit.length === 0) return;
+
+    let res;
+    try {
+      res = await fetch("/badges/api/edits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          player_name: state.playerName,
+          edits: editsToSubmit,
+        }),
+      });
+    } catch (err) {
+      console.error("Network error submitting edits:", err);
+      state.offline = true;
+      updateSyncPill();
+      return;
+    }
+
+    let result;
+    try {
+      result = await res.json();
+    } catch (err) {
+      console.error("Failed to parse edit response:", err);
+      return;
+    }
+
+    // Handle applied edits: clear ONLY fields and values acknowledged by response
+    if (result.applied && result.applied.length > 0) {
+      result.applied.forEach(app => {
+        const badgeId = app.badge_id;
+        const b = state.badgeMap.get(badgeId);
+        const submission = inFlightSubmissions.get(badgeId);
+
+        if (b) {
+          b.version = app.new_version;
+          b.updated_at = app.updated_at;
+          b.updated_by = app.updated_by;
+          b.edit_count = (b.edit_count || 0) + (app.changed_fields ? app.changed_fields.length : 0);
+          if (submission && app.changed_fields) {
+            app.changed_fields.forEach(field => {
+              if (submission.submittedFields[field] !== undefined) {
+                b[field] = submission.submittedFields[field];
+              }
+            });
+          }
+        }
+
+        delete state.conflicts[badgeId];
+
+        // Retain newer edits made while POST was in flight
+        const draft = state.drafts[badgeId];
+        if (draft && submission) {
+          // Advance base_version so remaining/subsequent edits base off new_version
+          draft.base_version = app.new_version;
+
+          for (const [field, origVal] of Object.entries(submission.originalDraftFields)) {
+            // Only clear field if current draft value still matches what was submitted
+            if (draft.fields[field] === origVal) {
+              delete draft.fields[field];
+            }
+          }
+
+          if (Object.keys(draft.fields).length === 0) {
+            delete state.drafts[badgeId];
+          }
+          saveLocalDrafts();
+        } else if (!draft) {
+          delete state.drafts[badgeId];
+          saveLocalDrafts();
+        }
+
+        updateBadgeCardDOM(badgeId);
+      });
+    }
+
+    // Handle conflicts: preserve local draft, display resolution choices, do not clear draft
+    if (result.conflicts && result.conflicts.length > 0) {
+      result.conflicts.forEach(c => {
+        state.conflicts[c.badge_id] = c;
+        const b = state.badgeMap.get(c.badge_id);
+        if (b && c.server_fields) {
+          Object.assign(b, c.server_fields, { version: c.server_version });
+        }
+        updateBadgeCardDOM(c.badge_id);
+        showAlert(t("conflict_msg", { id: c.badge_id }), "error", 10000);
+      });
+    }
+
+    // Handle server validation/other errors
+    if (result.errors && result.errors.length > 0) {
+      result.errors.forEach(err => {
+        showAlert(`Badge ${err.badge_id}: ${err.error}`, "error", 8000);
+      });
+    }
+  }
+
+  // Filter change listeners
+  document.getElementById("search-input").addEventListener("input", renderGrid);
+  document.getElementById("filter-category").addEventListener("change", renderGrid);
+  document.getElementById("filter-status").addEventListener("change", renderGrid);
+  document.getElementById("filter-edited").addEventListener("change", renderGrid);
+
+  // Initialize
+  loadLocalDrafts();
+  checkPlayerName();
+  applyLanguage(state.lang);
+  fetchCatalog().then(() => {
+    // Start 30s polling timer
+    state.pollTimer = setInterval(performPollAndAutosave, state.pollIntervalMs);
+  });
+
+  // Online / offline listeners
+  window.addEventListener("online", () => {
+    state.offline = false;
+    performPollAndAutosave();
+  });
+  window.addEventListener("offline", () => {
+    state.offline = true;
+    updateSyncPill();
+  });
+
+})();
+</script>
+</body>
+</html>

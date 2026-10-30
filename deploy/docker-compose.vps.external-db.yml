@@ -44,6 +44,11 @@ services:
       file: docker-compose.vps.yml
       service: grpc
 
+  badges:
+    extends:
+      file: docker-compose.vps.yml
+      service: badges
+
 networks:
   backend:
     driver: bridge
@@ -52,3 +57,4 @@ volumes:
   geoip-data:
   caddy-data:
   caddy-config:
+  badges-data:
