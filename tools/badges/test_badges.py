@@ -282,8 +282,8 @@ def test_translation_unavailable_safeguard():
 # 8. HTTP Server Routes & Health Test
 @pytest.fixture
 def http_server(badge_db):
-    port = 18766
-    server = BadgesServer(("127.0.0.1", port), BadgesRequestHandler, badge_db)
+    server = BadgesServer(("127.0.0.1", 0), BadgesRequestHandler, badge_db)
+    port = server.server_address[1]
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     yield f"http://127.0.0.1:{port}"
@@ -369,7 +369,7 @@ def test_http_server_endpoints(http_server, badge_db):
         assert "player_name,total_edits,distinct_badges" in csv_text
         assert "HttpTester" in csv_text
 
-    # Test loopback backup endpoint
+    # Test loopback backup endpoint succeeds for legitimate local call
     backup_req = urllib.request.Request(
         f"{base_url}/badges/api/backup",
         data=b"{}",
@@ -380,6 +380,36 @@ def test_http_server_endpoints(http_server, badge_db):
         assert resp.status == 200
         data = json.loads(resp.read().decode())
         assert data["status"] == "ok"
+        assert "badges_backup_" in data["backup_path"]
+        assert Path(data["backup_path"]).exists()
+
+    # Test loopback backup rejects non-loopback or forwarded external IP
+    forbidden_req = urllib.request.Request(
+        f"{base_url}/badges/api/backup",
+        data=b"{}",
+        headers={"Content-Type": "application/json", "X-Real-IP": "203.0.113.195"},
+        method="POST"
+    )
+    try:
+        urllib.request.urlopen(forbidden_req)
+        assert False, "Expected 403 Forbidden for forwarded external IP"
+    except urllib.error.HTTPError as e:
+        assert e.code == 403
+
+    # Test that backup destination path traversal is sanitized
+    traversal_req = urllib.request.Request(
+        f"{base_url}/badges/api/backup",
+        data=json.dumps({"destination": "../../sneaky_escape"}).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST"
+    )
+    with urllib.request.urlopen(traversal_req) as resp:
+        assert resp.status == 200
+        data = json.loads(resp.read().decode())
+        assert data["status"] == "ok"
+        bk_path = Path(data["backup_path"])
+        assert bk_path.parent.name == "backups"
+        assert bk_path.name == "sneaky_escape.sqlite3"
 
     # Test that no unauthenticated admin endpoints exist (returns 404)
     admin_paths = ["/badges/admin", "/badges/admin/wipe", "/badges/admin/delete", "/badges/reset"]
@@ -555,6 +585,68 @@ def test_sqlite_backup_functionality(badge_db, temp_dir):
     restored_db = BadgeDatabase(backup_file)
     badges = restored_db.get_all_badges()
     assert len(badges) == 211
+
+
+def test_sqlite_no_connection_leak(badge_db):
+    """Verify that repeated database operations do not leak SQLite connections or file descriptors."""
+    def get_open_fd_count() -> int:
+        if os.path.exists("/proc/self/fd"):
+            return len(os.listdir("/proc/self/fd"))
+        return 0
+
+    # Warm up first query
+    badge_db.get_all_badges()
+    before_fds = get_open_fd_count()
+
+    for _ in range(50):
+        badge_db.get_all_badges()
+        badge_db.get_poll_updates()
+        badge_db.get_badge(6010101)
+        badge_db.get_contributors()
+
+    after_fds = get_open_fd_count()
+    assert after_fds - before_fds == 0, f"Leaked {after_fds - before_fds} file descriptors across 50 operations!"
+
+
+def test_announcement_alternating_idempotence(temp_dir):
+    """Verify that update-latest-information.py and prepare_announcement.py do not fight or thrash."""
+    import importlib.util
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from prepare_announcement import upsert_announcement_state, ARTICLE_ID
+
+    update_script = Path(__file__).resolve().parents[2] / "scripts" / "update-latest-information.py"
+    spec = importlib.util.spec_from_file_location("update_latest_information", str(update_script))
+    update_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(update_module)
+    update_latest_information = update_module.update_latest_information
+
+    state_file = temp_dir / "latest-information-alt.json"
+    backup_dir = temp_dir / "alt-backups"
+    source_docs = Path(__file__).resolve().parents[2] / "docs" / "updates-page.html"
+
+    # Step 1: Initial upsert of badge-catalog
+    upsert_announcement_state(state_file, backup_dir=backup_dir)
+
+    # Step 2: Run update_latest_information with v2-11-5 (it must be a no-op because badge-catalog is top and v2-11-5 is present)
+    # Even if v2-11-5 was not in state_file initially, insert it once
+    update_latest_information(state_file=state_file, source_docs=source_docs, article_id="v2-11-5", backup_dir=backup_dir)
+
+    # Step 3: Run prepare_announcement again to ensure badge-catalog is top
+    upsert_announcement_state(state_file, backup_dir=backup_dir)
+
+    # Count backups at this stable state
+    initial_backups = len(list(backup_dir.glob("*.json")))
+
+    # Step 4: Run both scripts in alternating sequence 3 times
+    for _ in range(3):
+        res1 = update_latest_information(state_file=state_file, source_docs=source_docs, article_id="v2-11-5", backup_dir=backup_dir)
+        res2 = upsert_announcement_state(state_file, backup_dir=backup_dir)
+        assert res1 is False, "update_latest_information must be an idempotent no-op"
+        assert res2 is False, "prepare_announcement must be an idempotent no-op"
+
+    # Verify no new backups were created
+    final_backups = len(list(backup_dir.glob("*.json")))
+    assert final_backups == initial_backups, f"Backups increased from {initial_backups} to {final_backups}; thrashing detected!"
 
 
 if __name__ == "__main__":

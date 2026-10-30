@@ -459,6 +459,12 @@ for path in ("/webview/information/index", "/updates"):
 print("Latest Information visible articles verified on /webview/information/index and /updates")
 PY
   fi
+
+  if [[ -f "$app_dir/deploy/badges/Dockerfile" ]]; then
+    if curl --fail --silent --show-error --max-time 15 "http://127.0.0.1:$http_port/badges/health" >/dev/null 2>&1; then
+      echo "Badges health verified on /badges/health"
+    fi
+  fi
 fi
 
 if [[ "$rebuild_farm" == true && -e "$backup_dir" ]]; then

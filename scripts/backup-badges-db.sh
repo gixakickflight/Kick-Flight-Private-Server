@@ -18,15 +18,9 @@ tmp=$(mktemp "$backup_dir/.badges-$timestamp.XXXXXX")
 cleanup() { rm -f -- "$tmp"; }
 trap cleanup EXIT
 
-# 1. Attempt backup via loopback API first if service is responsive
+# 1. If running under docker compose, perform hot backup directly inside the container
 backed_up=false
-if curl --fail --silent --show-error --max-time 5 -X POST "http://127.0.0.1:8766/badges/api/backup" \
-    -H "Content-Type: application/json" -d "{\"destination\":\"$tmp\"}" >/dev/null 2>&1; then
-  backed_up=true
-fi
-
-# 2. If API not directly accessible on loopback, try via docker compose exec
-if [[ "$backed_up" != true && -f "$compose_file" && -f "$env_file" ]] && command -v docker >/dev/null 2>&1; then
+if [[ -f "$compose_file" && -f "$env_file" ]] && command -v docker >/dev/null 2>&1; then
   compose=(docker compose --env-file "$env_file" --project-name deploy -f "$compose_file")
   if "${compose[@]}" ps --status running -q badges 2>/dev/null | grep -q .; then
     "${compose[@]}" exec -T badges python -c '
@@ -40,6 +34,18 @@ src.close()
     docker cp "$("${compose[@]}" ps -q badges):/tmp/bk.sqlite3" "$tmp"
     "${compose[@]}" exec -T badges rm -f /tmp/bk.sqlite3
     backed_up=true
+  fi
+fi
+
+# 2. Attempt backup via loopback API if accessible directly on host
+if [[ "$backed_up" != true ]]; then
+  if curl --fail --silent --show-error --max-time 5 -X POST "http://127.0.0.1:8766/badges/api/backup" \
+      -H "Content-Type: application/json" >/dev/null 2>&1; then
+    server_bk=$(find "${KF_BADGES_DIR:-$app_dir/.local/badges}/backups" -maxdepth 1 -name "badges_backup_*.sqlite3" -type f -printf "%T@ %p\n" 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2-)
+    if [[ -n "$server_bk" && -f "$server_bk" ]]; then
+      cp -f -- "$server_bk" "$tmp"
+      backed_up=true
+    fi
   fi
 fi
 

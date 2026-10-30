@@ -216,8 +216,8 @@ def update_latest_information(
 
             cleaned_html = strip_articles_from_comments(current_html)
             current_ids = get_visible_article_ids(cleaned_html)
-            if current_ids and current_ids[0] == article_id and cleaned_html == current_html:
-                print(f"Article '{article_id}' is already the first visible article in {state_file}. No changes needed (idempotent).")
+            if current_ids and (current_ids[0] == article_id or (current_ids[0] == "badge-catalog" and article_id in current_ids)) and cleaned_html == current_html:
+                print(f"Article '{article_id}' is already present in proper position in {state_file}. No changes needed (idempotent).")
                 return False
 
             # Insert new article (and clean any comment pollution)

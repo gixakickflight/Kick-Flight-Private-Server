@@ -262,24 +262,35 @@ class BadgesRequestHandler(BaseHTTPRequestHandler):
             return
 
         if path == "/badges/api/backup":
-            client_ip = self.headers.get("X-Real-IP") or self.client_address[0]
-            if not is_loopback(client_ip):
+            # Security: Must strictly originate from local loopback TCP connection,
+            # and any forwarded proxy IP header must also be loopback.
+            client_ip = self.client_address[0]
+            real_ip = self.headers.get("X-Real-IP")
+            if not is_loopback(client_ip) or (real_ip and not is_loopback(real_ip)):
                 self._send_headers(HTTPStatus.FORBIDDEN, "application/json; charset=utf-8")
                 self.wfile.write(json.dumps({"error": "Loopback only"}).encode("utf-8"))
                 return
 
             content_length = int(self.headers.get("Content-Length", 0))
-            dest_path = None
+            dest_name = None
             if content_length > 0:
                 try:
                     payload = json.loads(self.rfile.read(content_length).decode("utf-8"))
-                    dest_path = payload.get("destination")
+                    dest_name = payload.get("destination")
                 except Exception:
                     pass
 
-            if not dest_path:
+            # Sanitize backup destination: strictly confine to dedicated backups directory
+            backup_dir = self.db.db_path.parent / "backups"
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            if dest_name:
+                clean_name = Path(dest_name).name
+                if not clean_name.endswith(".sqlite3"):
+                    clean_name += ".sqlite3"
+                dest_path = backup_dir / clean_name
+            else:
                 ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-                dest_path = str(self.db.db_path.parent / f"badges_backup_{ts}.sqlite3")
+                dest_path = backup_dir / f"badges_backup_{ts}.sqlite3"
 
             try:
                 self.db.backup(dest_path)

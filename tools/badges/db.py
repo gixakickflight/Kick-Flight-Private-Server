@@ -11,6 +11,7 @@ Features:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
@@ -46,7 +47,8 @@ class BadgeDatabase:
         self._lock = threading.Lock()
         self.init_db()
 
-    def get_connection(self) -> sqlite3.Connection:
+    @contextlib.contextmanager
+    def get_connection(self):
         conn = sqlite3.connect(
             str(self.db_path),
             timeout=10.0,
@@ -58,7 +60,10 @@ class BadgeDatabase:
         conn.execute("PRAGMA synchronous = NORMAL;")
         conn.execute("PRAGMA foreign_keys = ON;")
         conn.execute("PRAGMA busy_timeout = 5000;")
-        return conn
+        try:
+            yield conn
+        finally:
+            conn.close()
 
     def init_db(self) -> None:
         with self._lock, self.get_connection() as conn:

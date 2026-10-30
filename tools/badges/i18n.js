@@ -221,9 +221,13 @@ function setLanguage(lang) {
   if (lang !== "en" && lang !== "es") lang = "en";
   currentLang = lang;
   try {
-    localStorage.setItem("kf_badge_lang", lang);
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem("kf_badge_lang", lang);
+    }
   } catch (e) {}
-  document.documentElement.lang = lang;
+  if (typeof document !== "undefined" && document.documentElement) {
+    document.documentElement.lang = lang;
+  }
 }
 
 function getStoredLanguage() {
