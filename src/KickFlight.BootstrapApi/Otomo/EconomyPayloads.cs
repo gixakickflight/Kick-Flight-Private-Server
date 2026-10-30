@@ -89,6 +89,11 @@ public sealed class EconomyPayloads
     // amount is the client's cumulative count: what economy holds plus what the disc's levels spent.
     public object[] BuildUserDiscList(EconomySnapshot snapshot, Func<int, DiscStanding> standingOf)
     {
+        // The Discs tab draws its fragment-conversion block from this counter: with the row absent the client has no
+        // fragment count to show and the block has nothing to render. Nothing in this server converts fragments, so
+        // the row is only noise when it is zero.
+        if (amounts.GetValueOrDefault(6) == 0) amounts.Remove(6);
+
         var rows = new List<object>();
         foreach (var item in snapshot.Items)
         {
