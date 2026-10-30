@@ -330,6 +330,15 @@
       font-size: 12px;
       line-height: 1.45;
     }
+    .modal-reward {
+      background: #142e2b;
+      border: 1px solid #236965;
+      color: #79ece5;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.45;
+    }
     .modal-footer {
       display: flex;
       justify-content: flex-end;
@@ -404,6 +413,7 @@
       <button id="btn-toggle-lang" class="btn">Español</button>
       <button id="btn-glyph" class="btn">🔤 Glyph Key</button>
       <button id="btn-unmapped" class="btn">📋 Guide Notes</button>
+      <button id="btn-contributors" class="btn">👥 Contributors</button>
     </div>
   </div>
 
@@ -440,6 +450,9 @@
   <div class="modal">
     <h2 id="modal-contributor-title">Kick Flight Contributor Name</h2>
     <p id="modal-contributor-desc">Please enter your Kick Flight player name to attribute your edits in the collaborative catalog.</p>
+    <div class="modal-reward" id="modal-contributor-reward">
+      🎁 Exclusive Contributor Badge: Active contributors receive an exclusive in-game badge! Rewards are delivered manually by administrators based on your exact player name (no automated granting).
+    </div>
     <div class="modal-warning" id="modal-contributor-warning">
       ⚠️ Note: This self-entered name is NOT authenticated or verified against your Kick Flight account or password. Anyone can enter any display name; it is used solely to record who suggested each edit in the public audit log.
     </div>
@@ -513,6 +526,33 @@
     </div>
     <div class="modal-footer">
       <button id="btn-close-history">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Contributors Leaderboard & Review Modal -->
+<div id="modal-contributors" class="modal-overlay" hidden>
+  <div class="modal wide">
+    <h2 id="modal-contrib-title">Badge Catalog Contributors & Rewards</h2>
+    <div class="modal-reward" id="modal-contrib-desc">
+      🎁 Active contributors receive an exclusive in-game badge! Rewards are delivered manually by administrators based on your exact player name provided during edits (no automated granting).
+    </div>
+    <div style="overflow-x: auto; max-height: 50vh; margin-top: 10px;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th id="th-contrib-player">Player Name</th>
+            <th id="th-contrib-edits">Total Edits</th>
+            <th id="th-contrib-badges">Badges</th>
+            <th id="th-contrib-last">Last Active</th>
+          </tr>
+        </thead>
+        <tbody id="contrib-table-body"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer" style="justify-content: space-between;">
+      <a id="btn-contrib-export" class="btn" href="/badges/api/contributors?format=csv" download="kickflight_badge_contributors.csv" style="text-decoration:none; display:inline-flex; align-items:center;">Download CSV</a>
+      <button id="btn-close-contributors">Close</button>
     </div>
   </div>
 </div>
@@ -670,12 +710,14 @@
     document.getElementById("btn-change-name").textContent = t("change_button");
     document.getElementById("btn-glyph").textContent = t("glyph_btn");
     document.getElementById("btn-unmapped").textContent = t("unmapped_btn");
+    document.getElementById("btn-contributors").textContent = t("contributors_btn");
     document.getElementById("search-input").placeholder = t("search_placeholder");
     document.getElementById("txt-filter-edited").textContent = t("filter_edited");
 
     // Modal texts
     document.getElementById("modal-contributor-title").textContent = t("modal_title");
     document.getElementById("modal-contributor-desc").textContent = t("modal_desc");
+    document.getElementById("modal-contributor-reward").textContent = t("modal_reward_notice");
     document.getElementById("modal-contributor-warning").textContent = t("modal_unauth_warning");
     document.getElementById("btn-save-player").textContent = t("modal_save_btn");
 
@@ -690,6 +732,15 @@
     document.getElementById("th-unmapped-cond").textContent = t("unmapped_col_condition");
     document.getElementById("th-unmapped-note").textContent = t("unmapped_col_note");
     document.getElementById("btn-close-unmapped").textContent = t("unmapped_close_btn");
+
+    document.getElementById("modal-contrib-title").textContent = t("contrib_modal_title");
+    document.getElementById("modal-contrib-desc").textContent = t("contrib_modal_desc");
+    document.getElementById("btn-contrib-export").textContent = t("contrib_export_btn");
+    document.getElementById("th-contrib-player").textContent = t("contrib_col_player");
+    document.getElementById("th-contrib-edits").textContent = t("contrib_col_edits");
+    document.getElementById("th-contrib-badges").textContent = t("contrib_col_badges");
+    document.getElementById("th-contrib-last").textContent = t("contrib_col_last");
+    document.getElementById("btn-close-contributors").textContent = t("contrib_close_btn");
 
     renderUnmappedTable();
     renderGrid();
@@ -767,6 +818,38 @@
 
   document.getElementById("btn-close-history").addEventListener("click", () => {
     document.getElementById("modal-history").hidden = true;
+  });
+
+  async function openContributorsModal() {
+    const modal = document.getElementById("modal-contributors");
+    const tbody = document.getElementById("contrib-table-body");
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:16px;">Loading contributors...</td></tr>';
+    modal.hidden = false;
+    try {
+      const res = await fetch("/badges/api/contributors");
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      const list = data.contributors || [];
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:16px; color:var(--muted);">${t("contrib_no_contributors")}</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = list.map(c => `
+        <tr>
+          <td><strong>${esc(c.player_name)}</strong></td>
+          <td>${c.total_edits}</td>
+          <td>${c.distinct_badges}</td>
+          <td style="font-size:11px; color:var(--muted);">${(c.last_contribution || "").replace("T", " ").slice(0, 19)}</td>
+        </tr>
+      `).join("");
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:16px; color:var(--danger);">Error loading contributors: ${esc(e.message)}</td></tr>`;
+    }
+  }
+
+  document.getElementById("btn-contributors").addEventListener("click", openContributorsModal);
+  document.getElementById("btn-close-contributors").addEventListener("click", () => {
+    document.getElementById("modal-contributors").hidden = true;
   });
 
   document.getElementById("btn-toggle-lang").addEventListener("click", () => {

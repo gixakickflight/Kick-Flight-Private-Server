@@ -13,6 +13,7 @@ const I18N_STRINGS = {
     lang_toggle: "Español",
     glyph_btn: "🔤 Glyph Key",
     unmapped_btn: "📋 Guide Notes",
+    contributors_btn: "👥 Contributors",
     search_placeholder: "Search by ID, name, or condition...",
     filter_category: "Category",
     cat_all: "All Categories",
@@ -46,11 +47,23 @@ const I18N_STRINGS = {
     // Contributor Modal
     modal_title: "Kick Flight Contributor Name",
     modal_desc: "Please enter your Kick Flight player name to attribute your edits in the collaborative catalog.",
+    modal_reward_notice: "🎁 Exclusive Contributor Badge: Active contributors receive an exclusive in-game badge! Rewards are delivered manually by administrators based on your exact player name (no automated granting).",
     modal_unauth_warning: "⚠️ Note: This self-entered name is NOT authenticated or verified against your Kick Flight account or password. Anyone can enter any display name; it is used solely to record who suggested each edit in the public audit log.",
     modal_input_placeholder: "Player name (1-32 chars)",
     modal_save_btn: "Continue to Catalog",
     modal_error_empty: "Please enter a valid player name.",
     modal_error_length: "Player name must be 32 characters or fewer.",
+
+    // Contributors List Modal
+    contrib_modal_title: "Badge Catalog Contributors & Rewards",
+    contrib_modal_desc: "Active contributors receive an exclusive in-game badge! Rewards are delivered manually by administrators based on your exact player name provided during edits (no automated granting).",
+    contrib_export_btn: "Download CSV",
+    contrib_no_contributors: "No community contributions recorded yet.",
+    contrib_col_player: "Player Name",
+    contrib_col_edits: "Total Edits",
+    contrib_col_badges: "Badges",
+    contrib_col_last: "Last Active",
+    contrib_close_btn: "Close",
 
     // Glyph Modal
     glyph_modal_title: "Kick Flight Glyph Key Reference",
@@ -81,10 +94,17 @@ const I18N_STRINGS = {
     conflict_title: "Concurrency Conflict Detected",
     conflict_msg: "Another contributor modified badge {id} while you were editing. To prevent overwriting their work, the server rejected your changes. Your local draft has been preserved below so you do not lose any work.",
     conflict_server_version: "Server Version: v{version}",
+    conflict_btn_overwrite: "Overwrite with My Edits",
+    conflict_btn_discard: "Discard My Edits & Accept Server",
+    conflict_diff_label: "Server values (v{version}):",
+    conflict_resolved_overwrite: "Conflict resolved: Submitting your edits on top of v{version}.",
+    conflict_resolved_discard: "Conflict resolved: Draft discarded, updated to server v{version}.",
 
     // Translation Error
     translation_unavailable_title: "Chrome Translation API Unavailable",
-    translation_unavailable_msg: "All editable contributions must be saved in English. When typing in Spanish, the Chrome Built-in Translator API is required to convert your text before saving.\n\nThe Translation API was not detected in this browser. To contribute in Spanish:\n1. Use Google Chrome and enable chrome://flags/#translation-api\n2. Or switch the interface to English and submit contributions directly in English.\n\nYour draft has been safely preserved locally and Spanish was NOT saved as English.",
+    translation_unavailable_msg: "All editable contributions must be saved in English. When typing in Spanish, the Chrome Built-in Translator API is required to convert your text before saving.\n\nThe Translation API was not detected or ready in this browser. To contribute in Spanish:\n1. Use Google Chrome and enable chrome://flags/#translation-api and chrome://flags/#language-detection-api\n2. Or write your contribution directly in English.\n\nNote: The backend does not validate language. Your draft has been safely retained locally and was NOT submitted.",
+    translation_unconfirmed_title: "Language Could Not Be Confirmed",
+    translation_unconfirmed_msg: "The language of your contribution could not be confirmed as English. The catalog requires English contributions. Please write your contribution in English or enable Chrome's Built-in AI APIs (chrome://flags/#language-detection-api, chrome://flags/#translation-api).\n\nNote: The backend does not validate language. Your draft has been safely retained locally and was NOT submitted.",
     translation_downloading: "Downloading Chrome translation model ({progress}%)...",
     translation_ready: "Translation model ready.",
   },
@@ -98,6 +118,7 @@ const I18N_STRINGS = {
     lang_toggle: "English",
     glyph_btn: "🔤 Clave de Glifos",
     unmapped_btn: "📋 Notas de Guía",
+    contributors_btn: "👥 Colaboradores",
     search_placeholder: "Buscar por ID, nombre o condición...",
     filter_category: "Categoría",
     cat_all: "Todas las categorías",
@@ -131,11 +152,23 @@ const I18N_STRINGS = {
     // Contributor Modal
     modal_title: "Nombre de Colaborador de Kick Flight",
     modal_desc: "Por favor introduce tu nombre de jugador de Kick Flight para atribuir tus aportes en el catálogo colaborativo.",
+    modal_reward_notice: "🎁 Insignia Exclusiva de Colaborador: ¡Los colaboradores activos recibirán una insignia exclusiva dentro del juego! Las recompensas se entregan manualmente por administradores según tu nombre exacto de jugador (sin otorgamiento automático).",
     modal_unauth_warning: "⚠️ Nota: Este nombre introducido por ti NO está autenticado ni verificado con tu cuenta ni contraseña de Kick Flight. Cualquiera puede ingresar cualquier nombre; se utiliza únicamente para registrar quién propuso cada edición en el registro público de auditoría.",
     modal_input_placeholder: "Nombre de jugador (1-32 caracteres)",
     modal_save_btn: "Continuar al Catálogo",
     modal_error_empty: "Por favor introduce un nombre válido.",
     modal_error_length: "El nombre no puede exceder 32 caracteres.",
+
+    // Contributors List Modal
+    contrib_modal_title: "Colaboradores del Catálogo e Insignias Exclusivas",
+    contrib_modal_desc: "¡Los colaboradores activos reciben una insignia exclusiva dentro del juego! Las recompensas son entregadas manualmente por los administradores según el nombre de jugador exacto provisto al editar (sin otorgamiento automático).",
+    contrib_export_btn: "Descargar CSV",
+    contrib_no_contributors: "Aún no hay contribuciones comunitarias registradas.",
+    contrib_col_player: "Nombre de Jugador",
+    contrib_col_edits: "Ediciones",
+    contrib_col_badges: "Insignias",
+    contrib_col_last: "Última Actividad",
+    contrib_close_btn: "Cerrar",
 
     // Glyph Modal
     glyph_modal_title: "Referencia de Glifos de Kick Flight",
@@ -166,10 +199,17 @@ const I18N_STRINGS = {
     conflict_title: "Conflicto de Concurrencia Detectado",
     conflict_msg: "Otro colaborador modificó la insignia {id} mientras editabas. Para no sobrescribir su aporte, el servidor rechazó tus cambios. Tu borrador local se ha conservado abajo para que no pierdas trabajo.",
     conflict_server_version: "Versión en Servidor: v{version}",
+    conflict_btn_overwrite: "Sobrescribir con mis cambios",
+    conflict_btn_discard: "Descartar mis cambios y aceptar servidor",
+    conflict_diff_label: "Valores en servidor (v{version}):",
+    conflict_resolved_overwrite: "Conflicto resuelto: Enviando tus cambios sobre v{version}.",
+    conflict_resolved_discard: "Conflicto resuelto: Borrador descartado, actualizado a v{version} del servidor.",
 
     // Translation Error
     translation_unavailable_title: "API de Traducción de Chrome No Disponible",
-    translation_unavailable_msg: "Todas las contribuciones deben almacenarse en inglés. Al escribir en español, se requiere la API de traducción integrada de Chrome para convertir el texto antes de guardar.\n\nNo se detectó la API en este navegador. Para contribuir en español:\n1. Usa Google Chrome y activa chrome://flags/#translation-api\n2. O cambia el idioma a inglés y envía tus contribuciones directamente en inglés.\n\nTu borrador se ha conservado de forma segura en local y el texto en español NO se guardó como inglés.",
+    translation_unavailable_msg: "Todas las contribuciones deben guardarse en inglés. Al escribir en español, se requiere la API de traducción integrada de Chrome para convertir el texto antes de guardar.\n\nNo se detectó la API en este navegador. Para contribuir en español:\n1. Usa Google Chrome y activa chrome://flags/#translation-api y chrome://flags/#language-detection-api\n2. O escribe tu aporte directamente en inglés.\n\nNota: El servidor no valida el idioma. Tu borrador se conservó de forma segura en local y NO fue enviado.",
+    translation_unconfirmed_title: "No Se Pudo Confirmar el Idioma",
+    translation_unconfirmed_msg: "No se pudo confirmar que tu contribución esté en inglés. El catálogo requiere aportes en inglés. Escribe tu aporte en inglés o activa las APIs integradas de Chrome (chrome://flags/#language-detection-api, chrome://flags/#translation-api).\n\nNota: El servidor no valida el idioma. Tu borrador se conservó de forma segura en local y NO fue enviado.",
     translation_downloading: "Descargando modelo de traducción de Chrome ({progress}%)...",
     translation_ready: "Modelo de traducción listo.",
   }
@@ -203,4 +243,14 @@ function t(key, vars = {}) {
     str = str.replace(new RegExp(`\\{${k}\\}`, "g"), v);
   }
   return str;
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    I18N_STRINGS,
+    currentLang,
+    setLanguage,
+    getStoredLanguage,
+    t,
+  };
 }

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sqlite3
 import threading
 from datetime import datetime, timezone
@@ -432,3 +433,57 @@ class BadgeDatabase:
                     src_conn.backup(dest_conn)
                 finally:
                     dest_conn.close()
+
+    def get_contributors(self) -> list[dict[str, Any]]:
+        """Return aggregated list of unique contributors for review and reward distribution."""
+        with self.get_connection() as conn:
+            rows = conn.execute("""
+                SELECT
+                    player_name,
+                    COUNT(*) AS total_edits,
+                    COUNT(DISTINCT badge_id) AS distinct_badges,
+                    MIN(created_at) AS first_contribution,
+                    MAX(created_at) AS last_contribution,
+                    GROUP_CONCAT(DISTINCT field_name) AS fields_edited
+                FROM badge_audit_log
+                WHERE player_name != '' AND player_name != 'system-seed'
+                GROUP BY player_name
+                ORDER BY total_edits DESC, last_contribution DESC;
+            """).fetchall()
+            return [dict(r) for r in rows]
+
+
+def main() -> None:
+    import argparse
+    parser = argparse.ArgumentParser(description="Kick Flight Badge Database Utilities")
+    parser.add_argument("--db", default=None, help="Path to SQLite database")
+    parser.add_argument("--backup", help="Perform hot backup to target file path")
+    parser.add_argument("--contributors", action="store_true", help="List all unique contributors")
+    parser.add_argument("--status", action="store_true", help="Show database migration and record counts")
+    args = parser.parse_args()
+
+    db_path = args.db or os.environ.get("KF_BADGES_DB_PATH", str(Path(__file__).resolve().parents[2] / ".local" / "badges" / "badges.sqlite3"))
+    db = BadgeDatabase(db_path)
+
+    if args.backup:
+        db.backup(args.backup)
+        print(f"Hot backup written successfully to {args.backup}")
+    elif args.contributors:
+        contribs = db.get_contributors()
+        print(f"Total Unique Contributors: {len(contribs)}")
+        for c in contribs:
+            print(f"- {c['player_name']}: {c['total_edits']} edits across {c['distinct_badges']} badges (last: {c['last_contribution']})")
+    elif args.status:
+        badges = db.get_all_badges()
+        audits = len(db.get_audit_log(limit=1000000))
+        contribs = db.get_contributors()
+        print(f"Database: {db.db_path}")
+        print(f"Total Badges: {len(badges)}")
+        print(f"Total Audit Log Records: {audits}")
+        print(f"Unique Contributors: {len(contribs)}")
+    else:
+        parser.print_help()
+
+
+if __name__ == "__main__":
+    main()

@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import sys
 import tempfile
 import threading
 import time
@@ -26,7 +27,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import pytest
+try:
+    import pytest
+except ImportError:
+    class _DummyPytest:
+        @staticmethod
+        def fixture(func):
+            return func
+    pytest = _DummyPytest()
 
 from db import (
     BadgeDatabase,
@@ -344,6 +352,23 @@ def test_http_server_endpoints(http_server, badge_db):
         assert data["count"] >= 1
         assert data["logs"][0]["player_name"] == "HttpTester"
 
+    # Verify contributors API (JSON)
+    with urllib.request.urlopen(f"{base_url}/badges/api/contributors") as resp:
+        assert resp.status == 200
+        data = json.loads(resp.read().decode())
+        assert data["status"] == "ok"
+        assert data["contributor_count"] >= 1
+        assert "no automated granting" in data["reward_policy"].lower()
+        names = [c["player_name"] for c in data["contributors"]]
+        assert "HttpTester" in names
+
+    # Verify contributors API (CSV)
+    with urllib.request.urlopen(f"{base_url}/badges/api/contributors?format=csv") as resp:
+        assert resp.status == 200
+        csv_text = resp.read().decode()
+        assert "player_name,total_edits,distinct_badges" in csv_text
+        assert "HttpTester" in csv_text
+
     # Test loopback backup endpoint
     backup_req = urllib.request.Request(
         f"{base_url}/badges/api/backup",
@@ -366,18 +391,215 @@ def test_http_server_endpoints(http_server, badge_db):
             assert e.code == 404
 
 
-# 9. Announcement Redirect Test
-def test_announcement_redirect_file():
-    root = Path(__file__).resolve().parents[2]
-    announcement_file = root / "src/KickFlight.BootstrapApi/data/latest-information.json"
-    assert announcement_file.exists(), "latest-information.json must exist"
+# 9. Announcement Preservation, Reward Policy, and Idempotence Tests
+def test_announcement_preservation_and_idempotence(temp_dir):
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from prepare_announcement import upsert_announcement_state, get_visible_article_ids, ARTICLE_ID
 
-    data = json.loads(announcement_file.read_text(encoding="utf-8"))
-    assert "/badges" in data["Content"]
-    assert data["Mode"] in ("html", "url")
-    if data["Mode"] == "html":
-        assert 'meta http-equiv="refresh"' in data["HtmlContent"]
-        assert 'url=/badges' in data["HtmlContent"]
-        assert '/badges' in data["HtmlContent"]
-    elif data["Mode"] == "url":
-        assert "/badges" in data["ExternalUrl"]
+    state_file = temp_dir / "latest-information.json"
+    backup_dir = temp_dir / "announcement-backups"
+
+    # Simulate existing persistent production state with prior announcements
+    initial_production_html = """<!doctype html><html><head><title>Updates</title></head><body>
+<main class="wrap">
+  <h1>Updates</h1>
+
+  <article class="patch" id="v2-11-5">
+    <div class="patch-head"><h2>Patch 2.11.5</h2></div>
+    <p class="headline">Android endpoint update for the VPS.</p>
+  </article>
+
+  <article class="patch" id="v2-11-4">
+    <div class="patch-head"><h2>Patch 2.11.4</h2></div>
+    <p class="headline">Experimental Scramble AI update.</p>
+  </article>
+
+  <article class="patch" id="matchmaking-roles-2026-10-19">
+    <div class="patch-head"><h2>New matchmaking</h2></div>
+  </article>
+
+  <article class="patch" id="v2-11-3">
+    <div class="patch-head"><h2>Patch 2.11.3</h2></div>
+  </article>
+</main>
+</body></html>"""
+
+    initial_snapshot = {
+        "Content": "Prior text content",
+        "Mode": "html",
+        "HtmlContent": initial_production_html,
+        "ExternalUrl": "",
+        "HtmlResourceCsp": "default-src 'self'",
+        "DefaultContent": "Default",
+        "ChangedAtUtc": "2026-10-19T00:00:00Z",
+    }
+    state_file.write_text(json.dumps(initial_snapshot, indent=2), encoding="utf-8")
+
+    # 1. First execution: should safely upsert badge-catalog ahead of existing announcements
+    updated = upsert_announcement_state(state_file, backup_dir=backup_dir)
+    assert updated is True, "First upsert must modify the state file"
+
+    post_data = json.loads(state_file.read_text(encoding="utf-8"))
+    assert post_data["Mode"] == "html"
+    assert post_data["HtmlResourceCsp"] == "default-src 'self'", "Snapshot CSP must be preserved"
+    assert post_data["DefaultContent"] == "Default", "Snapshot DefaultContent must be preserved"
+
+    html = post_data["HtmlContent"]
+
+    # 2. Assert all prior articles are preserved in exact order
+    visible_ids = get_visible_article_ids(html)
+    expected_order = [ARTICLE_ID, "v2-11-5", "v2-11-4", "matchmaking-roles-2026-10-19", "v2-11-3"]
+    assert visible_ids == expected_order, f"Visible articles must match {expected_order}, got {visible_ids}"
+
+    # 3. Assert announcement links to /badges without immediate redirect
+    assert 'href="/badges"' in html
+    assert 'meta http-equiv="refresh"' not in html, "Must not contain meta refresh"
+    assert 'window.location.replace' not in html, "Must not immediately redirect away"
+    assert 'window.location.href' not in html, "Must not script-redirect away"
+
+    # 4. Assert invitation and contributor reward policy
+    assert "collaborate" in html.lower() or "contribute" in html.lower()
+    assert "exclusive in-game" in html.lower() or "exclusive in-game badge" in html.lower()
+    assert "manually" in html.lower()
+    assert "no automated granting" in html.lower()
+
+    # 5. Assert pre-update backup was written
+    backups = list(backup_dir.glob("latest-information-backup-*.json"))
+    assert len(backups) == 1, "Expected exactly 1 backup created"
+    backup_data = json.loads(backups[0].read_text(encoding="utf-8"))
+    assert ARTICLE_ID not in get_visible_article_ids(backup_data["HtmlContent"]), "Backup must reflect pre-update state"
+
+    # 6. Idempotence: Second execution must make NO changes
+    updated_again = upsert_announcement_state(state_file, backup_dir=backup_dir)
+    assert updated_again is False, "Second upsert must be idempotent and return False"
+    final_ids = get_visible_article_ids(json.loads(state_file.read_text(encoding="utf-8"))["HtmlContent"])
+    assert final_ids == expected_order
+    assert len(list(backup_dir.glob("latest-information-backup-*.json"))) == 1, "No extra backup on idempotent no-op"
+
+
+def test_announcement_text_mode_fallback(temp_dir):
+    from prepare_announcement import upsert_announcement_state, TEXT_BLOCK
+
+    state_file = temp_dir / "latest-information-text.json"
+    initial_text_snapshot = {
+        "Content": "Existing server announcements.",
+        "Mode": "text",
+        "HtmlContent": "",
+        "ExternalUrl": "",
+        "ChangedAtUtc": "2026-10-19T00:00:00Z",
+    }
+    state_file.write_text(json.dumps(initial_text_snapshot, indent=2), encoding="utf-8")
+
+    # Upsert into text mode
+    res1 = upsert_announcement_state(state_file)
+    assert res1 is True
+    data1 = json.loads(state_file.read_text(encoding="utf-8"))
+    assert TEXT_BLOCK in data1["Content"]
+    assert "Existing server announcements." in data1["Content"], "Prior text must be preserved"
+
+    # Second run is idempotent
+    res2 = upsert_announcement_state(state_file)
+    assert res2 is False
+
+
+def test_contributors_and_export_cli(badge_db, temp_dir):
+    from export_contributors import format_csv, format_text
+
+    # Seed edits from two players
+    res1 = badge_db.save_edits(
+        player_name="ContributorAlpha",
+        edits=[{
+            "badge_id": 6010101,
+            "base_version": 1,
+            "fields": {"name": "Alpha Name", "notes": "Alpha notes"}
+        }],
+        client_ip="127.0.0.1"
+    )
+    assert res1["status"] == "ok"
+
+    res2 = badge_db.save_edits(
+        player_name="ContributorBeta",
+        edits=[{
+            "badge_id": 6010102,
+            "base_version": 1,
+            "fields": {"description": "Beta Desc"}
+        }],
+        client_ip="127.0.0.1"
+    )
+    assert res2["status"] == "ok"
+
+    contribs = badge_db.get_contributors()
+    assert len(contribs) == 2
+    names = {c["player_name"] for c in contribs}
+    assert names == {"ContributorAlpha", "ContributorBeta"}
+
+    # Test CSV formatting
+    csv_str = format_csv(contribs)
+    assert "player_name,total_edits,distinct_badges" in csv_str
+    assert "ContributorAlpha" in csv_str
+    assert "ContributorBeta" in csv_str
+
+    # Test text formatting
+    text_str = format_text(contribs)
+    assert "KICK FLIGHT BADGE CATALOG" in text_str
+    assert "ContributorAlpha" in text_str
+
+
+def test_sqlite_backup_functionality(badge_db, temp_dir):
+    backup_file = temp_dir / "hot_backup.sqlite3"
+    badge_db.backup(backup_file)
+    assert backup_file.exists()
+    assert backup_file.stat().st_size > 0
+
+    # Verify backup database is valid and readable
+    restored_db = BadgeDatabase(backup_file)
+    badges = restored_db.get_all_badges()
+    assert len(badges) == 211
+
+
+if __name__ == "__main__":
+    print("Running test_badges.py test suite directly...")
+    import inspect
+    tests = [
+        obj for name, obj in sorted(globals().items())
+        if name.startswith("test_") and inspect.isfunction(obj)
+    ]
+    passed = 0
+    failed = 0
+    for t in tests:
+        name = t.__name__
+        temp = Path(tempfile.mkdtemp(prefix="kf_badge_standalone_"))
+        seed = Path(__file__).resolve().parent / "data" / "badges_seed.json"
+        db = BadgeDatabase(temp / "badges.sqlite3", seed_file=seed)
+        server_inst = None
+        try:
+            sig = inspect.signature(t)
+            kwargs = {}
+            if "temp_dir" in sig.parameters:
+                kwargs["temp_dir"] = temp
+            if "seed_file" in sig.parameters:
+                kwargs["seed_file"] = seed
+            if "badge_db" in sig.parameters:
+                kwargs["badge_db"] = db
+            if "http_server" in sig.parameters:
+                port = 18769
+                server_inst = BadgesServer(("127.0.0.1", port), BadgesRequestHandler, db)
+                thread = threading.Thread(target=server_inst.serve_forever, daemon=True)
+                thread.start()
+                kwargs["http_server"] = f"http://127.0.0.1:{port}"
+            t(**kwargs)
+            passed += 1
+            print(f"  PASSED: {name}")
+        except Exception as e:
+            failed += 1
+            print(f"  FAILED: {name}: {e}")
+        finally:
+            if server_inst:
+                server_inst.shutdown()
+                server_inst.server_close()
+            shutil.rmtree(temp, ignore_errors=True)
+
+    print(f"\nResult: {passed} passed, {failed} failed out of {len(tests)} tests.")
+    if failed > 0:
+        sys.exit(1)
+

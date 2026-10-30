@@ -185,6 +185,8 @@ services:
     depends_on:
       cdn:
         condition: service_healthy
+      badges:
+        condition: service_healthy
 
   badges:
     build:

@@ -13,6 +13,8 @@ Serves the collaborative /badges web interface and JSON API:
 from __future__ import annotations
 
 import argparse
+import csv
+import io
 import json
 import logging
 import os
@@ -151,6 +153,64 @@ class BadgesRequestHandler(BaseHTTPRequestHandler):
                 "badge_id": badge_id,
                 "count": len(logs),
                 "logs": logs,
+            }
+            data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            self._send_headers(HTTPStatus.OK, "application/json; charset=utf-8")
+            self.wfile.write(data)
+            return
+
+        if path == "/badges/api/contributors":
+            query = parse_qs(parsed.query)
+            fmt = query.get("format", ["json"])[0].lower()
+            contribs = self.db.get_contributors()
+            total_edits = sum(c["total_edits"] for c in contribs)
+
+            if fmt == "csv":
+                output = io.StringIO()
+                writer = csv.writer(output)
+                writer.writerow(["player_name", "total_edits", "distinct_badges", "first_contribution", "last_contribution", "fields_edited"])
+                for c in contribs:
+                    writer.writerow([
+                        c["player_name"],
+                        c["total_edits"],
+                        c["distinct_badges"],
+                        c["first_contribution"],
+                        c["last_contribution"],
+                        c["fields_edited"] or "",
+                    ])
+                csv_bytes = output.getvalue().encode("utf-8")
+                self.send_response(HTTPStatus.OK)
+                self.send_header("Content-Type", "text/csv; charset=utf-8")
+                self.send_header("Content-Disposition", 'attachment; filename="kickflight_badge_contributors.csv"')
+                self.send_header("Cache-Control", "no-cache")
+                self.end_headers()
+                self.wfile.write(csv_bytes)
+                return
+
+            if fmt == "text":
+                lines = [
+                    "Kick Flight Badge Catalog - Contributors Leaderboard & Export",
+                    f"Generated: {datetime.now(timezone.utc).isoformat()}",
+                    f"Total Unique Contributors: {len(contribs)} | Total Edits: {total_edits}",
+                    "Reward Policy: Exclusive in-game badge delivered manually by admins based on supplied player names.",
+                    "-" * 80,
+                    f"{'Player Name':<32} {'Edits':<8} {'Badges':<8} {'Last Active':<20}",
+                    "-" * 80,
+                ]
+                for c in contribs:
+                    lines.append(f"{c['player_name']:<32} {c['total_edits']:<8} {c['distinct_badges']:<8} {c['last_contribution'][:19]:<20}")
+                text_bytes = "\n".join(lines).encode("utf-8")
+                self._send_headers(HTTPStatus.OK, "text/plain; charset=utf-8")
+                self.wfile.write(text_bytes)
+                return
+
+            # Default JSON
+            payload = {
+                "status": "ok",
+                "contributor_count": len(contribs),
+                "total_edits": total_edits,
+                "reward_policy": "Contributors receive an exclusive in-game badge, delivered manually based on supplied player names (no automated granting).",
+                "contributors": contribs,
             }
             data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
             self._send_headers(HTTPStatus.OK, "application/json; charset=utf-8")
