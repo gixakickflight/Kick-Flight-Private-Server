@@ -93,6 +93,55 @@
     }
     .sync-pill.saving { background: #3b3524; color: var(--warn); border-color: #63532c; }
     .sync-pill.offline { background: #381f24; color: var(--danger); border-color: #6a2e37; }
+    .btn-sync {
+      background: #193549;
+      color: #9ee6ff;
+      border: 1px solid #2d7099;
+      font-weight: 600;
+      padding: 6px 14px;
+      gap: 6px;
+      transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+    }
+    .btn-sync:hover:not(:disabled) {
+      background: #234c68;
+      border-color: #4da3db;
+      color: #ffffff;
+      box-shadow: 0 0 10px rgba(77, 163, 219, 0.35);
+    }
+    .btn-sync:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    .btn-sync:disabled {
+      cursor: not-allowed;
+    }
+    .btn-sync.syncing {
+      background: #3a2e16;
+      border-color: #82662c;
+      color: #ffebbc;
+    }
+    .btn-sync.syncing .sync-icon {
+      display: inline-block;
+      animation: spin 1s linear infinite;
+    }
+    .btn-sync.sync-success {
+      background: #193322;
+      border-color: #2f6942;
+      color: #d1f7dc;
+    }
+    .btn-sync.sync-error {
+      background: #3d1c22;
+      border-color: #8c3240;
+      color: #ffd6d6;
+    }
+    @keyframes spin {
+      100% { transform: rotate(360deg); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .btn-sync.syncing .sync-icon {
+        animation: none;
+      }
+    }
     .toolbar {
       display: flex;
       gap: 10px;
@@ -432,9 +481,13 @@
         <span class="unauth-badge" id="txt-unauth-pill">Unauthenticated</span>
         <button id="btn-change-name" style="padding: 2px 7px; font-size: 11px;" aria-label="Change contributor player name">Change</button>
       </div>
-      <div id="sync-pill" class="sync-pill">
+      <div id="sync-pill" class="sync-pill" role="status" aria-live="polite">
         <span class="dot">●</span> <span id="sync-text">Synced</span>
       </div>
+      <button id="btn-sync-now" class="btn btn-sync" type="button" aria-label="Synchronize catalog and submit pending edits">
+        <span class="sync-icon" aria-hidden="true">🔄</span>
+        <span id="txt-sync-btn">Sync</span>
+      </button>
       <div class="lang-selector-wrap" style="display:inline-flex; align-items:center; gap:6px;">
         <label for="lang-select" class="sr-only" id="lbl-lang-select">Language / Idioma</label>
         <select id="lang-select" class="lang-select" aria-label="Language selector / Selector de idioma">
@@ -863,6 +916,14 @@
     const btnChangeName = document.getElementById("btn-change-name");
     btnChangeName.textContent = t("change_button");
     btnChangeName.setAttribute("aria-label", t("aria_change_name"));
+    const btnSync = document.getElementById("btn-sync-now");
+    const txtSync = document.getElementById("txt-sync-btn");
+    if (btnSync) {
+      btnSync.setAttribute("aria-label", t("aria_sync_btn"));
+    }
+    if (txtSync && !btnSync?.classList.contains("syncing") && !btnSync?.classList.contains("sync-success") && !btnSync?.classList.contains("sync-error")) {
+      txtSync.textContent = t("sync_btn");
+    }
     const btnGlyph = document.getElementById("btn-glyph");
     btnGlyph.textContent = t("glyph_btn");
     btnGlyph.setAttribute("aria-label", t("aria_glyph_btn"));
@@ -1508,7 +1569,7 @@
 
   // Polling and Autosave Loop (Runs every 30 seconds)
   async function performPollAndAutosave() {
-    if (state.syncing) return;
+    if (state.syncing) return false;
     state.syncing = true;
     updateSyncPill();
 
@@ -1539,12 +1600,67 @@
           }
         });
       }
+      return true;
     } catch (e) {
       console.warn("Poll/Autosave encountered issue:", e);
       state.offline = true;
+      return false;
     } finally {
       state.syncing = false;
       updateSyncPill();
+    }
+  }
+
+  // Immediate Manual Synchronization
+  async function handleManualSync() {
+    if (state.syncing) return;
+
+    // Retain 30s interval: reset periodic poll timer so next poll is 30s from now and avoid overlapping
+    if (state.pollTimer) {
+      clearInterval(state.pollTimer);
+    }
+    state.pollTimer = setInterval(performPollAndAutosave, state.pollIntervalMs);
+
+    const btn = document.getElementById("btn-sync-now");
+    const txt = document.getElementById("txt-sync-btn");
+    if (btn) {
+      btn.disabled = true;
+      btn.setAttribute("aria-busy", "true");
+      btn.classList.remove("sync-success", "sync-error");
+      btn.classList.add("syncing");
+    }
+    if (txt) {
+      txt.textContent = t("sync_btn_in_progress");
+    }
+
+    const success = await performPollAndAutosave();
+
+    if (btn) {
+      btn.classList.remove("syncing");
+      btn.setAttribute("aria-busy", "false");
+    }
+
+    if (success && !state.offline) {
+      if (btn) btn.classList.add("sync-success");
+      if (txt) txt.textContent = t("sync_btn_success");
+      setTimeout(() => {
+        if (btn) {
+          btn.classList.remove("sync-success");
+          btn.disabled = false;
+        }
+        if (txt) txt.textContent = t("sync_btn");
+      }, 2000);
+    } else {
+      if (btn) btn.classList.add("sync-error");
+      if (txt) txt.textContent = t("sync_btn_error");
+      showAlert(t("sync_feedback_error"), "warn", 6000);
+      setTimeout(() => {
+        if (btn) {
+          btn.classList.remove("sync-error");
+          btn.disabled = false;
+        }
+        if (txt) txt.textContent = t("sync_btn");
+      }, 3000);
     }
   }
 
@@ -1729,6 +1845,11 @@
   document.getElementById("filter-status").addEventListener("change", renderGrid);
   document.getElementById("filter-edited").addEventListener("change", renderGrid);
 
+  const btnSyncNow = document.getElementById("btn-sync-now");
+  if (btnSyncNow) {
+    btnSyncNow.addEventListener("click", handleManualSync);
+  }
+
   // Initialize
   loadLocalDrafts();
   checkPlayerName();
@@ -1747,6 +1868,18 @@
     state.offline = true;
     updateSyncPill();
   });
+
+  if (typeof window !== "undefined") {
+    window._kfBadgeApp = {
+      state,
+      performPollAndAutosave,
+      handleManualSync,
+      applyLanguage,
+      loadLocalDrafts,
+      saveLocalDrafts,
+      autosaveDrafts,
+    };
+  }
 
 })();
 </script>

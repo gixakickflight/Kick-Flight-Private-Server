@@ -52,6 +52,8 @@ async function runBrowserI18nTests() {
     assert.strictEqual(selVal, "en");
     assert.strictEqual(annText, "📢 Announcements");
     assert.strictEqual(filterCatFirst, "All Categories");
+    const syncText = (await page.textContent("#txt-sync-btn")).trim();
+    assert.strictEqual(syncText, "Sync", "Initial Sync button must display English 'Sync'");
     console.log("  ✔ 1. First load with Spanish locale shows English UI");
 
     // Enter player name and continue
@@ -70,6 +72,7 @@ async function runBrowserI18nTests() {
     const esFilterStatusFirst = (await page.textContent("#filter-status option:first-child")).trim();
     const esGlyphText = (await page.textContent("#btn-glyph")).trim();
     const esContribText = (await page.textContent("#btn-contributors")).trim();
+    const esSyncText = (await page.textContent("#txt-sync-btn")).trim();
 
     assert.strictEqual(esHtmlLang, "es");
     assert.strictEqual(esTitle, "Catálogo Colaborativo de Insignias · Kick Flight");
@@ -78,6 +81,7 @@ async function runBrowserI18nTests() {
     assert.strictEqual(esFilterStatusFirst, "Todos los estados");
     assert.strictEqual(esGlyphText, "🔤 Clave de Glifos");
     assert.strictEqual(esContribText, "👥 Colaboradores");
+    assert.strictEqual(esSyncText, "Sincronizar", "Sync button must translate to Spanish 'Sincronizar'");
     console.log("  ✔ 3. Selector switches UI immediately to Spanish");
 
     // 3. Reload and verify persistence

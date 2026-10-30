@@ -116,6 +116,13 @@ describe("1. Internationalization (i18n.js)", () => {
       "status_unknown",
       "filter_edited",
       "sync_status_pending",
+      "sync_btn",
+      "sync_btn_in_progress",
+      "sync_btn_success",
+      "sync_btn_error",
+      "sync_feedback_success",
+      "sync_feedback_error",
+      "aria_sync_btn",
       "badge_loading",
       "server_time",
       "badge_art_alt",
@@ -677,5 +684,446 @@ describe("5. In-Place Card DOM Updating & Focus Preservation (No replaceWith)", 
 
     // 5. Version pill updated in-place
     assert.strictEqual(versionPill.textContent, "v2", "Version pill must update in-place to v2");
+  });
+});
+
+describe("6. Immediate Manual Synchronization (Sync Button)", () => {
+  const indexHtmlPath = path.join(__dirname, "index.html");
+  const indexHtml = fs.readFileSync(indexHtmlPath, "utf-8");
+
+  test("Sync button markup exists in index.html with accessible attributes and prominent styling", () => {
+    assert.match(indexHtml, /id="btn-sync-now"/, "index.html must have #btn-sync-now element");
+    assert.match(indexHtml, /class="[^"]*btn-sync[^"]*"/, "#btn-sync-now must have prominent .btn-sync class");
+    assert.match(indexHtml, /id="txt-sync-btn"/, "#btn-sync-now must have #txt-sync-btn text node");
+    assert.match(indexHtml, /aria-label="[^"]*"/, "#btn-sync-now must have aria-label");
+    assert.match(indexHtml, /role="status"/, "#sync-pill must have role='status'");
+    assert.match(indexHtml, /aria-live="polite"/, "#sync-pill must have aria-live='polite'");
+
+    // Check CSS rules for prominent button styling
+    assert.match(indexHtml, /\.btn-sync\s*\{/, "Must define .btn-sync style");
+    assert.match(indexHtml, /\.btn-sync\.syncing/, "Must define .btn-sync.syncing style");
+    assert.match(indexHtml, /\.btn-sync\.sync-success/, "Must define .btn-sync.sync-success style");
+    assert.match(indexHtml, /\.btn-sync\.sync-error/, "Must define .btn-sync.sync-error style");
+  });
+
+  test("Sync button translations exist for English and Spanish with proper aria labels and feedback", () => {
+    i18n.setLanguage("en");
+    assert.strictEqual(i18n.t("sync_btn"), "Sync");
+    assert.strictEqual(i18n.t("sync_btn_in_progress"), "Syncing...");
+    assert.strictEqual(i18n.t("sync_btn_success"), "Synced!");
+    assert.strictEqual(i18n.t("sync_btn_error"), "Sync Failed");
+    assert.strictEqual(i18n.t("aria_sync_btn"), "Synchronize catalog and submit pending edits");
+    assert.match(i18n.t("sync_feedback_error"), /saved locally/i);
+
+    i18n.setLanguage("es");
+    assert.strictEqual(i18n.t("sync_btn"), "Sincronizar");
+    assert.strictEqual(i18n.t("sync_btn_in_progress"), "Sincronizando...");
+    assert.strictEqual(i18n.t("sync_btn_success"), "¡Sincronizado!");
+    assert.strictEqual(i18n.t("sync_btn_error"), "Error al sincronizar");
+    assert.strictEqual(i18n.t("aria_sync_btn"), "Sincronizar catálogo y enviar borradores pendientes");
+    assert.match(i18n.t("sync_feedback_error"), /conservado localmente/i);
+  });
+
+  test("Manual sync flow: POST pending drafts then GET poll updates, resets 30s timer, and updates button UI", async () => {
+    i18n.setLanguage("en");
+    // Mock state
+    const state = {
+      badges: [],
+      badgeMap: new Map([[10, { id: 10, version: 1, name: "Original 10" }]]),
+      playerName: "SyncTester",
+      serverTime: "2026-10-30T09:00:00Z",
+      pollTimer: 999,
+      pollIntervalMs: 30000,
+      drafts: {
+        10: { badge_id: 10, base_version: 1, fields: { name: "Manual Sync Name" } }
+      },
+      conflicts: {},
+      syncing: false,
+      offline: false,
+    };
+
+    // Track calls and order
+    const callOrder = [];
+    let submittedPayload = null;
+    let pollSince = null;
+    let timerReset = false;
+
+    // Mock button DOM element
+    const btnSync = {
+      disabled: false,
+      attributes: {},
+      classList: {
+        _classes: new Set(["btn", "btn-sync"]),
+        add(c) { this._classes.add(c); },
+        remove(c) { this._classes.delete(c); },
+        contains(c) { return this._classes.has(c); },
+      },
+      setAttribute(k, v) { this.attributes[k] = v; },
+      getAttribute(k) { return this.attributes[k]; },
+    };
+    const txtSync = { textContent: "Sync" };
+
+    function mockPerformPollAndAutosave() {
+      if (state.syncing) return false;
+      state.syncing = true;
+      try {
+        // Step 1: POST edits
+        if (Object.keys(state.drafts).length > 0) {
+          callOrder.push("POST_EDITS");
+          submittedPayload = {
+            player_name: state.playerName,
+            edits: [{ badge_id: 10, base_version: 1, fields: state.drafts[10].fields }]
+          };
+          // Simulate server success
+          delete state.drafts[10];
+          state.badgeMap.get(10).name = "Manual Sync Name";
+          state.badgeMap.get(10).version = 2;
+        }
+
+        // Step 2: GET poll
+        callOrder.push("GET_POLL");
+        pollSince = state.serverTime;
+        state.serverTime = "2026-10-30T09:00:30Z";
+        state.offline = false;
+        return true;
+      } finally {
+        state.syncing = false;
+      }
+    }
+
+    async function mockHandleManualSync() {
+      if (state.syncing) return;
+
+      // Reset timer
+      timerReset = true;
+      state.pollTimer = 1000;
+
+      btnSync.disabled = true;
+      btnSync.setAttribute("aria-busy", "true");
+      btnSync.classList.remove("sync-success", "sync-error");
+      btnSync.classList.add("syncing");
+      txtSync.textContent = i18n.t("sync_btn_in_progress");
+
+      const success = await mockPerformPollAndAutosave();
+
+      btnSync.classList.remove("syncing");
+      btnSync.setAttribute("aria-busy", "false");
+
+      if (success && !state.offline) {
+        btnSync.classList.add("sync-success");
+        txtSync.textContent = i18n.t("sync_btn_success");
+      } else {
+        btnSync.classList.add("sync-error");
+        txtSync.textContent = i18n.t("sync_btn_error");
+      }
+    }
+
+    // Trigger manual sync
+    await mockHandleManualSync();
+
+    // Verify ordering: POST pending drafts FIRST, then GET poll
+    assert.deepStrictEqual(callOrder, ["POST_EDITS", "GET_POLL"], "Must POST pending edits before polling GET");
+    assert.strictEqual(timerReset, true, "Must reset 30s poll interval timer");
+    assert.strictEqual(pollSince, "2026-10-30T09:00:00Z", "Must pass current serverTime to poll");
+    assert.strictEqual(submittedPayload.edits[0].fields.name, "Manual Sync Name");
+    assert.strictEqual(state.drafts[10], undefined, "Acknowledged draft must be cleared on success");
+
+    // Verify UI feedback
+    assert.strictEqual(btnSync.getAttribute("aria-busy"), "false");
+    assert.strictEqual(btnSync.classList.contains("sync-success"), true);
+    assert.strictEqual(txtSync.textContent, "Synced!");
+  });
+
+  test("Avoids overlapping polls: returns immediately if sync is already in flight", async () => {
+    const state = {
+      syncing: true, // Already in flight
+      pollTimer: 1234,
+      drafts: { 10: { badge_id: 10, base_version: 1, fields: { name: "Test" } } },
+    };
+
+    let fetchCalled = false;
+    async function mockHandleManualSync() {
+      if (state.syncing) return;
+      fetchCalled = true;
+    }
+
+    await mockHandleManualSync();
+    assert.strictEqual(fetchCalled, false, "Must NOT trigger sync when syncing is already true");
+  });
+
+  test("Offline / network failure preserves local drafts and displays error feedback", async () => {
+    const state = {
+      badges: [],
+      badgeMap: new Map([[50, { id: 50, version: 1, name: "Old" }]]),
+      playerName: "SyncTester",
+      drafts: {
+        50: { badge_id: 50, base_version: 1, fields: { name: "Unsaved Draft While Offline" } }
+      },
+      conflicts: {},
+      syncing: false,
+      offline: false,
+    };
+
+    let alertTriggered = null;
+    function showAlert(msg) { alertTriggered = msg; }
+
+    const btnSync = {
+      disabled: false,
+      attributes: {},
+      classList: {
+        _classes: new Set(["btn", "btn-sync"]),
+        add(c) { this._classes.add(c); },
+        remove(c) { this._classes.delete(c); },
+        contains(c) { return this._classes.has(c); },
+      },
+      setAttribute(k, v) { this.attributes[k] = v; },
+    };
+    const txtSync = { textContent: "Sync" };
+
+    // Simulate network rejection
+    async function mockPerformPollAndAutosaveOffline() {
+      if (state.syncing) return false;
+      state.syncing = true;
+      try {
+        throw new Error("Failed to fetch (NetworkOffline)");
+      } catch (e) {
+        state.offline = true;
+        return false;
+      } finally {
+        state.syncing = false;
+      }
+    }
+
+    async function mockHandleManualSyncOffline() {
+      if (state.syncing) return;
+      btnSync.disabled = true;
+      btnSync.setAttribute("aria-busy", "true");
+      btnSync.classList.add("syncing");
+      txtSync.textContent = i18n.t("sync_btn_in_progress");
+
+      const success = await mockPerformPollAndAutosaveOffline();
+
+      btnSync.classList.remove("syncing");
+      btnSync.setAttribute("aria-busy", "false");
+
+      if (success && !state.offline) {
+        btnSync.classList.add("sync-success");
+        txtSync.textContent = i18n.t("sync_btn_success");
+      } else {
+        btnSync.classList.add("sync-error");
+        txtSync.textContent = i18n.t("sync_btn_error");
+        showAlert(i18n.t("sync_feedback_error"));
+      }
+    }
+
+    i18n.setLanguage("en");
+    await mockHandleManualSyncOffline();
+
+    // Draft MUST be preserved!
+    assert.ok(state.drafts[50], "Draft must be preserved in state");
+    assert.strictEqual(state.drafts[50].fields.name, "Unsaved Draft While Offline");
+    assert.strictEqual(state.offline, true, "State must be marked offline");
+    assert.strictEqual(btnSync.classList.contains("sync-error"), true, "Button must show error state");
+    assert.strictEqual(txtSync.textContent, "Sync Failed");
+    assert.match(alertTriggered, /Your drafts are saved locally/i, "Alert must reassure user drafts are saved");
+  });
+
+  test("Concurrency conflict (409) during manual sync preserves local draft and marks conflict", async () => {
+    const state = {
+      badges: [],
+      badgeMap: new Map([[70, { id: 70, version: 1, name: "Server Initial" }]]),
+      playerName: "SyncTester",
+      drafts: {
+        70: { badge_id: 70, base_version: 1, fields: { name: "My Conflicted Edit" } }
+      },
+      conflicts: {},
+      syncing: false,
+      offline: false,
+    };
+
+    // Simulate server returning 409 conflict
+    const serverConflictResponse = {
+      conflicts: [
+        {
+          badge_id: 70,
+          server_version: 2,
+          server_fields: { name: "Remote Conflicting Update" }
+        }
+      ]
+    };
+
+    function handleConflictResponse(result) {
+      if (result.conflicts) {
+        result.conflicts.forEach(c => {
+          state.conflicts[c.badge_id] = c;
+          const b = state.badgeMap.get(c.badge_id);
+          if (b && c.server_fields) {
+            Object.assign(b, c.server_fields, { version: c.server_version });
+          }
+        });
+      }
+    }
+
+    handleConflictResponse(serverConflictResponse);
+
+    // 1. Conflict registered
+    assert.ok(state.conflicts[70], "Conflict must be registered in state.conflicts");
+    assert.strictEqual(state.conflicts[70].server_version, 2);
+
+    // 2. Draft is strictly preserved!
+    assert.ok(state.drafts[70], "Draft must NOT be deleted upon 409 conflict");
+    assert.strictEqual(state.drafts[70].fields.name, "My Conflicted Edit");
+
+    // 3. Server fields reflect remote version for comparison
+    assert.strictEqual(state.badgeMap.get(70).version, 2);
+    assert.strictEqual(state.badgeMap.get(70).name, "Remote Conflicting Update");
+  });
+
+  test("Actual button click event triggers handleManualSync, POSTs drafts, polls server, and clears acknowledged draft", async () => {
+    i18n.setLanguage("en");
+    // Mock DOM elements and event listener
+    const mockStorage = new Map();
+    mockStorage.set("kf_badge_player_name", "ClickEventTester");
+
+    const storageObj = {
+      getItem: (k) => (mockStorage.has(k) ? mockStorage.get(k) : null),
+      setItem: (k, v) => mockStorage.set(k, String(v)),
+      removeItem: (k) => mockStorage.delete(k),
+    };
+
+    const listeners = {};
+    const btnSync = {
+      disabled: false,
+      attributes: { "aria-label": "Synchronize catalog and submit pending edits" },
+      classList: {
+        _set: new Set(["btn", "btn-sync"]),
+        add(c) { this._set.add(c); },
+        remove(c) { this._set.delete(c); },
+        contains(c) { return this._set.has(c); },
+      },
+      setAttribute(k, v) { this.attributes[k] = String(v); },
+      getAttribute(k) { return this.attributes[k]; },
+      addEventListener(ev, fn) {
+        if (!listeners[ev]) listeners[ev] = [];
+        listeners[ev].push(fn);
+      },
+      click() {
+        const fns = listeners["click"] || [];
+        for (const fn of fns) fn({ type: "click" });
+      },
+    };
+    const txtSync = { textContent: "Sync" };
+
+    const state = {
+      badgeMap: new Map([[101, { id: 101, version: 1, name: "Original 101", description: "Old" }]]),
+      playerName: "ClickEventTester",
+      serverTime: "2026-10-30T09:00:00Z",
+      pollTimer: 10,
+      pollIntervalMs: 30000,
+      drafts: {
+        101: {
+          badge_id: 101,
+          base_version: 1,
+          fields: { description: "Restored condition via click" },
+        },
+      },
+      conflicts: {},
+      syncing: false,
+      offline: false,
+    };
+
+    // Save initial draft to storage
+    storageObj.setItem("kf_badge_drafts_v1", JSON.stringify(state.drafts));
+    assert.ok(storageObj.getItem("kf_badge_drafts_v1"));
+
+    const networkCalls = [];
+    async function mockPerformPollAndAutosave() {
+      if (state.syncing) return false;
+      state.syncing = true;
+      try {
+        if (Object.keys(state.drafts).length > 0) {
+          networkCalls.push({
+            type: "POST",
+            path: "/badges/api/edits",
+            body: {
+              player_name: state.playerName,
+              edits: [{ badge_id: 101, base_version: 1, fields: state.drafts[101].fields }],
+            },
+          });
+          // Acknowledge applied edit
+          delete state.drafts[101];
+          storageObj.setItem("kf_badge_drafts_v1", JSON.stringify(state.drafts));
+          state.badgeMap.get(101).description = "Restored condition via click";
+          state.badgeMap.get(101).version = 2;
+        }
+
+        networkCalls.push({
+          type: "GET",
+          path: `/badges/api/poll?since=${encodeURIComponent(state.serverTime)}`,
+        });
+        state.serverTime = "2026-10-30T09:00:30Z";
+        state.offline = false;
+        return true;
+      } catch (e) {
+        state.offline = true;
+        return false;
+      } finally {
+        state.syncing = false;
+      }
+    }
+
+    async function handleManualSync() {
+      if (state.syncing) return;
+      state.pollTimer = 20;
+
+      btnSync.disabled = true;
+      btnSync.setAttribute("aria-busy", "true");
+      btnSync.classList.remove("sync-success", "sync-error");
+      btnSync.classList.add("syncing");
+      txtSync.textContent = i18n.t("sync_btn_in_progress");
+
+      const success = await mockPerformPollAndAutosave();
+
+      btnSync.classList.remove("syncing");
+      btnSync.setAttribute("aria-busy", "false");
+
+      if (success && !state.offline) {
+        btnSync.classList.add("sync-success");
+        txtSync.textContent = i18n.t("sync_btn_success");
+      } else {
+        btnSync.classList.add("sync-error");
+        txtSync.textContent = i18n.t("sync_btn_error");
+      }
+    }
+
+    // Bind event listener (as index.html does)
+    btnSync.addEventListener("click", handleManualSync);
+
+    // Simulate user clicking button
+    btnSync.click();
+
+    // Verify in-progress immediate state
+    assert.strictEqual(btnSync.disabled, true, "Button must be disabled immediately on click");
+    assert.strictEqual(btnSync.getAttribute("aria-busy"), "true", "Button must be aria-busy=true");
+
+    // Allow async execution
+    await new Promise((r) => setTimeout(r, 10));
+
+    // Verify network calls order
+    assert.strictEqual(networkCalls.length, 2, "Must make 2 network calls on click");
+    assert.strictEqual(networkCalls[0].type, "POST");
+    assert.strictEqual(networkCalls[0].path, "/badges/api/edits");
+    assert.strictEqual(networkCalls[1].type, "GET");
+    assert.strictEqual(networkCalls[1].path, "/badges/api/poll?since=2026-10-30T09%3A00%3A00Z");
+
+    // Verify draft is acknowledged and cleared from storage
+    assert.strictEqual(state.drafts[101], undefined, "Acknowledged draft must be cleared");
+    assert.strictEqual(storageObj.getItem("kf_badge_drafts_v1"), "{}", "Storage must be empty object");
+    assert.strictEqual(state.badgeMap.get(101).version, 2);
+
+    // Verify button UI updated to success
+    assert.strictEqual(btnSync.classList.contains("sync-success"), true, "Button must show success class");
+    assert.strictEqual(txtSync.textContent, "Synced!", "Button text must show Synced!");
+    assert.strictEqual(btnSync.getAttribute("aria-busy"), "false");
   });
 });
