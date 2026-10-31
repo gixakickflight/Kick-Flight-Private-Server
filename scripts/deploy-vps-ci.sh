@@ -168,28 +168,44 @@ tar -xzf "$archive" --no-same-owner --no-same-permissions -C "$release_dir"
 [[ -f "$release_dir/.kf-managed-files" ]] || { echo "release archive is missing its file manifest" >&2; exit 1; }
 ln -s "$app_dir/.local" "$release_dir/.local"
 
-# Verify and stage the optional immutable iOS snapshot before syncing or restarting the API.
-# Staging publishes only a new versioned directory; it never replaces or activates the prior r4 tree.
+# Verify the existing iOS snapshot when no replacement archive is needed; validate and stage a new
+# immutable snapshot archive separately below before syncing or restarting the API.
 if [[ -z "$ios_snapshot_archive" && "$ios_r52_profile_enabled" != true ]]; then
-  python3 - "$release_dir/src/KickFlight.BootstrapApi/catalog-ios-12346.json" <<'PY'
+  snapshot_name=$(python3 - "$release_dir/src/KickFlight.BootstrapApi/catalog-ios-12346.json" <<'PY'
 import json
 import pathlib
+import re
 import sys
 
 doc = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
 rows = doc.get("resources")
 if not isinstance(rows, list) or not rows:
     raise SystemExit("iOS catalog has no resource rows")
-snapshots = {
-    row["sourcePath"].split("/", 3)[2]
-    for row in rows
-    if isinstance(row, dict)
-    and isinstance(row.get("sourcePath"), str)
-    and row["sourcePath"].startswith(".local/ios-resources/")
-}
-if snapshots in ({"12346-r5"}, {"12346-r6"}, {"12346-r7"}):
-    raise SystemExit("iOS catalog requires a verified snapshot archive; refusing deployment before sync/restart")
+prefix = ".local/ios-resources/"
+managed_sources = [row.get("sourcePath") for row in rows if isinstance(row, dict)
+                   and isinstance(row.get("sourcePath"), str)
+                   and row["sourcePath"].startswith(prefix)]
+if not managed_sources:
+    print("")
+    raise SystemExit(0)
+if len(managed_sources) != len(rows):
+    raise SystemExit("iOS catalog mixes staged-snapshot and external source paths")
+snapshots = set()
+for source in managed_sources:
+    name, separator, relative = source[len(prefix):].partition("/")
+    if not separator or not re.fullmatch(r"12346-r[1-9][0-9]*", name) or not relative.startswith("payload/"):
+        raise SystemExit("iOS catalog contains an invalid staged-snapshot sourcePath")
+    snapshots.add(name)
+if len(snapshots) != 1:
+    raise SystemExit("iOS catalog rows do not share one staged snapshot")
+print(snapshots.pop())
 PY
+  )
+  if [[ -n "$snapshot_name" ]]; then
+    python3 "$release_dir/scripts/stage-ios-resource-snapshot.py" verify-stage \
+      --manifest "$release_dir/src/KickFlight.BootstrapApi/catalog-ios-12346.json" \
+      --snapshot "$snapshot_name" --stage-root "$app_dir/.local/ios-resources"
+  fi
 fi
 if [[ -n "$ios_snapshot_archive" ]]; then
   snapshot_name=$(python3 - "$release_dir/src/KickFlight.BootstrapApi/catalog-ios-12346.json" <<'PY'

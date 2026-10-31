@@ -86,6 +86,12 @@ class StageIosResourceSnapshotTests(unittest.TestCase):
             "12346-r5",
         )
 
+    @staticmethod
+    def make_writable(root):
+        for path in root.rglob("*"):
+            path.chmod(0o755 if path.is_dir() else 0o644)
+        root.chmod(0o755)
+
     def test_valid_archive_stages_atomically_and_is_idempotent(self):
         legacy = self.stage_root / "12346-r4"
         legacy.mkdir(parents=True)
@@ -95,10 +101,45 @@ class StageIosResourceSnapshotTests(unittest.TestCase):
         target = self.stage()
         self.assertEqual((target / "catalog.json").read_bytes(), self.manifest.read_bytes())
         self.assertEqual((target / "payload/fixture/example.octo").read_bytes(), self.payload)
+        self.assertTrue(all(not (path.stat().st_mode & 0o222) for path in (target, *target.rglob("*"))))
         self.assertEqual(self.stage(), target)
         self.assertEqual(marker.read_bytes(), legacy_before)
         self.assertEqual(sorted(p.relative_to(target).as_posix() for p in target.rglob("*") if p.is_file()),
                          ["catalog.json", "payload/fixture/example.octo"])
+
+    def test_verify_stage_hashes_the_existing_snapshot_against_the_manifest(self):
+        target = self.stage()
+        self.assertEqual(
+            target,
+            stager.verify_staged_snapshot(self.manifest, self.stage_root, "12346-r5"),
+        )
+        self.assertTrue(all(not (path.stat().st_mode & 0o222) for path in (target, *target.rglob("*"))))
+        self.make_writable(target)
+        payload_path = target / "payload/fixture/example.octo"
+        payload_path.write_bytes(b"changed staged payload")
+        with self.assertRaises(stager.SnapshotError):
+            stager.verify_staged_snapshot(self.manifest, self.stage_root, "12346-r5")
+
+    def test_verify_stage_freezes_a_valid_legacy_snapshot(self):
+        target = self.stage()
+        self.make_writable(target)
+        self.assertEqual(
+            target,
+            stager.verify_staged_snapshot(self.manifest, self.stage_root, "12346-r5"),
+        )
+        self.assertTrue(all(not (path.stat().st_mode & 0o222) for path in (target, *target.rglob("*"))))
+
+    def test_verify_stage_fails_closed_when_snapshot_is_missing_or_symlinked(self):
+        with self.assertRaises(stager.SnapshotError):
+            stager.verify_staged_snapshot(self.manifest, self.stage_root, "12346-r5")
+
+        target = self.stage_root / "12346-r5"
+        target.parent.mkdir(parents=True)
+        outside = self.root / "outside-snapshot"
+        outside.mkdir()
+        target.symlink_to(outside, target_is_directory=True)
+        with self.assertRaises(stager.SnapshotError):
+            stager.verify_staged_snapshot(self.manifest, self.stage_root, "12346-r5")
 
     def test_normal_tar_directory_headers_are_accepted(self):
         self.write_archive(dirs=True)
@@ -173,6 +214,7 @@ class StageIosResourceSnapshotTests(unittest.TestCase):
 
     def test_incomplete_or_conflicting_existing_target_is_never_replaced(self):
         target = self.stage()
+        self.make_writable(target)
         payload_path = target / "payload/fixture/example.octo"
         payload_path.write_bytes(b"preserve existing contents")
         before = payload_path.read_bytes()

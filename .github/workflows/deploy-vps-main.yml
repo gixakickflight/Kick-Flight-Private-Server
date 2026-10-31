@@ -20,10 +20,199 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: Deploy main to VPS
+  stage_r52_asset:
+    name: Stage private R52 draft asset
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.activate_ios_r52_profile == true && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-24.04
     environment: production
+    permissions:
+      contents: write
+    outputs:
+      enabled: ${{ steps.transfer.outputs.enabled }}
+      sha256: ${{ steps.transfer.outputs.sha256 }}
+      remote_archive: ${{ steps.transfer.outputs.remote_archive }}
+    steps:
+      - name: Check out the requested main commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Require the requested commit to still be main
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]] || { echo "Checkout does not match event SHA" >&2; exit 1; }
+          git fetch --quiet origin main
+          [[ "$(git rev-parse origin/main)" == "$GITHUB_SHA" ]] || {
+            echo "Refusing to stage R52 from a stale main commit" >&2
+            exit 1
+          }
+
+      - name: Download the private R52 draft asset
+        id: r52_profile
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 - config/ios-r52-profile-release.json "$GITHUB_OUTPUT" <<'PY'
+          import json
+          import pathlib
+          import re
+          import sys
+
+          config = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+          expected = {
+              "schemaVersion": 1, "assetVersion": 12346, "revisionFloor": 52,
+              "testOnly": True, "complete": False,
+              "runtimeContract": "kickflight.ios-r52-test-profile.v1",
+          }
+          if any(config.get(key) != value for key, value in expected.items()):
+              raise SystemExit("R52 release pin does not describe the reviewed test-only profile")
+          tag, asset, digest = (config.get("releaseTag"), config.get("assetName"), config.get("archiveSha256"))
+          if not isinstance(tag, str) or not re.fullmatch(r"[A-Za-z0-9._-]+", tag):
+              raise SystemExit("R52 release tag is invalid")
+          if asset != "ios-r52-profile.tar.gz" or not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+              raise SystemExit("R52 release asset pin is invalid")
+          with open(sys.argv[2], "a", encoding="utf-8") as output:
+              output.write(f"tag={tag}\nasset={asset}\nsha256={digest}\n")
+          PY
+          pin_tag="$(sed -n 's/^tag=//p' "$GITHUB_OUTPUT" | tail -n 1)"
+          pin_asset="$(sed -n 's/^asset=//p' "$GITHUB_OUTPUT" | tail -n 1)"
+          pin_sha="$(sed -n 's/^sha256=//p' "$GITHUB_OUTPUT" | tail -n 1)"
+          gh release download "$pin_tag" --repo "$GITHUB_REPOSITORY" \
+            --pattern "$pin_asset" --dir "$RUNNER_TEMP" >/dev/null
+          archive="$RUNNER_TEMP/$pin_asset"
+          chmod 600 "$archive"
+          {
+            echo "archive=$archive"
+            echo "sha256=$pin_sha"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Validate the pinned private R52 archive
+        shell: bash
+        env:
+          R52_ARCHIVE: ${{ steps.r52_profile.outputs.archive }}
+          R52_ARCHIVE_SHA256: ${{ steps.r52_profile.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          python3 scripts/stage-ios-r52-profile.py validate \
+            --archive "$R52_ARCHIVE" --archive-sha256 "$R52_ARCHIVE_SHA256" >/dev/null
+
+      - name: Set up .NET 8 for opt-in R52 runtime validation
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Stage the exact R52 package for routing tests
+        id: r52_test_profile
+        shell: bash
+        env:
+          R52_ARCHIVE: ${{ steps.r52_profile.outputs.archive }}
+          R52_ARCHIVE_SHA256: ${{ steps.r52_profile.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          stage_root="$RUNNER_TEMP/ios-r52-test-stage"
+          python3 scripts/stage-ios-r52-profile.py stage \
+            --archive "$R52_ARCHIVE" --archive-sha256 "$R52_ARCHIVE_SHA256" \
+            --stage-root "$stage_root" >/dev/null
+          echo "profile=$stage_root/12346-r52/profile" >> "$GITHUB_OUTPUT"
+
+      - name: Run R52 API routing test against all staged payloads
+        shell: bash
+        env:
+          KF_R52_REVIEW_PROFILE: ${{ steps.r52_test_profile.outputs.profile }}
+        run: |
+          set -euo pipefail
+          dotnet test tests/KickFlight.BootstrapApi.Tests/KickFlight.BootstrapApi.Tests.csproj \
+            --filter FullyQualifiedName~R52_review_package_is_accepted_when_profile_path_is_set \
+            --verbosity minimal
+
+      - name: Configure pinned SSH host verification for private transfer
+        shell: bash
+        env:
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          VPS_HOST: ${{ vars.VPS_HOST }}
+          VPS_SSH_PORT: ${{ vars.VPS_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          [[ -n "$VPS_SSH_PRIVATE_KEY" ]] || { echo "Missing secret VPS_SSH_PRIVATE_KEY" >&2; exit 1; }
+          [[ -n "$VPS_KNOWN_HOSTS" ]] || { echo "Missing secret VPS_KNOWN_HOSTS" >&2; exit 1; }
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > "$RUNNER_TEMP/kf-vps-deploy-key"
+          chmod 600 "$RUNNER_TEMP/kf-vps-deploy-key"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$RUNNER_TEMP/kf-vps-known-hosts"
+          chmod 600 "$RUNNER_TEMP/kf-vps-known-hosts"
+          known_host="$VPS_HOST"
+          if [[ -n "$VPS_SSH_PORT" && "$VPS_SSH_PORT" != 22 ]]; then
+            known_host="[$VPS_HOST]:$VPS_SSH_PORT"
+          fi
+          ssh-keygen -F "$known_host" -f "$RUNNER_TEMP/kf-vps-known-hosts" >/dev/null || {
+            echo "VPS_KNOWN_HOSTS does not contain the configured VPS_HOST" >&2
+            exit 1
+          }
+
+      - name: Transfer the validated profile privately to the VPS
+        id: transfer
+        shell: bash
+        env:
+          R52_ARCHIVE: ${{ steps.r52_profile.outputs.archive }}
+          R52_ARCHIVE_SHA256: ${{ steps.r52_profile.outputs.sha256 }}
+          VPS_HOST: ${{ vars.VPS_HOST }}
+          VPS_USER: ${{ vars.VPS_USER }}
+          VPS_SSH_PORT: ${{ vars.VPS_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          [[ -n "$VPS_HOST" && -n "$VPS_USER" ]] || { echo "Set repository variables VPS_HOST and VPS_USER" >&2; exit 1; }
+          [[ "$VPS_HOST" =~ ^[A-Za-z0-9.-]+$ ]] || { echo "VPS_HOST contains unsupported characters" >&2; exit 1; }
+          [[ "$VPS_USER" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "VPS_USER contains unsupported characters" >&2; exit 1; }
+          [[ "$R52_ARCHIVE_SHA256" =~ ^[0-9a-f]{64}$ ]] || { echo "Invalid pinned R52 SHA-256" >&2; exit 1; }
+          [[ -f "$R52_ARCHIVE" ]] || { echo "Validated R52 archive is missing" >&2; exit 1; }
+          port="${VPS_SSH_PORT:-22}"
+          [[ "$port" =~ ^[0-9]{1,5}$ ]] || { echo "VPS_SSH_PORT must be numeric" >&2; exit 1; }
+          remote="${VPS_USER}@${VPS_HOST}"
+          remote_archive="/tmp/kf-ios-r52-profile-${GITHUB_SHA}.tar.gz"
+          ssh_opts=(-i "$RUNNER_TEMP/kf-vps-deploy-key" -p "$port" -o BatchMode=yes -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/kf-vps-known-hosts")
+          scp_opts=(-q -i "$RUNNER_TEMP/kf-vps-deploy-key" -P "$port" -o BatchMode=yes -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/kf-vps-known-hosts")
+          remove_partial_upload() {
+            local result=$?
+            trap - EXIT
+            if [[ "$result" -ne 0 ]]; then
+              ssh "${ssh_opts[@]}" "$remote" "rm -f -- '$remote_archive'" >/dev/null 2>&1 || true
+            fi
+            exit "$result"
+          }
+          trap remove_partial_upload EXIT
+          scp "${scp_opts[@]}" "$R52_ARCHIVE" "$remote:$remote_archive"
+          ssh "${ssh_opts[@]}" "$remote" bash -s -- "$remote_archive" "$R52_ARCHIVE_SHA256" <<'REMOTE_VERIFY'
+          set -euo pipefail
+          archive_path=$1
+          expected_sha=$2
+          [[ "$archive_path" =~ ^/tmp/kf-ios-r52-profile-[0-9a-f]{40}\.tar\.gz$ ] || exit 2
+          [[ "$expected_sha" =~ ^[0-9a-f]{64}$ ]] || exit 2
+          chmod 600 -- "$archive_path"
+          printf '%s  %s\n' "$expected_sha" "$archive_path" | sha256sum --check --status
+          REMOTE_VERIFY
+          {
+            echo "enabled=true"
+            echo "sha256=$R52_ARCHIVE_SHA256"
+            echo "remote_archive=$remote_archive"
+          } >> "$GITHUB_OUTPUT"
+          trap - EXIT
+
+  deploy:
+    name: Deploy main to VPS
+    needs: stage_r52_asset
+    if: ${{ always() && (needs.stage_r52_asset.result == 'success' || needs.stage_r52_asset.result == 'skipped') }}
+    runs-on: ubuntu-24.04
+    environment: production
+    permissions:
+      contents: read
     steps:
       - name: Check out main and recursive submodules
         uses: actions/checkout@v4
@@ -242,82 +431,6 @@ jobs:
           echo "enabled=true" >> "$GITHUB_OUTPUT"
           echo "archive=$archive" >> "$GITHUB_OUTPUT"
 
-      - name: Download and verify the opt-in R52 iOS profile release asset
-        id: ios_r52_profile
-        if: steps.main_tip.outputs.deployable == 'true' && steps.changes.outputs.deploy == 'true' && github.event_name == 'workflow_dispatch' && inputs.activate_ios_r52_profile
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          python3 - config/ios-r52-profile-release.json "$GITHUB_OUTPUT" <<'PY'
-          import json
-          import pathlib
-          import re
-          import sys
-
-          config = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
-          expected = {
-              "schemaVersion": 1, "assetVersion": 12346, "revisionFloor": 52,
-              "testOnly": True, "complete": False,
-              "runtimeContract": "kickflight.ios-r52-test-profile.v1",
-          }
-          if any(config.get(key) != value for key, value in expected.items()):
-              raise SystemExit("R52 release pin does not describe the reviewed test-only profile")
-          tag, asset, digest = (config.get("releaseTag"), config.get("assetName"), config.get("archiveSha256"))
-          if not isinstance(tag, str) or not re.fullmatch(r"[A-Za-z0-9._-]+", tag):
-              raise SystemExit("R52 release tag is invalid")
-          if asset != "ios-r52-profile.tar.gz" or not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
-              raise SystemExit("R52 release asset pin is invalid")
-          with open(sys.argv[2], "a", encoding="utf-8") as output:
-              output.write(f"tag={tag}\nasset={asset}\nsha256={digest}\n")
-          PY
-          # Read the just-validated public pin without exposing any repository secrets.
-          pin_tag="$(sed -n 's/^tag=//p' "$GITHUB_OUTPUT" | tail -n 1)"
-          pin_asset="$(sed -n 's/^asset=//p' "$GITHUB_OUTPUT" | tail -n 1)"
-          pin_sha="$(sed -n 's/^sha256=//p' "$GITHUB_OUTPUT" | tail -n 1)"
-          gh release download "$pin_tag" --repo "$GITHUB_REPOSITORY" \
-            --pattern "$pin_asset" --dir "$RUNNER_TEMP"
-          archive="$RUNNER_TEMP/$pin_asset"
-          python3 scripts/stage-ios-r52-profile.py validate --archive "$archive" --archive-sha256 "$pin_sha"
-          {
-            echo "enabled=true"
-            echo "archive=$archive"
-            echo "sha256=$pin_sha"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Set up .NET 8 for opt-in R52 runtime validation
-        if: steps.ios_r52_profile.outputs.enabled == 'true'
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0.x
-
-      - name: Stage the exact R52 package for routing tests
-        id: ios_r52_test_profile
-        if: steps.ios_r52_profile.outputs.enabled == 'true'
-        shell: bash
-        env:
-          R52_ARCHIVE: ${{ steps.ios_r52_profile.outputs.archive }}
-          R52_ARCHIVE_SHA256: ${{ steps.ios_r52_profile.outputs.sha256 }}
-        run: |
-          set -euo pipefail
-          stage_root="$RUNNER_TEMP/ios-r52-test-stage"
-          python3 scripts/stage-ios-r52-profile.py stage \
-            --archive "$R52_ARCHIVE" --archive-sha256 "$R52_ARCHIVE_SHA256" \
-            --stage-root "$stage_root"
-          echo "profile=$stage_root/12346-r52/profile" >> "$GITHUB_OUTPUT"
-
-      - name: Run R52 API routing test against all staged payloads
-        if: steps.ios_r52_profile.outputs.enabled == 'true'
-        shell: bash
-        env:
-          KF_R52_REVIEW_PROFILE: ${{ steps.ios_r52_test_profile.outputs.profile }}
-        run: |
-          set -euo pipefail
-          dotnet test tests/KickFlight.BootstrapApi.Tests/KickFlight.BootstrapApi.Tests.csproj \
-            --filter FullyQualifiedName~R52_review_package_is_accepted_when_profile_path_is_set \
-            --verbosity minimal
-
       - name: Configure pinned SSH host verification
         if: steps.main_tip.outputs.deployable == 'true' && steps.changes.outputs.deploy == 'true'
         shell: bash
@@ -502,9 +615,9 @@ jobs:
           IOS_SNAPSHOT_ENABLED: ${{ steps.ios_snapshot.outputs.enabled }}
           IOS_SNAPSHOT_ARCHIVE: ${{ steps.ios_snapshot.outputs.archive }}
           IOS_SNAPSHOT_ARCHIVE_SHA256: ${{ vars.IOS_SNAPSHOT_ARCHIVE_SHA256 }}
-          IOS_R52_PROFILE_REQUESTED: ${{ steps.ios_r52_profile.outputs.enabled || 'false' }}
-          IOS_R52_PROFILE_ARCHIVE: ${{ steps.ios_r52_profile.outputs.archive }}
-          IOS_R52_PROFILE_ARCHIVE_SHA256: ${{ steps.ios_r52_profile.outputs.sha256 }}
+          IOS_R52_PROFILE_REQUESTED: ${{ needs.stage_r52_asset.outputs.enabled || 'false' }}
+          IOS_R52_PROFILE_REMOTE_ARCHIVE: ${{ needs.stage_r52_asset.outputs.remote_archive }}
+          IOS_R52_PROFILE_ARCHIVE_SHA256: ${{ needs.stage_r52_asset.outputs.sha256 }}
         run: |
           set -euo pipefail
           [[ -n "$VPS_HOST" && -n "$VPS_USER" && -n "$VPS_APP_DIR" ]] || {
@@ -536,11 +649,11 @@ jobs:
           r52_archive_arg="-"
           r52_sha_arg="-"
           if [[ "$IOS_R52_PROFILE_REQUESTED" == true ]]; then
-            [[ -f "$IOS_R52_PROFILE_ARCHIVE" && "$IOS_R52_PROFILE_ARCHIVE_SHA256" =~ ^[0-9a-f]{64}$ ]] || {
-              echo "R52 profile archive or pinned SHA-256 is missing" >&2; exit 1;
+            [[ "$IOS_R52_PROFILE_REMOTE_ARCHIVE" == "/tmp/kf-ios-r52-profile-${GITHUB_SHA}.tar.gz" && \
+               "$IOS_R52_PROFILE_ARCHIVE_SHA256" =~ ^[0-9a-f]{64}$ ]] || {
+              echo "R52 profile remote path or pinned SHA-256 is missing" >&2; exit 1;
             }
-            remote_ios_r52_archive="/tmp/kf-ios-r52-profile-${GITHUB_SHA}.tar.gz"
-            scp "${scp_opts[@]}" "$IOS_R52_PROFILE_ARCHIVE" "$remote:$remote_ios_r52_archive"
+            remote_ios_r52_archive="$IOS_R52_PROFILE_REMOTE_ARCHIVE"
             printf -v r52_archive_arg '%q' "$remote_ios_r52_archive"
             printf -v r52_sha_arg '%q' "$IOS_R52_PROFILE_ARCHIVE_SHA256"
           fi
@@ -559,3 +672,33 @@ jobs:
           if [[ -n "$remote_ios_r52_archive" ]]; then
             ssh "${ssh_opts[@]}" "$remote" "rm -f -- '$remote_ios_r52_archive'"
           fi
+
+      - name: Remove any unconsumed private R52 staging file
+        if: ${{ always() && needs.stage_r52_asset.outputs.enabled == 'true' }}
+        shell: bash
+        env:
+          VPS_HOST: ${{ vars.VPS_HOST }}
+          VPS_USER: ${{ vars.VPS_USER }}
+          VPS_SSH_PORT: ${{ vars.VPS_SSH_PORT }}
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          [[ -n "$VPS_HOST" && -n "$VPS_USER" && -n "$VPS_SSH_PRIVATE_KEY" && -n "$VPS_KNOWN_HOSTS" ]] || exit 0
+          [[ "$VPS_HOST" =~ ^[A-Za-z0-9.-]+$ && "$VPS_USER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          port="${VPS_SSH_PORT:-22}"
+          [[ "$port" =~ ^[0-9]{1,5}$ ]] || exit 1
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > "$RUNNER_TEMP/kf-vps-cleanup-key"
+          chmod 600 "$RUNNER_TEMP/kf-vps-cleanup-key"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$RUNNER_TEMP/kf-vps-cleanup-known-hosts"
+          chmod 600 "$RUNNER_TEMP/kf-vps-cleanup-known-hosts"
+          known_host="$VPS_HOST"
+          if [[ -n "$VPS_SSH_PORT" && "$VPS_SSH_PORT" != 22 ]]; then
+            known_host="[$VPS_HOST]:$VPS_SSH_PORT"
+          fi
+          ssh-keygen -F "$known_host" -f "$RUNNER_TEMP/kf-vps-cleanup-known-hosts" >/dev/null || exit 1
+          remote="${VPS_USER}@${VPS_HOST}"
+          remote_archive="/tmp/kf-ios-r52-profile-${GITHUB_SHA}.tar.gz"
+          ssh -i "$RUNNER_TEMP/kf-vps-cleanup-key" -p "$port" -o BatchMode=yes -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/kf-vps-cleanup-known-hosts" \
+            "$remote" "rm -f -- '$remote_archive'"
