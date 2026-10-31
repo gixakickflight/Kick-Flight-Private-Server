@@ -18,6 +18,7 @@ builder.Services.Configure<HarnessOptions>(builder.Configuration.GetSection("Har
 builder.Services.Configure<PhotonServerOptions>(builder.Configuration.GetSection(PhotonServerOptions.SectionName));
 builder.Services.AddSingleton<FixtureStore>();
 builder.Services.AddSingleton<ResourceCatalogStore>();
+builder.Services.AddSingleton<IosR52TestProfileStore>();
 builder.Services.AddSingleton<SafeRequestInspector>();
 builder.Services.AddSingleton<IPhotonServerManager, PhotonServerManager>();
 builder.Services.AddSingleton<MaintenanceState>();
@@ -204,16 +205,23 @@ app.MapGet("/health/photon", async (IPhotonServerManager photonManager, Cancella
     var status = await photonManager.CheckHealthAsync(ct);
     return Results.Json(status, statusCode: (status.MasterReachable || !status.Enabled) ? 200 : 503);
 });
-app.MapGet("/health/ready", async (FixtureStore store, ResourceCatalogStore resourceStore, IPhotonServerManager photonManager, CancellationToken ct) =>
+app.MapGet("/health/ready", async (FixtureStore store, ResourceCatalogStore resourceStore,
+    IosR52TestProfileStore iosR52Store, IOptions<HarnessOptions> options, IPhotonServerManager photonManager,
+    CancellationToken ct) =>
 {
     var snapshot = store.GetSnapshot();
     var resourceSnapshot = resourceStore.GetSnapshot();
-    var iosResourceSnapshot = resourceStore.GetIosSnapshot();
+    var useR52TestProfile = options.Value.EnableIosR52TestProfile;
+    var iosResourceSnapshot = useR52TestProfile ? iosR52Store.GetSnapshot() : resourceStore.GetIosSnapshot();
+    var iosCatalogReady = useR52TestProfile ? iosR52Store.IsReady : resourceStore.IsIosCatalogReady;
+    var iosProfileName = useR52TestProfile ? "r52-test" : "native";
+    var iosProfileRevision = iosResourceSnapshot.Revision;
     var iosBootFixtureReady = store.GetIosBootFixture() is not null;
     var photonStatus = await photonManager.CheckHealthAsync(ct);
-    var errors = snapshot.Errors.Concat(resourceSnapshot.Errors).Concat(iosResourceSnapshot.Errors).ToList();
-    if (resourceStore.IsIosCatalogReady && !iosBootFixtureReady)
-        errors.Add("The iOS platform-2 boot fixture is missing or invalid.");
+    var iosErrors = iosResourceSnapshot.Errors.ToList();
+    if (iosCatalogReady && !iosBootFixtureReady)
+        iosErrors.Add("The iOS platform-2 boot fixture is missing or invalid.");
+    var errors = snapshot.Errors.Concat(resourceSnapshot.Errors).Concat(iosErrors).ToList();
     if (photonStatus.Enabled && !photonStatus.MasterReachable)
     {
         errors.Add($"Photon MasterServer unreachable at {photonStatus.Host}:{photonStatus.MasterServerPort}");
@@ -224,15 +232,24 @@ app.MapGet("/health/ready", async (FixtureStore store, ResourceCatalogStore reso
             status = "ready", fixtureCount = snapshot.Fixtures.Count,
             resourceCount = resourceSnapshot.Resources.Count,
             iosResourceCount = iosResourceSnapshot.Resources.Count,
-            iosCatalogReady = resourceStore.IsIosCatalogReady,
+            iosCatalogReady,
+            iosProfile = iosProfileName,
+            iosProfileRevision,
             iosBootFixtureReady,
+            iosCatalogErrors = iosErrors,
             photon = photonStatus
         })
-        : Results.Json(new { status = "not-ready", errors, photon = photonStatus }, statusCode: 503);
+        : Results.Json(new
+        {
+            status = "not-ready", errors, iosResourceCount = iosResourceSnapshot.Resources.Count,
+            iosCatalogReady, iosProfile = iosProfileName, iosProfileRevision,
+            iosBootFixtureReady, iosCatalogErrors = iosErrors, photon = photonStatus
+        }, statusCode: 503);
 });
 
 app.MapMethods("/{**path}", new[] { "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS" },
-    async (HttpContext context, FixtureStore store, ResourceCatalogStore resourceStore, DemoSessionApi demoSessionApi,
+    async (HttpContext context, FixtureStore store, ResourceCatalogStore resourceStore,
+        IosR52TestProfileStore iosR52Store, DemoSessionApi demoSessionApi,
         IOptions<HarnessOptions> options, ILoggerFactory loggerFactory) =>
     {
         var host = FixtureStore.NormalizeHost(context.Request.Host.Host);
@@ -250,10 +267,12 @@ app.MapMethods("/{**path}", new[] { "GET", "POST", "PUT", "PATCH", "DELETE", "HE
         var requestPath = context.Request.Path.Value ?? "/";
         var isIosList = requestPath.StartsWith($"/v1/list/{ResourceCatalogStore.IosAssetVersion}/", StringComparison.Ordinal);
         var isIosCdn = requestPath.StartsWith("/ios/cdn/", StringComparison.Ordinal);
+        var useR52TestProfile = options.Value.EnableIosR52TestProfile;
+        var iosCatalogReady = useR52TestProfile ? iosR52Store.IsReady : resourceStore.IsIosCatalogReady;
         var isIosBoot = directClient && HttpMethods.IsPost(context.Request.Method) && requestPath == "/boot/index" &&
                         int.TryParse(context.Request.Headers["x-app-asset-platform"], out var platform) && platform == 2;
         if (directClient && (isIosBoot || isIosList || isIosCdn) &&
-            (!resourceStore.IsIosCatalogReady || (isIosBoot && store.GetIosBootFixture() is null)))
+            (!iosCatalogReady || (isIosBoot && store.GetIosBootFixture() is null)))
         {
             context.Response.Headers["x-app-status-code"] = "1";
             return Results.Json(new { error = "ios-resource-catalog-unavailable", assetVersion = ResourceCatalogStore.IosAssetVersion },
@@ -264,16 +283,33 @@ app.MapMethods("/{**path}", new[] { "GET", "POST", "PUT", "PATCH", "DELETE", "HE
         {
             if (directClient && isIosList)
             {
-                var fromRevisionText = requestPath[(requestPath.LastIndexOf('/') + 1)..];
-                if (!int.TryParse(fromRevisionText, out var fromRevision) ||
-                    fromRevision is < 0 or > ResourceCatalogStore.IosWireRevision)
+                var listPrefix = $"/v1/list/{ResourceCatalogStore.IosAssetVersion}/";
+                var fromRevisionText = requestPath[listPrefix.Length..];
+                var maxRevision = useR52TestProfile ? IosR52TestProfileStore.Revision : ResourceCatalogStore.IosWireRevision;
+                if (fromRevisionText.Length == 0 || !fromRevisionText.All(char.IsAsciiDigit) ||
+                    !int.TryParse(fromRevisionText, out var fromRevision) || fromRevision < 0 || fromRevision > maxRevision)
                     return Results.Json(new { error = "unsupported-ios-catalog-revision" }, statusCode: StatusCodes.Status404NotFound);
+
+                if (useR52TestProfile)
+                {
+                    var r52Fixture = iosR52Store.GetListDatabase(fromRevision);
+                    if (r52Fixture is null)
+                        return Results.Json(new { error = "unsupported-ios-catalog-revision" }, statusCode: StatusCodes.Status404NotFound);
+                    var urlFormat = options.Value.IosOctoCdnUrlFormatsByHost.FirstOrDefault(pair =>
+                        string.Equals(FixtureStore.NormalizeHost(pair.Key), host, StringComparison.OrdinalIgnoreCase)).Value;
+                    if (!string.Equals(urlFormat, IosR52TestProfileStore.CdnUrlFormat, StringComparison.Ordinal))
+                        return Results.Json(new { error = "ios-cdn-url-unavailable" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+                    foreach (var header in r52Fixture.Headers) context.Response.Headers[header.Key] = header.Value;
+                    var r52Body = OctoDatabaseUrl.Rewrite(r52Fixture.Body, urlFormat);
+                    return new LocalFixtureResult(r52Body, "application/x-protobuf", StatusCodes.Status200OK);
+                }
+
                 var database = IosOctoDatabase.Build(resourceStore.GetIosSnapshot(), fromRevision);
                 return new LocalFixtureResult(database, "application/x-protobuf", StatusCodes.Status200OK);
             }
             var resource = directClient
                 ? isIosCdn
-                    ? resourceStore.MatchIosDirect(requestPath)
+                    ? useR52TestProfile ? iosR52Store.MatchDirect(requestPath) : resourceStore.MatchIosDirect(requestPath)
                     : resourceStore.MatchDirect(requestPath)
                 : resourceStore.Match(host, requestPath);
             if (resource is not null)
