@@ -18,5 +18,15 @@
     <None Update="catalog-ios-12346.json;boot-index-ios-platform-2.json"
           CopyToOutputDirectory="PreserveNewest"
           CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\config\bot_ai_profiles.json" Link="config\bot_ai_profiles.json"
+             Condition="Exists('..\..\config\bot_ai_profiles.json')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="..\..\config\bot_ai_profiles.schema.json" Link="config\bot_ai_profiles.schema.json"
+             Condition="Exists('..\..\config\bot_ai_profiles.schema.json')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
 </Project>

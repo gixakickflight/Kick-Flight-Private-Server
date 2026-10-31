@@ -173,3 +173,21 @@ Rules learned the hard way:
   0x1552DAC, `PlayIdleLoopIfExist` 0x159DCBC, `PlayHomeAnim` 0x159E0BC (-> epilogue at 0x159E5AC),
   `SkillDescriptionWindow.OnManagedUpdate` 0x183974C and `<PlayCloseModel>b__77_0` 0x183F12C (skip `SetOutlineWidthScale`).
 * `scripts/re/_disfull.py` = `a64dis.py` that does not stop at the first `ret` (whole-function listings).
+
+
+### Experimental role AI (ARM64, default OFF)
+
+Server `KF_EXPERIMENTAL_AI_ROLES=1` supplies39 mode/profile master rows and bot parameter IDs15..53. Native `KF_AI_ROLES=1` adds framed target telemetry; `KF_AI_ROLE_TARGETING=1` adds Scramble hunter/objective candidate weights; `KF_AI_ROLE_DEPOSIT=1` adds Scramble carrier low-HP deposit threshold1. Targeting and deposit each require roles. Full `KF_DIAG=1` overlaps these caves and is rejected before writes. Production defaults remain unchanged.
+
+Generate with `keystone-engine` installed in the build Python environment. Byte-guard dry-run (verified pristine ARM64 SO, not a prepatched published SO):
+
+```bash
+KF_AI_ROLES=1 KF_AI_ROLE_TARGETING=1 KF_AI_ROLE_DEPOSIT=1 KF_PHOTON=0 \
+  .venv/bin/python scripts/patch-il2cpp-endpoints.py --dry-run /path/to/pristine-libil2cpp.so
+```
+
+Pass the same flags through the normal APK builder. The server flag is independent of APK build flags. `KF_PHOTON=0` above is the tested local flow, not a production deployment instruction. Existing 2.11.3 published APK/library hashes, verified native paths, cave map and remaining scope: [implementation status](../../docs/re-notes/ai-role-implementation-status.md).
+
+`ai_role_diag_read.py` reads captured logcat; quote filters as `KFDIAG:V Unity:V '*:S'`. Marker7650 is a low-HP threshold change during candidate evaluation, not a completed deposit. Markers7590/7591 classify a final guardian target by role regardless of purpose; check purpose before treating it as an attack.
+
+Run `.venv/bin/python -m unittest discover -s tests -p 'test_ai_role*.py' -q`; optional `unicorn==2.1.4` enables actual ARM64 deposit-cave execution with stubbed HP/logger calls. See the status report for static versus Android validation limits.

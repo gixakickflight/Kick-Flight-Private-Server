@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -27,12 +27,19 @@
     font: 13px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif;
   }
   header#top {
-    display: flex; align-items: baseline; gap: 12px;
+    display: flex; align-items: center; gap: 12px;
     padding: 10px 16px; background: var(--bg2); border-bottom: 1px solid var(--line);
   }
-  header#top h1 { margin: 0; font-size: 15px; font-weight: 600; }
-  header#top .hint { color: var(--fg2); font-size: 12px; }
-  header#top #logout { margin-left: auto; padding: 4px 10px; }
+  header#top h1 { margin: 0; font-size: 15px; font-weight: 600; white-space: nowrap; }
+  header#top .hint { color: var(--fg2); font-size: 12px; flex: 1; min-width: 0; }
+  header#top .top-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  header#top .lang-select {
+    background: var(--bg); color: var(--fg); border: 1px solid var(--line);
+    border-radius: 4px; padding: 4px 8px; font: inherit; font-size: 12px; cursor: pointer;
+  }
+  header#top .lang-select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  header#top #logout { padding: 4px 10px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
   #layout {
     display: flex; align-items: stretch;
     height: calc(100vh - 41px - 6.5rem);
@@ -111,6 +118,34 @@
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px 10px; }
   label.field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   label.field > .k { font-size: 11px; color: var(--fg2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .field-guided { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .field-guided > .k { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; min-height: 18px; font-size: 11px; color: var(--fg2); }
+  .field-guided > label { font-size: 10px; color: var(--fg2); }
+  .field-guided .friendly-name { min-width: 0; }
+  .field-guided .raw-name { color: #70798b; font: 10px ui-monospace, Consolas, monospace; }
+  .field-guided details { flex: 0 0 auto; }
+  .field-guided .field-help[open] { flex: 1 0 100%; }
+  .field-guided summary { list-style: none; display: inline-flex; align-items: center; justify-content: center;
+    width: 19px; height: 19px; border: 1px solid #67748a; border-radius: 50%; color: var(--fg);
+    background: var(--bg3); cursor: pointer; font: 600 12px/1 system-ui, sans-serif; }
+  .field-guided summary::-webkit-details-marker { display: none; }
+  .field-guided summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .field-guided .help-copy { position: static; width: 100%; max-width: 100%; margin-top: 4px;
+    padding: 9px 10px; border: 1px solid #59657a; border-radius: 6px; background: #10131a; color: var(--fg);
+    font-size: 12px; font-weight: 400; white-space: normal; }
+  .field-guided .help-copy p { margin: 0 0 7px; }
+  .field-guided .help-copy p:last-child { margin-bottom: 0; }
+  .field-guided .help-copy b { color: #c8d8ef; }
+  .field-guided > input[type=number], .field-guided > select { width: 100%; padding: 4px 6px; background: var(--bg); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 4px; font: 12px/1.4 ui-monospace, Consolas, monospace; }
+  .field-guided > input[type=number]:focus, .field-guided > select:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+  .field-guided > input[type=number].dirty, .field-guided > select.dirty { border-color: var(--dirty); background: #2b2415; color: #ffd79a; }
+  .field-guided > input[type=number].invalid { border-color: var(--err); }
+  .field-guided > input[type=checkbox] { width: 15px; height: 15px; margin: 2px 0; accent-color: var(--accent); }
+  .field-guided > input[type=checkbox].dirty { outline: 2px solid var(--dirty); }
+  .field-guided .ro { font: 12px/1.4 ui-monospace, Consolas, monospace; color: var(--fg2); padding: 4px 6px;
+    background: #191c23; border: 1px dashed var(--line); border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .disc-guide { margin: -4px 0 12px; padding: 9px 11px; border-left: 3px solid var(--accent); background: var(--bg2); color: var(--fg2); }
   label.field input[type=number] {
     width: 100%; padding: 4px 6px; background: var(--bg); color: var(--fg);
     border: 1px solid var(--line); border-radius: 4px; font: 12px/1.4 ui-monospace, Consolas, monospace;
@@ -236,51 +271,338 @@
   #healthStatus .line.ok { color: var(--ok); }
   #healthStatus .line.err { color: var(--err); }
   #healthStatus .line.info { color: var(--fg2); }
+  /* ---------------- Bot AI Editor Styles ---------------- */
+  .bot-ai-container { max-width: 880px; margin: 0 auto; padding: 10px 12px 110px; }
+
+  /* Compact 3-column segmented control */
+  .bot-ai-modes-segmented {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: 4px; margin-bottom: 12px;
+  }
+  .bot-ai-mode-seg {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 8px 6px; border: 1px solid transparent; border-radius: 6px;
+    background: transparent; color: var(--fg2); cursor: pointer; text-align: center;
+    font-size: 13px; font-weight: 600; font-family: inherit; transition: all 0.15s ease;
+  }
+  .bot-ai-mode-seg:hover { background: var(--bg2); color: var(--fg); }
+  .bot-ai-mode-seg.active {
+    background: var(--bg2); color: var(--accent); border-color: var(--line);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  }
+
+  /* Profile Picker & Summary */
+  .bot-ai-mobile-picker {
+    display: none; margin-bottom: 12px; background: var(--bg2); border: 1px solid var(--line);
+    border-radius: 8px; padding: 10px 12px;
+  }
+  .bot-ai-picker-label {
+    font-size: 11px; font-weight: 600; color: var(--fg2); text-transform: uppercase;
+    letter-spacing: 0.5px; display: block; margin-bottom: 6px;
+  }
+  .bot-ai-picker-row { display: flex; align-items: center; gap: 10px; }
+  .bot-ai-select {
+    flex: 1; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--fg); font-size: 13px; font-weight: 500; font-family: inherit;
+  }
+
+  .bot-ai-profile-summary-header {
+    background: var(--bg2); border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px 14px; margin-bottom: 14px; display: flex; justify-content: space-between;
+    align-items: center; flex-wrap: wrap; gap: 10px;
+  }
+  .bot-ai-profile-title { font-size: 14px; font-weight: 600; color: var(--fg); }
+  .bot-ai-affects-label {
+    font-size: 12px; color: var(--accent); font-weight: 500; margin-top: 2px;
+  }
+  .bot-ai-shared-details {
+    font-size: 11px; color: var(--fg2); width: 100%; margin-top: 6px;
+  }
+  .bot-ai-shared-details summary { cursor: pointer; color: var(--fg2); font-weight: 500; }
+  .bot-ai-shared-details summary:hover { color: var(--fg); }
+  .bot-ai-shared-details p { margin: 6px 0 0; line-height: 1.4; color: var(--fg2); }
+
+  /* Heading & Subheading */
+  .bot-ai-heading-box { margin: 0 0 10px; }
+  .bot-ai-heading {
+    font-size: 17px; font-weight: 700; color: var(--fg); margin: 0 0 4px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .bot-ai-subheading { font-size: 12px; color: var(--fg2); margin: 0; }
+
+  /* Compact Colorful Intent Cards Grid */
+  .bot-ai-intent-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px; margin-bottom: 12px;
+  }
+  .bot-ai-intent-card {
+    display: flex; flex-direction: column; padding: 10px 12px; border-radius: 8px;
+    border: 1.5px solid var(--line); background: var(--bg2); cursor: pointer;
+    transition: all 0.15s ease; text-align: left; font-family: inherit; color: var(--fg);
+    position: relative; user-select: none;
+  }
+  .bot-ai-intent-card:hover {
+    transform: translateY(-1px); border-color: var(--card-accent, var(--accent));
+    box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+  }
+  .bot-ai-intent-card.selected {
+    border-color: var(--card-accent, var(--accent));
+    background: var(--card-bg, rgba(77, 163, 255, 0.1));
+    box-shadow: 0 0 0 1px var(--card-accent, var(--accent)), 0 4px 12px rgba(0,0,0,0.25);
+  }
+  .bot-ai-intent-card.theme-score {
+    --card-accent: #2ecc71; --card-bg: rgba(46, 204, 113, 0.12);
+  }
+  .bot-ai-intent-card.theme-fight {
+    --card-accent: #e74c3c; --card-bg: rgba(231, 76, 60, 0.12);
+  }
+  .bot-ai-intent-card.theme-defense {
+    --card-accent: #3498db; --card-bg: rgba(52, 152, 219, 0.12);
+  }
+  .bot-ai-intent-card.theme-support {
+    --card-accent: #9b59b6; --card-bg: rgba(155, 89, 182, 0.12);
+  }
+  .bot-ai-intent-card.theme-balanced {
+    --card-accent: #f39c12; --card-bg: rgba(243, 156, 18, 0.12);
+  }
+
+  .bot-ai-intent-top {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
+  }
+  .bot-ai-intent-icon-title { display: flex; align-items: center; gap: 8px; }
+  .bot-ai-intent-icon { font-size: 20px; line-height: 1; }
+  .bot-ai-intent-title { font-weight: 700; font-size: 13px; }
+  .bot-ai-intent-badge {
+    font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;
+    background: var(--card-accent, var(--accent)); color: #000;
+  }
+  .bot-ai-intent-summary {
+    font-size: 11px; color: var(--fg2); line-height: 1.35; flex: 1; margin-bottom: 4px;
+  }
+  .bot-ai-intent-subnote {
+    font-size: 10px; color: var(--fg2); border-top: 1px dashed var(--line);
+    padding-top: 4px; font-style: italic;
+  }
+
+  /* Preset Feedback */
+  .bot-ai-preset-feedback {
+    background: var(--bg2); border: 1px solid var(--line); border-left: 3px solid var(--accent);
+    border-radius: 6px; padding: 8px 12px; margin-bottom: 14px; font-size: 12px; line-height: 1.4;
+  }
+  .bot-ai-preset-feedback strong { color: var(--accent); }
+
+  /* Collapsible Details */
+  .bot-ai-custom-details, .bot-ai-disclosure, .bot-ai-advanced {
+    margin-bottom: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg2);
+  }
+  .bot-ai-custom-details summary, .bot-ai-disclosure summary, .bot-ai-advanced summary {
+    padding: 10px 14px; font-weight: 600; font-size: 12px; color: var(--fg2);
+    cursor: pointer; user-select: none;
+  }
+  .bot-ai-custom-details summary:hover, .bot-ai-disclosure summary:hover, .bot-ai-advanced summary:hover {
+    color: var(--fg);
+  }
+  .bot-ai-custom-body, .bot-ai-disclosure-body, .bot-ai-advanced-body {
+    padding: 14px; border-top: 1px solid var(--line); background: var(--bg3);
+  }
+
+  .bot-ai-notice {
+    padding: 10px 14px; border-radius: 6px; font-size: 12px; margin-bottom: 14px;
+    line-height: 1.5; display: flex; gap: 10px; align-items: flex-start;
+  }
+  .bot-ai-notice.info { background: rgba(77, 163, 255, 0.1); border: 1px solid rgba(77, 163, 255, 0.3); color: #8ec5fc; }
+  .bot-ai-notice.warn { background: rgba(255, 179, 71, 0.1); border: 1px solid rgba(255, 179, 71, 0.3); color: #ffd285; }
+
+  .bot-ai-card {
+    background: var(--bg2); border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px; margin-bottom: 14px;
+  }
+  .bot-ai-card h3 { margin: 0 0 10px; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+  .bot-ai-card .badge {
+    font-size: 11px; padding: 2px 7px; border-radius: 4px; background: var(--bg3);
+    color: var(--fg2); border: 1px solid var(--line); font-weight: 500;
+  }
+  .bot-ai-card .badge.dirty { background: rgba(255, 179, 71, 0.2); border-color: var(--dirty); color: var(--dirty); }
+
+  .bot-ai-controls-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;
+  }
+  .bot-ai-field {
+    background: var(--bg2); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--line);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .bot-ai-field-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .bot-ai-field-label { font-size: 12px; font-weight: 500; }
+  .bot-ai-field-val { font-size: 12px; font-weight: 600; font-family: ui-monospace, Consolas, monospace; color: var(--accent); }
+  .bot-ai-field-help { font-size: 11px; color: var(--fg2); line-height: 1.3; }
+  .bot-ai-slider {
+    width: 100%; accent-color: var(--accent); cursor: pointer; height: 6px;
+    background: var(--bg); border-radius: 3px;
+  }
+  .bot-ai-field.locked { opacity: 0.85; border-style: dashed; }
+  .bot-ai-field.locked .bot-ai-field-val { color: var(--dirty); }
+
+  .bot-ai-raw-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 11px;
+  }
+
+  /* Persistent Bottom Save Bar */
+  .bot-ai-action-bar {
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
+    gap: 12px; padding: 12px 16px; background: var(--bg2); border: 1px solid var(--line);
+    border-radius: 8px; position: sticky; bottom: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    z-index: 100; margin-top: 16px;
+  }
+  .bot-ai-btn {
+    padding: 8px 18px; border-radius: 6px; font-size: 13px; font-weight: 600;
+    cursor: pointer; border: 1px solid var(--line); font-family: inherit;
+    transition: all 0.15s ease;
+  }
+  .bot-ai-btn.primary { background: var(--accent); color: #06131f; border-color: var(--accent); }
+  .bot-ai-btn.primary:hover:not(:disabled) { filter: brightness(1.1); }
+  .bot-ai-btn.primary:disabled { opacity: 0.45; cursor: default; }
+  .bot-ai-btn.secondary { background: var(--bg3); color: var(--fg); }
+  .bot-ai-btn.secondary:hover:not(:disabled) { background: var(--bg); }
+  .bot-ai-btn.danger { background: rgba(255, 107, 107, 0.15); border-color: var(--err); color: var(--err); }
+  .bot-ai-btn.danger:hover { background: rgba(255, 107, 107, 0.25); }
+
+  .bot-ai-modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(2px);
+    display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px;
+  }
+  .bot-ai-modal {
+    background: var(--bg2); border: 1px solid var(--line); border-radius: 10px;
+    width: 100%; max-width: 620px; max-height: 85vh; display: flex; flex-direction: column;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  }
+  .bot-ai-modal-head {
+    padding: 14px 18px; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 15px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .bot-ai-modal-body { padding: 18px; overflow-y: auto; font-size: 13px; line-height: 1.5; }
+  .bot-ai-modal-foot {
+    padding: 14px 18px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end;
+    gap: 10px; background: var(--bg); border-bottom-left-radius: 10px; border-bottom-right-radius: 10px;
+  }
+
+  .bot-ai-sidebar-item {
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 6px;
+    cursor: pointer; border: 1px solid transparent; font-size: 12px; margin-bottom: 2px;
+  }
+  .bot-ai-sidebar-item:hover { background: var(--bg3); }
+  .bot-ai-sidebar-item.sel { background: rgba(77, 163, 255, 0.15); border-color: var(--accent); }
+  .bot-ai-sidebar-item .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--dirty); display: inline-block; margin-left: auto;
+  }
+
+  @media (max-width: 768px) {
+    header#top { flex-wrap: wrap; gap: 8px 12px; }
+    #tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 6px 8px; }
+    #tabs button { padding: 6px 4px; font-size: 11px; line-height: 1.25; word-break: normal; overflow-wrap: anywhere; hyphens: auto; text-align: center; }
+    header#top .hint { display: none; }
+    header#top .top-actions { width: auto; }
+    #layout { flex-direction: column; height: auto; }
+    #sidebar { width: 100%; min-width: 0; height: auto; max-height: 320px; border-right: none; border-bottom: 1px solid var(--line); }
+    body.tab-bot-ai #sidebar #list { display: none; }
+    body.tab-bot-ai #sidebar { max-height: none; border-bottom: none; }
+    body.tab-bot-ai .bot-ai-container { padding: 6px 10px 110px; }
+    body.tab-bot-ai .bot-ai-mobile-picker { display: block; margin-bottom: 8px; padding: 6px 10px; }
+    .bot-ai-picker-label { font-size: 10px; margin-bottom: 4px; }
+    .bot-ai-select { padding: 6px 8px; font-size: 12px; }
+    .bot-ai-modes-segmented { grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 3px; margin-bottom: 8px; }
+    .bot-ai-mode-seg { padding: 6px 4px; font-size: 12px; }
+    .bot-ai-profile-summary-header { padding: 8px 10px; margin-bottom: 8px; gap: 6px; }
+    .bot-ai-profile-summary-header .bot-ai-profile-title { font-size: 13px; }
+    .bot-ai-profile-summary-header .bot-ai-affects-label { font-size: 11px; }
+    .bot-ai-shared-details { font-size: 10px; margin-top: 4px; }
+    .bot-ai-heading-box { margin: 0 0 8px; }
+    .bot-ai-heading { font-size: 15px; margin: 0 0 2px; }
+    .bot-ai-subheading { font-size: 11px; }
+    .bot-ai-intent-grid { grid-template-columns: 1fr; gap: 8px; margin-bottom: 10px; }
+    .bot-ai-intent-card { padding: 8px 10px; }
+    .bot-ai-intent-top { margin-bottom: 4px; }
+    .bot-ai-intent-title { font-size: 12.5px; }
+    .bot-ai-intent-desc { font-size: 11px; line-height: 1.3; }
+    .bot-ai-intent-summary { font-size: 11px; margin-top: 3px; }
+    .bot-ai-controls-grid { grid-template-columns: 1fr; }
+    .bot-ai-action-bar { position: sticky; bottom: 0; border-radius: 0; margin: 16px -10px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.4); }
+  }
+  /* Client update panel */
+  .ustate { display: inline-block; padding: 2px 10px; border-radius: 10px; font-weight: 600; border: 1px solid var(--line); }
+  .ustate.enabled { color: var(--ok); border-color: var(--ok); }
+  .ustate.disabled { color: var(--err); border-color: var(--err); }
+  .ustate.override { color: var(--dirty); border-color: var(--dirty); }
+  .ustate.default { color: #60a5fa; border-color: #60a5fa; }
+  .update-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 10px 0; }
+  .update-card { background: var(--bg3); border: 1px solid var(--line); border-radius: 6px; padding: 10px; }
+  .update-card .lbl { font-size: 11px; color: var(--fg2); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .update-card .val { font-size: 15px; font-weight: 600; color: var(--fg); font-family: ui-monospace, Consolas, monospace; }
+  .update-card .sub { font-size: 11px; color: var(--fg2); margin-top: 4px; }
+  .toggle-label { display: flex; align-items: center; gap: 8px; font-weight: 600; margin: 10px 0; cursor: pointer; user-select: none; }
+  .toggle-label input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+  #clientUpdateStatus:empty { display: none; }
+  #clientUpdateStatus .line { font: 11px/1.5 ui-monospace, Consolas, monospace; }
+  #clientUpdateStatus .line.ok { color: var(--ok); }
+  #clientUpdateStatus .line.err { color: var(--err); }
+  #clientUpdateStatus .line.info { color: var(--fg2); }
 </style>
 </head>
 <body>
 <header id="top">
-  <h1>Kick-Flight Balance</h1>
-  <span class="hint">saves write <code>.local/masters-overrides</code> (never <code>config/</code>) &mdash; restart the API to load them</span>
-  <span id="currentUser" class="hint"></span>
-  <button id="logout" type="button">Log out</button>
+  <h1 data-i18n="header.title">Kick-Flight Balance</h1>
+  <span id="topHint" class="hint">las modificaciones se guardan en <code>.local/masters-overrides</code> (nunca en <code>config/</code>) &mdash; reinicia la API para cargarlas</span>
+  <div class="top-actions">
+    <div class="lang-selector-wrap">
+      <label for="langSelect" class="sr-only" data-i18n="header.langLabel">Idioma</label>
+      <select id="langSelect" class="lang-select" aria-label="Idioma / Language">
+        <option value="es">Español</option>
+        <option value="en">English</option>
+      </select>
+    </div>
+    <span id="currentUser" class="hint"></span>
+    <button id="logout" type="button" data-i18n="header.logout">Cerrar sesión</button>
+  </div>
 </header>
 
 <div id="layout">
   <aside id="sidebar">
     <div id="tabs">
-      <button type="button" data-tab="kickers" class="on">Kickers</button>
-      <button type="button" data-tab="discs">Discs</button>
-      <button type="button" data-tab="text">Text</button>
-      <button type="button" data-tab="latest-information">Latest information</button>
-      <button type="button" data-tab="health">Health</button>
-      <button type="button" data-tab="maintenance">Maintenance</button>
+      <button type="button" data-tab="kickers" data-i18n="tabs.kickers" class="on">Kickers</button>
+      <button type="button" data-tab="discs" data-i18n="tabs.discs">Discos</button>
+      <button type="button" data-tab="text" data-i18n="tabs.text">Texto</button>
+      <button type="button" data-tab="bot-ai" data-i18n="tabs.botAi">IA de bots</button>
+      <button type="button" data-tab="latest-information" data-i18n="tabs.latestInformation">Última información</button>
+      <button type="button" data-tab="health" data-i18n="tabs.health">Salud</button>
+      <button type="button" data-tab="maintenance" data-i18n="tabs.maintenance">Mantenimiento</button>
+      <button type="button" data-tab="client-update" data-i18n="tabs.clientUpdate">Actualización de cliente</button>
     </div>
     <div id="filters">
-      <input type="text" id="filterText" placeholder="Filter by name or id" autocomplete="off">
+      <input type="text" id="filterText" placeholder="Filtrar por nombre o id" autocomplete="off" data-i18n-placeholder="filters.searchPlaceholder" data-i18n-aria-label="filters.searchAria" aria-label="Filtrar lista por nombre o identificador">
       <div id="discFilters" style="display:none">
-        <select id="filterRarity" style="margin-bottom:6px"></select>
-        <select id="filterType"></select>
+        <select id="filterRarity" style="margin-bottom:6px" aria-label="Filtrar por rareza"></select>
+        <select id="filterType" aria-label="Filtrar por tipo"></select>
       </div>
     </div>
     <ul id="list"></ul>
   </aside>
-  <main id="panel"><p class="empty">Loading&hellip;</p></main>
+  <main id="panel"><p class="empty" data-i18n="common.loading">Cargando&hellip;</p></main>
 </div>
 
 <footer id="foot">
   <div class="bar">
-    <span id="dirtyCount">Unsaved changes: 0</span>
-    <button type="button" id="save" disabled>Save</button>
-    <button type="button" id="revert">Revert</button>
-    <button type="button" id="apply">Restart API to apply</button>
-    <button type="button" id="exportOverrides">Export overrides</button>
-    <span class="note">saves write the override dir; restart the API to load them</span>
+    <span id="dirtyCount">Cambios sin guardar: 0</span>
+    <button type="button" id="save" data-i18n="footer.save" disabled>Guardar</button>
+    <button type="button" id="revert" data-i18n="footer.revert">Revertir</button>
+    <button type="button" id="apply" data-i18n="footer.apply">Reiniciar API para aplicar</button>
+    <button type="button" id="exportOverrides" data-i18n="footer.export">Exportar modificaciones</button>
+    <span class="note" data-i18n="footer.note">los cambios se escriben en el directorio de modificaciones; reinicia la API para cargarlos</span>
   </div>
   <div id="applyStatus"></div>
   <div id="saveStatus"></div>
 </footer>
 
+<script src="__BALANCE_BASE_PATH__/i18n.js"></script>
 <script>
 "use strict";
 
@@ -333,6 +655,71 @@ const READONLY_FIELDS = {
   ])
 };
 
+/* Human labels and help for the fields people can edit from a disc detail panel.
+   Raw master keys remain the form/API keys; unknown future fields get an explicit
+   limited explanation instead of a guessed game effect. */
+const DISC_FIELD_GUIDANCE = {
+  "disc.rarityType": ["Rarity", "Rareza", "Selects the disc's rarity category. This is a display/classification value; it does not directly change HP, attack, cooldown, or skill damage.", "Elige la categoría de rareza del disco. Es un dato de clasificación y presentación; no cambia directamente los HP, el ataque, el enfriamiento ni el daño de la habilidad."],
+  "disc.minHp": ["HP · lower growth endpoint", "HP · extremo inferior de crecimiento", "Disc HP value at the lower endpoint of its growth range. The disc's growth group and upgrade level determine the value used in play. Increasing it raises the disc's HP contribution at this endpoint.", "HP del disco en el extremo inferior de su rango de crecimiento. El grupo de crecimiento y el nivel de mejora determinan el valor aplicado en partida. Al aumentarlo, sube la contribución de HP del disco en este extremo."],
+  "disc.maxHp": ["HP · upper growth endpoint", "HP · extremo superior de crecimiento", "Disc HP value at the upper endpoint of its growth range. The disc's growth group and upgrade level determine the value used in play. Increasing it raises the disc's HP contribution at this endpoint.", "HP del disco en el extremo superior de su rango de crecimiento. El grupo de crecimiento y el nivel de mejora determinan el valor aplicado en partida. Al aumentarlo, sube la contribución de HP del disco en este extremo."],
+  "disc.minAttack": ["Attack · lower growth endpoint", "Ataque · extremo inferior de crecimiento", "Disc attack value at the lower endpoint of its growth range. It contributes to the equipped kicker's attack. The growth group and upgrade level determine the value used in play.", "Ataque del disco en el extremo inferior de su rango de crecimiento. Contribuye al ataque del kicker equipado. El grupo de crecimiento y el nivel de mejora determinan el valor aplicado en partida."],
+  "disc.maxAttack": ["Attack · upper growth endpoint", "Ataque · extremo superior de crecimiento", "Disc attack value at the upper endpoint of its growth range. It contributes to the equipped kicker's attack. The growth group and upgrade level determine the value used in play.", "Ataque del disco en el extremo superior de su rango de crecimiento. Contribuye al ataque del kicker equipado. El grupo de crecimiento y el nivel de mejora determinan el valor aplicado en partida."],
+  "disc.minCoefficient": ["Disc skill multiplier · lower endpoint", "Multiplicador de habilidad del disco · extremo inferior", "The game interpolates between the disc coefficient endpoints for its growth rate, then rounds the result down to a whole number. Fractional values can disappear or jump as the disc grows. For fractional per-hit damage multipliers, keep both disc endpoints at 1 and edit Skill → Damage multiplier. Do not include the number of hits here.", "El juego interpola los extremos del coeficiente según el crecimiento del disco y después redondea el resultado hacia abajo a un entero. Los decimales pueden desaparecer o cambiar de golpe al mejorar el disco. Para usar multiplicadores de daño fraccionarios por impacto, deja ambos extremos del disco en 1 y edita Habilidad → Multiplicador de daño. No incluyas aquí la cantidad de impactos."],
+  "disc.maxCoefficient": ["Disc skill multiplier · upper endpoint", "Multiplicador de habilidad del disco · extremo superior", "The game interpolates between the disc coefficient endpoints for its growth rate, then rounds the result down to a whole number. Fractional values can disappear or jump as the disc grows. For fractional per-hit damage multipliers, keep both disc endpoints at 1 and edit Skill → Damage multiplier. Do not include the number of hits here.", "El juego interpola los extremos del coeficiente según el crecimiento del disco y después redondea el resultado hacia abajo a un entero. Los decimales pueden desaparecer o cambiar de golpe al mejorar el disco. Para usar multiplicadores de daño fraccionarios por impacto, deja ambos extremos del disco en 1 y edita Habilidad → Multiplicador de daño. No incluyas aquí la cantidad de impactos."],
+  "disc.minCoolTime": ["Cooldown · lower growth endpoint (seconds)", "Enfriamiento · extremo inferior de crecimiento (segundos)", "Skill recharge time in seconds at the lower endpoint of the disc's growth range. A smaller value lets the player use the disc skill more often. The growth group and upgrade level determine the value used in play.", "Tiempo de recarga de la habilidad en segundos en el extremo inferior del rango de crecimiento del disco. Un valor menor permite usar la habilidad con más frecuencia. El grupo de crecimiento y el nivel de mejora determinan el valor aplicado."],
+  "disc.maxCoolTime": ["Cooldown · upper growth endpoint (seconds)", "Enfriamiento · extremo superior de crecimiento (segundos)", "Skill recharge time in seconds at the upper endpoint of the disc's growth range. A smaller value lets the player use the disc skill more often. The growth group and upgrade level determine the value used in play.", "Tiempo de recarga de la habilidad en segundos en el extremo superior del rango de crecimiento del disco. Un valor menor permite usar la habilidad con más frecuencia. El grupo de crecimiento y el nivel de mejora determinan el valor aplicado."],
+  "skill.skillType": ["Skill owner/type", "Tipo de habilidad", "Classifies the skill as a disc skill, kicker skill, or guardian skill. Changing the class can make the client look for different data and behavior; keep the value appropriate for this disc.", "Clasifica la habilidad como habilidad de disco, de kicker o de guardián. Si cambias la categoría, el cliente puede buscar datos y comportamientos distintos; conserva el valor que corresponde a este disco."],
+  "skill.skillActionType": ["Action behavior", "Comportamiento de la acción", "Chooses the game's action handler, such as shot, dash, trap, or warp. Changing it can alter how the skill behaves; unsupported actions or actions without the required game animation data can leave the skill unusable. Use only a verified compatible action.", "Elige el controlador de acción del juego, por ejemplo disparo, embestida, trampa o teletransporte. Cambiarlo puede alterar el comportamiento; una acción no compatible o sin los datos de animación requeridos puede dejar la habilidad inutilizable. Usa solo una acción cuya compatibilidad esté verificada."],
+  "skill.skillCategoryType": ["Skill category", "Categoría de habilidad", "Classifies the skill as attack, heal, buff, trap, warp, or move. This category can affect how the client presents or handles the skill; it does not by itself define damage or add an effect.", "Clasifica la habilidad como ataque, curación, mejora, trampa, teletransporte o movimiento. Esta categoría puede afectar cómo el cliente presenta o procesa la habilidad; por sí sola no define el daño ni añade un efecto."],
+  "skill.targetAreaType": ["Target preview shape", "Forma de la zona de objetivo", "Chooses the shape shown by the aiming/target preview. It does not create or resize the skill's actual hitboxes, which come from the game's action data.", "Elige la forma que muestra la vista previa de objetivo. No crea ni cambia el tamaño de las zonas de impacto reales, que provienen de los datos de acción del juego."],
+  "skill.attributeType": ["Element/attribute", "Elemento/atributo", "Sets the skill's attribute classification (none, fire, water, or wind). The exact combat consequences depend on the client systems that read this field; this setting alone does not guarantee a damage bonus.", "Establece la clasificación de atributo de la habilidad (ninguno, fuego, agua o viento). Sus consecuencias exactas dependen de los sistemas del cliente que consultan este dato; cambiarlo por sí solo no garantiza una bonificación de daño."],
+  "skill.coolTime": ["Skill cooldown (seconds)", "Enfriamiento de la habilidad (segundos)", "Time in seconds before this disc skill can be used again. Lowering it allows more frequent uses, subject to the in-game action and other restrictions.", "Tiempo en segundos antes de poder volver a usar esta habilidad de disco. Reducirlo permite usarla con más frecuencia, sujeto a la acción del juego y otras restricciones."],
+  "skill.range": ["Skill range (game units)", "Alcance de la habilidad (unidades del juego)", "Distance used by the skill action where that action reads range. Increasing it can extend reach or an area, but not every action uses this value and it does not resize timeline hitboxes.", "Distancia que usa la acción de habilidad cuando consulta el alcance. Aumentarla puede extender el alcance o un área, pero algunas acciones no usan este valor y no cambia las zonas de impacto de la animación."],
+  "skill.speed": ["Skill speed (game units/second)", "Velocidad de habilidad (unidades del juego/segundo)", "Speed used by projectile or movement actions that read this field. Increasing it makes those projectiles or movements faster; actions that do not read speed are unaffected.", "Velocidad usada por acciones de proyectil o movimiento que consultan este dato. Al aumentarla, esos proyectiles o movimientos son más rápidos; las acciones que no lo consultan no cambian."],
+  "skill.coefficient": ["Damage multiplier", "Multiplicador de daño", "For damage actions, this multiplies the kicker's attack for each hit or damage tick. For example, 0.5 means half of attack per hit before other modifiers. The animation timeline controls how many hits occur: do not multiply this value by the hit count. This is the place to keep fractional per-hit values; the disc coefficient is rounded down to an integer.", "En acciones de daño, multiplica el ataque del kicker en cada impacto o tick de daño. Por ejemplo, 0.5 equivale a la mitad del ataque por impacto antes de otros modificadores. La animación determina cuántos impactos ocurren: no multipliques este valor por esa cantidad. Aquí se conservan decimales por impacto; el coeficiente del disco se redondea hacia abajo a un entero."],
+  "skill_condition.conditionType": ["Condition effect", "Efecto de condición", "Selects the status effect to apply, such as an attack/speed change, poison, damage over time, stun, or healing over time. The meaning of Effect value depends on this choice; some conditions ignore that value.", "Elige el estado que se aplica, como cambio de ataque/velocidad, veneno, daño periódico, aturdimiento o curación periódica. El significado de Valor del efecto depende de esta opción; algunos estados ignoran ese valor."],
+  "skill_condition.duration": ["Effect duration (seconds)", "Duración del efecto (segundos)", "How long the status effect remains active. A shorter duration reduces its window; the client may end some effects early when a character is interrupted or another action removes them.", "Cuánto tiempo permanece activo el estado. Una duración menor reduce ese periodo; el cliente puede terminar algunos efectos antes si un personaje recibe una interrupción o si otra acción los elimina."],
+  "skill_condition.interval": ["Tick interval (seconds)", "Intervalo entre ticks (segundos)", "Time between repeated damage or healing ticks. Zero means a one-time application for supported effects. The number of ticks also depends on duration and the effect's client behavior.", "Tiempo entre ticks repetidos de daño o curación. Cero significa una sola aplicación en los efectos compatibles. La cantidad de ticks también depende de la duración y del comportamiento del efecto en el cliente."],
+  "skill_condition.effectValue": ["Effect value", "Valor del efecto", "The amount or multiplier used by the selected condition. Its meaning varies: attack/speed/damage-rate conditions use a multiplier; poison uses a fraction of the target's maximum HP per tick; damage-over-time uses a fraction of the setter's attack per tick; regeneration uses a fraction of maximum HP per tick. Stun, paralysis, and silence ignore this number.", "Cantidad o multiplicador que usa la condición elegida. Su significado cambia: condiciones de ataque/velocidad/daño usan un multiplicador; veneno usa una fracción del HP máximo del objetivo por tick; daño periódico usa una fracción del ataque del aplicador por tick; regeneración usa una fracción del HP máximo por tick. Aturdimiento, parálisis y silencio ignoran este número."],
+  "skill_condition.triggerType": ["When and to whom it applies", "Cuándo y a quién se aplica", "Controls when the condition is applied: on a hit, when the caster executes the skill, or when a team enters a trap. Execute conditions are only applied by supported action types; attack discs do not apply Execute rows. A trigger that the action never sends has no effect.", "Controla cuándo se aplica la condición: al impactar, cuando el usuario ejecuta la habilidad o cuando un equipo entra en una trampa. Solo ciertos tipos de acción aplican condiciones Execute; los discos de ataque no las aplican. Un disparador que la acción nunca envía no produce efecto."],
+  "skill_heal.skillHealType": ["Healing/resource effect", "Efecto de curación/recurso", "Selects what the row does: restore HP, add boost gauge, heal from damage dealt, drain special-skill gauge, or cleanse conditions. The coefficient's unit depends on this choice.", "Elige qué hace la fila: restaurar HP, añadir medidor de impulso, curar según el daño causado, drenar el medidor de habilidad especial o eliminar condiciones. La unidad del coeficiente depende de esta opción."],
+  "skill_heal.coefficient": ["Healing/resource amount", "Cantidad de curación/recurso", "Meaning depends on Healing/resource effect: HP and damage-drain types use a fraction (0.5 = 50%); Boost Gauge uses coefficient × 120 points; SP Drain steals up to coefficient × 100 points, capped by the target's SP. Condition cleansing uses the selected type and does not use this as a percentage.", "El significado depende del Efecto de curación/recurso: HP y drenaje de daño usan una fracción (0.5 = 50%); Medidor de impulso usa coeficiente × 120 puntos; Drenaje de SP roba hasta coeficiente × 100 puntos, limitado por el SP del objetivo. La limpieza de condiciones depende del tipo elegido y no usa este valor como porcentaje."],
+  "skill_blow_off.directionType": ["Knockback direction", "Dirección del empuje", "Chooses how a target is displaced: up launches, down slams, and attack direction pushes from the attacker toward the target. The action's animation and blow-off support determine the visible result.", "Elige cómo se desplaza el objetivo: arriba lo lanza, abajo lo azota contra el suelo y dirección del ataque lo empuja del atacante hacia el objetivo. La animación y el soporte de empuje de la acción determinan el resultado visible."],
+  "skill_blow_off.distance": ["Knockback distance", "Distancia del empuje", "Controls how far the target is pushed or launched. The client/generator applies action-specific scaling, and rush-pursuit skills have a special interpretation; changing it may also change a Move Attack from piercing to pursuit behavior.", "Controla cuánto se empuja o lanza al objetivo. El cliente/generador aplica escalas según la acción y las embestidas de persecución tienen una interpretación especial; cambiarlo también puede cambiar un Ataque de embestida de perforación a persecución."],
+  "skill_blow_off.speed": ["Knockback speed", "Velocidad del empuje", "Speed of the target's displacement, in game movement units per second where supported. Higher values make the push happen faster; the action may apply its own limits.", "Velocidad del desplazamiento del objetivo, en unidades de movimiento del juego por segundo cuando se admite. Un valor mayor hace que el empuje ocurra más rápido; la acción puede aplicar sus propios límites."],
+  "skill_blow_off.rigorTime": ["Stagger after landing (seconds)", "Aturdimiento tras caer (segundos)", "Stagger time after the target lands from the knockback. The game applies action-specific scaling, so the entered value may not equal the final on-screen duration exactly.", "Tiempo de aturdimiento cuando el objetivo cae tras el empuje. El juego aplica escalas según la acción, así que el valor escrito puede no coincidir exactamente con la duración visible final."],
+  "skill_pull_in.distance": ["Pull distance", "Distancia de atracción", "How far the target is pulled toward the skill user. This is ignored when the same skill also has a blow-off row.", "Hasta dónde se atrae al objetivo hacia quien usa la habilidad. Se ignora si la misma habilidad también tiene una fila de empuje."],
+  "skill_pull_in.speed": ["Pull speed", "Velocidad de atracción", "How quickly the target moves toward the skill user. The action's movement and interruption rules still apply.", "Qué tan rápido se mueve el objetivo hacia quien usa la habilidad. Siguen aplicándose las reglas de movimiento e interrupción de la acción."],
+  "skill_trap.trapType": ["Trap behavior", "Comportamiento de la trampa", "Selects the trap behavior (for example slow, turret, decoy, bomb, or condition trap). The action must support the chosen behavior and have the related effect rows/assets.", "Elige el comportamiento de la trampa (por ejemplo ralentización, torreta, señuelo, bomba o condición). La acción debe admitir ese comportamiento y tener las filas/recursos relacionados."],
+  "skill_trap.duration": ["Trap duration / fuse (seconds)", "Duración/mecha de trampa (segundos)", "Usually the trap lifetime or time until it activates. Many disc traps rebuild this data from the APK animation timeline, so this server value can be only a fallback. Jay's bomb uses the served duration as its fuse.", "Normalmente es la duración de la trampa o el tiempo hasta que se activa. Muchas trampas de disco reconstruyen estos datos desde la animación del APK, así que este valor del servidor puede ser solo un respaldo. La bomba de Jay usa la duración servida como mecha."],
+  "skill_trap.radius": ["Trap radius (game units)", "Radio de la trampa (unidades del juego)", "Radius used by trap behaviors that read this field. Many disc traps take their radius from the APK animation timeline; Jay's bomb uses this served value for its blast radius.", "Radio usado por los comportamientos de trampa que consultan este dato. Muchas trampas de disco toman el radio de la animación del APK; la bomba de Jay usa este valor servido como radio de explosión."],
+  "skill_trap.effectValue": ["Trap effect strength", "Intensidad del efecto de trampa", "Meaning depends on trap type and effect. For a Slow trap, 0.5 means movement at half speed. Other traps may interpret it differently or ignore it.", "El significado depende del tipo de trampa y del efecto. En una trampa de ralentización, 0.5 significa movimiento a la mitad de velocidad. Otras trampas pueden interpretarlo de otra forma o ignorarlo."],
+  "skill_trap.interval": ["Trap tick/expansion interval (seconds)", "Intervalo de ticks/expansión de trampa (segundos)", "Time spacing used by trap behaviors that repeat, tick, or expand. The exact meaning depends on the trap; Jay's bomb uses it for blast expansion time.", "Intervalo de tiempo usado por trampas que repiten, aplican ticks o se expanden. El significado depende de la trampa; la bomba de Jay lo usa para el tiempo de expansión de la explosión."],
+  "skill_trap.executeSeId": ["Activation sound cue ID", "ID del sonido de activación", "CRI ADX sound cue played on trap activation. Zero is silent; an unknown cue ID may play no sound. This does not change the trap's combat effect.", "Identificador de sonido CRI ADX que se reproduce al activar la trampa. Cero es silencio; un identificador desconocido puede no reproducir sonido. No cambia el efecto de combate de la trampa."],
+  "skill_trap.effectPath": ["Trap visual effect resource", "Recurso visual de la trampa", "Resource bundle path for the trap's visual effect, without a file extension. The bundle must already be loaded during the battle or the effect may not appear. Jay's bomb reads this path for its explosion effect.", "Ruta del paquete de recursos del efecto visual de la trampa, sin extensión de archivo. El paquete debe estar cargado durante la batalla o el efecto podría no aparecer. La bomba de Jay consulta esta ruta para la explosión."],
+  "skill_trap.screenEffectPath": ["Screen effect resource", "Recurso de efecto de pantalla", "Resource bundle path for a screen-wide effect shown to a player who enters the trap, without a file extension. The bundle must be loaded by the battle; an unavailable path may show nothing.", "Ruta del recurso de un efecto de pantalla completa que ve quien entra en la trampa, sin extensión. El paquete debe estar cargado en la batalla; una ruta no disponible puede no mostrar nada."],
+  "skill_collision.collisionType": ["Hit shape", "Forma de impacto", "Selects the collision volume shape: box, sphere, capsule, or cylinder. This table is read by guardian turret beams only (Skill type Guardian); disc and kicker hitboxes come from the APK action data, so changing this row does not change a disc's hit shape.", "Elige la forma del volumen de impacto: caja, esfera, cápsula o cilindro. Esta tabla solo la usan los rayos de torretas guardianas (tipo de habilidad Guardián); las zonas de impacto de discos y kickers vienen de los datos de acción del APK, así que esta fila no cambia la forma de impacto de un disco."],
+  "skill_collision.collisionHitType": ["Who can be hit / repeat hits", "Objetivos e impactos repetidos", "Controls whether the collision hits one target, all targets, or can hit again/count hits according to the selected mode. This table is guardian-beam-only; disc hit behavior comes from the APK action data.", "Controla si la colisión golpea a un objetivo, a todos o puede volver a golpear/contar impactos según el modo. Esta tabla solo se usa en rayos guardianes; el comportamiento de impacto de discos viene de los datos de acción del APK."],
+  "skill_collision.hitLayer": ["Target layer mask", "Máscara de capas objetivo", "Unity layer mask that filters which kinds of objects the collision can hit. The shipped value 4864 (0x1300) includes players and guardians. This table is only read for guardian turret beams; it does not filter disc hitboxes.", "Máscara de capas de Unity que filtra qué tipos de objetos puede golpear la colisión. El valor usado por el juego, 4864 (0x1300), incluye jugadores y guardianes. Esta tabla solo se consulta para rayos de torretas guardianas; no filtra los impactos de discos."],
+  "skill_collision.radius": ["Collision radius (game units)", "Radio de colisión (unidades del juego)", "Base radius of the guardian beam's collision volume where the selected shape uses a radius. Larger values widen the volume. Disc collision sizes are defined in the APK action data, so this value does not resize a disc hitbox.", "Radio base del volumen de colisión del rayo guardián cuando la forma elegida usa radio. Un valor mayor ensancha el volumen. El tamaño de colisión de los discos se define en los datos de acción del APK, así que este valor no cambia una zona de impacto de disco."],
+  "skill_collision.length": ["Collision length (game units)", "Longitud de colisión (unidades del juego)", "Length used by capsule and cylinder collision shapes. Increasing it lengthens the guardian beam's collision volume. Disc collision shapes come from the APK action data.", "Longitud usada por las formas de colisión cápsula y cilindro. Al aumentarla, se alarga el volumen de colisión del rayo guardián. Las formas de colisión de discos vienen de los datos de acción del APK."],
+  "skill_collision.originCenterFlag": ["Center collision at origin", "Centrar colisión en el origen", "Controls placement of the collision relative to its origin. For Box and Sphere, false starts the volume at the kicker's front. This table is guardian-beam-only; disc placement is in the APK action data.", "Controla la posición de la colisión con respecto a su origen. En Caja y Esfera, false hace que el volumen comience delante del kicker. Esta tabla solo se usa en rayos guardianes; la posición de los discos está en los datos de acción del APK."],
+  "skill_collision.scaleX": ["Collision width scale (X)", "Escala de ancho de colisión (X)", "Dimensionless scale applied to the collision volume on its X axis: 1 keeps the base size, larger values expand it, and smaller values shrink it. Only affects guardian beam collision data; disc sizes come from the APK.", "Escala sin unidad aplicada al volumen de colisión en el eje X: 1 conserva el tamaño base, valores mayores lo amplían y menores lo reducen. Solo afecta los datos de colisión del rayo guardián; el tamaño de los discos viene del APK."],
+  "skill_collision.scaleY": ["Collision height scale (Y)", "Escala de altura de colisión (Y)", "Dimensionless scale applied to the collision volume on its Y axis: 1 keeps the base size, larger values expand it, and smaller values shrink it. Only affects guardian beam collision data; disc sizes come from the APK.", "Escala sin unidad aplicada al volumen de colisión en el eje Y: 1 conserva el tamaño base, valores mayores lo amplían y menores lo reducen. Solo afecta los datos de colisión del rayo guardián; el tamaño de los discos viene del APK."],
+  "skill_collision.scaleZ": ["Collision depth scale (Z)", "Escala de profundidad de colisión (Z)", "Dimensionless scale applied to the collision volume on its Z axis: 1 keeps the base size, larger values expand it, and smaller values shrink it. Only affects guardian beam collision data; disc sizes come from the APK.", "Escala sin unidad aplicada al volumen de colisión en el eje Z: 1 conserva el tamaño base, valores mayores lo amplían y menores lo reducen. Solo afecta los datos de colisión del rayo guardián; el tamaño de los discos viene del APK."],
+  "skill_hit.commonHitEffectType": ["Common impact visual", "Efecto visual común de impacto", "Selects the built-in impact effect size/style (none, common, slash, blow, or gun). An explicit Effect resource path can supply a separate visual. SkillHit rows are used for guardian beams only; disc impact effects come from the APK action data.", "Elige el estilo/tamaño del efecto de impacto integrado (ninguno, común, corte, golpe o disparo). Una ruta de recurso de efecto explícita puede aportar otro efecto visual. Las filas SkillHit solo se usan en rayos guardianes; los efectos de impacto de discos vienen de los datos de acción del APK."],
+  "skill_hit.hitSeId": ["Impact sound cue ID", "ID del sonido de impacto", "CRI ADX sound cue played when the hit connects. Zero is silent; an unknown cue may play no sound. This value is for guardian skill hits; disc sounds are in the APK action data.", "Identificador de sonido CRI ADX que se reproduce al conectar el impacto. Cero es silencio; un identificador desconocido puede no reproducir sonido. Este valor es para impactos de habilidades guardianas; los sonidos de disco están en los datos de acción del APK."],
+  "skill_hit.effectPath": ["Impact effect resource", "Recurso de efecto de impacto", "Optional resource bundle path for a custom impact effect, without a file extension. Leave empty to use the common hit effect/default. The resource must be loaded in battle. This table is only used for guardian beams, not disc hit effects.", "Ruta opcional del paquete de recursos para un efecto de impacto personalizado, sin extensión de archivo. Déjala vacía para usar el efecto común/predeterminado. El recurso debe estar cargado en batalla. Esta tabla solo se usa en rayos guardianes, no en los efectos de impacto de discos."],
+  "skill_hit.parentBone": ["Effect attachment point", "Punto de unión del efecto", "Selects the character bone/anchor to attach the hit effect to (for example head, hand, or common origin). The visible placement can also depend on the effect transform and offsets. SkillHit is guardian-beam-only; disc effects use APK action data.", "Elige el hueso/ancla del personaje al que se une el efecto de impacto (por ejemplo cabeza, mano u origen común). La posición visible también depende de la transformación y los desplazamientos. SkillHit solo se usa en rayos guardianes; los efectos de disco usan datos de acción del APK."],
+  "skill_hit.offsetX": ["Effect offset (X)", "Desplazamiento del efecto (X)", "Moves the hit effect along the X axis from its selected attachment/transform origin. It changes visual placement, not damage or hitbox size. This table is only read for guardian beams.", "Desplaza el efecto de impacto en el eje X desde el origen de unión/transformación seleccionado. Cambia la posición visual, no el daño ni el tamaño de impacto. Esta tabla solo se consulta para rayos guardianes."],
+  "skill_hit.offsetY": ["Effect offset (Y)", "Desplazamiento del efecto (Y)", "Moves the hit effect along the Y axis from its selected attachment/transform origin. It changes visual placement, not damage or hitbox size. This table is only read for guardian beams.", "Desplaza el efecto de impacto en el eje Y desde el origen de unión/transformación seleccionado. Cambia la posición visual, no el daño ni el tamaño de impacto. Esta tabla solo se consulta para rayos guardianes."],
+  "skill_hit.offsetZ": ["Effect offset (Z)", "Desplazamiento del efecto (Z)", "Moves the hit effect along the Z axis from its selected attachment/transform origin. It changes visual placement, not damage or hitbox size. This table is only read for guardian beams.", "Desplaza el efecto de impacto en el eje Z desde el origen de unión/transformación seleccionado. Cambia la posición visual, no el daño ni el tamaño de impacto. Esta tabla solo se consulta para rayos guardianes."],
+  "skill_hit.transformType": ["Effect coordinate space", "Espacio de coordenadas del efecto", "Chooses the coordinate space used to place the effect. The documented value 0 is World. Other values should only be used when their meaning has been verified. SkillHit is guardian-beam-only.", "Elige el espacio de coordenadas para colocar el efecto. El valor documentado 0 es Mundo. Usa otros valores solo cuando su significado esté verificado. SkillHit solo se usa en rayos guardianes."],
+  "skill_hit.shakeVolume": ["Camera shake strength (0–1)", "Intensidad de vibración de cámara (0–1)", "Controls camera-shake strength for the impact; the documented scale is 0 to 1. It changes feedback, not damage. This table only affects guardian skill hits.", "Controla la intensidad de la vibración de cámara al impactar; la escala documentada va de 0 a 1. Cambia la respuesta visual, no el daño. Esta tabla solo afecta impactos de habilidades guardianas."],
+  "skill_hit.knockBackFlag": ["Apply hit knockback", "Aplicar empuje al impactar", "Enables or disables the hit's ordinary knockback response. It does not set the knockback distance; the action's hit data controls that. SkillHit rows are used for guardian beams only, not disc skills.", "Activa o desactiva la respuesta normal de empuje del impacto. No define la distancia del empuje; eso depende de los datos de impacto de la acción. SkillHit solo se usa en rayos guardianes, no en habilidades de disco."],
+  "skill_hit.fixedDamage": ["Fixed damage override", "Daño fijo", "0 uses the skill's attack × coefficient damage. Values of 1 or more are documented as fixed damage for player hits. This field's behavior against guardian targets is not verified; leave it at 0 unless you have confirmed a specific guardian use. This table is not used by disc skills.", "0 usa daño de ataque de la habilidad × coeficiente. Los valores de 1 o más están documentados como daño fijo contra jugadores. No está verificado cómo se comporta este campo contra guardianes; déjalo en 0 salvo que hayas confirmado un uso específico. Esta tabla no se usa en habilidades de disco."]
+};
+
 const RARITY_LABELS = { "0": "N", "1": "R", "2": "SR", "3": "UR" };
 
 /* ------------------------------------------------------------------- state */
@@ -353,8 +740,25 @@ const state = {
   applying: false,
   maintenance: null, /* last /admin/maintenance status snapshot */
   savingMaintenance: false,
+  clientUpdate: null, /* last /admin/client-update status snapshot */
+  savingClientUpdate: false,
   latestInformation: null,
   savingLatestInformation: false,
+  botAi: {
+    loading: false,
+    loaded: false,
+    error: null,
+    hash: null,
+    revision: null,
+    rawProfiles: [],
+    drafts: {},
+    activePresets: {},
+    selectedMode: "CrystalScramble",
+    selectedKickerId: 1,
+    selectedProfile: "Tsubame",
+    showAdvanced: false,
+    saving: false
+  },
   health: null,          /* {summary, exceptions, error} from /api/ops/* */
   healthWindow: "deploy",/* deploy (this release) / 24h / 7d */
   healthLoading: false,
@@ -499,34 +903,41 @@ function renderApplyStatus() {
   if (!box) return;
   clear(box);
   const apply = state.apply;
+  const isEs = BalanceI18n.getLang() === "es";
   if (!apply) {
-    box.appendChild(el("div", { class: "line info" }, "apply status unknown"));
+    box.appendChild(el("div", { class: "line info" }, isEs ? "estado de aplicación desconocido" : "apply status unknown"));
     return;
   }
   if (apply.error) {
-    box.appendChild(el("div", { class: "line err" }, "apply status: " + apply.error));
+    box.appendChild(el("div", { class: "line err" }, (isEs ? "estado de aplicación: " : "apply status: ") + apply.error));
     return;
   }
   const pending = apply.pending || [];
-  box.appendChild(el("div", { class: "line " + (pending.length ? "info" : "ok") }, pending.length
-    ? "pending changes not yet applied: " + pending.join(", ") + " (override files newer than the API container start)"
-    : "no pending changes: the API has loaded every override"));
+  const pendingText = isEs
+    ? ("cambios pendientes de aplicar: " + pending.join(", ") + " (archivos de modificación más recientes que el inicio de la API)")
+    : ("pending changes not yet applied: " + pending.join(", ") + " (override files newer than the API container start)");
+  const upToDateText = isEs
+    ? BalanceI18n.t("footer.noPendingOverrides")
+    : "no pending changes: the API has loaded every override";
+  box.appendChild(el("div", { class: "line " + (pending.length ? "info" : "ok") }, pending.length ? pendingText : upToDateText));
   if (apply.note) box.appendChild(el("div", { class: "line info" }, apply.note));
   const health = apply.health || {};
   box.appendChild(el("div", { class: "line " + (health.ok ? "ok" : "err") },
-    "health: " + (health.ok ? "ready" : "not ready") + (health.detail ? " - " + health.detail : "")));
+    (isEs ? "salud: " : "health: ") + (health.ok ? (isEs ? "lista" : "ready") : (isEs ? "no lista" : "not ready")) + (health.detail ? " - " + health.detail : "")));
 
   const applyButton = document.getElementById("apply");
   if (applyButton) {
+    const applyLabel = BalanceI18n.t("footer.apply");
+    const applyingLabel = BalanceI18n.t("common.applying");
     applyButton.textContent = state.applying
-      ? "Restarting..."
-      : (pending.length ? "Restart API to apply (" + pending.length + ")" : "Restart API to apply");
+      ? BalanceI18n.t("footer.applying")
+      : (pending.length ? BalanceI18n.t("footer.apply") + " (" + pending.length + ")" : BalanceI18n.t("footer.apply"));
     applyButton.disabled = state.applying;
   }
   const exportButton = document.getElementById("exportOverrides");
   if (exportButton) {
     const overrides = apply.overrides || [];
-    exportButton.textContent = overrides.length ? "Export overrides (" + overrides.length + ")" : "Export overrides";
+    exportButton.textContent = overrides.length ? BalanceI18n.t("footer.export") + " (" + overrides.length + ")" : BalanceI18n.t("footer.export");
     exportButton.disabled = overrides.length === 0;
   }
 }
@@ -544,22 +955,33 @@ async function loadApplyStatus() {
 
 function buildDiscFilters() {
   const rarity = document.getElementById("filterRarity");
+  if (!rarity) return;
+  const prevRarity = rarity.value;
   clear(rarity);
-  rarity.appendChild(el("option", { value: "" }, "All rarities"));
+  rarity.appendChild(el("option", { value: "" }, BalanceI18n.t("filters.allRarities")));
   const rarities = Array.from(new Set(state.discs.map(function (d) { return d.rarityType; })))
     .filter(function (r) { return r !== null && r !== undefined; })
     .sort(function (a, b) { return b - a; });
   for (const value of rarities) {
-    const label = RARITY_LABELS[String(value)] || String(value);
-    rarity.appendChild(el("option", { value: String(value) }, label + " (" + value + ")"));
+    const rawLabel = RARITY_LABELS[String(value)] || String(value);
+    const locLabel = value === 0 ? BalanceI18n.t("filters.rarityNormal")
+      : value === 1 ? BalanceI18n.t("filters.rarityRare")
+      : value === 2 ? BalanceI18n.t("filters.raritySuperRare")
+      : value === 3 ? BalanceI18n.t("filters.rarityUltraRare")
+      : rawLabel;
+    rarity.appendChild(el("option", { value: String(value) }, locLabel + " (" + rawLabel + ")"));
   }
+  if (prevRarity) rarity.value = prevRarity;
 
   const type = document.getElementById("filterType");
+  if (!type) return;
+  const prevType = type.value;
   clear(type);
-  type.appendChild(el("option", { value: "" }, "All types"));
+  type.appendChild(el("option", { value: "" }, BalanceI18n.t("filters.allTypes")));
   const types = Array.from(new Set(state.discs.map(function (d) { return d.type; })))
     .filter(Boolean).sort();
   for (const value of types) type.appendChild(el("option", { value: value }, value));
+  if (prevType) type.value = prevType;
 }
 
 function filteredItems() {
@@ -612,24 +1034,34 @@ function iconFor(kind, id, size) {
 function renderList() {
   const list = document.getElementById("list");
   clear(list);
+  const isEs = BalanceI18n.getLang() === "es";
   if (state.tab === "latest-information") {
-    list.appendChild(el("li", { class: "count" }, "Announcements shown in the in-game Latest Information screen"));
+    list.appendChild(el("li", { class: "count" }, isEs
+      ? "Avisos mostrados en la pantalla Última información del juego"
+      : "Announcements shown in the in-game Latest Information screen"));
     return;
   }
   if (state.tab === "health") {
+    const isEs = BalanceI18n.getLang() === "es";
     const problems = state.health && state.health.summary && state.health.summary.problemMatches;
     list.appendChild(el("li", { class: "count" }, problems
-      ? problems.length + " problem match(es) in the selected window"
-      : "Outcomes, client exceptions and a battle drill-down"));
+      ? (isEs ? problems.length + " problema(s) en la ventana seleccionada" : problems.length + " problem match(es) in the selected window")
+      : (isEs ? "Resultados, excepciones de clientes y desglose" : "Outcomes, client exceptions and a battle drill-down")));
     return;
   }
-  if (state.tab === "maintenance") {
-    list.appendChild(el("li", { class: "count" }, "Server maintenance mode and notice text"));
+  if (state.tab === "maintenance" || state.tab === "client-update") {
+    list.appendChild(el("li", { class: "count" }, state.tab === "maintenance"
+      ? (isEs ? "Modo de mantenimiento del servidor y aviso" : "Server maintenance mode and notice text")
+      : (isEs ? "Control de actualización obligatoria de cliente" : "Forced client update gate by platform")));
+    return;
+  }
+  if (state.tab === "bot-ai") {
+    renderBotAiList();
     return;
   }
   const items = filteredItems();
   if (state.tab === "text") {
-    list.appendChild(el("li", { class: "count" }, items.length + " of " + state.screens.length + " screens"));
+    list.appendChild(el("li", { class: "count" }, BalanceI18n.t("common.screensCount", { shown: items.length, total: state.screens.length })));
     const current = state.selection.text;
     for (const screen of items) {
       const li = el("li", { class: "item", "data-id": screen.name });
@@ -644,8 +1076,9 @@ function renderList() {
     }
     return;
   }
+  const totalCount = state.tab === "kickers" ? state.kickers.length : state.discs.length;
   list.appendChild(el("li", { class: "count" },
-    items.length + " of " + (state.tab === "kickers" ? state.kickers.length : state.discs.length) + " shown"));
+    BalanceI18n.t("common.itemsCount", { shown: items.length, total: totalCount })));
 
   const selected = state.selection[state.tab];
   for (const item of items) {
@@ -684,12 +1117,15 @@ function canEditRows(table) {
 /* Badge + "Revert to base" shown on every section whose table has an override file. */
 function appendOverrideControls(head, table) {
   if (!isOverridden(table)) return;
-  head.appendChild(el("span", { class: "chip ovr" }, "override"));
-  const button = el("button", { type: "button", class: "mini rev" }, "Revert to base");
-  button.title = "Delete the override masters_" + table + ".json (a backup is kept) so the base config/ file applies again";
+  head.appendChild(el("span", { class: "chip ovr" }, BalanceI18n.t("kickerPanel.overridden")));
+  const button = el("button", { type: "button", class: "mini rev" }, BalanceI18n.t("kickerPanel.revertTable"));
+  button.title = "masters_" + table + ".json";
   button.addEventListener("click", function () {
-    if (window.confirm("Revert masters_" + table + ".json to the base config file?\n\n" +
-        "This deletes the override file (a backup is kept). The API keeps serving the tuned values until you restart it.")) {
+    const isEs = BalanceI18n.getLang() === "es";
+    const msg = isEs
+      ? "¿Revertir masters_" + table + ".json al archivo base?\n\nEsto elimina la modificación (se guarda una copia). La API seguirá usando los valores modificados hasta que la reinicies."
+      : "Revert masters_" + table + ".json to the base config file?\n\nThis deletes the override file (a backup is kept). The API keeps serving the tuned values until you restart it.";
+    if (window.confirm(msg)) {
       revertTable(table);
     }
   });
@@ -732,8 +1168,8 @@ function makeSection(title, table, rows, options) {
   head.appendChild(el("span", { class: "grow" }));
   appendOverrideControls(head, table);
   if (adds) {
-    const button = el("button", { type: "button", class: "mini add" }, "+ Add row");
-    button.title = "Add a row to masters_" + table + ".json for " + opts.linkField + " " + opts.linkValue;
+    const button = el("button", { type: "button", class: "mini add" }, BalanceI18n.t("kickerPanel.addRow"));
+    button.title = BalanceI18n.t("kickerPanel.addRowTitle", { table: table, link: opts.linkField, val: opts.linkValue });
     button.addEventListener("click", function () { addEffectRow(table, opts.linkField, opts.linkValue); });
     head.appendChild(button);
   }
@@ -748,7 +1184,10 @@ function makeSection(title, table, rows, options) {
     return section;
   }
   for (const row of rows) {
-    section.appendChild(renderRow(table, row, opts.deletable ? { deletable: true } : null));
+    section.appendChild(renderRow(table, row, {
+      deletable: !!opts.deletable,
+      fieldGuidance: !!opts.fieldGuidance
+    }));
   }
   return section;
 }
@@ -766,9 +1205,12 @@ function renderRow(table, row, options) {
   }
   if (opts.deletable) {
     head.appendChild(el("span", { class: "spacer" }));
-    const button = el("button", { type: "button", class: "mini del" }, "Delete row");
+    const button = el("button", { type: "button", class: "mini del" }, "✕ " + BalanceI18n.t("kickerPanel.deleteRow"));
+    button.title = BalanceI18n.t("kickerPanel.deleteRowTitle");
     button.addEventListener("click", function () {
-      if (window.confirm("Delete row id " + row.id + " from masters_" + table + ".json?")) {
+      const isEs = BalanceI18n.getLang() === "es";
+      const msg = isEs ? ("¿Eliminar fila id " + row.id + " de masters_" + table + ".json?") : ("Delete row id " + row.id + " from masters_" + table + ".json?");
+      if (window.confirm(msg)) {
         deleteEffectRow(table, row.id);
       }
     });
@@ -779,25 +1221,60 @@ function renderRow(table, row, options) {
   const grid = el("div", { class: "grid" });
   for (const key of Object.keys(row)) {
     if (LINK_FIELDS.has(key)) continue;
-    grid.appendChild(renderField(table, row, key, row[key]));
+    grid.appendChild(renderField(table, row, key, row[key], opts.fieldGuidance));
   }
   wrap.appendChild(grid);
   return wrap;
 }
 
-function renderField(table, row, key, value) {
+function renderField(table, row, key, value, fieldGuidance) {
+  const isEs = BalanceI18n.getLang() === "es";
   const mode = fieldMode(table, key, value);
-  const label = el("label", { class: "field " + mode });
-  label.appendChild(el("span", { class: "k" }, key));
+  const verifiedGuidance = fieldGuidance ? DISC_FIELD_GUIDANCE[table + "." + key] : null;
+  const useGuidance = !!verifiedGuidance || (!!fieldGuidance && mode !== "readonly");
+  const guidance = verifiedGuidance || (useGuidance ? [
+    key, key,
+    "No verified field-specific explanation is available for this value. The panel preserves the raw master key and value; check the source master documentation before changing it.",
+    "No hay una explicación verificada para este campo. El panel conserva la clave y el valor originales; consulta la documentación de los maestros antes de cambiarlo."
+  ] : null);
+  const label = el(useGuidance ? "div" : "label", {
+    class: (useGuidance ? "field-guided " : "field ") + mode
+  });
+  let inputId = "";
+  if (useGuidance) {
+    inputId = "disc-field-" + table + "-" + row.id + "-" + key;
+    const friendlyName = isEs ? guidance[1] : guidance[0];
+    const helpCopy = isEs ? guidance[3] : guidance[2];
+    const valueLabel = isEs ? "Valor" : "Value";
+    const heading = el("div", { class: "k" });
+    heading.appendChild(el("span", { class: "friendly-name" }, friendlyName));
+    heading.appendChild(el("code", { class: "raw-name" }, key));
+    const details = el("details", { class: "field-help" });
+    const summary = el("summary", { "aria-label": (isEs ? "Ayuda: " : "Help: ") + friendlyName }, "?");
+    const copy = el("div", { class: "help-copy" });
+    copy.appendChild(el("p", null, isEs ? guidance[3] : guidance[2]));
+    details.append(summary, copy);
+    heading.appendChild(details);
+    label.appendChild(heading);
+  } else {
+    label.appendChild(el("span", { class: "k" }, key));
+  }
+
+  const valueLabelText = isEs ? "Valor" : "Value";
+  const enabledLabelText = isEs ? "Activado" : "Enabled";
 
   if (mode === "number") {
-    const input = el("input", { type: "number", step: "any", value: formatValue(value) });
+    const inputAttrs = { type: "number", step: "any", value: formatValue(value) };
+    if (useGuidance) inputAttrs.id = inputId;
+    const input = el("input", inputAttrs);
+    if (useGuidance) input.setAttribute("aria-label", (isEs ? guidance[1] : guidance[0]) + " — " + valueLabelText);
     input.dataset.table = table;
     input.dataset.rowId = String(row.id);
     input.dataset.field = key;
     if (typeof value === "number" && Number.isInteger(value)) input.dataset.int = "1";
     input.addEventListener("input", onFieldInput);
     state.inputs.set(fieldKey(table, row.id, key), input);
+    if (useGuidance) label.appendChild(el("label", { for: inputId }, valueLabelText));
     label.appendChild(input);
     return label;
   }
@@ -806,7 +1283,8 @@ function renderField(table, row, key, value) {
        integer. A current value the registry does not know keeps its own option, so it is
        shown and preserved (never silently changed to a known value). */
     const values = enumValues(enumNameFor(table, key)) || {};
-    const select = el("select");
+    const select = el("select", useGuidance ? { id: inputId } : null);
+    if (useGuidance) select.setAttribute("aria-label", (isEs ? guidance[1] : guidance[0]) + " — " + valueLabelText);
     const current = Number(value);
     const ids = Object.keys(values).map(Number).filter(function (id) {
       return Number.isFinite(id);
@@ -816,7 +1294,8 @@ function renderField(table, row, key, value) {
       if (id === current) known = true;
       select.appendChild(el("option", { value: String(id) }, id + " - " + values[String(id)]));
     }
-    if (!known) select.appendChild(el("option", { value: String(current) }, formatValue(value) + " - (unknown)"));
+    const unknownText = isEs ? "(desconocido)" : "(unknown)";
+    if (!known) select.appendChild(el("option", { value: String(current) }, formatValue(value) + " - " + unknownText));
     select.value = String(current);
     select.dataset.table = table;
     select.dataset.rowId = String(row.id);
@@ -824,17 +1303,22 @@ function renderField(table, row, key, value) {
     select.dataset.int = "1";
     select.addEventListener("change", onFieldInput);
     state.inputs.set(fieldKey(table, row.id, key), select);
+    if (useGuidance) label.appendChild(el("label", { for: inputId }, valueLabelText));
     label.appendChild(select);
     return label;
   }
   if (mode === "bool") {
-    const input = el("input", { type: "checkbox" });
+    const inputAttrs = { type: "checkbox" };
+    if (useGuidance) inputAttrs.id = inputId;
+    const input = el("input", inputAttrs);
+    if (useGuidance) input.setAttribute("aria-label", (isEs ? guidance[1] : guidance[0]) + " — " + enabledLabelText);
     input.checked = value === true;
     input.dataset.table = table;
     input.dataset.rowId = String(row.id);
     input.dataset.field = key;
     input.addEventListener("change", onFieldInput);
     state.inputs.set(fieldKey(table, row.id, key), input);
+    if (useGuidance) label.appendChild(el("label", { for: inputId }, enabledLabelText));
     label.appendChild(input);
     return label;
   }
@@ -925,12 +1409,20 @@ function renderPanel() {
     renderMaintenancePanel(panel);
     return;
   }
+  if (state.tab === "client-update") {
+    renderClientUpdatePanel(panel);
+    return;
+  }
   if (state.tab === "latest-information") {
     renderLatestInformationPanel(panel);
     return;
   }
   if (state.tab === "health") {
     renderHealthPanel(panel);
+    return;
+  }
+  if (state.tab === "bot-ai") {
+    renderBotAiPanel(panel);
     return;
   }
   if (state.tab === "text") {
@@ -1076,6 +1568,11 @@ function renderDiscPanel(panel, disc) {
     " · " + (disc.type || "type ?") + " · " + (disc.attribute || "attribute ?") +
     " · skillId " + disc.skillId));
 
+  const isEs = BalanceI18n.getLang() === "es";
+  panel.appendChild(el("p", { class: "disc-guide" }, isEs
+    ? "Los nombres aparecen en español; las claves originales se conservan. Abre ? con clic, toque o teclado para ver qué cambia el valor. Los multiplicadores de daño son por impacto; la animación define cuántos impactos hay. Nota: las filas Collision y Hit de abajo solo se usan en habilidades de torreta guardiana; no cambian las zonas ni los efectos de impacto de un disco, que vienen de los datos de acción del APK."
+    : "Field names are shown in English; raw master keys remain unchanged. Open ? with a click, tap, or keyboard to read what the value affects. Damage multipliers are per hit; the animation sets the number of hits. Note: Collision and Hit rows below are read only by guardian turret skills; they do not change a disc's hitboxes or impact effects, which come from the APK action data."));
+
   const effect = el("section", { class: "sec" });
   const effectHead = el("h2");
   effectHead.appendChild(el("span", { class: "t" }, "Card text"));
@@ -1086,15 +1583,16 @@ function renderDiscPanel(panel, disc) {
 
   panel.appendChild(makeSection("Disc", "disc",
     rowsOf("disc").filter(function (r) { return r.id === disc.id; }),
-    { empty: "no masters_disc row for this disc" }));
+    { empty: "no masters_disc row for this disc", fieldGuidance: true }));
 
   const skillRows = rowsOf("skill").filter(function (r) { return r.id === disc.skillId; });
   panel.appendChild(makeSection("Skill", "skill", skillRows,
-    { empty: "no masters_skill row for skillId " + disc.skillId }));
+    { empty: "no masters_skill row for skillId " + disc.skillId, fieldGuidance: true }));
   for (const table of KS_EXTRA_TABLES) {
     const rows = rowsOf(table).filter(function (r) { return r.skillId === disc.skillId; });
     panel.appendChild(makeSection("Skill extra · " + table, table, rows, {
       addable: true, deletable: true, linkField: "skillId", linkValue: disc.skillId,
+      fieldGuidance: true,
       empty: "no " + table + " rows for skillId " + disc.skillId
     }));
   }
@@ -1230,42 +1728,42 @@ async function loadLatestInformation() {
 }
 
 function renderLatestInformationPanel(panel) {
+  const isEs = BalanceI18n.getLang() === "es";
   const wrap = el("div", { class: "mpanel" });
   const head = el("div", { class: "phead" });
   const title = el("div");
-  title.appendChild(el("h1", null, "Latest information"));
-  title.appendChild(el("div", { class: "meta" },
-    "Edit the announcement page opened in Kick-Flight from Notices → Latest information."));
+  title.appendChild(el("h1", null, BalanceI18n.t("latestInformation.title")));
+  title.appendChild(el("div", { class: "meta" }, BalanceI18n.t("latestInformation.meta")));
   head.appendChild(title);
   wrap.appendChild(head);
 
   const section = el("section", { class: "sec" });
-  section.appendChild(el("h2", null, "Announcement page"));
+  section.appendChild(el("h2", null, isEs ? "Página de anuncio" : "Announcement page"));
   const current = state.latestInformation || {};
-  if (current.error) section.appendChild(el("p", { class: "note" }, "could not load current page: " + current.error));
-  else section.appendChild(el("p", { class: "note" }, "Saved " + (current.changedAtUtc || "-") + " · mode: " + (current.mode || "text")));
+  if (current.error) section.appendChild(el("p", { class: "note" }, (isEs ? "no se pudo cargar la página actual: " : "could not load current page: ") + current.error));
+  else section.appendChild(el("p", { class: "note" }, (isEs ? "Guardado " : "Saved ") + (current.changedAtUtc || "-") + " · mode: " + (current.mode || "text")));
 
   const modeField = el("label", { class: "mfield" });
-  modeField.appendChild(el("span", { class: "k" }, "Content source"));
-  const mode = el("select", { "aria-label": "Latest information content source" });
-  mode.append(el("option", { value: "text" }, "Formatted text"),
-              el("option", { value: "html" }, "HTML page"),
-              el("option", { value: "url" }, "External URL"));
+  modeField.appendChild(el("span", { class: "k" }, isEs ? "Origen del contenido" : "Content source"));
+  const mode = el("select", { id: "latestInfoModeSelect", "aria-label": isEs ? "Origen del contenido de última información" : "Latest information content source" });
+  mode.append(el("option", { value: "text" }, isEs ? "Texto con formato" : "Formatted text"),
+              el("option", { value: "html" }, isEs ? "Página HTML" : "HTML page"),
+              el("option", { value: "url" }, isEs ? "URL externa" : "External URL"));
   mode.value = current.mode || "text";
   modeField.appendChild(mode);
   section.appendChild(modeField);
 
-  const textEditor = el("textarea", { class: "latest-editor", maxlength: "12000", "aria-label": "Latest information text" });
+  const textEditor = el("textarea", { id: "latestInfoAnnouncement", class: "latest-editor", maxlength: "12000", "aria-label": isEs ? "Texto de última información" : "Latest information text" });
   textEditor.value = current.content || "";
-  const htmlEditor = el("textarea", { class: "latest-editor", maxlength: "1048576", "aria-label": "Latest information HTML" });
+  const htmlEditor = el("textarea", { id: "latestInfoHtml", class: "latest-editor", maxlength: "1048576", "aria-label": isEs ? "HTML de última información" : "Latest information HTML" });
   htmlEditor.value = current.htmlContent || "";
-  const htmlFile = el("input", { type: "file", accept: ".html,.htm,text/html", "aria-label": "Upload an HTML page" });
+  const htmlFile = el("input", { type: "file", accept: ".html,.htm,text/html", "aria-label": isEs ? "Subir archivo HTML" : "Upload an HTML page" });
   const htmlFileStatus = el("p", { class: "note" });
   htmlFile.addEventListener("change", async function () {
     const file = htmlFile.files && htmlFile.files[0];
     if (!file) return;
     if (file.size > 1048576) {
-      latestInformationStatus([["err", "HTML file exceeds 1 MiB"]]);
+      latestInformationStatus([["err", isEs ? "El archivo HTML supera 1 MiB" : "HTML file exceeds 1 MiB"]]);
       htmlFile.value = "";
       return;
     }
@@ -1273,33 +1771,33 @@ function renderLatestInformationPanel(panel) {
       try {
         htmlEditor.value = new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer());
       } catch (error) {
-        latestInformationStatus([["err", "HTML file is not valid UTF-8"]]);
+        latestInformationStatus([["err", isEs ? "El archivo HTML no es UTF-8 válido" : "HTML file is not valid UTF-8"]]);
         htmlFile.value = "";
         return;
       }
-      htmlFileStatus.textContent = "Loaded " + file.name + " (" + file.size + " bytes); save to apply this page.";
+      htmlFileStatus.textContent = (isEs ? "Cargado " : "Loaded ") + file.name + " (" + file.size + (isEs ? " bytes); guarda para aplicar esta página." : " bytes); save to apply this page.");
       updatePreview();
     } catch (error) {
-      latestInformationStatus([["err", "could not read HTML file: " + error.message]]);
+      latestInformationStatus([["err", (isEs ? "no se pudo leer el archivo HTML: " : "could not read HTML file: ") + error.message]]);
     }
   });
-  const urlEditor = el("input", { type: "url", maxlength: "2048", placeholder: "https://example.com/announcements", "aria-label": "Latest information URL" });
+  const urlEditor = el("input", { id: "latestInfoExternalUrl", type: "url", maxlength: "2048", placeholder: "https://example.com/announcements", "aria-label": isEs ? "URL de última información" : "Latest information URL" });
   urlEditor.value = current.externalUrl || "";
 
   const textField = el("label", { class: "mfield" });
-  textField.appendChild(el("span", { class: "k" }, "Text (plain text with Markdown-like formatting)"));
+  textField.appendChild(el("span", { class: "k" }, isEs ? "Texto (texto plano con formato estilo Markdown)" : "Text (plain text with Markdown-like formatting)"));
   textField.appendChild(textEditor);
   const htmlField = el("div");
   const uploadField = el("label", { class: "mfield" });
-  uploadField.appendChild(el("span", { class: "k" }, "Upload a UTF-8 .html or .htm file (maximum 1 MiB)"));
+  uploadField.appendChild(el("span", { class: "k" }, isEs ? "Subir archivo .html o .htm UTF-8 (máximo 1 MiB)" : "Upload a UTF-8 .html or .htm file (maximum 1 MiB)"));
   uploadField.appendChild(htmlFile);
   htmlField.append(uploadField, htmlFileStatus);
   const htmlTextField = el("label", { class: "mfield" });
-  htmlTextField.appendChild(el("span", { class: "k" }, "HTML source (editable after upload; maximum 1 MiB UTF-8)"));
+  htmlTextField.appendChild(el("span", { class: "k" }, isEs ? "Código fuente HTML (editable tras subir; máximo 1 MiB UTF-8)" : "HTML source (editable after upload; maximum 1 MiB UTF-8)"));
   htmlTextField.appendChild(htmlEditor);
   htmlField.appendChild(htmlTextField);
   const urlField = el("label", { class: "mfield" });
-  urlField.appendChild(el("span", { class: "k" }, "Absolute HTTP(S) URL (the game WebView redirects here; this server does not fetch the page)"));
+  urlField.appendChild(el("span", { class: "k" }, isEs ? "URL absoluta HTTP(S) (el WebView del juego redirige aquí; el servidor no descarga la página)" : "Absolute HTTP(S) URL (the game WebView redirects here; this server does not fetch the page)"));
   urlField.appendChild(urlEditor);
   section.append(textField, htmlField, urlField);
 
@@ -1312,20 +1810,20 @@ function renderLatestInformationPanel(panel) {
     urlField.hidden = mode.value !== "url";
     if (mode.value === "text") {
       renderLatestInformationPreview(preview, textEditor.value);
-      count.textContent = textEditor.value.length + " / 12000 characters";
+      count.textContent = textEditor.value.length + (isEs ? " / 12000 caracteres" : " / 12000 characters");
     } else if (mode.value === "html") {
       const frame = el("iframe", {
-        class: "latest-html-frame", title: "Isolated HTML preview", sandbox: "allow-scripts",
+        class: "latest-html-frame", title: isEs ? "Vista previa HTML aislada" : "Isolated HTML preview", sandbox: "allow-scripts",
         referrerpolicy: "no-referrer"
       });
       frame.srcdoc = latestInformationPreviewDocument(htmlEditor.value, current.htmlResourceCsp || "");
       preview.appendChild(frame);
-      count.textContent = new TextEncoder().encode(htmlEditor.value).length + " / 1048576 UTF-8 bytes";
+      count.textContent = new TextEncoder().encode(htmlEditor.value).length + (isEs ? " / 1048576 bytes UTF-8" : " / 1048576 UTF-8 bytes");
     } else {
       const target = validatedLatestInformationUrl(urlEditor.value);
-      count.textContent = "Enter an absolute HTTP or HTTPS URL. The external site controls its own cache.";
+      count.textContent = isEs ? "Introduce una URL absoluta HTTP o HTTPS. El sitio externo controla su propia caché." : "Enter an absolute HTTP or HTTPS URL. The external site controls its own cache.";
       if (target) preview.appendChild(el("a", { href: target, target: "_blank", rel: "noopener noreferrer" }, target));
-      else preview.appendChild(el("p", { class: "note" }, urlEditor.value || "No URL set."));
+      else preview.appendChild(el("p", { class: "note" }, urlEditor.value || (isEs ? "Sin URL configurada." : "No URL set.")));
     }
   };
   textEditor.addEventListener("input", updatePreview);
@@ -1333,19 +1831,19 @@ function renderLatestInformationPanel(panel) {
   urlEditor.addEventListener("input", updatePreview);
   mode.addEventListener("change", updatePreview);
   updatePreview();
-  section.appendChild(el("h3", null, "Preview"));
+  section.appendChild(el("h3", null, isEs ? "Vista previa" : "Preview"));
   section.appendChild(preview);
   section.appendChild(count);
 
   const buttons = el("div", { class: "mbtns" });
-  const saveButton = el("button", { type: "button", class: "m-warning" }, "Save page");
+  const saveButton = el("button", { type: "button", class: "m-warning" }, isEs ? "Guardar página" : "Save page");
   saveButton.disabled = !!current.error || !!state.savingLatestInformation;
   saveButton.addEventListener("click", function () {
     const payload = latestInformationPayload(mode.value, textEditor.value, htmlEditor.value, urlEditor.value);
     if (payload.error) { latestInformationStatus([["err", payload.error]]); return; }
     saveLatestInformation(payload);
   });
-  const clearButton = el("button", { type: "button" }, "Clear");
+  const clearButton = el("button", { type: "button" }, isEs ? "Limpiar" : "Clear");
   clearButton.disabled = !!state.savingLatestInformation;
   clearButton.addEventListener("click", function () {
     if (mode.value === "text") { textEditor.value = ""; textEditor.focus(); }
@@ -1353,7 +1851,7 @@ function renderLatestInformationPanel(panel) {
     else { urlEditor.value = ""; urlEditor.focus(); }
     updatePreview();
   });
-  const restoreButton = el("button", { type: "button" }, "Restore default notices");
+  const restoreButton = el("button", { type: "button" }, isEs ? "Restaurar avisos por defecto" : "Restore default notices");
   restoreButton.disabled = !!state.savingLatestInformation;
   restoreButton.addEventListener("click", function () {
     mode.value = "text";
@@ -1365,16 +1863,17 @@ function renderLatestInformationPanel(panel) {
   section.appendChild(buttons);
   section.appendChild(el("div", { id: "latestInformationStatus" }));
   section.appendChild(el("p", { class: "note" },
-    "The game reads this page from Notices → Latest information. Saving does not force a popup; the new page appears the next time that page or its existing popup is opened. External URL cache behavior belongs to that website."));
+    isEs ? "El juego lee esta página desde Avisos → Última información. Guardar no fuerza una ventana emergente; la nueva página aparecerá la próxima vez que se abra dicha sección en el cliente."
+         : "The game reads this page from Notices → Latest information. Saving does not force a popup; the new page appears the next time that page or its existing popup is opened. External URL cache behavior belongs to that website."));
   wrap.appendChild(section);
 
   const help = el("section", { class: "sec" });
-  help.appendChild(el("h2", null, "Content modes"));
-  help.appendChild(el("p", { class: "note" }, "Use # Heading, ## Subheading, or ### Small heading on a line by itself."));
-  help.appendChild(el("p", { class: "note" }, "Use a blank line to start a new paragraph; use - text for a bullet; wrap text in **double asterisks** for bold or `backticks` for inline code."));
-  help.appendChild(el("p", { class: "note" }, "HTML mode accepts a UTF-8 .html/.htm upload or editable source up to 1 MiB. It is served with a browser sandbox (scripts may run without same-origin access); embed CSS or use absolute CDN URLs for images, styles, fonts, and scripts. Relative assets from an uploaded file are not uploaded. The dashboard preview blocks forms, popups, and navigation, so those parts can behave differently in game."));
-  help.appendChild(el("p", { class: "note" }, "URL mode redirects the game WebView to an absolute HTTP(S) address. The server validates and stores the URL only; it does not fetch the page."));
-  help.appendChild(el("p", { class: "note" }, "All modes are saved persistently by the API. No APK update or API restart is needed; content is shown when the client next opens Latest information."));
+  help.appendChild(el("h2", null, isEs ? "Modos de contenido" : "Content modes"));
+  help.appendChild(el("p", { class: "note" }, isEs ? "Usa # Encabezado, ## Subencabezado, o ### Encabezado pequeño en una sola línea." : "Use # Heading, ## Subheading, or ### Small heading on a line by itself."));
+  help.appendChild(el("p", { class: "note" }, isEs ? "Usa una línea en blanco para iniciar un nuevo párrafo; usa - texto para viñetas; rodea con **doble asterisco** para negrita o `comillas invertidas` para código." : "Use a blank line to start a new paragraph; use - text for a bullet; wrap text in **double asterisks** for bold or `backticks` for inline code."));
+  help.appendChild(el("p", { class: "note" }, isEs ? "El modo HTML acepta subidas UTF-8 .html/.htm o código editable hasta 1 MiB con sandbox de seguridad." : "HTML mode accepts a UTF-8 .html/.htm upload or editable source up to 1 MiB. It is served with a browser sandbox (scripts may run without same-origin access); embed CSS or use absolute CDN URLs for images, styles, fonts, and scripts. Relative assets from an uploaded file are not uploaded. The dashboard preview blocks forms, popups, and navigation, so those parts can behave differently in game."));
+  help.appendChild(el("p", { class: "note" }, isEs ? "El modo URL redirige el WebView del cliente a una dirección HTTP(S) absoluta. El servidor solo valida y guarda la URL; no descarga la página." : "URL mode redirects the game WebView to an absolute HTTP(S) address. The server validates and stores the URL only; it does not fetch the page."));
+  help.appendChild(el("p", { class: "note" }, isEs ? "Todos los modos son guardados persistentemente por la API sin requerir reinicio." : "All modes are saved persistently by the API. No APK update or API restart is needed; content is shown when the client next opens Latest information."));
   wrap.appendChild(help);
   panel.appendChild(wrap);
 }
@@ -1496,6 +1995,82 @@ function latestInformationStatus(lines) {
   for (const line of lines) box.appendChild(el("div", { class: "line " + line[0] }, line[1]));
 }
 
+/* ------------------------------------------------------ client update gate */
+
+async function loadClientUpdate() {
+  try { state.clientUpdate = await fetchJSON("/api/client-update", { cache: "no-store" }); }
+  catch (error) { state.clientUpdate = { error: error.message }; }
+  return state.clientUpdate;
+}
+
+function clientUpdateStatus(lines) {
+  const box = document.getElementById("clientUpdateStatus");
+  if (!box) return;
+  clear(box);
+  for (const line of lines) box.appendChild(el("div", { class: "line " + line[0] }, line[1]));
+}
+
+function renderClientUpdatePanel(panel) {
+  const isEs = BalanceI18n.getLang() === "es";
+  const wrap = el("div", { class: "mpanel" });
+  const head = el("div", { class: "phead" });
+  const box = el("div");
+  box.appendChild(el("h1", null, BalanceI18n.t("clientUpdate.title")));
+  box.appendChild(el("div", { class: "meta" }, BalanceI18n.t("clientUpdate.meta")));
+  head.appendChild(box); wrap.appendChild(head);
+  const current = state.clientUpdate;
+  const section = el("section", { class: "sec" });
+  section.appendChild(el("h2", null, BalanceI18n.t("clientUpdate.currentState")));
+  if (current && current.error) section.appendChild(el("p", { class: "note" }, (isEs ? "No se pudo leer el estado: " : "Could not read state: ") + current.error));
+  else if (current) {
+    const line = el("p", { class: "note" });
+    const effectiveEnabled = current.enabled || current.stateValid === false;
+    line.appendChild(el("span", { class: "ustate " + (current.stateValid === false ? "disabled" : (effectiveEnabled ? "enabled" : "disabled")) },
+      current.stateValid === false ? "FAIL-CLOSED" : (effectiveEnabled ? "ENABLED" : "DISABLED")));
+    line.appendChild(document.createTextNode("  Android " + (current.minimumVersion || "(none)") +
+      "  iOS " + (current.iosMinimumVersion || "(follows Android)") +
+      "  " + (current.isManualOverride ? (isEs ? "modificación manual" : "manual override") : (isEs ? "valores por defecto de despliegue" : "deployment defaults"))));
+    section.appendChild(line);
+    if (current.stateValid === false) section.appendChild(el("p", { class: "note" },
+      isEs ? "La configuración persistida es inválida. Todos los clientes reciben respuesta de actualización forzada hasta que se guarden valores válidos o se restablezcan los valores por defecto."
+           : "Persisted update settings are malformed. All clients receive the forced-update response until valid settings are saved or deployment defaults are restored."));
+  }
+  const enabled = el("input", { id: "clientUpdateEnabled", type: "checkbox" }); enabled.checked = !!(current && (current.enabled || current.stateValid === false));
+  const toggle = el("label", { class: "toggle-label" }); toggle.appendChild(enabled); toggle.appendChild(document.createTextNode(isEs ? " Exigir versión mínima de cliente" : " Require a minimum client version"));
+  section.appendChild(toggle);
+  const android = el("input", { id: "clientUpdateAndroid", type: "text", value: (current && current.minimumVersion) || "", placeholder: "2.11.4", inputmode: "decimal" });
+  const ios = el("input", { id: "clientUpdateIos", type: "text", value: (current && current.iosMinimumVersion) || "", placeholder: isEs ? "en blanco sigue a Android" : "blank follows Android" });
+  const fieldPairs = isEs
+    ? [["Versión mínima Android", android], ["Versión mínima iOS (en blanco sigue a Android)", ios]]
+    : [["Android minimum version", android], ["iOS minimum version (blank follows Android)", ios]];
+  for (const pair of fieldPairs) {
+    const field = el("label", { class: "mfield" }); field.appendChild(el("span", { class: "k" }, pair[0])); field.appendChild(pair[1]); section.appendChild(field);
+  }
+  const buttons = el("div", { class: "mbtns" });
+  const save = el("button", { type: "button" }, isEs ? "Guardar configuración de actualización" : "Save client update settings"); save.disabled = !!state.savingClientUpdate;
+  save.addEventListener("click", () => saveClientUpdate({ enabled: enabled.checked, minimumVersion: android.value.trim(), iosMinimumVersion: ios.value.trim() }));
+  const reset = el("button", { type: "button" }, isEs ? "Restaurar valores de despliegue" : "Restore deployment defaults"); reset.disabled = !!state.savingClientUpdate;
+  reset.addEventListener("click", () => saveClientUpdate({ resetToDefault: true }));
+  buttons.appendChild(save); buttons.appendChild(reset); section.appendChild(buttons); wrap.appendChild(section);
+  wrap.appendChild(el("div", { id: "clientUpdateStatus" }));
+  const help = el("section", { class: "sec" }); help.appendChild(el("h2", null, isEs ? "Seguridad de versión" : "Release safety"));
+  help.appendChild(el("p", { class: "note" },
+    isEs ? "La puerta se mantiene en Android 2.11.4 hasta que un release firmado supere las pruebas de inicio, login, emparejamiento y combate. Subir el mínimo requiere prueba del APK exacto: SHA-256, certificado de firma y flags de compilación."
+         : "The gate remains at Android 2.11.4 until a signed release passes startup, login, matchmaking, and battle verification. Raising the minimum requires proof for the exact APK: SHA-256, signing certificate, and build flags."));
+  wrap.appendChild(help); panel.appendChild(wrap);
+}
+
+async function saveClientUpdate(payload) {
+  if (state.savingClientUpdate) return;
+  state.savingClientUpdate = true; renderPanel();
+  let line;
+  try {
+    await fetchJSON("/api/client-update", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    await loadClientUpdate(); line = ["ok", "client update settings saved and persisted"];
+  } catch (error) { line = ["err", "failed: " + error.message]; }
+  state.savingClientUpdate = false; renderPanel(); clientUpdateStatus([line]);
+}
+
 /* ---------------------------------------------------------- maintenance */
 
 function maintStatus(lines) {
@@ -1515,22 +2090,22 @@ async function loadMaintenance() {
 }
 
 function renderMaintenancePanel(panel) {
+  const isEs = BalanceI18n.getLang() === "es";
   const wrap = el("div", { class: "mpanel" });
   const head = el("div", { class: "phead" });
   const box = el("div");
-  box.appendChild(el("h1", null, "Maintenance"));
-  box.appendChild(el("div", { class: "meta" },
-    "the game server's loopback-only /admin/maintenance toggle: off / soft notice / hard 503"));
+  box.appendChild(el("h1", null, BalanceI18n.t("maintenance.title")));
+  box.appendChild(el("div", { class: "meta" }, BalanceI18n.t("maintenance.meta")));
   head.appendChild(box);
   wrap.appendChild(head);
 
   const current = state.maintenance;
   const mode = current && typeof current.mode === "string" ? current.mode : "unknown";
   const section = el("section", { class: "sec" });
-  section.appendChild(el("h2", null, "Current state"));
+  section.appendChild(el("h2", null, BalanceI18n.t("maintenance.currentState")));
 
   if (current && current.error) {
-    section.appendChild(el("p", { class: "note" }, "could not read the state: " + current.error));
+    section.appendChild(el("p", { class: "note" }, (isEs ? "no se pudo leer el estado: " : "could not read the state: ") + current.error));
   } else if (current) {
     const line = el("p", { class: "note" });
     line.appendChild(el("span", { class: "mstate mode-" + mode }, mode));
@@ -1539,23 +2114,26 @@ function renderMaintenancePanel(panel) {
       "  changedAtUtc " + (current.changedAtUtc || "-")));
     section.appendChild(line);
   } else {
-    section.appendChild(el("p", { class: "note" }, "state not loaded"));
+    section.appendChild(el("p", { class: "note" }, isEs ? "estado no cargado" : "state not loaded"));
   }
 
-  const title = el("input", { type: "text", value: (current && current.title) || "" });
-  const message = el("textarea");
+  const title = el("input", { id: "maintTitle", type: "text", value: (current && current.title) || "" });
+  const message = el("textarea", { id: "maintMessage" });
   message.value = (current && current.message) || "";
   const titleField = el("label", { class: "mfield" });
-  titleField.appendChild(el("span", { class: "k" }, "Notice title (blank = server default)"));
+  titleField.appendChild(el("span", { class: "k" }, isEs ? "Título del aviso (vacío = valor por defecto del servidor)" : "Notice title (blank = server default)"));
   titleField.appendChild(title);
   const messageField = el("label", { class: "mfield" });
-  messageField.appendChild(el("span", { class: "k" }, "Notice message (soft mode shows it on the home screen)"));
+  messageField.appendChild(el("span", { class: "k" }, isEs ? "Mensaje del aviso (el modo suave lo muestra en la pantalla principal)" : "Notice message (soft mode shows it on the home screen)"));
   messageField.appendChild(message);
   section.appendChild(titleField);
   section.appendChild(messageField);
 
   const buttons = el("div", { class: "mbtns" });
-  for (const pair of [["off", "Off"], ["warning", "Soft (notice)"], ["hard", "Hard (503)"]]) {
+  const modeOptions = isEs
+    ? [["off", "Inactivo"], ["warning", "Aviso (suave)"], ["hard", "Bloqueo (503)"]]
+    : [["off", "Off"], ["warning", "Soft (notice)"], ["hard", "Hard (503)"]];
+  for (const pair of modeOptions) {
     const button = el("button", { type: "button", class: "m-" + pair[0] }, pair[1]);
     button.disabled = !!state.savingMaintenance;
     button.addEventListener("click", function () {
@@ -1568,15 +2146,13 @@ function renderMaintenancePanel(panel) {
   wrap.appendChild(el("div", { id: "maintStatus" }));
 
   const help = el("section", { class: "sec" });
-  help.appendChild(el("h2", null, "How it reaches the server"));
+  help.appendChild(el("h2", null, isEs ? "Cómo llega al servidor" : "How it reaches the server"));
   help.appendChild(el("p", { class: "note" },
-    "The API only accepts /admin/maintenance from its own loopback, and its HTTP port is not " +
-    "published. This tool runs it inside the container " +
-    "(docker exec deploy-api-1 curl -sS http://127.0.0.1:8080/admin/maintenance); set " +
-    "KF_BALANCE_ADMIN_URL to call the endpoint directly on a dev host."));
+    isEs ? "La API solo acepta /admin/maintenance desde su propio bucle local (loopback) y su puerto HTTP no está expuesto públicamente. Esta herramienta lo ejecuta en el contenedor correspondiente o directamente en KF_BALANCE_ADMIN_URL."
+         : "The API only accepts /admin/maintenance from its own loopback, and its HTTP port is not published. This tool runs it inside the container (docker exec deploy-api-1 curl -sS http://127.0.0.1:8080/admin/maintenance); set KF_BALANCE_ADMIN_URL to call the endpoint directly on a dev host."));
   help.appendChild(el("p", { class: "note" },
-    "Saving a table writes masters_<table>.json under the override dir (KF_BALANCE_OVERRIDE_DIR), " +
-    "never config/. Use \"Restart API to apply\" so the API reloads them; overrides survive the CI deploy."));
+    isEs ? "Guardar una tabla escribe masters_<table>.json en el directorio de modificaciones (KF_BALANCE_OVERRIDE_DIR), nunca en config/. Usa \"Reiniciar API para aplicar\" para que la API los cargue."
+         : "Saving a table writes masters_<table>.json under the override dir (KF_BALANCE_OVERRIDE_DIR), never config/. Use \"Restart API to apply\" so the API reloads them; overrides survive the CI deploy."));
   wrap.appendChild(help);
   panel.appendChild(wrap);
 }
@@ -1585,7 +2161,8 @@ async function setMaintenance(mode, title, message) {
   if (state.savingMaintenance) return;
   state.savingMaintenance = true;
   renderPanel();
-  maintStatus([["info", "setting maintenance to " + mode + " ..."]]);
+  const isEs = BalanceI18n.getLang() === "es";
+  maintStatus([["info", isEs ? "estableciendo mantenimiento a " + mode + " ..." : "setting maintenance to " + mode + " ..."]]);
   let line;
   try {
     const body = { mode: mode };
@@ -1597,9 +2174,9 @@ async function setMaintenance(mode, title, message) {
       body: JSON.stringify(body)
     });
     await loadMaintenance();
-    line = ["ok", "maintenance is now " + ((state.maintenance && state.maintenance.mode) || mode)];
+    line = ["ok", isEs ? "el mantenimiento ahora está en " + ((state.maintenance && state.maintenance.mode) || mode) : "maintenance is now " + ((state.maintenance && state.maintenance.mode) || mode)];
   } catch (error) {
-    line = ["err", "failed: " + error.message];
+    line = ["err", (isEs ? "falló: " : "failed: ") + error.message];
   }
   state.savingMaintenance = false;
   renderPanel();
@@ -1644,7 +2221,7 @@ function refreshDirty() {
     input.classList.toggle("invalid", input.dataset.invalid === "1");
   }
   const counter = document.getElementById("dirtyCount");
-  counter.textContent = "Unsaved changes: " + state.dirtyFields.size;
+  if (counter) counter.textContent = BalanceI18n.t("footer.unsavedChanges", { count: state.dirtyFields.size });
   counter.classList.toggle("has", state.dirtyFields.size > 0);
   document.getElementById("save").disabled = state.saving || state.dirtyFields.size === 0;
   document.getElementById("revert").disabled = state.saving;
@@ -1662,14 +2239,14 @@ async function save() {
   if (state.saving) return;
   const tables = Array.from(state.dirtyTables).sort();
   if (!tables.length) {
-    setStatus([["info", "nothing to save"]]);
+    setStatus([["info", BalanceI18n.t("footer.noTablesToSave")]]);
     return;
   }
   state.saving = true;
   refreshDirty();
   const results = [];
   for (const table of tables) {
-    setStatus(results.concat([["info", "saving masters_" + table + ".json ..."]]));
+    setStatus(results.concat([["info", BalanceI18n.t("footer.savingTable", { table: table })]]));
     try {
       const body = await fetchJSON("/api/table/" + table, {
         method: "POST",
@@ -1678,16 +2255,16 @@ async function save() {
       });
       if (!body || body.ok !== true) throw new Error("unexpected response");
       state.pristine[table] = JSON.parse(JSON.stringify(state.data[table]));
-      results.push(["ok", "ok   wrote override masters_" + table + ".json (" + body.written + " rows)"]);
+      results.push(["ok", BalanceI18n.t("footer.savedTableSuccess", { table: table, rows: body.written })]);
     } catch (error) {
-      results.push(["err", "fail masters_" + table + ".json: " + error.message]);
+      results.push(["err", BalanceI18n.t("footer.savedTableError", { table: table, err: error.message })]);
     }
     setStatus(results);
   }
   state.saving = false;
   refreshDirty();
   if (!results.some(function (line) { return line[0] === "err"; })) {
-    results.push(["info", "saved to the override dir - click \"Restart API to apply\" to load them"]);
+    results.push(["info", BalanceI18n.t("footer.savedToOverrideDir")]);
   }
   await loadOverrides();
   await loadApplyStatus();
@@ -1698,16 +2275,16 @@ async function save() {
 async function revert() {
   if (state.saving) return;
   state.saving = true;
-  setStatus([["info", "reloading the masters ..."]]);
+  setStatus([["info", BalanceI18n.t("footer.revertingMasters")]]);
   try {
     await loadEverything(true);
     await loadOverrides();
     buildScreens();
     state.inputs.clear();
     renderPanel();
-    setStatus([["info", "masters reloaded"]]);
+    setStatus([["info", BalanceI18n.t("footer.revertedMastersSuccess")]]);
   } catch (error) {
-    setStatus([["err", "reload failed: " + error.message]]);
+    setStatus([["err", BalanceI18n.t("footer.revertedMastersError", { err: error.message })]]);
   }
   state.saving = false;
   refreshDirty();
@@ -1718,15 +2295,13 @@ async function applyNow() {
   if (state.applying) return;
   const command = (state.apply && state.apply.applyCmd) || "docker restart deploy-api-1";
   const pending = (state.apply && state.apply.pending) || [];
-  if (!window.confirm("Restart the API to load the saved overrides?\n\n" +
-      "Live matches are dropped: players in a match disconnect or lose the battle state.\n\n" +
-      (pending.length ? "Pending override(s): " + pending.join(", ") + "\n\n" : "") +
-      "Command:\n" + command)) {
+  const pendingText = pending.length ? BalanceI18n.t("footer.pendingOverrides", { list: pending.join(", ") }) : "";
+  if (!window.confirm(BalanceI18n.t("footer.confirmRestart", { pending: pendingText, cmd: command }))) {
     return;
   }
   state.applying = true;
   renderApplyStatus();
-  setStatus([["info", "restarting the API: " + command]]);
+  setStatus([["info", BalanceI18n.t("footer.restartingApi", { cmd: command })]]);
   try {
     const body = await fetchJSON("/api/apply", {
       method: "POST",
@@ -1734,15 +2309,14 @@ async function applyNow() {
     });
     if (!body || body.ok !== true) throw new Error((body && body.error) || "apply failed");
     setStatus([
-      ["ok", "API restarted and healthy after " + body.elapsedSeconds + "s (" +
-        ((body.health && body.health.attempts) || 0) + " probe(s))"],
+      ["ok", BalanceI18n.t("footer.restartedApiSuccess", { seconds: body.elapsedSeconds, probes: (body.health && body.health.attempts) || 0 })],
       ["info", (body.pending && body.pending.length)
-        ? "still pending: " + body.pending.join(", ")
-        : "no pending overrides: the API has loaded every override"],
+        ? BalanceI18n.t("footer.stillPendingOverrides", { list: body.pending.join(", ") })
+        : BalanceI18n.t("footer.noPendingOverrides")],
     ]);
     state.apply = await fetchJSON("/api/apply", { cache: "no-store" });
   } catch (error) {
-    setStatus([["err", "apply failed: " + error.message]]);
+    setStatus([["err", BalanceI18n.t("footer.applyFailed", { err: error.message })]]);
     try { state.apply = await fetchJSON("/api/apply", { cache: "no-store" }); } catch (ignored) { /* keep the old status */ }
   }
   state.applying = false;
@@ -1751,11 +2325,13 @@ async function applyNow() {
 
 /* ----------------------------------------------------------------- health */
 
-const HEALTH_WINDOWS = [
-  ["deploy", "This release"],
-  ["24h", "Last 24 h"],
-  ["7d", "Last 7 days"]
-];
+function getHealthWindows() {
+  return [
+    ["deploy", BalanceI18n.t("health.windowDeploy")],
+    ["24h", BalanceI18n.t("health.window24h")],
+    ["7d", BalanceI18n.t("health.window7d")]
+  ];
+}
 
 function healthLine(lines) {
   const box = document.getElementById("healthStatus");
@@ -1830,20 +2406,21 @@ function healthTable(headers, rows) {
 }
 
 function renderHealthPanel(panel) {
+  const isEs = BalanceI18n.getLang() === "es";
   const wrap = el("div", { class: "mpanel" });
   wrap.style.maxWidth = "1100px";
 
   const head = el("div", { class: "phead" });
   const box = el("div");
-  box.appendChild(el("h1", null, "Health"));
-  box.appendChild(el("div", { class: "meta" },
-    "the game server's loopback-only /admin/ops/* telemetry: match outcomes, client exceptions and a battle drill-down"));
+  box.appendChild(el("h1", null, BalanceI18n.t("health.title")));
+  box.appendChild(el("div", { class: "meta" }, BalanceI18n.t("health.meta")));
   head.appendChild(box);
   wrap.appendChild(head);
 
   const controls = el("div", { class: "mbtns" });
-  for (const pair of HEALTH_WINDOWS) {
-    const button = el("button", { type: "button" }, pair[1]);
+  for (const pair of getHealthWindows()) {
+    const label = pair[0] === "deploy" ? BalanceI18n.t("health.windowDeploy") : (pair[0] === "24h" ? BalanceI18n.t("health.window24h") : BalanceI18n.t("health.window7d"));
+    const button = el("button", { type: "button" }, label);
     if ((state.healthWindow || "deploy") === pair[0]) button.className = "on";
     button.disabled = !!state.healthLoading;
     button.addEventListener("click", function () {
@@ -1859,7 +2436,7 @@ function renderHealthPanel(panel) {
   const health = state.health;
   if (!health || !health.summary) {
     wrap.appendChild(el("p", { class: "note" },
-      health && health.error ? "could not read telemetry: " + health.error : "loading telemetry..."));
+      health && health.error ? BalanceI18n.t("health.couldNotReadTelemetry", { err: BalanceI18n.translateApiError(health.error) }) : BalanceI18n.t("health.loadingTelemetry")));
     panel.appendChild(wrap);
     return;
   }
@@ -1868,71 +2445,103 @@ function renderHealthPanel(panel) {
   const totals = summary.totals || {};
   const info = summary.window || {};
   wrap.appendChild(el("p", { class: "note" },
-    "window " + (info.name || state.healthWindow) + " · since " + (info.since || "-") +
-    " · release " + (info.releaseSha || "-") + " · run " + (info.runId || "-") +
-    " · store " + ((summary.telemetry && summary.telemetry.store) || "-")));
+    BalanceI18n.t("health.metaWindow") + " " + (info.name === "deploy" ? BalanceI18n.t("health.windowDeploy") : (info.name === "24h" ? BalanceI18n.t("health.window24h") : (info.name === "7d" ? BalanceI18n.t("health.window7d") : (info.name || state.healthWindow)))) + " · " + BalanceI18n.t("health.metaSince") + " " + (info.since || "-") +
+    " · " + BalanceI18n.t("health.metaRelease") + " " + (info.releaseSha || "-") + " · " + BalanceI18n.t("health.metaRun") + " " + (info.runId || "-") +
+    " · " + BalanceI18n.t("health.metaStore") + " " + ((summary.telemetry && summary.telemetry.store) || "-")));
 
   const outcomes = el("section", { class: "sec" });
-  outcomes.appendChild(el("h2", null, "Match outcomes"));
+  outcomes.appendChild(el("h2", null, BalanceI18n.t("health.matchOutcomes")));
   const outcomeGrid = el("div", { id: "healthGrid" });
-  for (const pair of [["clean", totals.clean], ["partial", totals.partial], ["abandoned", totals.abandoned],
-                      ["never started", totals.neverStarted], ["running", totals.running], ["matching", totals.matching]]) {
+  const outcomePairs = [
+    [BalanceI18n.t("health.outcomes.clean"), totals.clean],
+    [BalanceI18n.t("health.outcomes.partial"), totals.partial],
+    [BalanceI18n.t("health.outcomes.abandoned"), totals.abandoned],
+    [BalanceI18n.t("health.outcomes.neverStarted"), totals.neverStarted],
+    [BalanceI18n.t("health.outcomes.running"), totals.running],
+    [BalanceI18n.t("health.outcomes.matching"), totals.matching]
+  ];
+  for (const pair of outcomePairs) {
     outcomeGrid.appendChild(healthCard(pair[0], pair[1]));
   }
   outcomes.appendChild(outcomeGrid);
   wrap.appendChild(outcomes);
 
   const players = el("section", { class: "sec" });
-  players.appendChild(el("h2", null, "Player statuses"));
+  players.appendChild(el("h2", null, BalanceI18n.t("health.playerStatuses")));
   const playerGrid = el("div", { id: "healthGrid" });
-  for (const pair of [["completed", totals.completedPlayers], ["reconnected", totals.reconnectedCompleted],
-                      ["reconnect failed", totals.reconnectFailed], ["dropped silent", totals.droppedSilent],
-                      ["relaunched", totals.relaunched], ["matching failures", totals.matchingFailures],
-                      ["matching timeouts", totals.matchingTimeouts], ["cancelled", totals.cancelled],
-                      ["exceptions", totals.exceptions]]) {
+  const statusPairs = [
+    [BalanceI18n.t("health.statuses.completed"), totals.completedPlayers],
+    [BalanceI18n.t("health.statuses.reconnected"), totals.reconnectedCompleted],
+    [BalanceI18n.t("health.statuses.reconnectFailed"), totals.reconnectFailed],
+    [BalanceI18n.t("health.statuses.droppedSilent"), totals.droppedSilent],
+    [BalanceI18n.t("health.statuses.relaunched"), totals.relaunched],
+    [BalanceI18n.t("health.statuses.matchingFailures"), totals.matchingFailures],
+    [BalanceI18n.t("health.statuses.matchingTimeouts"), totals.matchingTimeouts],
+    [BalanceI18n.t("health.statuses.cancelled"), totals.cancelled],
+    [BalanceI18n.t("health.statuses.exceptions"), totals.exceptions]
+  ];
+  for (const pair of statusPairs) {
     playerGrid.appendChild(healthCard(pair[0], pair[1]));
   }
   players.appendChild(playerGrid);
   wrap.appendChild(players);
 
   const exceptions = el("section", { class: "sec" });
-  exceptions.appendChild(el("h2", null, "Client exceptions by fingerprint"));
+  exceptions.appendChild(el("h2", null, BalanceI18n.t("health.clientExceptions")));
   const groups = (health.exceptions && health.exceptions.groups) || [];
   if (health.exceptions && health.exceptions.error) {
-    exceptions.appendChild(el("p", { class: "note" }, "could not read exceptions: " + health.exceptions.error));
+    exceptions.appendChild(el("p", { class: "note" }, BalanceI18n.t("health.exceptionsError", { err: BalanceI18n.translateApiError(health.exceptions.error) })));
   } else if (!groups.length) {
-    exceptions.appendChild(el("p", { class: "note" }, "no client error reports in this window"));
+    exceptions.appendChild(el("p", { class: "note" }, BalanceI18n.t("health.noExceptionsInWindow")));
   } else {
     const rows = groups.slice(0, 50).map(function (group) {
       const users = group.users || [];
       const userText = users.join(", ") + (group.userCount > users.length ? " +" + (group.userCount - users.length) : "");
       const versions = (group.appVersions || []).map(function (v) { return v.key + " x" + v.count; }).join(", ");
-      return [group.kind || "-", group.count, codeCell((group.fingerprint || "") + "\n" + (group.signature || "")),
+    return [group.kind || "-", group.count, codeCell((group.fingerprint || "") + String.fromCharCode(10) + (group.signature || "")),
               userText || "-", versions || "-", group.lastAt || "-"];
     });
-    exceptions.appendChild(healthTable(["Kind", "Count", "Fingerprint / signature", "Users", "App versions", "Last"], rows));
+    exceptions.appendChild(healthTable([
+      BalanceI18n.t("health.thKind"),
+      BalanceI18n.t("health.thCount"),
+      BalanceI18n.t("health.thFingerprintSignature"),
+      BalanceI18n.t("health.thUsers"),
+      BalanceI18n.t("health.thAppVersions"),
+      BalanceI18n.t("health.thLast")
+    ], rows));
   }
   wrap.appendChild(exceptions);
 
   const problems = el("section", { class: "sec" });
-  problems.appendChild(el("h2", null, "Problem matches"));
+  problems.appendChild(el("h2", null, BalanceI18n.t("health.problemMatches")));
   const problemRows = (summary.problemMatches || []).slice(0, 100).map(function (match) {
-    const button = el("button", { type: "button" }, "drill down");
+    const button = el("button", { type: "button" }, BalanceI18n.t("health.drillDownBtn"));
     button.addEventListener("click", function () { loadHealthBattle(match.battleId); });
-    const statuses = (match.participants || []).map(function (p) { return p.userId + "=" + p.status; }).join(", ");
-    return [button, match.battleId, match.outcome || "-", (match.humans || 0) + "h/" + (match.bots || 0) + "b",
-            match.custom ? "custom" : "-", statuses || "-"];
+    const outcomes = { clean: "outcomeClean", partial: "outcomePartial", abandoned: "outcomeAbandoned", never_started: "outcomeNeverStarted", running: "outcomeRunning", matching: "outcomeMatching", open: "outcomeOpen" };
+    const statuses = (match.participants || []).map(function (p) {
+      const statusKey = p.status === "dropped_silent" ? "statusDroppedSilent" : (p.status === "open" ? "statusOpen" : null);
+      return p.userId + "=" + (statusKey ? BalanceI18n.t("health." + statusKey) : p.status);
+    }).join(", ");
+    return [button, match.battleId, outcomes[match.outcome] ? BalanceI18n.t("health." + outcomes[match.outcome]) : (match.outcome || "-"), (match.humans || 0) + "h/" + (match.bots || 0) + "b",
+            match.custom ? BalanceI18n.t("health.custom") : "-", statuses || "-"];
   });
   if (!problemRows.length) {
-    problems.appendChild(el("p", { class: "note" }, "no problem matches in this window"));
+    problems.appendChild(el("p", { class: "note" }, BalanceI18n.t("health.noProblemMatchesInWindow")));
   } else {
-    problems.appendChild(healthTable(["", "Battle", "Outcome", "Roster", "Type", "Participants"], problemRows));
+    problems.appendChild(healthTable([
+      "",
+      BalanceI18n.t("health.thBattle"),
+      BalanceI18n.t("health.thOutcome"),
+      BalanceI18n.t("health.thRoster"),
+      BalanceI18n.t("health.thType"),
+      BalanceI18n.t("health.thParticipants")
+    ], problemRows));
   }
   const byId = el("div", { class: "mfield" });
-  byId.appendChild(el("span", { class: "k" }, "Or open a battle by id"));
+  byId.appendChild(el("span", { class: "k" }, BalanceI18n.t("health.openById")));
   const idWrap = el("div", { class: "mbtns" });
   const idInput = el("input", { type: "text", value: state.healthBattleId || "" });
-  const idButton = el("button", { type: "button" }, "Open");
+  const idButton = el("button", { type: "button" }, BalanceI18n.t("health.openBtn"));
   idButton.addEventListener("click", function () {
     const value = idInput.value.trim();
     if (value) loadHealthBattle(value);
@@ -1945,67 +2554,1510 @@ function renderHealthPanel(panel) {
 
   if (state.healthBattle) {
     const drill = el("section", { class: "sec" });
-    drill.appendChild(el("h2", null, "Battle " + (state.healthBattleId || "")));
+    drill.appendChild(el("h2", null, BalanceI18n.t("health.thBattle") + " " + (state.healthBattleId || "")));
     if (state.healthBattle.error) {
-      drill.appendChild(el("p", { class: "note" }, "could not load battle: " + state.healthBattle.error));
+      drill.appendChild(el("p", { class: "note" }, (isEs ? "no se pudo cargar el combate: " : "could not load battle: ") + BalanceI18n.translateApiError(state.healthBattle.error)));
     } else {
       const data = state.healthBattle.data || {};
       const battle = data.battle;
       if (battle) {
+        const outcomeKeys = { clean: "outcomeClean", partial: "outcomePartial", abandoned: "outcomeAbandoned", never_started: "outcomeNeverStarted", running: "outcomeRunning", matching: "outcomeMatching", open: "outcomeOpen" };
+        const battleOutcome = outcomeKeys[battle.outcome] ? BalanceI18n.t("health." + outcomeKeys[battle.outcome]) : (battle.outcome || "-");
         drill.appendChild(el("p", { class: "note" },
-          "outcome " + (battle.outcome || "open") + " · rule " + battle.ruleId + " · field " + battle.fieldId +
-          " · humans " + battle.humans + " · bots " + battle.bots + " · created " + (battle.createdAt || "-")));
+          BalanceI18n.t("health.thOutcome") + " " + battleOutcome + " · " + BalanceI18n.t("health.rule") + " " + battle.ruleId + " · " + BalanceI18n.t("health.field") + " " + battle.fieldId +
+          " · " + BalanceI18n.t("health.humans") + " " + battle.humans + " · " + BalanceI18n.t("health.bots") + " " + battle.bots + " · " + BalanceI18n.t("health.created") + " " + (battle.createdAt || "-")));
       }
       const participantRows = (data.participants || []).map(function (p) {
-        return [p.userId, p.status, p.kickerId + "/" + p.costumeId, p.team,
+        const participantStatusKeys = { completed: "completed", reconnected: "reconnected", reconnect_failed: "reconnectFailed", dropped_silent: "droppedSilent", relaunched: "relaunched", matching_failure: "matchingFailures", matching_timeout: "matchingTimeouts", cancelled: "cancelled" };
+        const statusKey = participantStatusKeys[p.status];
+        const statusLabel = p.status === "open" ? BalanceI18n.t("health.statusOpen") : (statusKey ? BalanceI18n.t("health.statuses." + statusKey) : p.status);
+        return [p.userId, statusLabel, p.kickerId + "/" + p.costumeId, p.team,
                 (p.appVersion || "-") + " " + (p.deviceName || ""), p.reconnectBegins, p.exceptionCount];
       });
-      drill.appendChild(healthTable(["User", "Status", "Kicker/Costume", "Team", "App / device", "Reconnects", "Exceptions"], participantRows));
+      drill.appendChild(healthTable([
+        isEs ? "Usuario" : "User",
+        isEs ? "Estado" : "Status",
+        isEs ? "Kicker/Disfraz" : "Kicker/Costume",
+        isEs ? "Equipo" : "Team",
+        isEs ? "App / dispositivo" : "App / device",
+        isEs ? "Reconexiones" : "Reconnects",
+        isEs ? "Excepciones" : "Exceptions"
+      ], participantRows));
       const timelineRows = (data.timeline || []).slice(-300).map(function (event) {
         return [event.at || "-", event.kind || "-", event.userId || "-", codeCell(JSON.stringify(event.payload || {}))];
       });
-      drill.appendChild(el("h2", null, "Timeline (oldest first)"));
-      drill.appendChild(healthTable(["At", "Kind", "User", "Payload"], timelineRows));
+      drill.appendChild(el("h2", null, isEs ? "Línea de tiempo (más antiguo primero)" : "Timeline (oldest first)"));
+      drill.appendChild(healthTable([
+        isEs ? "Hora" : "At",
+        isEs ? "Tipo" : "Kind",
+        isEs ? "Usuario" : "User",
+        isEs ? "Carga útil" : "Payload"
+      ], timelineRows));
     }
     wrap.appendChild(drill);
   }
 
   const telemetry = summary.telemetry || {};
   const stats = el("section", { class: "sec" });
-  stats.appendChild(el("h2", null, "Telemetry writer"));
+  stats.appendChild(el("h2", null, BalanceI18n.t("health.telemetryWriter")));
   stats.appendChild(el("p", { class: "note" },
-    "store " + (telemetry.store || "-") + " · queue " + (telemetry.queueDepth === undefined ? "-" : telemetry.queueDepth) +
-    " · written " + (telemetry.written === undefined ? "-" : telemetry.written) +
-    " · dropped " + (telemetry.dropped === undefined ? "-" : telemetry.dropped) +
-    " · errors " + (telemetry.writeErrors === undefined ? "-" : telemetry.writeErrors) +
-    " · tracked battles " + (telemetry.trackedBattles === undefined ? "-" : telemetry.trackedBattles)));
-  if (telemetry.lastWriteError) stats.appendChild(el("p", { class: "note" }, "last error: " + telemetry.lastWriteError));
+    BalanceI18n.t("health.metaStore") + " " + (telemetry.store || "-") + " · " + BalanceI18n.t("health.metaQueue") + " " + (telemetry.queueDepth === undefined ? "-" : telemetry.queueDepth) +
+    " · " + BalanceI18n.t("health.metaWritten") + " " + (telemetry.written === undefined ? "-" : telemetry.written) +
+    " · " + BalanceI18n.t("health.metaDropped") + " " + (telemetry.dropped === undefined ? "-" : telemetry.dropped) +
+    " · " + BalanceI18n.t("health.metaErrors") + " " + (telemetry.writeErrors === undefined ? "-" : telemetry.writeErrors) +
+    " · " + BalanceI18n.t("health.metaTrackedBattles") + " " + (telemetry.trackedBattles === undefined ? "-" : telemetry.trackedBattles)));
+  if (telemetry.lastWriteError) stats.appendChild(el("p", { class: "note" }, BalanceI18n.t("health.lastError") + ": " + telemetry.lastWriteError));
   wrap.appendChild(stats);
 
   const help = el("section", { class: "sec" });
-  help.appendChild(el("h2", null, "How it reaches the API"));
+  help.appendChild(el("h2", null, BalanceI18n.t("health.howItReaches")));
   help.appendChild(el("p", { class: "note" },
-    "The API only answers /admin/ops/* on its own loopback and its HTTP port is not published. This tool runs it " +
-    "inside the container (docker exec deploy-api-1 curl -sS http://127.0.0.1:8080/admin/ops/...); set " +
-    "KF_BALANCE_OPS_URL to call the endpoint directly on a dev host."));
+    isEs
+      ? "La API solo responde /admin/ops/* en su propio bucle local y su puerto HTTP no está publicado. Esta herramienta lo ejecuta dentro del contenedor (docker exec deploy-api-1 curl -sS http://127.0.0.1:8080/admin/ops/...); define KF_BALANCE_OPS_URL para invocar el endpoint directamente en un host de desarrollo."
+      : "The API only answers /admin/ops/* on its own loopback and its HTTP port is not published. This tool runs it inside the container (docker exec deploy-api-1 curl -sS http://127.0.0.1:8080/admin/ops/...); set KF_BALANCE_OPS_URL to call the endpoint directly on a dev host."));
   wrap.appendChild(help);
 
   wrap.appendChild(el("div", { id: "healthStatus" }));
   panel.appendChild(wrap);
+}/* ----------------------------------------------------------- bot AI editor */
+
+const BOT_AI_MODES = [
+  { id: "CrystalScramble", name: "Cristales", icon: "💎", fullName: "Batalla Scramble", desc: "Recolección y depósito de cristales en el guardián." },
+  { id: "FlagFlight", name: "Bandera", icon: "🚩", fullName: "Vuelo de Bandera", desc: "Captura y defensa de bandera. Sin guardianes ni depósitos." },
+  { id: "RapidBall", name: "Balón", icon: "⚽", fullName: "Balón Rápido", desc: "Control del balón y anotación en portería rival." }
+];
+
+const BOT_AI_KICKERS = [
+  { id: 1, name: "Tsubame", role: "Speedster (Carrier)", roleEs: "Velocista (Carrier)" },
+  { id: 2, name: "Ruriha", role: "Support (Healer)", roleEs: "Soporte (Healer)" },
+  { id: 3, name: "Coco", role: "Tank (Anchor)", roleEs: "Tanque (Anchor)" },
+  { id: 4, name: "Kite", role: "Attack (Hunter)", roleEs: "Ataque (Hunter)" },
+  { id: 5, name: "Owlbert", role: "Support (Traps)", roleEs: "Soporte (Trampas)" },
+  { id: 6, name: "Pitophy", role: "Attack (Hunter)", roleEs: "Ataque (Hunter)" },
+  { id: 7, name: "Grenhawk", role: "Support (Speed)", roleEs: "Soporte (Velocidad)" },
+  { id: 8, name: "Anna", role: "Speedster (Carrier)", roleEs: "Velocista (Carrier)" },
+  { id: 9, name: "Jay", role: "Speedster (Carrier)", roleEs: "Velocista (Carrier)" },
+  { id: 10, name: "Yuyan", role: "Attack (Disruptor)", roleEs: "Ataque (Disruptor)" },
+  { id: 11, name: "Diatrius", role: "Tank (Anchor)", roleEs: "Tanque (Anchor)" },
+  { id: 12, name: "Buzzy Big", role: "Tank (Anchor)", roleEs: "Tanque (Anchor)" },
+  { id: 13, name: "Hitagi", role: "Attack (Hunter)", roleEs: "Ataque (Hunter)" },
+  { id: 14, name: "Sid", role: "Support (Damage)", roleEs: "Soporte (Daño)" }
+];
+
+function getBotAiKickerMeta(kickerId) {
+  const kid = Number(kickerId);
+  return BOT_AI_KICKERS.find(k => k.id === kid) || { id: kid, name: "Kicker " + kid, role: "General", roleEs: "General" };
+}
+
+const BOT_AI_INTENT_PRESETS = [
+  {
+    id: "run_score",
+    icon: "🏃",
+    title: "Quiero que corra y puntúe",
+    titleEn: "Run & Score",
+    theme: "theme-score",
+    behaviorDesc: "El bot prioriza recolectar y anotar con impulsos rápidos continuos.",
+    behaviorDescEn: "The bot prioritizes collecting and scoring with continuous fast dashes.",
+    summaries: {
+      CrystalScramble: "Prioriza recolectar y depositar cristales rápidamente.",
+      FlagFlight: "Prioriza capturar la bandera y llevarla a la meta.",
+      RapidBall: "Prioriza tomar el balón y avanzar hacia la portería rival."
+    },
+    summariesEn: {
+      CrystalScramble: "Prioritizes collecting and depositing crystals quickly.",
+      FlagFlight: "Prioritizes capturing the flag and carrying it to the goal.",
+      RapidBall: "Prioritizes taking the ball and pushing toward enemy goal."
+    },
+    nativeLimit: "No altera la velocidad base del personaje, sino la frecuencia de impulsos.",
+    nativeLimitEn: "Does not modify base speed; adjusts dash impulse frequency.",
+    apply: function (prof, mode) {
+      prof.motivations.attack = 25;
+      prof.motivations.defense = 25;
+      prof.motivations.score = 90;
+      prof.dashIntervals.attack = 1.1;
+      prof.dashIntervals.defense = 0.9;
+      prof.dashIntervals.score = 0.7;
+      prof.skillIntervals.attack = 5.0;
+      prof.skillIntervals.heal = 3.5;
+      prof.skillIntervals.buff = 3.5;
+      prof.skillIntervals.trap = 6.0;
+      prof.skillIntervals.warp = 3.0;
+      prof.healDamageRate = 0.45;
+      prof.canLockon = true;
+      if (mode !== "FlagFlight") prof.scoreToDeposit = 4;
+    }
+  },
+  {
+    id: "fight",
+    icon: "⚔️",
+    title: "Quiero que busque pelea",
+    titleEn: "Fight Aggressively",
+    theme: "theme-fight",
+    behaviorDesc: "El bot presionará agresivamente a los rivales, buscando combates constantes con impulsos ofensivos rápidos.",
+    behaviorDescEn: "The bot aggressively hunts rivals, engaging in continuous combat with rapid offensive dashes.",
+    summaries: {
+      CrystalScramble: "Agresivo en combate y persecución continua de rivales.",
+      FlagFlight: "Combate activamente a los rivales para despejar la bandera.",
+      RapidBall: "Intercepta y ataca agresivamente a los oponentes."
+    },
+    summariesEn: {
+      CrystalScramble: "Aggressive in combat and continuous enemy pursuit.",
+      FlagFlight: "Actively fights opponents to clear the flag.",
+      RapidBall: "Intercepts and aggressively attacks opponents."
+    },
+    nativeLimit: null,
+    nativeLimitEn: null,
+    apply: function (prof, mode) {
+      prof.motivations.attack = 90;
+      prof.motivations.defense = 20;
+      prof.motivations.score = 20;
+      prof.dashIntervals.attack = 0.6;
+      prof.dashIntervals.defense = 1.2;
+      prof.dashIntervals.score = 1.2;
+      prof.skillIntervals.attack = 2.5;
+      prof.skillIntervals.heal = 4.5;
+      prof.skillIntervals.buff = 4.0;
+      prof.skillIntervals.trap = 5.0;
+      prof.skillIntervals.warp = 5.0;
+      prof.healDamageRate = 0.60;
+      prof.canLockon = true;
+      if (mode !== "FlagFlight") prof.scoreToDeposit = 8;
+    }
+  },
+  {
+    id: "defend_base",
+    icon: "🛡️",
+    title: "Quiero que cuide la base",
+    titleEn: "Defend Objective",
+    theme: "theme-defense",
+    behaviorDesc: "El bot mantendrá la posición defensiva y protegerá el área clave con zonificación e impulsos defensivos.",
+    behaviorDescEn: "The bot maintains defensive positioning and protects key zones with zoning and defensive dashes.",
+    summaries: {
+      CrystalScramble: "Protege la zona del guardián y defiende los cristales.",
+      FlagFlight: "Vigila la bandera y protege el territorio propio.",
+      RapidBall: "Defiende la portería e intercepta a los atacantes."
+    },
+    summariesEn: {
+      CrystalScramble: "Guards the guardian area and defends crystals.",
+      FlagFlight: "Guards the flag and defends own territory.",
+      RapidBall: "Defends the goal and intercepts attackers."
+    },
+    nativeLimit: null,
+    nativeLimitEn: null,
+    apply: function (prof, mode) {
+      prof.motivations.attack = 35;
+      prof.motivations.defense = 85;
+      prof.motivations.score = 25;
+      prof.dashIntervals.attack = 1.0;
+      prof.dashIntervals.defense = 0.7;
+      prof.dashIntervals.score = 1.1;
+      prof.skillIntervals.attack = 4.5;
+      prof.skillIntervals.heal = 3.0;
+      prof.skillIntervals.buff = 3.5;
+      prof.skillIntervals.trap = 3.0;
+      prof.skillIntervals.warp = 4.0;
+      prof.healDamageRate = 0.40;
+      prof.canLockon = true;
+      if (mode !== "FlagFlight") prof.scoreToDeposit = 5;
+    }
+  },
+  {
+    id: "support_team",
+    icon: "🤝",
+    title: "Quiero que apoye al equipo",
+    titleEn: "Team Support",
+    theme: "theme-support",
+    behaviorDesc: "El bot prioriza el uso frecuente de habilidades curativas y de potenciación grupal.",
+    behaviorDescEn: "The bot prioritizes frequent use of healing and team buff abilities.",
+    summaries: {
+      CrystalScramble: "Frecuencia alta de curación y potenciadores de apoyo.",
+      FlagFlight: "Proporciona soporte continuo con curaciones y mejoras.",
+      RapidBall: "Asiste a compañeros con curación y mejoras tácticas."
+    },
+    summariesEn: {
+      CrystalScramble: "High frequency of healing and support buffs.",
+      FlagFlight: "Provides continuous support with heals and buffs.",
+      RapidBall: "Assists teammates with heals and tactical buffs."
+    },
+    nativeLimit: "Límite nativo: Se cura a sí mismo al recibir daño; el juego no permite apuntar curación a distancia.",
+    nativeLimitEn: "Native constraint: Heals self upon taking damage; targeting distant teammates is not natively supported.",
+    apply: function (prof, mode) {
+      prof.motivations.attack = 25;
+      prof.motivations.defense = 55;
+      prof.motivations.score = 45;
+      prof.dashIntervals.attack = 1.1;
+      prof.dashIntervals.defense = 0.8;
+      prof.dashIntervals.score = 0.9;
+      prof.skillIntervals.attack = 5.0;
+      prof.skillIntervals.heal = 2.5;
+      prof.skillIntervals.buff = 3.0;
+      prof.skillIntervals.trap = 4.5;
+      prof.skillIntervals.warp = 4.0;
+      prof.healDamageRate = 0.35;
+      prof.canLockon = false;
+      if (mode !== "FlagFlight") prof.scoreToDeposit = 5;
+    }
+  },
+  {
+    id: "balanced",
+    icon: "⚖️",
+    title: "Quiero que sea equilibrado",
+    titleEn: "Balanced Play",
+    theme: "theme-balanced",
+    behaviorDesc: "El bot alterna equilibradamente entre combatir rivales, defender zonas y buscar objetivos.",
+    behaviorDescEn: "The bot balances fighting rivals, defending zones, and seeking objectives.",
+    summaries: {
+      CrystalScramble: "Alterna de forma equilibrada entre combate, defensa y recolectar cristales.",
+      FlagFlight: "Equilibrio entre capturar la bandera y responder a amenazas.",
+      RapidBall: "Equilibrio entre avanzar con el balón y defender el terreno."
+    },
+    summariesEn: {
+      CrystalScramble: "Balanced alternation between combat, defense, and crystal collection.",
+      FlagFlight: "Balance between flag capture and responding to threats.",
+      RapidBall: "Balance between carrying the ball and defending territory."
+    },
+    nativeLimit: null,
+    nativeLimitEn: null,
+    apply: function (prof, mode) {
+      prof.motivations.attack = 50;
+      prof.motivations.defense = 50;
+      prof.motivations.score = 50;
+      prof.dashIntervals.attack = 0.9;
+      prof.dashIntervals.defense = 0.9;
+      prof.dashIntervals.score = 0.9;
+      prof.skillIntervals.attack = 4.0;
+      prof.skillIntervals.heal = 3.5;
+      prof.skillIntervals.buff = 4.0;
+      prof.skillIntervals.trap = 5.0;
+      prof.skillIntervals.warp = 4.5;
+      prof.healDamageRate = 0.50;
+      prof.canLockon = true;
+      if (mode !== "FlagFlight") prof.scoreToDeposit = 5;
+    }
+  }
+];
+
+function getPresetSummary(pr, mode) {
+  const isEs = BalanceI18n.getLang() === "es";
+  if (isEs) {
+    if (pr.summaries && pr.summaries[mode]) return pr.summaries[mode];
+    return pr.behaviorDesc || "";
+  } else {
+    if (pr.summariesEn && pr.summariesEn[mode]) return pr.summariesEn[mode];
+    return pr.behaviorDescEn || pr.summaries?.[mode] || "";
+  }
+}
+
+function detectActivePreset(prof, mode, kickerId) {
+  const key = mode + "/" + kickerId;
+  if (state.botAi.activePresets && state.botAi.activePresets[key]) {
+    return state.botAi.activePresets[key];
+  }
+  if (!prof || !prof.motivations) return "balanced";
+  const m = prof.motivations;
+  if (m.attack >= 80 && m.defense <= 30) return "fight";
+  if (m.score >= 80 && m.attack <= 35) return "run_score";
+  if (m.defense >= 80 && m.score <= 35) return "defend_base";
+  if (m.defense >= 50 && m.score >= 40 && m.attack <= 30) return "support_team";
+  return "balanced";
+}
+
+function showToast(message) {
+  let toast = document.getElementById("botAiToast");
+  if (!toast) {
+    toast = el("div", { id: "botAiToast" });
+    toast.style.position = "fixed";
+    toast.style.top = "16px";
+    toast.style.right = "16px";
+    toast.style.background = "var(--bg2)";
+    toast.style.color = "var(--ok)";
+    toast.style.border = "1px solid var(--ok)";
+    toast.style.padding = "10px 16px";
+    toast.style.borderRadius = "8px";
+    toast.style.boxShadow = "0 6px 20px rgba(0,0,0,0.5)";
+    toast.style.zIndex = "9999";
+    toast.style.fontSize = "13px";
+    toast.style.fontWeight = "500";
+    toast.style.transition = "opacity 0.3s ease";
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.style.opacity = "1";
+  toast.style.display = "block";
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(function () {
+    toast.style.opacity = "0";
+    setTimeout(function () { toast.style.display = "none"; }, 350);
+  }, 3500);
+}
+
+async function loadBotAiProfiles(force) {
+  if (!force && state.botAi.loaded) return;
+  state.botAi.loading = true;
+  state.botAi.error = null;
+  renderBotAiPanel(document.getElementById("panel"));
+  renderBotAiList();
+
+  try {
+    const data = await fetchJSON("/api/bot-ai/profiles", { cache: "no-store" });
+    state.botAi.rawProfiles = data.profiles || [];
+    state.botAi.hash = data.hash || null;
+    state.botAi.revision = data.revision || null;
+    state.botAi.loaded = true;
+    state.botAi.loading = false;
+  } catch (err) {
+    state.botAi.error = err.message || (BalanceI18n.getLang() === "es" ? "Error al cargar perfiles de IA de bots" : "Failed to load bot AI profiles");
+    state.botAi.loading = false;
+  }
+  renderBotAiList();
+  renderBotAiPanel(document.getElementById("panel"));
+}
+
+function getPristineBotAiProfile(mode, kickerId) {
+  const kid = Number(kickerId);
+  for (const p of state.botAi.rawProfiles) {
+    if (p.mode === mode && p.kickerId === kid) {
+      return p;
+    }
+  }
+  return null;
+}
+
+function getActiveBotAiProfile(mode, kickerId) {
+  const kid = Number(kickerId);
+  const key = mode + "/" + kid;
+  if (state.botAi.drafts[key]) {
+    return state.botAi.drafts[key];
+  }
+  const pristine = getPristineBotAiProfile(mode, kid);
+  return pristine ? JSON.parse(JSON.stringify(pristine)) : null;
+}
+
+function isBotAiProfileDirty(mode, kickerId) {
+  const kid = Number(kickerId);
+  const key = mode + "/" + kid;
+  return !!state.botAi.drafts[key];
+}
+
+function setBotAiField(mode, kickerId, section, field, value) {
+  const kid = Number(kickerId);
+  const key = mode + "/" + kid;
+  if (!state.botAi.drafts[key]) {
+    const pristine = getPristineBotAiProfile(mode, kid);
+    if (!pristine) return;
+    state.botAi.drafts[key] = JSON.parse(JSON.stringify(pristine));
+  }
+  const draft = state.botAi.drafts[key];
+  if (section) {
+    draft[section][field] = value;
+  } else {
+    draft[field] = value;
+  }
+  updateBotAiDirtyState();
+}
+
+function applyBotAiPreset(mode, kickerId, presetId) {
+  const kid = Number(kickerId);
+  const key = mode + "/" + kid;
+  if (!state.botAi.drafts[key]) {
+    const pristine = getPristineBotAiProfile(mode, kid);
+    if (!pristine) return;
+    state.botAi.drafts[key] = JSON.parse(JSON.stringify(pristine));
+  }
+  const draft = state.botAi.drafts[key];
+  const preset = BOT_AI_INTENT_PRESETS.find(p => p.id === presetId);
+  if (!preset) return;
+  preset.apply(draft, mode);
+  if (!state.botAi.activePresets) state.botAi.activePresets = {};
+  state.botAi.activePresets[key] = presetId;
+  updateBotAiDirtyState();
+  renderBotAiPanel(document.getElementById("panel"));
+  renderBotAiList();
+}
+
+function discardBotAiDraft(mode, kickerId) {
+  const kid = Number(kickerId);
+  const key = mode + "/" + kid;
+  delete state.botAi.drafts[key];
+  if (state.botAi.activePresets) delete state.botAi.activePresets[key];
+  updateBotAiDirtyState();
+  renderBotAiList();
+  renderBotAiPanel(document.getElementById("panel"));
+  const isEs = BalanceI18n.getLang() === "es";
+  showToast(isEs ? "Borrador descartado." : "Draft discarded.");
+}
+
+function updateBotAiDirtyState() {
+  const dirtyCount = Object.keys(state.botAi.drafts).length;
+  const isEs = BalanceI18n.getLang() === "es";
+
+  const saveBtn = document.getElementById("botAiSaveBtn");
+  if (saveBtn) {
+    saveBtn.disabled = dirtyCount === 0 || state.botAi.saving;
+    const baseSaveText = isEs ? "Guardar cambios" : "Save changes";
+    saveBtn.textContent = state.botAi.saving ? (isEs ? "Guardando..." : "Saving...")
+      : (dirtyCount > 0 ? baseSaveText + " (" + dirtyCount + ")" : baseSaveText);
+  }
+
+  const curKid = state.botAi.selectedKickerId;
+  const curMode = state.botAi.selectedMode;
+  const isCurDirty = isBotAiProfileDirty(curMode, curKid);
+  const discardBtn = document.getElementById("botAiDiscardBtn");
+  if (discardBtn) {
+    discardBtn.disabled = !isCurDirty;
+  }
+
+  // Update dots and count on sidebar
+  const items = document.querySelectorAll("#list .bot-ai-sidebar-item");
+  for (const item of items) {
+    const kid = Number(item.dataset.kickerId);
+    const itemDirty = isBotAiProfileDirty(curMode, kid);
+    let dot = item.querySelector(".dot");
+    if (itemDirty && !dot) {
+      dot = el("span", { class: "dot", title: isEs ? "Borrador con cambios sin guardar" : "Draft with unsaved changes" });
+      item.appendChild(dot);
+    } else if (!itemDirty && dot) {
+      dot.remove();
+    }
+  }
+
+  const countEl = document.querySelector("#list li.count");
+  if (countEl) {
+    const locM = BalanceI18n.getBotAiMode(curMode);
+    countEl.textContent = "14 kickers (" + (locM.name || curMode) + ")" +
+      (dirtyCount > 0 ? " · " + dirtyCount + (isEs ? " modificado(s)" : " modified") : "");
+  }
+}
+
+function deriveFriendlyBehaviors(draft, pristine, mode) {
+  const isEs = BalanceI18n.getLang() === "es";
+  const descriptions = [];
+
+  // 1. Motivations
+  if (draft.motivations.attack !== pristine.motivations.attack) {
+    const diff = draft.motivations.attack - pristine.motivations.attack;
+    if (diff > 0) {
+      descriptions.push(isEs ? "Aumenta la agresividad en combate (+" + diff + ")" : "Increases combat aggression (+" + diff + ")");
+    } else {
+      descriptions.push(isEs ? "Disminuye la agresividad en combate (" + diff + ")" : "Decreases combat aggression (" + diff + ")");
+    }
+  }
+
+  if (draft.motivations.defense !== pristine.motivations.defense) {
+    const diff = draft.motivations.defense - pristine.motivations.defense;
+    if (diff > 0) {
+      descriptions.push(isEs ? "Mayor enfoque defensivo y protección de zona (+" + diff + ")" : "Greater defensive focus and zone protection (+" + diff + ")");
+    } else {
+      descriptions.push(isEs ? "Menor prioridad a la defensa (" + diff + ")" : "Lower defensive priority (" + diff + ")");
+    }
+  }
+
+  if (draft.motivations.score !== pristine.motivations.score) {
+    const diff = draft.motivations.score - pristine.motivations.score;
+    if (diff > 0) {
+      if (mode === "RapidBall") {
+        descriptions.push(isEs ? "Mayor agresividad para llevar el balón a la portería (+" + diff + ")" : "Greater drive to carry the ball to the goal (+" + diff + ")");
+      } else if (mode === "FlagFlight") {
+        descriptions.push(isEs ? "Mayor enfoque en capturar y asegurar la bandera (+" + diff + ")" : "Greater focus on capturing and securing the flag (+" + diff + ")");
+      } else {
+        descriptions.push(isEs ? "Prioriza recolectar y asegurar cristales (+" + diff + ")" : "Prioritizes collecting and securing crystals (+" + diff + ")");
+      }
+    } else {
+      descriptions.push(isEs ? "Menor urgencia por recolectar/objetivo (" + diff + ")" : "Lower urgency for objective collection (" + diff + ")");
+    }
+  }
+
+  // 2. Dash Intervals
+  if (draft.dashIntervals.attack !== pristine.dashIntervals.attack) {
+    if (draft.dashIntervals.attack < pristine.dashIntervals.attack) {
+      descriptions.push(isEs ? "Impulsos ofensivos más rápidos y frecuentes" : "Faster and more frequent offensive dashes");
+    } else {
+      descriptions.push(isEs ? "Impulsos ofensivos más pausados" : "More measured offensive dashes");
+    }
+  }
+  if (draft.dashIntervals.defense !== pristine.dashIntervals.defense) {
+    if (draft.dashIntervals.defense < pristine.dashIntervals.defense) {
+      descriptions.push(isEs ? "Maniobras de repliegue defensivo más rápidas" : "Faster defensive retreat maneuvers");
+    } else {
+      descriptions.push(isEs ? "Maniobras defensivas más pausadas" : "More measured defensive maneuvers");
+    }
+  }
+  if (draft.dashIntervals.score !== pristine.dashIntervals.score) {
+    if (draft.dashIntervals.score < pristine.dashIntervals.score) {
+      descriptions.push(isEs ? "Desplazamiento más veloz hacia objetivos" : "Faster movement toward objectives");
+    } else {
+      descriptions.push(isEs ? "Desplazamiento más medido hacia objetivos" : "More measured movement toward objectives");
+    }
+  }
+
+  // 3. Skill Intervals
+  if (draft.skillIntervals.attack !== pristine.skillIntervals.attack) {
+    if (draft.skillIntervals.attack < pristine.skillIntervals.attack) {
+      descriptions.push(isEs ? "Uso más frecuente de habilidades ofensivas" : "More frequent offensive skill usage");
+    } else {
+      descriptions.push(isEs ? "Uso más conservador de habilidades ofensivas" : "More conservative offensive skill usage");
+    }
+  }
+  if (draft.skillIntervals.heal !== pristine.skillIntervals.heal) {
+    if (draft.skillIntervals.heal < pristine.skillIntervals.heal) {
+      descriptions.push(isEs ? "Uso más frecuente de habilidades de curación" : "More frequent heal skill usage");
+    } else {
+      descriptions.push(isEs ? "Uso más espaciado de habilidades de curación" : "More spaced out heal skill usage");
+    }
+  }
+
+  // 4. Heal Damage Rate
+  if (draft.healDamageRate !== pristine.healDamageRate) {
+    if (draft.healDamageRate < pristine.healDamageRate) {
+      descriptions.push(isEs ? "Se cura antes tras sufrir daño leve" : "Heals sooner after taking light damage");
+    } else {
+      descriptions.push(isEs ? "Espera a recibir más daño para curarse" : "Waits to take more damage before healing");
+    }
+  }
+
+  // 5. Can Lockon
+  if (draft.canLockon !== pristine.canLockon) {
+    descriptions.push(draft.canLockon ? (isEs ? "Fijar blanco activado" : "Lock-on enabled") : (isEs ? "Fijar blanco desactivado" : "Lock-on disabled"));
+  }
+
+  // 6. Score to deposit
+  if (mode !== "FlagFlight" && draft.scoreToDeposit !== pristine.scoreToDeposit) {
+    if (draft.scoreToDeposit > pristine.scoreToDeposit) {
+      descriptions.push(isEs ? "Acumula más cristales antes de depositar" : "Hoards more crystals before depositing");
+    } else {
+      descriptions.push(isEs ? "Deposita cristales con mayor frecuencia" : "Deposits crystals more frequently");
+    }
+  }
+
+  return descriptions;
+}
+
+function getBotAiDiff() {
+  const diffs = [];
+  const isEs = BalanceI18n.getLang() === "es";
+  const fieldLabels = isEs ? {
+    "motivations.attack": "Agresividad en combate (Ataque)",
+    "motivations.defense": "Instinto defensivo (Defensa)",
+    "motivations.score": "Enfoque en objetivos (Puntuación)",
+    "dashIntervals.attack": "Impulso dash en combate",
+    "dashIntervals.defense": "Impulso dash defensivo",
+    "dashIntervals.score": "Impulso dash objetivo",
+    "skillIntervals.attack": "Intervalo habilidad ataque",
+    "skillIntervals.heal": "Intervalo habilidad curación",
+    "skillIntervals.buff": "Intervalo habilidad mejora",
+    "skillIntervals.trap": "Intervalo habilidad trampa",
+    "skillIntervals.warp": "Intervalo habilidad warp",
+    "healDamageRate": "Umbral de daño para curar",
+    "canLockon": "Permitir fijar blanco",
+    "scoreToDeposit": "Cristales para depositar"
+  } : {
+    "motivations.attack": "Combat Aggression (Attack)",
+    "motivations.defense": "Defensive Instinct (Defense)",
+    "motivations.score": "Objective Focus (Score)",
+    "dashIntervals.attack": "Attack dash impulse",
+    "dashIntervals.defense": "Defensive dash impulse",
+    "dashIntervals.score": "Objective dash impulse",
+    "skillIntervals.attack": "Attack skill cooldown",
+    "skillIntervals.heal": "Heal skill cooldown",
+    "skillIntervals.buff": "Buff skill cooldown",
+    "skillIntervals.trap": "Trap skill cooldown",
+    "skillIntervals.warp": "Warp skill cooldown",
+    "healDamageRate": "Damage threshold to heal",
+    "canLockon": "Allow lock-on",
+    "scoreToDeposit": "Crystals to deposit"
+  };
+
+  const yesStr = BalanceI18n.t("common.yes");
+  const noStr = BalanceI18n.t("common.no");
+  const secStr = BalanceI18n.t("common.secondsUnit");
+
+  for (const key of Object.keys(state.botAi.drafts)) {
+    const [mode, kidStr] = key.split("/");
+    const kickerId = Number(kidStr);
+    const draft = state.botAi.drafts[key];
+    const pristine = getPristineBotAiProfile(mode, kickerId);
+    if (!pristine) continue;
+
+    const kickerMeta = getBotAiKickerMeta(kickerId);
+    const changes = [];
+    for (const prop of ["attack", "defense", "score"]) {
+      if (draft.motivations[prop] !== pristine.motivations[prop]) {
+        changes.push({
+          label: fieldLabels["motivations." + prop],
+          oldVal: pristine.motivations[prop],
+          newVal: draft.motivations[prop]
+        });
+      }
+    }
+    for (const prop of ["attack", "defense", "score"]) {
+      if (draft.dashIntervals[prop] !== pristine.dashIntervals[prop]) {
+        changes.push({
+          label: fieldLabels["dashIntervals." + prop],
+          oldVal: pristine.dashIntervals[prop] + secStr,
+          newVal: draft.dashIntervals[prop] + secStr
+        });
+      }
+    }
+    for (const prop of ["attack", "heal", "buff", "trap", "warp"]) {
+      if (draft.skillIntervals[prop] !== pristine.skillIntervals[prop]) {
+        changes.push({
+          label: fieldLabels["skillIntervals." + prop],
+          oldVal: pristine.skillIntervals[prop] + secStr,
+          newVal: draft.skillIntervals[prop] + secStr
+        });
+      }
+    }
+    if (draft.healDamageRate !== pristine.healDamageRate) {
+      changes.push({
+        label: fieldLabels["healDamageRate"],
+        oldVal: Math.round(pristine.healDamageRate * 100) + "%",
+        newVal: Math.round(draft.healDamageRate * 100) + "%"
+      });
+    }
+    if (draft.canLockon !== pristine.canLockon) {
+      changes.push({
+        label: fieldLabels["canLockon"],
+        oldVal: pristine.canLockon ? (isEs ? "Sí" : "Yes") : "No",
+        newVal: draft.canLockon ? (isEs ? "Sí" : "Yes") : "No"
+      });
+    }
+    if (draft.scoreToDeposit !== pristine.scoreToDeposit) {
+      changes.push({
+        label: fieldLabels["scoreToDeposit"],
+        oldVal: pristine.scoreToDeposit,
+        newVal: draft.scoreToDeposit
+      });
+    }
+
+    if (changes.length > 0) {
+      const modeObj = BalanceI18n.getBotAiMode(mode);
+      diffs.push({
+        mode: modeObj ? modeObj.name : mode,
+        profile: kickerMeta.name,
+        kickerId: kickerId,
+        key: key,
+        changes: changes,
+        behaviors: deriveFriendlyBehaviors(draft, pristine, mode)
+      });
+    }
+  }
+  return diffs;
+}
+
+function showBotAiReviewModal() {
+  const isEs = BalanceI18n.getLang() === "es";
+  const diffs = getBotAiDiff();
+  if (diffs.length === 0) return;
+
+  const existing = document.getElementById("botAiReviewModal");
+  if (existing) existing.remove();
+
+  const backdrop = el("div", { id: "botAiReviewModal", class: "bot-ai-modal-backdrop" });
+  const modal = el("div", { class: "bot-ai-modal" });
+
+  const head = el("div", { class: "bot-ai-modal-head" });
+  head.appendChild(el("span", null, BalanceI18n.t("botAi.reviewModalHead")));
+  const closeBtn = el("button", { type: "button", class: "mini" }, "✕");
+  closeBtn.addEventListener("click", function () { backdrop.remove(); });
+  head.appendChild(closeBtn);
+  modal.appendChild(head);
+
+  const body = el("div", { class: "bot-ai-modal-body" });
+  body.appendChild(el("p", { class: "bot-ai-notice info" }, BalanceI18n.t("botAi.reviewModalNotice")));
+
+  for (const d of diffs) {
+    const card = el("div", { class: "bot-ai-card", style: "margin-bottom:12px; padding:12px;" });
+    const title = el("h4", { style: "margin:0 0 6px; font-size:13px; color:var(--accent);" },
+      d.mode + " · " + d.profile);
+    card.appendChild(title);
+
+    // Optionally selected intent
+    const activePresetId = state.botAi.activePresets && state.botAi.activePresets[d.key];
+    const activeRaw = activePresetId ? BOT_AI_INTENT_PRESETS.find(p => p.id === activePresetId) : null;
+    const activeLoc = activePresetId ? BalanceI18n.getBotAiPreset(activePresetId) : null;
+    if (activeRaw && activeLoc) {
+      const intentBox = el("div", {
+        class: "bot-ai-intent-chip-selected",
+        style: "display:inline-flex; align-items:center; gap:6px; font-size:11px; padding:3px 8px; border-radius:4px; background:var(--bg); border:1px solid var(--line); margin-bottom:8px; color:var(--fg2);"
+      });
+      intentBox.appendChild(el("span", null, activeRaw.icon || "🎯"));
+      intentBox.appendChild(el("span", null, isEs ? "Intención: " : "Intent: "));
+      intentBox.appendChild(el("strong", { style: "color:var(--accent);" }, isEs ? activeLoc.title : (activeLoc.titleEn || activeLoc.title)));
+      card.appendChild(intentBox);
+    }
+
+    if (d.behaviors.length > 0) {
+      const ul = el("ul", { style: "margin:0 0 8px 18px; padding:0; font-size:12px; color:var(--fg); line-height:1.5;" });
+      for (const b of d.behaviors) {
+        ul.appendChild(el("li", null, b));
+      }
+      card.appendChild(ul);
+    }
+
+    const details = el("details", { style: "font-size:11px; color:var(--fg2); margin-top:6px;" });
+    details.appendChild(el("summary", { style: "cursor:pointer; color:var(--fg2);" },
+      isEs ? "Ver detalle de valores numéricos (" + d.changes.length + " cambio(s))" : "View numeric parameter details (" + d.changes.length + " change(s))"));
+    const tbl = el("table", { style: "width:100%; margin-top:6px; border-collapse:collapse;" });
+    for (const c of d.changes) {
+      const tr = el("tr", { style: "border-bottom:1px solid var(--line);" });
+      tr.appendChild(el("td", { style: "padding:3px 0; color:var(--fg);" }, c.label));
+      tr.appendChild(el("td", { style: "padding:3px 0; text-align:right; color:var(--fg2); text-decoration:line-through;" }, String(c.oldVal)));
+      tr.appendChild(el("td", { style: "padding:3px 0; text-align:right; font-weight:600; color:var(--ok);" }, " → " + String(c.newVal)));
+      tbl.appendChild(tr);
+    }
+    details.appendChild(tbl);
+    card.appendChild(details);
+
+    body.appendChild(card);
+  }
+
+  modal.appendChild(body);
+
+  const foot = el("div", { class: "bot-ai-modal-foot" });
+  const cancelBtn = el("button", { type: "button", class: "bot-ai-btn secondary" }, isEs ? "Seguir editando" : "Keep editing");
+  cancelBtn.addEventListener("click", function () { backdrop.remove(); });
+  foot.appendChild(cancelBtn);
+
+  const confirmBtn = el("button", { type: "button", class: "bot-ai-btn primary", id: "botAiConfirmSaveBtn" },
+    state.botAi.saving ? (isEs ? "Guardando..." : "Saving...") : (isEs ? "Guardar en servidor" : "Save to server"));
+  confirmBtn.disabled = state.botAi.saving;
+  confirmBtn.addEventListener("click", async function () {
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = isEs ? "Guardando..." : "Saving...";
+    backdrop.remove();
+    await saveBotAiProfiles();
+  });
+  foot.appendChild(confirmBtn);
+
+  modal.appendChild(foot);
+  backdrop.appendChild(modal);
+  document.body.appendChild(backdrop);
+}
+
+function showBotAiConflictModal(errorMsg) {
+  const existing = document.getElementById("botAiConflictModal");
+  if (existing) existing.remove();
+
+  const backdrop = el("div", { id: "botAiConflictModal", class: "bot-ai-modal-backdrop" });
+  const modal = el("div", { class: "bot-ai-modal" });
+
+  const isEs = BalanceI18n.getLang() === "es";
+  const head = el("div", { class: "bot-ai-modal-head" });
+  head.appendChild(el("span", { style: "color:var(--err);" }, isEs ? "⚠️ Conflicto de Concurrencia (409)" : "⚠️ Concurrency Conflict (409)"));
+  const closeBtn = el("button", { type: "button", class: "mini" }, "✕");
+  closeBtn.addEventListener("click", function () { backdrop.remove(); });
+  head.appendChild(closeBtn);
+  modal.appendChild(head);
+
+  const body = el("div", { class: "bot-ai-modal-body" });
+  body.appendChild(el("p", { class: "bot-ai-notice warn" },
+    isEs ? "El archivo de configuración fue modificado externamente en el disco por otro proceso o usuario. Para evitar sobrescribir cambios ajenos, tu guardado ha sido detenido."
+         : "The configuration file was modified externally on disk by another process or user. To prevent overwriting external changes, your save was halted."));
+
+  if (errorMsg) {
+    body.appendChild(el("p", { class: "note", style: "font-family:monospace; font-size:11px;" }, errorMsg));
+  }
+
+  body.appendChild(el("p", { style: "font-size:12px; color:var(--fg2); line-height:1.4;" },
+    isEs ? "Tus borradores locales se conservan en memoria. Puedes recargar la versión actual del servidor para actualizar la base manteniendo tus cambios pendientes."
+         : "Your local drafts are preserved in memory. You can reload the current server version to update the base while keeping your pending changes."));
+
+  modal.appendChild(body);
+
+  const foot = el("div", { class: "bot-ai-modal-foot" });
+  const cancelBtn = el("button", { type: "button", class: "bot-ai-btn secondary" }, isEs ? "Cerrar y conservar borrador" : "Close & keep draft");
+  cancelBtn.addEventListener("click", function () { backdrop.remove(); });
+  foot.appendChild(cancelBtn);
+
+  const reloadBtn = el("button", { type: "button", class: "bot-ai-btn primary" }, isEs ? "Recargar del servidor" : "Reload from server");
+  reloadBtn.addEventListener("click", async function () {
+    backdrop.remove();
+    await loadBotAiProfiles(true);
+  });
+  foot.appendChild(reloadBtn);
+
+  modal.appendChild(foot);
+  backdrop.appendChild(modal);
+  document.body.appendChild(backdrop);
+}
+
+async function saveBotAiProfiles() {
+  const diffs = getBotAiDiff();
+  if (diffs.length === 0) return;
+
+  state.botAi.saving = true;
+  updateBotAiDirtyState();
+
+  const combined = state.botAi.rawProfiles.map(p => {
+    const key = p.mode + "/" + p.kickerId;
+    return state.botAi.drafts[key] ? JSON.parse(JSON.stringify(state.botAi.drafts[key])) : JSON.parse(JSON.stringify(p));
+  });
+
+  const payload = {
+    version: 1,
+    $schema: "./bot_ai_profiles.schema.json",
+    profiles: combined,
+    expectedHash: state.botAi.hash
+  };
+
+  try {
+    const res = await fetch(balanceUrl("/api/bot-ai/profiles"), {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.status === 409) {
+      const errJson = await res.json().catch(() => ({}));
+      state.botAi.saving = false;
+      updateBotAiDirtyState();
+      showBotAiConflictModal(errJson.error);
+      return;
+    }
+
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson.error || ("HTTP " + res.status));
+    }
+
+    const result = await res.json();
+    state.botAi.hash = result.hash;
+    state.botAi.revision = result.revision;
+    state.botAi.rawProfiles = combined;
+    state.botAi.drafts = {};
+    state.botAi.saving = false;
+
+    showToast(BalanceI18n.getLang() === "es" ? "✓ Configuración de IA de bots guardada exitosamente en el servidor." : "✓ Bot AI configuration saved successfully to server.");
+    renderBotAiList();
+    renderBotAiPanel(document.getElementById("panel"));
+  } catch (err) {
+    state.botAi.saving = false;
+    alert((BalanceI18n.getLang() === "es" ? "Error al guardar: " : "Save failed: ") + err.message);
+    updateBotAiDirtyState();
+  }
+}
+
+function renderBotAiList() {
+  const list = document.getElementById("list");
+  if (!list) return;
+  clear(list);
+
+  const isEs = BalanceI18n.getLang() === "es";
+
+  if (state.botAi.loading) {
+    list.appendChild(el("li", { class: "count" }, isEs ? "Cargando perfiles..." : "Loading profiles..."));
+    return;
+  }
+  if (state.botAi.error) {
+    list.appendChild(el("li", { class: "count", style: "color:var(--err);" }, isEs ? "Error al cargar" : "Failed to load"));
+    return;
+  }
+
+  const dirtyCount = Object.keys(state.botAi.drafts).length;
+  const locM = BalanceI18n.getBotAiMode(state.botAi.selectedMode);
+  const countText = "14 kickers (" + (locM.name || state.botAi.selectedMode) + ")" +
+    (dirtyCount > 0 ? " · " + dirtyCount + (isEs ? " modificado(s)" : " modified") : "");
+  list.appendChild(el("li", { class: "count" }, countText));
+
+  for (const kicker of BOT_AI_KICKERS) {
+    const isDirty = isBotAiProfileDirty(state.botAi.selectedMode, kicker.id);
+    const isSelected = state.botAi.selectedKickerId === kicker.id;
+
+    const li = el("li", {
+      class: "bot-ai-sidebar-item" + (isSelected ? " sel" : ""),
+      "data-kicker-id": String(kicker.id)
+    });
+    li.appendChild(iconFor("kicker", kicker.id, 32));
+
+    const metaBox = el("div", { style: "flex:1; min-width:0;" });
+    const nm = el("div", { style: "font-weight:600; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" }, kicker.name);
+    metaBox.appendChild(nm);
+    li.appendChild(metaBox);
+
+    if (isDirty) {
+      li.appendChild(el("span", {
+        class: "dot",
+        title: isEs ? "Borrador con cambios sin guardar" : "Draft with unsaved changes"
+      }));
+    }
+
+    li.addEventListener("click", function () {
+      state.botAi.selectedKickerId = kicker.id;
+      state.botAi.selectedProfile = kicker.name;
+      renderBotAiList();
+      renderBotAiPanel(document.getElementById("panel"));
+    });
+    list.appendChild(li);
+  }
+}
+
+function renderBotAiPanel(panel) {
+  clear(panel);
+
+  const isEs = BalanceI18n.getLang() === "es";
+
+  if (state.botAi.loading) {
+    panel.appendChild(el("p", { class: "empty" }, isEs ? "Cargando perfiles de IA de bots desde el servidor..." : "Loading bot AI profiles from server..."));
+    return;
+  }
+  if (state.botAi.error) {
+    const errBox = el("div", { class: "bot-ai-container" });
+    errBox.appendChild(el("div", { class: "bot-ai-notice warn" }, "⚠️ " + state.botAi.error));
+    const retryBtn = el("button", { type: "button", class: "bot-ai-btn primary" }, isEs ? "Reintentar carga" : "Retry loading");
+    retryBtn.addEventListener("click", function () { loadBotAiProfiles(true); });
+    errBox.appendChild(retryBtn);
+    panel.appendChild(errBox);
+    return;
+  }
+  if (!state.botAi.loaded) {
+    loadBotAiProfiles();
+    panel.appendChild(el("p", { class: "empty" }, isEs ? "Iniciando editor de IA de bots..." : "Initializing bot AI editor..."));
+    return;
+  }
+
+  const container = el("div", { class: "bot-ai-container" });
+
+  // 1. Mode Selector: 3-column segmented control (Cristales / Bandera / Balón)
+  const modeSeg = el("div", { class: "bot-ai-modes-segmented", role: "tablist", "aria-label": isEs ? "Modo de juego" : "Game mode" });
+  for (const m of BOT_AI_MODES) {
+    const locM = BalanceI18n.getBotAiMode(m.id);
+    const isActive = state.botAi.selectedMode === m.id;
+    const btn = el("button", {
+      type: "button",
+      class: "bot-ai-mode-seg" + (isActive ? " active" : ""),
+      "aria-selected": isActive ? "true" : "false"
+    }, locM.icon + " " + locM.name);
+    btn.addEventListener("click", function () {
+      if (state.botAi.selectedMode !== m.id) {
+        state.botAi.selectedMode = m.id;
+        renderBotAiList();
+        renderBotAiPanel(document.getElementById("panel"));
+      }
+    });
+    modeSeg.appendChild(btn);
+  }
+  container.appendChild(modeSeg);
+
+  // Active Profile Data
+  const curMode = state.botAi.selectedMode;
+  const curKid = state.botAi.selectedKickerId || 1;
+  const kickerMeta = getBotAiKickerMeta(curKid);
+  const profile = getActiveBotAiProfile(curMode, curKid);
+
+  if (!profile) {
+    container.appendChild(el("p", { class: "empty" }, isEs ? "No se encontró el perfil del kicker en este modo." : "No profile found for kicker in this mode."));
+    panel.appendChild(container);
+    return;
+  }
+
+  const isDirty = isBotAiProfileDirty(curMode, curKid);
+  const locCurMode = BalanceI18n.getBotAiMode(curMode);
+
+  // 2. Profile Selection: Mobile Native Select Picker
+  const mobilePicker = el("div", { class: "bot-ai-mobile-picker" });
+  mobilePicker.appendChild(el("label", { for: "botAiProfileSelect", class: "bot-ai-picker-label" }, isEs ? "Kicker a editar:" : "Kicker to edit:"));
+  const pickerRow = el("div", { class: "bot-ai-picker-row" });
+  pickerRow.appendChild(iconFor("kicker", kickerMeta.id, 32));
+  const select = el("select", {
+    id: "botAiProfileSelect",
+    class: "bot-ai-select",
+    "aria-label": isEs ? "Seleccionar kicker de bot" : "Select bot kicker"
+  });
+  for (const k of BOT_AI_KICKERS) {
+    const opt = el("option", { value: String(k.id) });
+    const isD = isBotAiProfileDirty(curMode, k.id);
+    opt.textContent = k.name + (isD ? (isEs ? " • modificado" : " • modified") : "");
+    if (k.id === curKid) opt.selected = true;
+    select.appendChild(opt);
+  }
+  select.addEventListener("change", function () {
+    state.botAi.selectedKickerId = Number(select.value);
+    state.botAi.selectedProfile = getBotAiKickerMeta(Number(select.value)).name;
+    renderBotAiList();
+    renderBotAiPanel(document.getElementById("panel"));
+  });
+  pickerRow.appendChild(select);
+  mobilePicker.appendChild(pickerRow);
+  container.appendChild(mobilePicker);
+
+  // 3. Profile Header: Individual kicker avatar and info (never shared role groups)
+  const summaryHeader = el("div", { class: "bot-ai-profile-summary-header" });
+  const sumLeft = el("div", { style: "display:flex; align-items:center; gap:10px;" });
+  sumLeft.appendChild(iconFor("kicker", kickerMeta.id, 38));
+  const sumTitles = el("div");
+  sumTitles.appendChild(el("div", { class: "bot-ai-profile-title" }, (isEs ? "Editando kicker: " : "Editing kicker: ") + kickerMeta.name));
+  sumTitles.appendChild(el("div", { class: "bot-ai-affects-label" },
+    (isEs ? "Modo: " : "Mode: ") + locCurMode.name + " · " + (isEs ? "Identificador de parámetro: " : "Parameter ID: ") + profile.parameterId));
+  sumLeft.appendChild(sumTitles);
+  summaryHeader.appendChild(sumLeft);
+
+  container.appendChild(summaryHeader);
+
+  // 4. Intent Presets Section
+  const headingBox = el("div", { class: "bot-ai-heading-box" });
+  headingBox.appendChild(el("h3", { class: "bot-ai-heading" }, isEs ? "¿Qué quieres que haga?" : "What do you want it to do?"));
+  headingBox.appendChild(el("p", { class: "bot-ai-subheading" },
+    isEs ? "Selecciona un comportamiento táctico predefinido para aplicar valores optimizados a este kicker."
+         : "Select a tactical preset to apply optimized settings to this kicker."));
+  container.appendChild(headingBox);
+
+  const activePresetId = detectActivePreset(profile, curMode, curKid);
+
+  const grid = el("div", { class: "bot-ai-intent-grid" });
+  for (const preset of BOT_AI_INTENT_PRESETS) {
+    const isSelected = activePresetId === preset.id;
+    const card = el("div", {
+      class: "bot-ai-intent-card " + preset.theme + (isSelected ? " selected" : ""),
+      role: "button",
+      tabindex: "0"
+    });
+
+    const top = el("div", { class: "bot-ai-intent-top" });
+    const iconTitle = el("div", { class: "bot-ai-intent-icon-title" });
+    iconTitle.appendChild(el("span", { class: "bot-ai-intent-icon" }, preset.icon));
+    iconTitle.appendChild(el("span", { class: "bot-ai-intent-title" }, isEs ? preset.title : (preset.titleEn || preset.title)));
+    top.appendChild(iconTitle);
+
+    if (isSelected) {
+      top.appendChild(el("span", { class: "bot-ai-intent-badge" }, isEs ? "✓ Activo" : "✓ Active"));
+    }
+    card.appendChild(top);
+
+    card.appendChild(el("p", { class: "bot-ai-intent-desc" }, isEs ? preset.behaviorDesc : (preset.behaviorDescEn || preset.behaviorDesc)));
+
+    const summaryText = getPresetSummary(preset, curMode);
+    if (summaryText) {
+      card.appendChild(el("div", { class: "bot-ai-intent-mode-summary" },
+        (isEs ? "Comportamiento seleccionado: " : "Selected behavior: ") + summaryText));
+    }
+
+    const noteText = isEs ? preset.nativeLimit : (preset.nativeLimitEn || preset.nativeLimit);
+    if (noteText) {
+      card.appendChild(el("p", { class: "bot-ai-intent-note" }, "ℹ️ " + noteText));
+    }
+
+    card.addEventListener("click", function () {
+      applyBotAiPreset(curMode, curKid, preset.id);
+    });
+    grid.appendChild(card);
+  }
+  container.appendChild(grid);
+
+  // 5. Advanced Behavior Sliders & Cooldowns
+  const advDetails = el("details", { class: "bot-ai-advanced" });
+  if (state.botAi.showAdvanced) advDetails.open = true;
+  advDetails.addEventListener("toggle", function () {
+    state.botAi.showAdvanced = advDetails.open;
+  });
+
+  advDetails.appendChild(el("summary", null, isEs ? "🛠️ Ajustes avanzados de comportamiento (opcional)" : "🛠️ Advanced behavior settings (optional)"));
+  const advBody = el("div", { class: "bot-ai-advanced-body" });
+
+  // Motivations
+  const motGroup = el("div", { class: "bot-ai-param-group" });
+  motGroup.appendChild(el("h4", { style: "margin:0 0 10px; font-size:13px; color:var(--accent);" },
+    isEs ? "🎯 Prioridades de Decisión (Motivaciones 0-100)" : "🎯 Decision Priorities (Motivations 0-100)"));
+
+  const motFields = [
+    { key: "attack", label: isEs ? "⚔️ Agresividad en combate (Ataque)" : "⚔️ Combat Aggression (Attack)", hint: isEs ? "¿Cuánto prioriza buscar y combatir rivales?" : "How much does the bot prioritize seeking and fighting rivals?" },
+    { key: "defense", label: isEs ? "🛡️ Instinto defensivo (Defensa)" : "🛡️ Defensive Instinct (Defense)", hint: isEs ? "¿Cuánto prioriza replegarse o vigilar áreas?" : "How much does the bot prioritize retreating or guarding areas?" },
+    { key: "score", label: isEs ? "💎 Enfoque en objetivo (Puntuación)" : "💎 Objective Focus (Score)", hint: isEs ? "¿Cuánto prioriza recolectar cristales o avanzar con el balón?" : "How much does the bot prioritize collecting crystals or moving with the ball?" }
+  ];
+
+  for (const f of motFields) {
+    const row = el("div", { class: "bot-ai-slider-row" });
+    const lbl = el("div", { class: "bot-ai-param-label" });
+    lbl.appendChild(el("span", { class: "bot-ai-param-title" }, f.label));
+    lbl.appendChild(el("span", { class: "bot-ai-param-hint" }, f.hint));
+    row.appendChild(lbl);
+
+    const sliderVal = el("span", { class: "bot-ai-slider-val" }, String(profile.motivations[f.key]));
+    const slider = el("input", {
+      type: "range",
+      class: "bot-ai-slider",
+      min: "0",
+      max: "100",
+      step: "1",
+      value: String(profile.motivations[f.key]),
+      "aria-label": f.label
+    });
+    slider.addEventListener("input", function () {
+      const val = parseInt(slider.value, 10);
+      sliderVal.textContent = String(val);
+      setBotAiField(curMode, curKid, "motivations", f.key, val);
+    });
+
+    row.appendChild(slider);
+    row.appendChild(sliderVal);
+    motGroup.appendChild(row);
+  }
+  advBody.appendChild(motGroup);
+
+  // Dash intervals
+  const dashGroup = el("div", { class: "bot-ai-param-group" });
+  dashGroup.appendChild(el("h4", { style: "margin:0 0 10px; font-size:13px; color:var(--accent);" },
+    isEs ? "⚡ Frecuencia de Impulsos Dash (segundos)" : "⚡ Dash Impulse Frequency (seconds)"));
+
+  const dashFields = [
+    { key: "attack", label: isEs ? "En combate" : "In combat", hint: isEs ? "Segundos entre impulsos ofensivos (menor = más frecuente)." : "Seconds between offensive dashes (lower = more frequent)." },
+    { key: "defense", label: isEs ? "En defensa" : "In defense", hint: isEs ? "Segundos entre impulsos defensivos." : "Seconds between defensive dashes." },
+    { key: "score", label: isEs ? "Hacia objetivo" : "Toward objective", hint: isEs ? "Segundos entre impulsos hacia cristales o balón." : "Seconds between dashes toward crystals or ball." }
+  ];
+
+  for (const f of dashFields) {
+    const row = el("div", { class: "bot-ai-slider-row" });
+    const lbl = el("div", { class: "bot-ai-param-label" });
+    lbl.appendChild(el("span", { class: "bot-ai-param-title" }, f.label));
+    lbl.appendChild(el("span", { class: "bot-ai-param-hint" }, f.hint));
+    row.appendChild(lbl);
+
+    const numInput = el("input", {
+      type: "number",
+      class: "bot-ai-num-input",
+      min: "0.1",
+      max: "5.0",
+      step: "0.1",
+      value: String(profile.dashIntervals[f.key]),
+      "aria-label": f.label
+    });
+    numInput.addEventListener("input", function () {
+      const val = parseFloat(numInput.value);
+      if (!isNaN(val) && val > 0) {
+        setBotAiField(curMode, curKid, "dashIntervals", f.key, val);
+      }
+    });
+
+    row.appendChild(numInput);
+    dashGroup.appendChild(row);
+  }
+  advBody.appendChild(dashGroup);
+
+  // Skill cooldowns
+  const skillGroup = el("div", { class: "bot-ai-param-group" });
+  skillGroup.appendChild(el("h4", { style: "margin:0 0 10px; font-size:13px; color:var(--accent);" },
+    isEs ? "🕒 Enfriamiento de Habilidades (segundos)" : "🕒 Skill Cooldowns (seconds)"));
+
+  const skillFields = [
+    { key: "attack", label: isEs ? "Habilidad de ataque" : "Attack skill", hint: isEs ? "Enfriamiento entre usos ofensivos." : "Cooldown between offensive uses." },
+    { key: "heal", label: isEs ? "Habilidad de curación" : "Heal skill", hint: isEs ? "Enfriamiento entre curaciones." : "Cooldown between heals." },
+    { key: "buff", label: isEs ? "Habilidad de mejora (Buff)" : "Buff skill", hint: isEs ? "Enfriamiento entre potenciadores." : "Cooldown between buffs." },
+    { key: "trap", label: isEs ? "Habilidad de trampa" : "Trap skill", hint: isEs ? "Enfriamiento entre colocación de trampas." : "Cooldown between trap placement." },
+    { key: "warp", label: isEs ? "Habilidad de teletransporte / warp" : "Warp skill", hint: isEs ? "Enfriamiento entre desplazamientos rápidos." : "Cooldown between warps." }
+  ];
+
+  for (const f of skillFields) {
+    const row = el("div", { class: "bot-ai-slider-row" });
+    const lbl = el("div", { class: "bot-ai-param-label" });
+    lbl.appendChild(el("span", { class: "bot-ai-param-title" }, f.label));
+    lbl.appendChild(el("span", { class: "bot-ai-param-hint" }, f.hint));
+    row.appendChild(lbl);
+
+    const numInput = el("input", {
+      type: "number",
+      class: "bot-ai-num-input",
+      min: "0.5",
+      max: "30.0",
+      step: "0.5",
+      value: String(profile.skillIntervals[f.key]),
+      "aria-label": f.label
+    });
+    numInput.addEventListener("input", function () {
+      const val = parseFloat(numInput.value);
+      if (!isNaN(val) && val > 0) {
+        setBotAiField(curMode, curKid, "skillIntervals", f.key, val);
+      }
+    });
+
+    row.appendChild(numInput);
+    skillGroup.appendChild(row);
+  }
+  advBody.appendChild(skillGroup);
+
+  // Mode-specific deposits & combat toggles
+  const miscGroup = el("div", { class: "bot-ai-param-group" });
+  miscGroup.appendChild(el("h4", { style: "margin:0 0 10px; font-size:13px; color:var(--accent);" },
+    isEs ? "🎮 Reglas de Modo y Combate" : "🎮 Mode Rules & Combat"));
+
+  if (curMode !== "FlagFlight") {
+    const rowDep = el("div", { class: "bot-ai-slider-row" });
+    const lblDep = el("div", { class: "bot-ai-param-label" });
+    lblDep.appendChild(el("span", { class: "bot-ai-param-title" }, isEs ? "Cristales para depositar" : "Crystals to deposit"));
+    lblDep.appendChild(el("span", { class: "bot-ai-param-hint" }, isEs ? "Cantidad de cristales requeridos para ir al guardián." : "Number of crystals required before moving to guardian."));
+    rowDep.appendChild(lblDep);
+
+    const depInput = el("input", {
+      type: "number",
+      class: "bot-ai-num-input",
+      min: "1",
+      max: "10",
+      step: "1",
+      value: String(profile.scoreToDeposit || 5),
+      "aria-label": isEs ? "Cristales para depositar" : "Crystals to deposit"
+    });
+    depInput.addEventListener("input", function () {
+      const val = parseInt(depInput.value, 10);
+      if (!isNaN(val) && val >= 1 && val <= 10) {
+        setBotAiField(curMode, curKid, null, "scoreToDeposit", val);
+      }
+    });
+    rowDep.appendChild(depInput);
+    miscGroup.appendChild(rowDep);
+  }
+
+  // Lock-on checkbox
+  const rowLock = el("div", { class: "bot-ai-slider-row" });
+  const lblLock = el("div", { class: "bot-ai-param-label" });
+  lblLock.appendChild(el("span", { class: "bot-ai-param-title" }, isEs ? "Permitir fijar blanco (Lock-on)" : "Allow lock-on"));
+  lblLock.appendChild(el("span", { class: "bot-ai-param-hint" }, isEs ? "Permite al bot fijar la mira al combatir o usar habilidades dirigidas." : "Allows bot to acquire target locks during combat and targeted skill usage."));
+  rowLock.appendChild(lblLock);
+
+  const lockCheck = el("input", {
+    type: "checkbox",
+    "aria-label": isEs ? "Permitir fijar blanco" : "Allow lock-on"
+  });
+  lockCheck.checked = profile.canLockon !== false;
+  lockCheck.addEventListener("change", function () {
+    setBotAiField(curMode, curKid, null, "canLockon", lockCheck.checked);
+  });
+  rowLock.appendChild(lockCheck);
+  miscGroup.appendChild(rowLock);
+
+  advBody.appendChild(miscGroup);
+
+  // Technical Native Parameters (Readonly Low HP 35% preserved)
+  const rawGroup = el("div", { class: "bot-ai-param-group" });
+  rawGroup.appendChild(el("h4", { style: "margin:0 0 10px; font-size:13px; color:var(--accent);" },
+    isEs ? "⚙️ Parámetros Técnicos Nativos" : "⚙️ Native Technical Parameters"));
+  const rawGrid = el("div", { class: "bot-ai-raw-grid" });
+  rawGrid.appendChild(el("div", null, (isEs ? "Identificador de parámetro: " : "Parameter ID: ") + profile.parameterId));
+  rawGrid.appendChild(el("div", null, (isEs ? "Kicker ID: " : "Kicker ID: ") + profile.kickerId));
+  rawGrid.appendChild(el("div", null, (isEs ? "Disfraz ID: " : "Costume ID: ") + profile.kickerCostumeId));
+  rawGrid.appendChild(el("div", null, (isEs ? "Rango: " : "Rank: ") + profile.rank));
+  rawGrid.appendChild(el("div", null, (isEs ? "Umbral huida vida baja (constante nativa 35%): " : "Low HP retreat threshold (native 35% constant): ") + (Math.round((profile.lowHpDepositThreshold || 0.35) * 100)) + "%"));
+  rawGroup.appendChild(rawGrid);
+  rawGroup.appendChild(el("p", { class: "note", style: "margin-top:8px;" },
+    isEs ? "Nota técnica: El umbral de huida por vida baja está preservado en 35% como constante nativa del cliente."
+         : "Technical note: The low HP retreat threshold is preserved at 35% as a native client constant."));
+  advBody.appendChild(rawGroup);
+
+  advDetails.appendChild(advBody);
+  container.appendChild(advDetails);
+
+  // 6. Persistent Bottom Action Bar
+  const dirtyCount = Object.keys(state.botAi.drafts).length;
+  const actionBar = el("div", { class: "bot-ai-action-bar" });
+
+  const leftActions = el("div", { style: "display:flex; align-items:center; gap:10px;" });
+  const discardBtn = el("button", {
+    type: "button",
+    id: "botAiDiscardBtn",
+    class: "bot-ai-btn danger"
+  }, BalanceI18n.t("botAi.discardDraft"));
+  discardBtn.disabled = !isDirty;
+  discardBtn.addEventListener("click", function () {
+    discardBotAiDraft(curMode, curKid);
+  });
+  leftActions.appendChild(discardBtn);
+  actionBar.appendChild(leftActions);
+
+  const rightActions = el("div", { style: "display:flex; align-items:center; gap:12px;" });
+  if (dirtyCount > 0) {
+    rightActions.appendChild(el("span", { style: "font-size:12px; color:var(--dirty); font-weight:600;" },
+      BalanceI18n.t("botAi.reviewSave") + " (" + dirtyCount + ")"));
+  }
+  const saveLabel = state.botAi.saving ? BalanceI18n.t("common.saving")
+    : BalanceI18n.t("botAi.saveBtn") + (dirtyCount > 0 ? " (" + dirtyCount + ")" : "");
+  const saveBtn = el("button", {
+    type: "button",
+    id: "botAiSaveBtn",
+    class: "bot-ai-btn primary"
+  }, saveLabel);
+  saveBtn.disabled = dirtyCount === 0 || state.botAi.saving;
+  saveBtn.addEventListener("click", function () {
+    showBotAiReviewModal();
+  });
+  rightActions.appendChild(saveBtn);
+  actionBar.appendChild(rightActions);
+
+  container.appendChild(actionBar);
+  panel.appendChild(container);
 }
 
 /* -------------------------------------------------------------------- boot */
 
+function syncLanguage() {
+  const activeEl = document.activeElement;
+  let activeFieldKey = null;
+  let activeCursorStart = null;
+  let activeCursorEnd = null;
+  if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "SELECT")) {
+    if (activeEl.dataset && activeEl.dataset.table && activeEl.dataset.rowId && activeEl.dataset.field) {
+      activeFieldKey = fieldKey(activeEl.dataset.table, activeEl.dataset.rowId, activeEl.dataset.field);
+      if (typeof activeEl.selectionStart === "number") {
+        activeCursorStart = activeEl.selectionStart;
+        activeCursorEnd = activeEl.selectionEnd;
+      }
+    }
+  }
+
+  const lang = BalanceI18n.getLang();
+  document.documentElement.lang = lang;
+  document.title = BalanceI18n.t("header.title");
+  const select = document.getElementById("langSelect");
+  if (select) select.value = lang;
+
+  BalanceI18n.applyTranslations(document);
+
+  const topHint = document.getElementById("topHint");
+  if (topHint) {
+    if (state.tab === "bot-ai") {
+      topHint.textContent = BalanceI18n.t("header.topHintBotAi");
+    } else {
+      topHint.innerHTML = BalanceI18n.t("header.topHintMasters");
+    }
+  }
+
+  if (state.currentUser) {
+    const userEl = document.getElementById("currentUser");
+    if (userEl) userEl.textContent = BalanceI18n.t("header.currentUser", { user: state.currentUser });
+  }
+
+  refreshDirty();
+  buildDiscFilters();
+  renderList();
+
+  if (state.tab === "bot-ai") {
+    if (state.botAi.loaded) {
+      const panel = document.getElementById("panel");
+      if (panel) renderBotAiPanel(panel);
+      if (document.getElementById("botAiReviewModal")) {
+        showBotAiReviewModal();
+      }
+      const conflictModal = document.getElementById("botAiConflictModal");
+      if (conflictModal) {
+        const head = conflictModal.querySelector(".bot-ai-modal-head span");
+        if (head) head.textContent = BalanceI18n.t("botAi.conflictModalHead");
+        const cancelBtn = conflictModal.querySelector(".bot-ai-modal-foot button.secondary");
+        if (cancelBtn) cancelBtn.textContent = BalanceI18n.t("botAi.conflictModalClose");
+        const reloadBtn = conflictModal.querySelector(".bot-ai-modal-foot button.primary");
+        if (reloadBtn) reloadBtn.textContent = BalanceI18n.t("botAi.conflictModalReload");
+      }
+    }
+  } else if (state.tab === "maintenance") {
+    const startsAt = document.getElementById("maintStartsAt");
+    const endsAt = document.getElementById("maintEndsAt");
+    const notice = document.getElementById("maintNotice");
+    const selectedMode = document.querySelector("input[name='maintMode']:checked");
+    const saved = {
+      startsAt: startsAt ? startsAt.value : null,
+      endsAt: endsAt ? endsAt.value : null,
+      notice: notice ? notice.value : null,
+      mode: selectedMode ? selectedMode.value : null
+    };
+    renderPanel();
+    if (saved.startsAt !== null && document.getElementById("maintStartsAt")) document.getElementById("maintStartsAt").value = saved.startsAt;
+    if (saved.endsAt !== null && document.getElementById("maintEndsAt")) document.getElementById("maintEndsAt").value = saved.endsAt;
+    if (saved.notice !== null && document.getElementById("maintNotice")) document.getElementById("maintNotice").value = saved.notice;
+    if (saved.mode !== null) {
+      const r = document.querySelector("input[name='maintMode'][value='" + saved.mode + "']");
+      if (r) r.checked = true;
+    }
+  } else if (state.tab === "client-update") {
+    const androidMin = document.getElementById("updateAndroidMin");
+    const androidStore = document.getElementById("updateAndroidStore");
+    const androidForce = document.getElementById("updateAndroidForce");
+    const iosMin = document.getElementById("updateIosMin");
+    const iosStore = document.getElementById("updateIosStore");
+    const iosForce = document.getElementById("updateIosForce");
+    const saved = {
+      androidMin: androidMin ? androidMin.value : null,
+      androidStore: androidStore ? androidStore.value : null,
+      androidForce: androidForce ? androidForce.checked : null,
+      iosMin: iosMin ? iosMin.value : null,
+      iosStore: iosStore ? iosStore.value : null,
+      iosForce: iosForce ? iosForce.checked : null
+    };
+    renderPanel();
+    if (saved.androidMin !== null && document.getElementById("updateAndroidMin")) document.getElementById("updateAndroidMin").value = saved.androidMin;
+    if (saved.androidStore !== null && document.getElementById("updateAndroidStore")) document.getElementById("updateAndroidStore").value = saved.androidStore;
+    if (saved.androidForce !== null && document.getElementById("updateAndroidForce")) document.getElementById("updateAndroidForce").checked = saved.androidForce;
+    if (saved.iosMin !== null && document.getElementById("updateIosMin")) document.getElementById("updateIosMin").value = saved.iosMin;
+    if (saved.iosStore !== null && document.getElementById("updateIosStore")) document.getElementById("updateIosStore").value = saved.iosStore;
+    if (saved.iosForce !== null && document.getElementById("updateIosForce")) document.getElementById("updateIosForce").checked = saved.iosForce;
+  } else if (state.tab === "latest-information") {
+    const titleIn = document.getElementById("latestInfoTitle");
+    const textIn = document.getElementById("latestInfoAnnouncement");
+    const urlIn = document.getElementById("latestInfoExternalUrl");
+    const modeIn = document.querySelector("input[name='latestInfoMode']:checked");
+    const saved = {
+      title: titleIn ? titleIn.value : null,
+      text: textIn ? textIn.value : null,
+      url: urlIn ? urlIn.value : null,
+      mode: modeIn ? modeIn.value : null
+    };
+    renderPanel();
+    if (saved.title !== null && document.getElementById("latestInfoTitle")) document.getElementById("latestInfoTitle").value = saved.title;
+    if (saved.text !== null && document.getElementById("latestInfoAnnouncement")) document.getElementById("latestInfoAnnouncement").value = saved.text;
+    if (saved.url !== null && document.getElementById("latestInfoExternalUrl")) document.getElementById("latestInfoExternalUrl").value = saved.url;
+    if (saved.mode !== null) {
+      const r = document.querySelector("input[name='latestInfoMode'][value='" + saved.mode + "']");
+      if (r) r.checked = true;
+    }
+  } else {
+    renderPanel();
+  }
+
+  // Restore active element focus in tables
+  if (activeFieldKey && state.inputs.has(activeFieldKey)) {
+    const input = state.inputs.get(activeFieldKey);
+    if (input && typeof input.focus === "function") {
+      input.focus();
+      if (activeCursorStart !== null && typeof input.setSelectionRange === "function") {
+        try { input.setSelectionRange(activeCursorStart, activeCursorEnd); } catch (ignored) {}
+      }
+    }
+  }
+}
+
 function wireEvents() {
+  const langSelect = document.getElementById("langSelect");
+  if (langSelect) {
+    langSelect.addEventListener("change", function (e) {
+      BalanceI18n.setLang(e.target.value);
+      syncLanguage();
+    });
+  }
+  BalanceI18n.onLangChange(function () {
+    syncLanguage();
+  });
+
   const tabs = document.querySelectorAll("#tabs button");
   for (const button of tabs) {
     button.addEventListener("click", function () {
       state.tab = button.dataset.tab;
       for (const other of tabs) other.classList.toggle("on", other === button);
+      if (state.tab === "client-update") loadClientUpdate().then(renderPanel);
       document.getElementById("filters").style.display =
-        state.tab === "maintenance" || state.tab === "latest-information" || state.tab === "health" ? "none" : "flex";
+        state.tab === "maintenance" || state.tab === "client-update" || state.tab === "latest-information" || state.tab === "health" || state.tab === "bot-ai" ? "none" : "flex";
       document.getElementById("discFilters").style.display =
         state.tab === "discs" ? "block" : "none";
+      const foot = document.getElementById("foot");
+      if (foot) {
+        foot.style.display = (state.tab === "kickers" || state.tab === "discs" || state.tab === "text") ? "block" : "none";
+      }
+      document.body.classList.toggle("tab-bot-ai", state.tab === "bot-ai");
+      const topHint = document.getElementById("topHint");
+      if (topHint) {
+        if (state.tab === "bot-ai") {
+          topHint.textContent = BalanceI18n.t("header.topHintBotAi");
+        } else {
+          topHint.innerHTML = BalanceI18n.t("header.topHintMasters");
+        }
+      }
+      if (state.tab === "bot-ai" && !state.botAi.loaded && !state.botAi.loading) {
+        loadBotAiProfiles();
+      }
       renderList();
       renderPanel();
       refreshDirty();
@@ -2037,9 +4089,11 @@ function wireEvents() {
 
 async function boot() {
   wireEvents();
+  syncLanguage();
   try {
     const session = await fetchJSON("/api/session", { cache: "no-store" });
-    document.getElementById("currentUser").textContent = session.username;
+    state.currentUser = session.username;
+    document.getElementById("currentUser").textContent = BalanceI18n.t("header.currentUser", { user: session.username });
     const loaded = await Promise.all([
       fetchJSON("/api/kickers", { cache: "no-store" }),
       fetchJSON("/api/discs", { cache: "no-store" })

@@ -103,9 +103,13 @@ services:
       HttpPort: "8080"
       GrpcPort: "18081"
       KF_REPO_ROOT: /srv/repo
+      KF_EXPERIMENTAL_AI_ROLES: ${KF_EXPERIMENTAL_AI_ROLES:-1}
       # Commit being deployed (scripts/deploy-vps-ci.sh exports it from the workflow's GITHUB_SHA). Every API start
       # records it in the ops telemetry's server_runs table; the Health tab's default window is "this release".
       KF_RELEASE_SHA: ${KF_RELEASE_SHA:-unknown}
+      # Proposed 2.11.5 Android minimum; iOS remains on its separately verified 2.11.3 minimum.
+      ClientUpdate__MinimumVersion: "2.11.5"
+      ClientUpdate__IosMinimumVersion: "2.11.3"
       PlayerStore__ConnectionString: Host=postgres;Port=5432;Database=kickflight;Username=kickflight;Password=${KF_DB_PASSWORD:?Set KF_DB_PASSWORD in the root .env}
       PhotonServer__Enabled: "true"
       # This value is for health checks from the API container. Photon itself advertises KF_PUBLIC_HOST to clients.
@@ -181,6 +185,32 @@ services:
     depends_on:
       cdn:
         condition: service_healthy
+      badges:
+        condition: service_healthy
+
+  badges:
+    build:
+      context: ..
+      dockerfile: deploy/badges/Dockerfile
+    image: kickflight/badges:alpine-3.21
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      KF_BADGES_PORT: "8766"
+      KF_BADGES_HOST: "0.0.0.0"
+      KF_BADGES_DB_PATH: /data/badges.sqlite3
+    volumes:
+      - badges-data:/data
+    expose:
+      - "8766"
+    ports:
+      - "127.0.0.1:8766:8766"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8766/badges/health\")'"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks: [backend]
 
   grpc:
     image: nginx:1.27-alpine
@@ -205,6 +235,7 @@ volumes:
   geoip-data:
   caddy-data:
   caddy-config:
+  badges-data:
 
 networks:
   backend:

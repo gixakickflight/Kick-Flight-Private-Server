@@ -48,12 +48,12 @@ public sealed class ResourceCatalogStore
 {
     public const int IosAssetPlatform = 9;
     public const int IosAssetVersion = 12346;
-    // Source revision 45 appends 216 verified player models, preserving prior IDs 1..2036.
-    // Wire revision 46 forces the additive set for clients on r5.
-    public const int IosCatalogRevision = 45;
-    public const int IosWireRevision = 46;
-    public const int IosExpectedResourceCount = 2252;
-    public const int IosExpectedAssetBundleCount = 2047;
+    // Source revision 46 appends 311 verified weapon models, preserving all 2,252 r6 rows.
+    // Wire revision 47 forces the additive set for clients on r6.
+    public const int IosCatalogRevision = 46;
+    public const int IosWireRevision = 47;
+    public const int IosExpectedResourceCount = 2563;
+    public const int IosExpectedAssetBundleCount = 2358;
     public const int IosExpectedRawResourceCount = 205;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -168,7 +168,7 @@ public sealed class ResourceCatalogStore
             if (document.SchemaVersion != 1) throw new InvalidDataException($"Unsupported resource catalog schema {document.SchemaVersion}.");
             if (expectIosMetadata && (document.Platform != IosAssetPlatform || document.AssetVersion != IosAssetVersion ||
                                       document.Revision != IosCatalogRevision || document.Resources.Count != IosExpectedResourceCount))
-                throw new InvalidDataException("iOS catalog identity or row count does not match the pinned 12346/revision-45/2252-resource profile.");
+                throw new InvalidDataException("iOS catalog identity or row count does not match the pinned 12346/revision-46/2563-resource profile.");
             foreach (var definition in document.Resources)
             {
                 try
@@ -216,7 +216,7 @@ public sealed class ResourceCatalogStore
             errors.AddRange(octoNames.Select(name => $"Duplicate iOS Octo name: {name}"));
             if (resources.Count(resource => resource.Definition.Kind == "assetBundle") != IosExpectedAssetBundleCount ||
                 resources.Count(resource => resource.Definition.Kind == "resource") != IosExpectedRawResourceCount)
-                errors.Add("iOS catalog kind counts do not match the pinned 2,047 A / 205 R corpus.");
+                errors.Add("iOS catalog kind counts do not match the pinned 2,358 A / 205 R corpus.");
             var wireIds = resources.Select(resource => resource.Definition.OctoId).ToArray();
             if (wireIds.Any(id => id is null || id < 1 || id > IosExpectedResourceCount) ||
                 wireIds.Select(id => id!.Value).Distinct().Count() != IosExpectedResourceCount)

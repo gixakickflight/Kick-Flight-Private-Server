@@ -18,6 +18,7 @@ variables, never from hardcoded secrets.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import io
 import ipaddress
 import json
@@ -28,6 +29,7 @@ import shlex
 import sqlite3
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import urllib.error
@@ -49,6 +51,7 @@ DOCS_DIR = REPO_ROOT / "docs"
 ICON_DIR = BALANCE_DIR / "icons"
 INDEX_FILE = BALANCE_DIR / "index.html"
 LOGIN_FILE = BALANCE_DIR / "login.html"
+I18N_FILE = BALANCE_DIR / "i18n.js"
 DISC_CARDS_FILE = DOCS_DIR / "disc_cards.json"
 # Named client enums (value -> member name) and the {table.field: enum} mapping the UI turns into
 # dropdowns; the file itself documents each enum's source.  See tools/balance/README.md.
@@ -72,6 +75,26 @@ MASTERS_DIR = _env_path("KF_BALANCE_BASE_DIR", _env_path("KF_BALANCE_MASTERS_DIR
 # .local/ is excluded and survives.  The API's master override layer reads this directory (reads only).
 OVERRIDE_DIR = _env_path("KF_BALANCE_OVERRIDE_DIR", REPO_ROOT / ".local" / "masters-overrides")
 BACKUP_DIR = _env_path("KF_BALANCE_BACKUP_DIR", BALANCE_DIR / "backups")
+
+# Bot AI configuration: durable override lives under .local/masters-overrides/bot_ai_profiles.json
+# (survives VPS deployments because .local/ is excluded from CI rsync).
+# Tracked config/bot_ai_profiles.json remains the SEED fallback, never overwritten by the panel.
+BOT_AI_SEED_FILE = _env_path(
+    "KF_BOT_AI_SEED_PATH",
+    (MASTERS_DIR / "bot_ai_profiles.json") if (MASTERS_DIR / "bot_ai_profiles.json").is_file() else (CONFIG_DIR / "bot_ai_profiles.json")
+)
+BOT_AI_PROFILES_FILE = _env_path(
+    "KF_BOT_AI_PROFILES_PATH",
+    OVERRIDE_DIR / "bot_ai_profiles.json"
+)
+BOT_AI_SCHEMA_FILE = _env_path(
+    "KF_BOT_AI_SCHEMA_PATH",
+    (MASTERS_DIR / "bot_ai_profiles.schema.json") if (MASTERS_DIR / "bot_ai_profiles.schema.json").is_file() else (CONFIG_DIR / "bot_ai_profiles.schema.json")
+)
+
+def get_bot_ai_files() -> tuple[Path, Path]:
+    """Return (durable_override_path, seed_fallback_path)."""
+    return BOT_AI_PROFILES_FILE, BOT_AI_SEED_FILE
 
 # Authentication is mandatory. The local DB is never committed, and an empty user table denies
 # every login until an operator inserts an account manually.
@@ -153,6 +176,15 @@ LATEST_INFO_SET_CMD = os.environ.get("KF_BALANCE_LATEST_INFO_SET_CMD", "")
 LATEST_INFO_MAX_CHARS = 12000
 LATEST_INFO_MAX_HTML_BYTES = 1024 * 1024
 LATEST_INFO_MAX_URL_CHARS = 2048
+
+# Forced Client Update toggle. Reached exactly like the other loopback-only admin routes.
+CLIENT_UPDATE_URL = os.environ.get("KF_BALANCE_CLIENT_UPDATE_URL", "")
+CLIENT_UPDATE_CONTAINER = os.environ.get("KF_BALANCE_CLIENT_UPDATE_CONTAINER", ADMIN_CONTAINER)
+CLIENT_UPDATE_INTERNAL_URL = os.environ.get(
+    "KF_BALANCE_CLIENT_UPDATE_INTERNAL_URL", "http://127.0.0.1:8080/admin/client-update"
+)
+CLIENT_UPDATE_CMD = os.environ.get("KF_BALANCE_CLIENT_UPDATE_CMD", "")
+CLIENT_UPDATE_SET_CMD = os.environ.get("KF_BALANCE_CLIENT_UPDATE_SET_CMD", "")
 
 # Health tab: the game API's read-only /admin/ops/* telemetry endpoints.  Reached exactly like the other
 # loopback-only admin routes (docker exec curl inside the API container by default), with the same escape
@@ -668,6 +700,480 @@ def write_table(name, rows):
     return text
 
 
+def backup_bot_ai_profiles(original_text: str) -> Path:
+    """Copy the bot AI profiles file about to be replaced into the backup directory."""
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    stem = "bot_ai_profiles-%s" % stamp
+    path = BACKUP_DIR / ("%s.json" % stem)
+    suffix = 1
+    while path.exists():
+        path = BACKUP_DIR / ("%s-%d.json" % (stem, suffix))
+        suffix += 1
+    with path.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(original_text)
+    return path
+
+
+def write_bot_ai_profiles(payload: dict, target_path: Path | None = None) -> str:
+    """Write the bot AI profiles file atomically with same-directory tempfile + fsync + os.replace."""
+    if target_path is None:
+        target_path = BOT_AI_PROFILES_FILE
+    if target_path.is_symlink():
+        target_dest = os.readlink(target_path)
+        raise OSError(f"Refusing to write over symlink {target_path} -> {target_dest}")
+
+    target_dir = target_path.parent
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    mode = 0o664
+    if target_path.exists():
+        try:
+            mode = target_path.stat().st_mode & 0o777
+        except OSError:
+            pass
+
+    fd, tmp_path_str = tempfile.mkstemp(dir=target_dir, prefix="bot_ai_profiles_", suffix=".tmp")
+    tmp_path = Path(tmp_path_str)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+            json.dump(payload, handle, indent=2, ensure_ascii=False)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(tmp_path, mode)
+        os.replace(tmp_path, target_path)
+    except Exception as exc:
+        if tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+        raise exc
+    return target_path.read_text(encoding="utf-8")
+
+
+BOT_AI_VALID_ROOT_KEYS = {"$schema", "version", "profiles", "expectedHash", "revision"}
+BOT_AI_VALID_PROFILE_KEYS = {
+    "profile", "mode", "parameterId", "kickerId", "kickerCostumeId", "rank",
+    "motivations", "scoreToDeposit", "lowHpDepositThreshold", "dashIntervals",
+    "skillIntervals", "healDamageRate", "canLockon"
+}
+BOT_AI_VALID_MOTIVATION_KEYS = {"attack", "defense", "score"}
+BOT_AI_VALID_DASH_INTERVAL_KEYS = {"attack", "defense", "score"}
+BOT_AI_VALID_SKILL_INTERVAL_KEYS = {"attack", "heal", "buff", "trap", "warp"}
+
+BOT_AI_EXPECTED_MODES = {
+    "CrystalScramble": 0,
+    "FlagFlight": 1,
+    "RapidBall": 2
+}
+
+BOT_AI_EXPECTED_PROFILES = {
+    "carrier": (0, 8),
+    "tank_defender": (1, 3),
+    "hunter": (2, 4),
+    "objective_attacker": (3, 10),
+    "healer": (4, 2),
+    "speed_support": (5, 7),
+    "damage_support": (6, 14),
+    "trap_defender": (7, 5),
+    "Yuyan": (8, 10),
+    "Owlbert": (9, 5),
+    "Ruriha": (10, 2),
+    "Grenhawk": (11, 7),
+    "Sid": (12, 14)
+}
+
+BOT_AI_KICKER_NAMES = {
+    1: "Tsubame",
+    2: "Ruriha",
+    3: "Coco",
+    4: "Kite",
+    5: "Owlbert",
+    6: "Pitophy",
+    7: "Grenhawk",
+    8: "Anna",
+    9: "Jay",
+    10: "Yuyan",
+    11: "Diatrius",
+    12: "Buzzy Big",
+    13: "Hitagi",
+    14: "Sid"
+}
+
+BOT_AI_NAME_TO_KICKER_ID = {name: kid for kid, name in BOT_AI_KICKER_NAMES.items()}
+
+BOT_AI_KICKER_COSTUMES = {
+    1: 2010101,
+    2: 2020101,
+    3: 2030101,
+    4: 2040101,
+    5: 2050101,
+    6: 2060101,
+    7: 2070101,
+    8: 2080101,
+    9: 2090101,
+    10: 2100101,
+    11: 2110101,
+    12: 2120101,
+    13: 2130101,
+    14: 2140101
+}
+
+BOT_AI_STABLE_PARAMETER_IDS = {
+    (0, 1): 54,
+    (0, 2): 25,
+    (0, 3): 16,
+    (0, 4): 17,
+    (0, 5): 24,
+    (0, 6): 55,
+    (0, 7): 26,
+    (0, 8): 15,
+    (0, 9): 56,
+    (0, 10): 23,
+    (0, 11): 57,
+    (0, 12): 58,
+    (0, 13): 59,
+    (0, 14): 27,
+
+    (1, 1): 60,
+    (1, 2): 38,
+    (1, 3): 29,
+    (1, 4): 30,
+    (1, 5): 37,
+    (1, 6): 61,
+    (1, 7): 39,
+    (1, 8): 28,
+    (1, 9): 62,
+    (1, 10): 36,
+    (1, 11): 63,
+    (1, 12): 64,
+    (1, 13): 65,
+    (1, 14): 40,
+
+    (2, 1): 66,
+    (2, 2): 51,
+    (2, 3): 42,
+    (2, 4): 43,
+    (2, 5): 50,
+    (2, 6): 67,
+    (2, 7): 52,
+    (2, 8): 41,
+    (2, 9): 68,
+    (2, 10): 49,
+    (2, 11): 69,
+    (2, 12): 70,
+    (2, 13): 71,
+    (2, 14): 53,
+}
+
+BOT_AI_V1_INHERITANCE = {
+    1: "carrier",
+    2: "Ruriha",
+    3: "tank_defender",
+    4: "hunter",
+    5: "Owlbert",
+    6: "hunter",
+    7: "Grenhawk",
+    8: "carrier",
+    9: "carrier",
+    10: "Yuyan",
+    11: "tank_defender",
+    12: "tank_defender",
+    13: "hunter",
+    14: "Sid"
+}
+
+BOT_AI_MIN_PARAM_ID = 15
+BOT_AI_MAX_PARAM_ID = 99
+BOT_AI_GYM_PARAM_BASE = 100
+
+
+def _reject_json_constant(val):
+    raise ValueError(f"Constant '{val}' (NaN/Infinity) is forbidden in bot AI configuration")
+
+
+def _reject_json_duplicates(pairs):
+    d = {}
+    for k, v in pairs:
+        if k in d:
+            raise ValueError(f"Duplicate JSON key: {k!r}")
+        d[k] = v
+    return d
+
+
+def validate_bot_ai_profiles(payload):
+    if not isinstance(payload, dict):
+        return False, ["Payload must be a JSON object"], None
+
+    errors = []
+    for k in payload:
+        if k not in BOT_AI_VALID_ROOT_KEYS:
+            errors.append(f"Unknown root property '{k}'")
+
+    version = payload.get("version")
+    if not isinstance(version, int) or isinstance(version, bool) or version < 1:
+        errors.append("version must be an integer >= 1")
+
+    profiles = payload.get("profiles")
+    if not isinstance(profiles, list) or len(profiles) not in (39, 42):
+        count_str = str(len(profiles)) if isinstance(profiles, list) else "non-array"
+        errors.append(f"Expected exactly 42 profiles (3 modes x 14 kickers) or legacy 39 profiles, but found {count_str}.")
+        return False, errors, None
+
+    is_v2 = len(profiles) == 42
+    is_v1 = len(profiles) == 39
+
+    covered_v2 = set()
+    covered_v1 = set()
+    seen_param_ids = set()
+    raw_validated_profiles = []
+
+    for i, p in enumerate(profiles):
+        prefix = f"Profile [{i}]"
+        if not isinstance(p, dict):
+            errors.append(f"{prefix}: must be an object")
+            continue
+
+        for k in p:
+            if k not in BOT_AI_VALID_PROFILE_KEYS:
+                errors.append(f"{prefix}: unknown property '{k}'")
+        for k in BOT_AI_VALID_PROFILE_KEYS:
+            if k not in p:
+                errors.append(f"{prefix}: missing required property '{k}'")
+
+        mode = p.get("mode")
+        if not isinstance(mode, str) or mode not in BOT_AI_EXPECTED_MODES:
+            errors.append(f"{prefix}: invalid mode '{mode}'")
+            mode_idx = -1
+        else:
+            mode_idx = BOT_AI_EXPECTED_MODES[mode]
+
+        kicker_id = p.get("kickerId")
+        if not isinstance(kicker_id, int) or isinstance(kicker_id, bool):
+            errors.append(f"{prefix}: kickerId must be an integer")
+            kicker_id = -1
+
+        param_id = p.get("parameterId")
+        if not isinstance(param_id, int) or isinstance(param_id, bool):
+            errors.append(f"{prefix}: parameterId must be an integer in range [{BOT_AI_MIN_PARAM_ID}..{BOT_AI_MAX_PARAM_ID}]")
+            param_id = None
+        else:
+            if param_id < BOT_AI_MIN_PARAM_ID or param_id > BOT_AI_MAX_PARAM_ID:
+                errors.append(f"{prefix}: parameterId outside allowed range [{BOT_AI_MIN_PARAM_ID}..{BOT_AI_MAX_PARAM_ID}]")
+            if 1 <= param_id <= 14:
+                errors.append(f"{prefix}: parameterId {param_id} overlaps with pristine kicker ID [1..14] (reserved for feature OFF)")
+            if param_id >= BOT_AI_GYM_PARAM_BASE:
+                errors.append(f"{prefix}: parameterId {param_id} violates gym boundary (>={BOT_AI_GYM_PARAM_BASE})")
+            if param_id in seen_param_ids:
+                errors.append(f"{prefix}: duplicate parameterId {param_id}")
+            seen_param_ids.add(param_id)
+
+        prof = p.get("profile")
+        if not isinstance(prof, str):
+            errors.append(f"{prefix}: invalid profile '{prof}'")
+            prof_idx = -1
+        else:
+            if is_v2:
+                if kicker_id < 1 or kicker_id > 14:
+                    errors.append(f"{prefix}: kickerId {kicker_id} is outside valid range [1..14]")
+                else:
+                    expected_kid = BOT_AI_NAME_TO_KICKER_ID.get(prof)
+                    if expected_kid is not None and kicker_id != expected_kid:
+                        errors.append(f"{prefix} ({prof}): kickerId {kicker_id} does not match expected kickerId {expected_kid}")
+
+                    if mode_idx >= 0:
+                        if (mode, kicker_id) in covered_v2:
+                            errors.append(f"{prefix}: duplicate coverage for mode '{mode}' and kickerId {kicker_id}")
+                        covered_v2.add((mode, kicker_id))
+
+                        expected_canonical_id = BOT_AI_STABLE_PARAMETER_IDS.get((mode_idx, kicker_id))
+                        if param_id is not None and param_id != expected_canonical_id:
+                            errors.append(f"{prefix} ({mode}/kicker {kicker_id}): parameterId {param_id} does not match canonical formula {expected_canonical_id}")
+            else:
+                if prof not in BOT_AI_EXPECTED_PROFILES:
+                    errors.append(f"{prefix}: invalid profile '{prof}'")
+                    prof_idx, exp_kicker = -1, -1
+                else:
+                    prof_idx, exp_kicker = BOT_AI_EXPECTED_PROFILES[prof]
+                    if mode_idx >= 0:
+                        if (mode, prof) in covered_v1:
+                            errors.append(f"{prefix}: duplicate coverage for mode '{mode}' and profile '{prof}'")
+                        covered_v1.add((mode, prof))
+
+                        canonical_param = 15 + (13 * mode_idx) + prof_idx
+                        if param_id is not None and param_id != canonical_param:
+                            errors.append(f"{prefix} ({mode}/{prof}): parameterId {param_id} does not match canonical formula {canonical_param}")
+
+                    if exp_kicker > 0 and kicker_id != exp_kicker:
+                        errors.append(f"{prefix} ({prof}): kickerId {kicker_id} does not match expected kickerId {exp_kicker}")
+
+        kicker_costume_id = p.get("kickerCostumeId")
+        if not isinstance(kicker_costume_id, int) or isinstance(kicker_costume_id, bool):
+            errors.append(f"{prefix}: kickerCostumeId must be an integer")
+
+        rank = p.get("rank")
+        if not isinstance(rank, int) or isinstance(rank, bool) or rank != 13:
+            errors.append(f"{prefix}: rank {rank} is invalid. Rank must be exactly 13")
+
+        score_deposit = p.get("scoreToDeposit")
+        if not isinstance(score_deposit, int) or isinstance(score_deposit, bool) or score_deposit < 1:
+            errors.append(f"{prefix}: scoreToDeposit must be an integer >= 1")
+
+        low_hp = p.get("lowHpDepositThreshold")
+        if not isinstance(low_hp, (int, float)) or isinstance(low_hp, bool) or not math.isfinite(low_hp) or low_hp < 0.0 or low_hp > 1.0:
+            errors.append(f"{prefix}: lowHpDepositThreshold must be a finite float in [0.0..1.0]")
+
+        heal_rate = p.get("healDamageRate")
+        if not isinstance(heal_rate, (int, float)) or isinstance(heal_rate, bool) or not math.isfinite(heal_rate) or heal_rate < 0.0 or heal_rate > 1.0:
+            errors.append(f"{prefix}: healDamageRate must be a finite float in [0.0..1.0]")
+
+        can_lockon = p.get("canLockon")
+        if not isinstance(can_lockon, bool):
+            errors.append(f"{prefix}: canLockon must be a boolean")
+
+        # Motivations
+        mots = p.get("motivations")
+        norm_mots = {}
+        if not isinstance(mots, dict):
+            errors.append(f"{prefix}: motivations must be an object")
+        else:
+            for k in mots:
+                if k not in BOT_AI_VALID_MOTIVATION_KEYS:
+                    errors.append(f"{prefix}: unknown motivation '{k}'")
+            for k in BOT_AI_VALID_MOTIVATION_KEYS:
+                if k not in mots:
+                    errors.append(f"{prefix}: missing motivation '{k}'")
+                else:
+                    v = mots[k]
+                    if not isinstance(v, (int, float)) or isinstance(v, bool) or not math.isfinite(v):
+                        errors.append(f"{prefix}: motivations.{k} must be a finite number")
+                    else:
+                        clamped = max(0, min(100, int(round(v))))
+                        norm_mots[k] = clamped
+
+        # DashIntervals
+        dash = p.get("dashIntervals")
+        norm_dash = {}
+        if not isinstance(dash, dict):
+            errors.append(f"{prefix}: dashIntervals must be an object")
+        else:
+            for k in dash:
+                if k not in BOT_AI_VALID_DASH_INTERVAL_KEYS:
+                    errors.append(f"{prefix}: unknown dashInterval '{k}'")
+            for k in BOT_AI_VALID_DASH_INTERVAL_KEYS:
+                if k not in dash:
+                    errors.append(f"{prefix}: missing dashInterval '{k}'")
+                else:
+                    v = dash[k]
+                    if not isinstance(v, (int, float)) or isinstance(v, bool) or not math.isfinite(v) or v <= 0.0:
+                        errors.append(f"{prefix}: dashIntervals.{k} must be positive finite float")
+                    else:
+                        norm_dash[k] = round(float(v), 4)
+
+        # SkillIntervals
+        skills = p.get("skillIntervals")
+        norm_skills = {}
+        if not isinstance(skills, dict):
+            errors.append(f"{prefix}: skillIntervals must be an object")
+        else:
+            for k in skills:
+                if k not in BOT_AI_VALID_SKILL_INTERVAL_KEYS:
+                    errors.append(f"{prefix}: unknown skillInterval '{k}'")
+            for k in BOT_AI_VALID_SKILL_INTERVAL_KEYS:
+                if k not in skills:
+                    errors.append(f"{prefix}: missing skillInterval '{k}'")
+                else:
+                    v = skills[k]
+                    if not isinstance(v, (int, float)) or isinstance(v, bool) or not math.isfinite(v) or v <= 0.0:
+                        errors.append(f"{prefix}: skillIntervals.{k} must be positive finite float")
+                    else:
+                        norm_skills[k] = round(float(v), 4)
+
+        if errors:
+            continue
+
+        raw_validated_profiles.append({
+            "profile": prof,
+            "mode": mode,
+            "parameterId": param_id,
+            "kickerId": kicker_id,
+            "kickerCostumeId": kicker_costume_id,
+            "rank": 13,
+            "motivations": norm_mots,
+            "scoreToDeposit": score_deposit,
+            "lowHpDepositThreshold": round(float(low_hp), 4),
+            "dashIntervals": norm_dash,
+            "skillIntervals": norm_skills,
+            "healDamageRate": round(float(heal_rate), 4),
+            "canLockon": can_lockon
+        })
+
+    if is_v2:
+        for m in BOT_AI_EXPECTED_MODES:
+            for kid in range(1, 15):
+                if (m, kid) not in covered_v2:
+                    errors.append(f"Missing required profile entry for mode '{m}' and kickerId {kid}")
+    else:
+        for m in BOT_AI_EXPECTED_MODES:
+            for pr in BOT_AI_EXPECTED_PROFILES:
+                if (m, pr) not in covered_v1:
+                    errors.append(f"Missing required profile entry for mode '{m}' and profile '{pr}'")
+
+    if errors:
+        return False, errors, None
+
+    if is_v2:
+        # Sort by (modeIndex, parameterId)
+        normalized_profiles = sorted(
+            raw_validated_profiles,
+            key=lambda item: (BOT_AI_EXPECTED_MODES[item["mode"]], item["parameterId"])
+        )
+    else:
+        # Transparent migration from 39 V1 profiles into 42 independent V2 profiles
+        v1_dict = {(p["mode"], p["profile"]): p for p in raw_validated_profiles}
+        migrated = []
+        for mode, mode_idx in BOT_AI_EXPECTED_MODES.items():
+            for kid in range(1, 15):
+                src_prof_name = BOT_AI_V1_INHERITANCE[kid]
+                src = v1_dict.get((mode, src_prof_name))
+                if src is None:
+                    errors.append(f"Cannot migrate: missing source profile ({mode}, {src_prof_name})")
+                    continue
+                param_id = BOT_AI_STABLE_PARAMETER_IDS[(mode_idx, kid)]
+                kicker_name = BOT_AI_KICKER_NAMES[kid]
+                costume_id = BOT_AI_KICKER_COSTUMES[kid]
+                migrated.append({
+                    "profile": kicker_name,
+                    "mode": mode,
+                    "parameterId": param_id,
+                    "kickerId": kid,
+                    "kickerCostumeId": costume_id,
+                    "rank": 13,
+                    "motivations": dict(src["motivations"]),
+                    "scoreToDeposit": src["scoreToDeposit"],
+                    "lowHpDepositThreshold": src["lowHpDepositThreshold"],
+                    "dashIntervals": dict(src["dashIntervals"]),
+                    "skillIntervals": dict(src["skillIntervals"]),
+                    "healDamageRate": src["healDamageRate"],
+                    "canLockon": src["canLockon"]
+                })
+        if errors:
+            return False, errors, None
+        normalized_profiles = sorted(
+            migrated,
+            key=lambda item: (BOT_AI_EXPECTED_MODES[item["mode"]], item["parameterId"])
+        )
+
+    normalized_payload = {
+        "$schema": payload.get("$schema", "./bot_ai_profiles.schema.json"),
+        "version": payload["version"],
+        "profiles": normalized_profiles
+    }
+    return True, [], normalized_payload
+
+
 def export_overrides_zip():
     """In-memory zip of every override file, so the tuned values can be committed to git later."""
     buffer = io.BytesIO()
@@ -854,6 +1360,29 @@ def latest_information_set(payload):
     return _run_admin(
         ["docker", "exec", "-i", LATEST_INFO_CONTAINER, "curl", "-sS", "-X", "POST",
          LATEST_INFO_INTERNAL_URL, "-H", "Content-Type: application/json", "-d", "@-"],
+        body,
+    )
+
+
+def client_update_state():
+    """(status, payload) of GET /admin/client-update."""
+    if CLIENT_UPDATE_URL:
+        return _http_admin("GET", CLIENT_UPDATE_URL, None)
+    if CLIENT_UPDATE_CMD:
+        return _run_admin(CLIENT_UPDATE_CMD, None)
+    return _run_admin(["docker", "exec", CLIENT_UPDATE_CONTAINER, "curl", "-sS", CLIENT_UPDATE_INTERNAL_URL], None)
+
+
+def client_update_set(payload):
+    """(status, payload) of POST /admin/client-update with the given JSON body."""
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    if CLIENT_UPDATE_URL:
+        return _http_admin("POST", CLIENT_UPDATE_URL, body)
+    if CLIENT_UPDATE_SET_CMD:
+        return _run_admin(CLIENT_UPDATE_SET_CMD, body)
+    return _run_admin(
+        ["docker", "exec", "-i", CLIENT_UPDATE_CONTAINER, "curl", "-sS", "-X", "POST",
+         CLIENT_UPDATE_INTERNAL_URL, "-H", "Content-Type: application/json", "-d", "@-"],
         body,
     )
 
@@ -1134,6 +1663,8 @@ class BalanceHandler(BaseHTTPRequestHandler):
             if path == BASE_PATH:
                 return ""
             if not path.startswith(BASE_PATH + "/"):
+                if path == "/i18n.js":
+                    return "/i18n.js"
                 return None
             path = path[len(BASE_PATH):]
         return path or "/"
@@ -1253,6 +1784,14 @@ class BalanceHandler(BaseHTTPRequestHandler):
             html = html.replace("__BALANCE_BASE_PATH__", BASE_PATH)
             self.send_body(200, html.encode("utf-8"), "text/html; charset=utf-8")
             return
+        if path == "/i18n.js":
+            try:
+                js = I18N_FILE.read_text(encoding="utf-8")
+            except OSError as error:
+                self.send_error_json(500, "could not read i18n module: %s" % error)
+                return
+            self.send_body(200, js.encode("utf-8"), "application/javascript; charset=utf-8")
+            return
         if path == "/api/login":
             self.send_error_json(405, "method not allowed")
             return
@@ -1285,6 +1824,9 @@ class BalanceHandler(BaseHTTPRequestHandler):
         if path == "/api/enums":
             self.handle_enums()
             return
+        if path == "/api/bot-ai/profiles":
+            self.handle_get_bot_ai_profiles()
+            return
         if path == "/api/tables":
             self.send_json(200, list_tables())
             return
@@ -1296,6 +1838,9 @@ class BalanceHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/maintenance":
             self.handle_get_maintenance()
+            return
+        if path == "/api/client-update":
+            self.handle_get_client_update()
             return
         if path == "/api/latest-information":
             self.handle_get_latest_information()
@@ -1355,8 +1900,17 @@ class BalanceHandler(BaseHTTPRequestHandler):
         if path == "/api/maintenance":
             self.handle_post_maintenance()
             return
+        if path == "/api/client-update":
+            self.handle_post_client_update()
+            return
         if path == "/api/latest-information":
             self.handle_post_latest_information()
+            return
+        if path == "/api/bot-ai/profiles":
+            self.handle_post_bot_ai_profiles()
+            return
+        if path == "/api/bot-ai/profiles/revert":
+            self.handle_revert_bot_ai_profiles()
             return
         if path == "/api/apply":
             self.handle_apply()
@@ -1572,6 +2126,71 @@ class BalanceHandler(BaseHTTPRequestHandler):
             }
         self.send_json(status, result)
 
+    def handle_get_client_update(self):
+        status, payload = client_update_state()
+        if status == 200 and payload is None:
+            status, payload = 502, {
+                "ok": False,
+                "error": "empty response from the client-update admin endpoint (is the API's loopback reachable?)",
+            }
+        self.send_json(status, payload)
+
+    def handle_post_client_update(self):
+        body, error = self.read_body()
+        if error is not None:
+            self.send_error_json(error[0], error[1])
+            return
+        try:
+            payload = json.loads(body.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError) as decode_error:
+            self.send_error_json(400, "body is not valid JSON: %s" % decode_error)
+            return
+        if not isinstance(payload, dict):
+            self.send_error_json(400, "body must be a JSON object")
+            return
+
+        forward = {}
+        if "resetToDefault" in payload:
+            if not isinstance(payload["resetToDefault"], bool):
+                self.send_error_json(400, "resetToDefault must be a boolean")
+                return
+            forward["resetToDefault"] = payload["resetToDefault"]
+        if "enabled" in payload:
+            if not isinstance(payload["enabled"], bool):
+                self.send_error_json(400, "enabled must be a boolean")
+                return
+            forward["enabled"] = payload["enabled"]
+        if "minimumVersion" in payload:
+            if not isinstance(payload["minimumVersion"], str):
+                self.send_error_json(400, "minimumVersion must be a string")
+                return
+            min_ver = payload["minimumVersion"].strip()
+            if min_ver and not re.match(r"^\d+(\.\d+)*(-[A-Za-z0-9_.-]+)?$", min_ver):
+                self.send_error_json(400, "minimumVersion must be a dotted version such as 2.11.4")
+                return
+            forward["minimumVersion"] = min_ver
+        if "iosMinimumVersion" in payload:
+            if not isinstance(payload["iosMinimumVersion"], str):
+                self.send_error_json(400, "iosMinimumVersion must be a string")
+                return
+            ios_ver = payload["iosMinimumVersion"].strip()
+            if ios_ver and not re.match(r"^\d+(\.\d+)*(-[A-Za-z0-9_.-]+)?$", ios_ver):
+                self.send_error_json(400, "iosMinimumVersion must be a dotted version such as 2.11.3")
+                return
+            forward["iosMinimumVersion"] = ios_ver
+
+        if not forward:
+            self.send_error_json(400, "body must contain enabled, minimumVersion, iosMinimumVersion, or resetToDefault")
+            return
+
+        status, result = client_update_set(forward)
+        if status == 200 and result is None:
+            status, result = 502, {
+                "ok": False,
+                "error": "empty response from the client-update admin endpoint",
+            }
+        self.send_json(status, result)
+
     def handle_get_latest_information(self):
         status, payload = latest_information_state()
         if status == 200 and payload is None:
@@ -1763,6 +2382,195 @@ class BalanceHandler(BaseHTTPRequestHandler):
         status, payload = apply_changes()
         self.send_json(status, payload)
 
+    def handle_get_bot_ai_profiles(self):
+        durable_path, seed_path = get_bot_ai_files()
+        target_path = durable_path if durable_path.is_file() else seed_path
+        if not target_path.is_file():
+            self.send_error_json(404, "bot_ai_profiles.json not found")
+            return
+        with WRITE_LOCK:
+            try:
+                raw_bytes = target_path.read_bytes()
+                text = raw_bytes.decode("utf-8")
+                data = json.loads(text, parse_constant=_reject_json_constant, object_pairs_hook=_reject_json_duplicates)
+            except Exception as err:
+                self.send_error_json(500, f"could not read or parse bot_ai_profiles.json: {err}")
+                return
+
+        file_hash = hashlib.sha256(raw_bytes).hexdigest()
+        profiles_list = data.get("profiles", [])
+        if isinstance(profiles_list, list) and len(profiles_list) == 39:
+            valid, _, norm = validate_bot_ai_profiles(data)
+            if valid and norm:
+                profiles_list = norm["profiles"]
+
+        self.send_json_with_headers(200, {
+            "ok": True,
+            "$schema": data.get("$schema", "./bot_ai_profiles.schema.json"),
+            "version": data.get("version", 1),
+            "profiles": profiles_list,
+            "hash": file_hash,
+            "revision": file_hash,
+            "source": "override" if target_path == durable_path and durable_path.is_file() else "seed",
+        }, {"ETag": f'"{file_hash}"'})
+
+    def handle_post_bot_ai_profiles(self):
+        body, error = self.read_body(max_bytes=131072)
+        if error is not None:
+            self.send_error_json(error[0], error[1])
+            return
+
+        try:
+            raw_text = body.decode("utf-8")
+            payload = json.loads(
+                raw_text,
+                parse_constant=_reject_json_constant,
+                object_pairs_hook=_reject_json_duplicates
+            )
+        except UnicodeDecodeError as decode_error:
+            self.send_error_json(400, f"body is not valid UTF-8: {decode_error}")
+            return
+        except ValueError as parse_error:
+            self.send_error_json(400, f"body is not valid JSON: {parse_error}")
+            return
+
+        if not isinstance(payload, dict):
+            self.send_error_json(400, "body must be a JSON object")
+            return
+
+        expected_hash = payload.get("expectedHash")
+        if not expected_hash:
+            if_match = self.headers.get("If-Match")
+            if if_match:
+                expected_hash = if_match.strip('"')
+
+        durable_path, seed_path = get_bot_ai_files()
+
+        with WRITE_LOCK:
+            if durable_path.is_symlink():
+                try:
+                    target_dest = os.readlink(durable_path)
+                except OSError:
+                    target_dest = "(desconocido)"
+                self.send_error_json(
+                    409,
+                    f"El archivo de configuración '{durable_path}' es un enlace simbólico que apunta a '{target_dest}'. "
+                    "Se rechaza la escritura (409) para preservar el enlace simbólico y su destino."
+                )
+                return
+
+            existing_text = None
+            if durable_path.exists():
+                try:
+                    existing_raw = durable_path.read_bytes()
+                    existing_text = existing_raw.decode("utf-8")
+                    # Reject silent overwrite if on-disk file is malformed
+                    json.loads(existing_text, parse_constant=_reject_json_constant, object_pairs_hook=_reject_json_duplicates)
+                except Exception as malformed_err:
+                    self.send_error_json(
+                        409,
+                        f"El archivo existente en disco está corrupto o malformado ({malformed_err}). "
+                        "No se sobrescribirá automáticamente para evitar pérdida de datos sin intervención del operador."
+                    )
+                    return
+
+                current_hash = hashlib.sha256(existing_raw).hexdigest()
+                if expected_hash and expected_hash != current_hash:
+                    self.send_json(409, {
+                        "ok": False,
+                        "conflict": True,
+                        "error": "Conflicto de concurrencia: El archivo fue modificado en el disco por otro proceso. "
+                                 "Recargue la configuración antes de guardar.",
+                        "currentHash": current_hash,
+                        "expectedHash": expected_hash,
+                    })
+                    return
+            else:
+                # First save: durable override does not exist yet. Validate against seed file.
+                if seed_path.exists():
+                    try:
+                        seed_raw = seed_path.read_bytes()
+                        existing_text = seed_raw.decode("utf-8")
+                        json.loads(existing_text, parse_constant=_reject_json_constant, object_pairs_hook=_reject_json_duplicates)
+                    except Exception as malformed_err:
+                        self.send_error_json(
+                            409,
+                            f"El archivo base de configuración está corrupto o malformado ({malformed_err}). "
+                            "No se creará el override automáticamente para evitar datos inconsistentes."
+                        )
+                        return
+
+                    seed_hash = hashlib.sha256(seed_raw).hexdigest()
+                    if expected_hash and expected_hash != seed_hash:
+                        self.send_json(409, {
+                            "ok": False,
+                            "conflict": True,
+                            "error": "Conflicto de concurrencia: El archivo base fue modificado antes de crear el override inicial. "
+                                     "Recargue la configuración antes de guardar.",
+                            "currentHash": seed_hash,
+                            "expectedHash": expected_hash,
+                        })
+                        return
+
+            is_valid, errors, normalized_payload = validate_bot_ai_profiles(payload)
+            if not is_valid:
+                self.send_error_json(400, "; ".join(errors))
+                return
+
+            try:
+                if existing_text is not None:
+                    backup_bot_ai_profiles(existing_text)
+            except OSError as backup_error:
+                self.send_error_json(500, f"could not write backup: {backup_error}")
+                return
+
+            try:
+                write_bot_ai_profiles(normalized_payload, target_path=durable_path)
+            except OSError as write_error:
+                self.send_error_json(500, f"could not write bot AI profiles: {write_error}")
+                return
+
+            new_hash = hashlib.sha256(durable_path.read_bytes()).hexdigest()
+
+        self.send_json_with_headers(200, {
+            "ok": True,
+            "written": len(normalized_payload["profiles"]),
+            "hash": new_hash,
+            "revision": new_hash,
+            "path": str(durable_path),
+            "source": "override"
+        }, {"ETag": f'"{new_hash}"'})
+
+    def handle_revert_bot_ai_profiles(self):
+        durable_path, seed_path = get_bot_ai_files()
+        with WRITE_LOCK:
+            if durable_path.is_symlink():
+                self.send_error_json(409, "Cannot revert symlinked configuration file.")
+                return
+            if not durable_path.is_file():
+                self.send_error_json(404, "bot_ai_profiles.json has no override to revert")
+                return
+            try:
+                original_text = durable_path.read_text(encoding="utf-8")
+            except OSError as read_error:
+                self.send_error_json(500, f"could not read the override: {read_error}")
+                return
+            try:
+                backup_bot_ai_profiles(original_text)
+            except OSError as backup_error:
+                self.send_error_json(500, f"could not write backup: {backup_error}")
+                return
+            try:
+                durable_path.unlink()
+            except OSError as delete_error:
+                self.send_error_json(500, f"could not delete override: {delete_error}")
+                return
+        self.send_json(200, {
+            "ok": True,
+            "reverted": "bot_ai_profiles",
+            "source": "seed" if seed_path.is_file() else None,
+        })
+
     def handle_diff(self, name):
         if table_path(name) is None:
             self.send_error_json(404, "unknown table %r" % name)
@@ -1807,7 +2615,7 @@ def lan_addresses():
 
 
 def main(argv=None):
-    global MASTERS_DIR, OVERRIDE_DIR, BACKUP_DIR
+    global MASTERS_DIR, OVERRIDE_DIR, BACKUP_DIR, BOT_AI_PROFILES_FILE, BOT_AI_SEED_FILE
     parser = argparse.ArgumentParser(description="Balance WebUI for masters_*.json")
     parser.add_argument(
         "--port", type=int, default=int(os.environ.get("KF_BALANCE_PORT", "8765")),
@@ -1836,13 +2644,18 @@ def main(argv=None):
 
     if args.masters_dir:
         MASTERS_DIR = Path(args.masters_dir).expanduser()
+        if "KF_BOT_AI_SEED_PATH" not in os.environ:
+            seed_candidate = MASTERS_DIR / "bot_ai_profiles.json"
+            BOT_AI_SEED_FILE = seed_candidate if seed_candidate.is_file() else (CONFIG_DIR / "bot_ai_profiles.json")
     if args.override_dir:
         OVERRIDE_DIR = Path(args.override_dir).expanduser()
+        if "KF_BOT_AI_PROFILES_PATH" not in os.environ:
+            BOT_AI_PROFILES_FILE = OVERRIDE_DIR / "bot_ai_profiles.json"
     if args.backup_dir:
         BACKUP_DIR = Path(args.backup_dir).expanduser()
 
-    if not INDEX_FILE.is_file() or not LOGIN_FILE.is_file():
-        print("missing %s" % INDEX_FILE, file=sys.stderr)
+    if not INDEX_FILE.is_file() or not LOGIN_FILE.is_file() or not I18N_FILE.is_file():
+        print("missing %s or required UI files" % INDEX_FILE, file=sys.stderr)
         return 1
     if not MASTERS_DIR.is_dir():
         print("base masters directory does not exist: %s" % MASTERS_DIR, file=sys.stderr)
@@ -1885,6 +2698,7 @@ def main(argv=None):
     print("base masters: %s" % MASTERS_DIR)
     print("overrides (written here): %s" % OVERRIDE_DIR)
     print("backups: %s" % BACKUP_DIR)
+    print("bot AI durable profiles: %s (seed: %s)" % (BOT_AI_PROFILES_FILE, BOT_AI_SEED_FILE))
     if ADMIN_URL:
         print("maintenance via %s" % ADMIN_URL)
     else:

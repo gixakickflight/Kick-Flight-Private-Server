@@ -1,0 +1,342 @@
+/**
+ * Bilingual internationalization dictionary and helpers for Kick Flight Badge Catalog.
+ * English-first with Spanish translations and robust fallbacks.
+ */
+
+const I18N_STRINGS = {
+  en: {
+    app_title: "Kick Flight Collaborative Badge Catalog",
+    app_subtitle: "Community restoration of all 211 badges. English-first catalog with attribution and versioning.",
+    contributor_label: "Contributor",
+    unauthenticated_pill: "Unauthenticated",
+    change_button: "Change",
+    lang_toggle: "Español",
+    lang_select_label: "Language",
+    lang_en: "English",
+    lang_es: "Español",
+    glyph_btn: "🔤 Glyph Key",
+    unmapped_btn: "📋 Guide Notes",
+    contributors_btn: "👥 Contributors",
+    announcements_btn: "📢 Announcements",
+    announcements_link: "📢 Announcements",
+    search_placeholder: "Search by ID, name, or condition...",
+    filter_category: "Category",
+    cat_all: "All Categories",
+    cat_other: "Other (0)",
+    cat_battle: "Battle (1)",
+    cat_kicker: "Kicker (2)",
+    filter_status: "Status",
+    status_all: "All Statuses",
+    status_default: "Default",
+    status_known: "Known",
+    status_historical: "Historical",
+    status_unknown: "Unknown",
+    filter_edited: "Show Edited Only",
+    sync_status_synced: "Synced",
+    sync_status_saving: "Autosaving...",
+    sync_status_pending: "{count} pending auto-save",
+    sync_status_offline: "Offline (Drafts saved)",
+    sync_status_error: "Sync error",
+    sync_btn: "Sync",
+    sync_btn_in_progress: "Syncing...",
+    sync_btn_success: "Synced!",
+    sync_btn_error: "Sync Failed",
+    sync_feedback_success: "Catalog synchronized successfully.",
+    sync_feedback_error: "Could not connect to server. Your drafts are saved locally.",
+    badge_count: "Showing {count} of {total} badges",
+    badge_loading: "Loading badges...",
+    server_time: "Server: {time}",
+    alert_offline_mode: "Could not connect to badge server. Running in offline mode.",
+    
+    // Card fields
+    card_name_label: "Badge Name (EN)",
+    card_desc_label: "Description (Theme & Visuals)",
+    card_req_label: "Requirements (Unlock Condition)",
+    card_notes_label: "Research Notes",
+    card_provenance: "Provenance & Raw Catalog Data",
+    card_history_btn: "History ({count})",
+    card_last_edit: "Last edit by {player} ({time})",
+    card_version: "v{version}",
+    card_secret: "Secret Badge",
+    badge_art_alt: "Badge {id}",
+
+    // Accessibility labels
+    aria_lang_selector: "Language selector / Selector de idioma",
+    aria_search_input: "Search badges by ID, name, or condition",
+    aria_filter_category: "Filter badges by category",
+    aria_filter_status: "Filter badges by status",
+    aria_filter_edited: "Show only badges with edits",
+    aria_change_name: "Change contributor player name",
+    aria_sync_btn: "Synchronize catalog and submit pending edits",
+    aria_glyph_btn: "Open alien glyph key reference",
+    aria_unmapped_btn: "Open unmapped guide requirements notes",
+    aria_contributors_btn: "Open contributors list and reward details",
+    aria_announcements_link: "Open updates and patch notes announcements",
+    aria_close_modal: "Close dialog",
+    aria_download_csv: "Download contributors list as CSV file",
+
+    // Contributor Modal
+    modal_title: "Kick Flight Contributor Name",
+    modal_desc: "Please enter your Kick Flight player name to attribute your edits in the collaborative catalog.",
+    modal_reward_notice: "🎁 Exclusive Contributor Badge: Active contributors receive an exclusive in-game badge! Rewards are delivered manually by administrators based on your exact player name (no automated granting).",
+    modal_unauth_warning: "⚠️ Note: This self-entered name is NOT authenticated or verified against your Kick Flight account or password. Anyone can enter any display name; it is used solely to record who suggested each edit in the public audit log.",
+    modal_input_placeholder: "Player name (1-32 chars)",
+    modal_save_btn: "Continue to Catalog",
+    modal_error_empty: "Please enter a valid player name.",
+    modal_error_length: "Player name must be 32 characters or fewer.",
+
+    // Contributors List Modal
+    contrib_modal_title: "Badge Catalog Contributors & Rewards",
+    contrib_modal_desc: "Active contributors receive an exclusive in-game badge! Rewards are delivered manually by administrators based on your exact player name provided during edits (no automated granting).",
+    contrib_export_btn: "Download CSV",
+    contrib_no_contributors: "No community contributions recorded yet.",
+    contrib_loading: "Loading contributors...",
+    contrib_error: "Error loading contributors: {error}",
+    contrib_col_player: "Player Name",
+    contrib_col_edits: "Total Edits",
+    contrib_col_badges: "Badges",
+    contrib_col_last: "Last Active",
+    contrib_close_btn: "Close",
+
+    // Glyph Modal
+    glyph_modal_title: "Kick Flight Glyph Key Reference",
+    glyph_modal_subtitle: "Reference sheet mapping in-game alien glyph shapes to standard alphanumeric characters (A-Z).",
+    glyph_modal_desc: "This reference was decoded from the original game textures and sprite assets. Use it to decipher the stylized writing on badge banners and ribbons.",
+    glyph_close_btn: "Close",
+
+    // Unmapped Requirements Modal
+    unmapped_modal_title: "Historical Guide Unmapped Requirements",
+    unmapped_modal_desc: "These 14 requirements were transcribed from the historical RAR Japanese game guide (rar-games.jp). Their original badge IDs are unconfirmed. Match these conditions to unknown badges when visual evidence aligns.",
+    unmapped_col_name: "Transcribed Title",
+    unmapped_col_condition: "Condition",
+    unmapped_col_note: "Reference Notes",
+    unmapped_close_btn: "Close",
+
+    // Audit History Modal
+    history_modal_title: "Badge {id} Edit History",
+    history_no_edits: "No community edits recorded yet for this badge.",
+    history_col_time: "Timestamp",
+    history_col_player: "Contributor",
+    history_col_field: "Field",
+    history_col_old: "Previous Value",
+    history_col_new: "New Value",
+    history_col_version: "Version",
+    history_empty_val: "(empty)",
+    history_error: "Could not load history: {error}",
+    history_close_btn: "Close",
+
+    // Conflict Notification
+    conflict_title: "Concurrency Conflict Detected",
+    conflict_msg: "Another contributor modified badge {id} while you were editing. To prevent overwriting their work, the server rejected your changes. Your local draft has been preserved below so you do not lose any work.",
+    conflict_server_version: "Server Version: v{version}",
+    conflict_btn_overwrite: "Overwrite with My Edits",
+    conflict_btn_discard: "Discard My Edits & Accept Server",
+    conflict_diff_label: "Server values (v{version}):",
+    conflict_resolved_overwrite: "Conflict resolved: Submitting your edits on top of v{version}.",
+    conflict_resolved_discard: "Conflict resolved: Draft discarded, updated to server v{version}.",
+
+    // Translation Error
+    translation_unavailable_title: "Chrome Translation API Unavailable",
+    translation_unavailable_msg: "All editable contributions must be saved in English. When typing in Spanish, the Chrome Built-in Translator API is required to convert your text before saving.\n\nThe Translation API was not detected or ready in this browser. To contribute in Spanish:\n1. Use Google Chrome and enable chrome://flags/#translation-api and chrome://flags/#language-detection-api\n2. Or write your contribution directly in English.\n\nNote: The backend does not validate language. Your draft has been safely retained locally and was NOT submitted.",
+    translation_unconfirmed_title: "Language Could Not Be Confirmed",
+    translation_unconfirmed_msg: "The language of your contribution could not be confirmed as English. The catalog requires English contributions. Please write your contribution in English or enable Chrome's Built-in AI APIs (chrome://flags/#language-detection-api, chrome://flags/#translation-api).\n\nNote: The backend does not validate language. Your draft has been safely retained locally and was NOT submitted.",
+    translation_downloading: "Downloading Chrome translation model ({progress}%)...",
+    translation_ready: "Translation model ready.",
+  },
+
+  es: {
+    app_title: "Catálogo Colaborativo de Insignias · Kick Flight",
+    app_subtitle: "Restauración comunitaria de las 211 insignias. Catálogo inglés-primero con atribución y control de versiones.",
+    contributor_label: "Colaborador",
+    unauthenticated_pill: "No autenticado",
+    change_button: "Cambiar",
+    lang_toggle: "English",
+    lang_select_label: "Idioma",
+    lang_en: "English",
+    lang_es: "Español",
+    glyph_btn: "🔤 Clave de Glifos",
+    unmapped_btn: "📋 Notas de Guía",
+    contributors_btn: "👥 Colaboradores",
+    announcements_btn: "📢 Anuncios",
+    announcements_link: "📢 Anuncios",
+    search_placeholder: "Buscar por ID, nombre o condición...",
+    filter_category: "Categoría",
+    cat_all: "Todas las categorías",
+    cat_other: "Otra (0)",
+    cat_battle: "Batalla (1)",
+    cat_kicker: "Kicker (2)",
+    filter_status: "Estado",
+    status_all: "Todos los estados",
+    status_default: "Predeterminada",
+    status_known: "Conocida",
+    status_historical: "Histórica",
+    status_unknown: "Desconocida",
+    filter_edited: "Mostrar solo editadas",
+    sync_status_synced: "Sincronizado",
+    sync_status_saving: "Guardando...",
+    sync_status_pending: "{count} guardado automático pendiente",
+    sync_status_offline: "Sin conexión (Borrador guardado)",
+    sync_status_error: "Error de sincronización",
+    sync_btn: "Sincronizar",
+    sync_btn_in_progress: "Sincronizando...",
+    sync_btn_success: "¡Sincronizado!",
+    sync_btn_error: "Error al sincronizar",
+    sync_feedback_success: "Catálogo sincronizado con éxito.",
+    sync_feedback_error: "No se pudo conectar al servidor. Tus borradores se han conservado localmente.",
+    badge_count: "Mostrando {count} de {total} insignias",
+    badge_loading: "Cargando insignias...",
+    server_time: "Servidor: {time}",
+    alert_offline_mode: "No se pudo conectar al servidor de insignias. Ejecutando en modo sin conexión.",
+    
+    // Card fields
+    card_name_label: "Nombre de insignia (EN)",
+    card_desc_label: "Descripción (Temática y Arte)",
+    card_req_label: "Requisitos (Condición para obtener)",
+    card_notes_label: "Notas de investigación",
+    card_provenance: "Procedencia y Datos Maestros",
+    card_history_btn: "Historial ({count})",
+    card_last_edit: "Última edición por {player} ({time})",
+    card_version: "v{version}",
+    card_secret: "Insignia Secreta",
+    badge_art_alt: "Insignia {id}",
+
+    // Accessibility labels
+    aria_lang_selector: "Selector de idioma / Language selector",
+    aria_search_input: "Buscar insignias por ID, nombre o condición",
+    aria_filter_category: "Filtrar insignias por categoría",
+    aria_filter_status: "Filtrar insignias por estado",
+    aria_filter_edited: "Mostrar solo insignias con ediciones",
+    aria_change_name: "Cambiar nombre de jugador colaborador",
+    aria_sync_btn: "Sincronizar catálogo y enviar borradores pendientes",
+    aria_glyph_btn: "Abrir referencia de clave de glifos alienígenas",
+    aria_unmapped_btn: "Abrir notas de requisitos no mapeados de la guía",
+    aria_contributors_btn: "Abrir lista de colaboradores y detalles de recompensas",
+    aria_announcements_link: "Abrir actualizaciones y notas de parche",
+    aria_close_modal: "Cerrar diálogo",
+    aria_download_csv: "Descargar lista de colaboradores como archivo CSV",
+
+    // Contributor Modal
+    modal_title: "Nombre de Colaborador de Kick Flight",
+    modal_desc: "Por favor introduce tu nombre de jugador de Kick Flight para atribuir tus aportes en el catálogo colaborativo.",
+    modal_reward_notice: "🎁 Insignia Exclusiva de Colaborador: ¡Los colaboradores activos recibirán una insignia exclusiva dentro del juego! Las recompensas se entregan manualmente por administradores según tu nombre exacto de jugador (sin otorgamiento automático).",
+    modal_unauth_warning: "⚠️ Nota: Este nombre introducido por ti NO está autenticado ni verificado con tu cuenta ni contraseña de Kick Flight. Cualquiera puede ingresar cualquier nombre; se utiliza únicamente para registrar quién propuso cada edición en el registro público de auditoría.",
+    modal_input_placeholder: "Nombre de jugador (1-32 caracteres)",
+    modal_save_btn: "Continuar al Catálogo",
+    modal_error_empty: "Por favor introduce un nombre válido.",
+    modal_error_length: "El nombre no puede exceder 32 caracteres.",
+
+    // Contributors List Modal
+    contrib_modal_title: "Colaboradores del Catálogo e Insignias Exclusivas",
+    contrib_modal_desc: "¡Los colaboradores activos reciben una insignia exclusiva dentro del juego! Las recompensas son entregadas manualmente por los administradores según el nombre de jugador exacto provisto al editar (sin otorgamiento automático).",
+    contrib_export_btn: "Descargar CSV",
+    contrib_no_contributors: "Aún no hay contribuciones comunitarias registradas.",
+    contrib_loading: "Cargando colaboradores...",
+    contrib_error: "Error al cargar colaboradores: {error}",
+    contrib_col_player: "Nombre de Jugador",
+    contrib_col_edits: "Ediciones",
+    contrib_col_badges: "Insignias",
+    contrib_col_last: "Última Actividad",
+    contrib_close_btn: "Cerrar",
+
+    // Glyph Modal
+    glyph_modal_title: "Referencia de Glifos de Kick Flight",
+    glyph_modal_subtitle: "Hoja de referencia que mapea los glifos alienígenas del juego a caracteres alfanuméricos estándar (A-Z).",
+    glyph_modal_desc: "Esta referencia fue extraída de las texturas originales del juego. Úsala para descifrar el texto estilizado en los emblemas y listones de las insignias.",
+    glyph_close_btn: "Cerrar",
+
+    // Unmapped Requirements Modal
+    unmapped_modal_title: "Requisitos No Mapeados de Guía Histórica",
+    unmapped_modal_desc: "Estos 14 requisitos fueron transcritos de la guía histórica japonesa RAR (rar-games.jp). Sus IDs exactos de insignia no están confirmados. Asocia estas condiciones a insignias desconocidas cuando la evidencia visual coincida.",
+    unmapped_col_name: "Título Transcrito",
+    unmapped_col_condition: "Condición",
+    unmapped_col_note: "Notas de Referencia",
+    unmapped_close_btn: "Cerrar",
+
+    // Audit History Modal
+    history_modal_title: "Historial de Ediciones · Insignia {id}",
+    history_no_edits: "Aún no hay ediciones comunitarias registradas para esta insignia.",
+    history_col_time: "Fecha/Hora",
+    history_col_player: "Colaborador",
+    history_col_field: "Campo",
+    history_col_old: "Valor Anterior",
+    history_col_new: "Nuevo Valor",
+    history_col_version: "Versión",
+    history_empty_val: "(vacío)",
+    history_error: "No se pudo cargar el historial: {error}",
+    history_close_btn: "Cerrar",
+
+    // Conflict Notification
+    conflict_title: "Conflicto de Concurrencia Detectado",
+    conflict_msg: "Otro colaborador modificó la insignia {id} mientras editabas. Para no sobrescribir su aporte, el servidor rechazó tus cambios. Tu borrador local se ha conservado abajo para que no pierdas trabajo.",
+    conflict_server_version: "Versión en Servidor: v{version}",
+    conflict_btn_overwrite: "Sobrescribir con mis cambios",
+    conflict_btn_discard: "Descartar mis cambios y aceptar servidor",
+    conflict_diff_label: "Valores en servidor (v{version}):",
+    conflict_resolved_overwrite: "Conflicto resuelto: Enviando tus cambios sobre v{version}.",
+    conflict_resolved_discard: "Conflicto resuelto: Borrador descartado, actualizado a v{version} del servidor.",
+
+    // Translation Error
+    translation_unavailable_title: "API de Traducción de Chrome No Disponible",
+    translation_unavailable_msg: "Todas las contribuciones deben guardarse en inglés. Al escribir en español, se requiere la API de traducción integrada de Chrome para convertir el texto antes de guardar.\n\nNo se detectó la API en este navegador. Para contribuir en español:\n1. Usa Google Chrome y activa chrome://flags/#translation-api y chrome://flags/#language-detection-api\n2. O escribe tu aporte directamente en inglés.\n\nNota: El servidor no valida el idioma. Tu borrador se conservó de forma segura en local y NO fue enviado.",
+    translation_unconfirmed_title: "No Se Pudo Confirmar el Idioma",
+    translation_unconfirmed_msg: "No se pudo confirmar que tu contribución esté en inglés. El catálogo requiere aportes en inglés. Escribe tu aporte en inglés o activa las APIs integradas de Chrome (chrome://flags/#language-detection-api, chrome://flags/#translation-api).\n\nNota: El servidor no valida el idioma. Tu borrador se conservó de forma segura en local y NO fue enviado.",
+    translation_downloading: "Descargando modelo de traducción de Chrome ({progress}%)...",
+    translation_ready: "Modelo de traducción listo.",
+  }
+};
+
+let currentLang = "en";
+
+function setLanguage(lang) {
+  if (lang !== "en" && lang !== "es") lang = "en";
+  currentLang = lang;
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem("kf_badge_lang", lang);
+    }
+  } catch (e) {}
+  try {
+    if (typeof document !== "undefined" && document.cookie !== undefined) {
+      document.cookie = "kf_badge_lang=" + lang + "; path=/; max-age=31536000; SameSite=Lax";
+    }
+  } catch (e) {}
+  if (typeof document !== "undefined" && document.documentElement) {
+    document.documentElement.lang = lang;
+  }
+}
+
+function getStoredLanguage() {
+  try {
+    if (typeof localStorage !== "undefined") {
+      const saved = localStorage.getItem("kf_badge_lang");
+      if (saved === "en" || saved === "es") return saved;
+    }
+  } catch (e) {}
+  try {
+    if (typeof document !== "undefined" && document.cookie) {
+      const match = document.cookie.match(/(?:^|;\s*)kf_badge_lang=([a-z]{2})/);
+      if (match && (match[1] === "en" || match[1] === "es")) return match[1];
+    }
+  } catch (e) {}
+  // Default to English for first-time visitors regardless of browser locale
+  return "en";
+}
+
+function t(key, vars = {}) {
+  const dict = I18N_STRINGS[currentLang] || I18N_STRINGS["en"];
+  let str = dict[key] || I18N_STRINGS["en"][key] || key;
+  for (const [k, v] of Object.entries(vars)) {
+    str = str.replace(new RegExp(`\\{${k}\\}`, "g"), v);
+  }
+  return str;
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    I18N_STRINGS,
+    currentLang,
+    setLanguage,
+    getStoredLanguage,
+    t,
+  };
+}

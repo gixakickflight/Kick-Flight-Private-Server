@@ -24,6 +24,7 @@ builder.Services.AddSingleton<MaintenanceState>();
 builder.Services.AddSingleton<ClientUpdateState>();
 builder.Services.AddSingleton<LatestInformationState>();
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<IBotAiProfileProvider, BotAiProfileProvider>();
 builder.Services.AddSingleton<BattleMatchmakingService>();
 builder.Services.AddSingleton<BattleReplayService>();
 builder.Services.AddSingleton<OpenMatchFrontendService>();
@@ -66,6 +67,7 @@ app.Services.GetRequiredService<MaintenanceState>();
 // Loads data/client-update.json now, so a restart keeps the forced-update minimum from the first request.
 app.Services.GetRequiredService<ClientUpdateState>();
 app.Services.GetRequiredService<LatestInformationState>();
+ExperimentalAiRoleService.CurrentProvider = app.Services.GetRequiredService<IBotAiProfileProvider>();
 // Loads every master now (rather than on the first player request) so the one-line "master overrides"
 // startup summary - and any missing config - is reported while the server boots.
 var demoSessionApi = app.Services.GetRequiredService<DemoSessionApi>();
@@ -127,7 +129,7 @@ IResult ServeApk(string fileName)
         : Results.Json(new { error = "apk-not-built", expected = path }, statusCode: 404);
 }
 app.MapGet("/apk", () => ServeApk("KickFlight-2.11.0-current-patches.apk"));
-app.MapGet("/apk/remote", () => ServeApk("KickFlight-2.11.3-remote.apk"));
+app.MapGet("/apk/remote", () => ServeApk("KickFlight-2.11.5-remote.apk"));
 app.MapGet("/apk/diag", () => ServeApk("KickFlight-2.11.0-DIAG.apk"));
 app.MapGet("/apk/diag-remote", () => ServeApk("KickFlight-2.11.0-DIAG-remote.apk"));
 // Merged patch set (offline combat + Photon 2-player, scripts/patch-il2cpp-endpoints.py since 46f9392), built by

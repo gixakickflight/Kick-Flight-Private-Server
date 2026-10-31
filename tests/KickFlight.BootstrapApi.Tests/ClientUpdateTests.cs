@@ -203,11 +203,264 @@ public sealed class ClientUpdateTests : IClassFixture<ClientUpdateFixture>, IDis
         }
     }
 
-    private async Task SetAsync(string minimumVersion)
+    [Fact]
+    public async Task Android_2_11_3_refused_with_1400_when_2_11_4_required()
     {
-        var response = await AdminAsync("POST", JsonSerializer.Serialize(new { minimumVersion }));
+        await SetAsync("2.11.4");
+
+        using var response = await PostAsync(_factory.CreateClient(), "/boot/index", "2.11.3");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("1", response.Headers.GetValues("x-app-status-code").Single());
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var error = body.RootElement.GetProperty("error");
+        Assert.Equal("1400", error.GetProperty("code").GetString());
+        Assert.Equal(ClientUpdateState.DefaultTitle, error.GetProperty("title").GetString());
+        Assert.Equal(ClientUpdateState.DefaultMessage, error.GetProperty("message").GetString());
+    }
+
+    [Fact]
+    public async Task Android_2_11_4_and_newer_accepted()
+    {
+        await SetAsync("2.11.4");
+
+        foreach (var version in new[] { "2.11.4", "2.11.5", "2.12.0", "3.0.0" })
+        {
+            using var response = await PostAsync(_factory.CreateClient(), "/boot/index", version);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal("0", response.Headers.GetValues("x-app-status-code").Single());
+        }
+    }
+
+    [Fact]
+    public async Task Platform_isolation_preserves_ios_2_11_3_while_android_2_11_3_is_refused()
+    {
+        await SetAsync("2.11.4", "2.11.3");
+
+        // Android on 2.11.3 is refused
+        using (var androidResponse = await PostAsync(_factory.CreateClient(), "/boot/index", "2.11.3", assetPlatform: "3", platform: "Android"))
+        {
+            Assert.Equal(HttpStatusCode.OK, androidResponse.StatusCode);
+            Assert.Equal("1", androidResponse.Headers.GetValues("x-app-status-code").Single());
+            using var body = JsonDocument.Parse(await androidResponse.Content.ReadAsStringAsync());
+            Assert.Equal("1400", body.RootElement.GetProperty("error").GetProperty("code").GetString());
+        }
+
+        // iOS on 2.11.3 is accepted via x-app-asset-platform 2
+        using (var iosAssetResponse = await PostAsync(_factory.CreateClient(), "/boot/index", "2.11.3", assetPlatform: "2"))
+        {
+            Assert.Equal(HttpStatusCode.OK, iosAssetResponse.StatusCode);
+            // It reaches the fixture or handler, not the 1400 error window
+            var statusCode = iosAssetResponse.Headers.GetValues("x-app-status-code").Single();
+            Assert.Equal("0", statusCode);
+        }
+
+        // iOS on 2.11.3 is accepted via x-app-platform iOS
+        using (var iosPlatformResponse = await PostAsync(_factory.CreateClient(), "/boot/index", "2.11.3", platform: "iOS"))
+        {
+            Assert.Equal(HttpStatusCode.OK, iosPlatformResponse.StatusCode);
+            var statusCode = iosPlatformResponse.Headers.GetValues("x-app-status-code").Single();
+            Assert.Equal("0", statusCode);
+        }
+
+        // iOS on older 2.11.0 is still refused
+        using (var iosOldResponse = await PostAsync(_factory.CreateClient(), "/boot/index", "2.11.0", assetPlatform: "2"))
+        {
+            Assert.Equal(HttpStatusCode.OK, iosOldResponse.StatusCode);
+            Assert.Equal("1", iosOldResponse.Headers.GetValues("x-app-status-code").Single());
+            using var body = JsonDocument.Parse(await iosOldResponse.Content.ReadAsStringAsync());
+            Assert.Equal("1400", body.RootElement.GetProperty("error").GetProperty("code").GetString());
+        }
+    }
+
+    [Fact]
+    public async Task Initial_request_auth_prepare_without_headers_bypasses_gate()
+    {
+        await SetAsync("2.11.4");
+
+        // /auth/prepare sends no x-app-application-version; it must not be stopped with 1400
+        using var prepareResponse = await PostAsync(_factory.CreateClient(), "/auth/prepare", null);
+        Assert.Equal(HttpStatusCode.OK, prepareResponse.StatusCode);
+        Assert.Equal("0", prepareResponse.Headers.GetValues("x-app-status-code").Single());
+        Assert.Equal("demo-auth-prepare", prepareResponse.Headers.GetValues("x-kickflight-fixture").Single());
+
+        // But /auth/index immediately after it enforces the gate for older versions
+        using var authOldResponse = await PostAsync(_factory.CreateClient(), "/auth/index", "2.11.3");
+        Assert.Equal(HttpStatusCode.OK, authOldResponse.StatusCode);
+        Assert.Equal("1", authOldResponse.Headers.GetValues("x-app-status-code").Single());
+        using var body = JsonDocument.Parse(await authOldResponse.Content.ReadAsStringAsync());
+        Assert.Equal("1400", body.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public void State_file_upgrades_when_config_seed_is_newer()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"kf-client-update-{Guid.NewGuid():N}", "client-update.json");
+        try
+        {
+            // Persist older version 2.11.3 into the state file
+            var oldState = new ClientUpdateState(NullLogger<ClientUpdateState>.Instance, path);
+            oldState.Set("2.11.3");
+            Assert.Equal("2.11.3", oldState.Current.MinimumVersion);
+
+            // Next deployment starts with seed 2.11.4; it must upgrade the stale on-disk minimum
+            var upgradedState = new ClientUpdateState(NullLogger<ClientUpdateState>.Instance, path, "2.11.4", "2.11.3");
+            Assert.Equal("2.11.4", upgradedState.Current.MinimumVersion);
+            Assert.Equal("2.11.3", upgradedState.Current.IosMinimumVersion);
+
+            // Re-reading from disk confirms the persisted file was also updated
+            var reloaded = new ClientUpdateState(NullLogger<ClientUpdateState>.Instance, path);
+            Assert.Equal("2.11.4", reloaded.Current.MinimumVersion);
+            Assert.Equal("2.11.3", reloaded.Current.IosMinimumVersion);
+        }
+        finally
+        {
+            var dir = Path.GetDirectoryName(path);
+            if (dir is not null && Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Admin_rollback_lower_minimum_persists_across_restart_without_auto_elevation()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"kf-client-update-{Guid.NewGuid():N}", "client-update.json");
+        try
+        {
+            // Initial server ran with 2.11.4
+            var server = new ClientUpdateState(NullLogger<ClientUpdateState>.Instance, path, "2.11.4", "2.11.3");
+            Assert.Equal("2.11.4", server.Current.MinimumVersion);
+
+            // Operator intentionally rolls back Android gate to 2.11.3 through admin action (isManualOverride: true)
+            server.Set("2.11.3", "2.11.3", enabled: true, isManualOverride: true);
+            Assert.Equal("2.11.3", server.Current.MinimumVersion);
+            Assert.True(server.Current.IsManualOverride);
+
+            // Next deployment / container restart starts with config seed 2.11.4
+            // It MUST preserve the deliberate admin rollback rather than auto-elevating back to 2.11.4!
+            var restarted = new ClientUpdateState(NullLogger<ClientUpdateState>.Instance, path, "2.11.4", "2.11.3");
+            Assert.Equal("2.11.3", restarted.Current.MinimumVersion);
+            Assert.True(restarted.Current.IsManualOverride);
+            Assert.True(restarted.Current.Enabled);
+        }
+        finally
+        {
+            var dir = Path.GetDirectoryName(path);
+            if (dir is not null && Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Admin_disable_gate_persists_across_restart_and_allows_older_clients()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"kf-client-update-{Guid.NewGuid():N}", "client-update.json");
+        try
+        {
+            var server = new ClientUpdateState(NullLogger<ClientUpdateState>.Instance, path, "2.11.4", "2.11.3");
+            Assert.True(server.Current.Enabled);
+
+            // Admin disables forced update gate
+            server.Set(null, null, enabled: false, isManualOverride: true);
+            Assert.False(server.Current.Enabled);
+            Assert.False(server.IsOutdated("2.11.0"));
+
+            // Restart preserves disabled gate
+            var restarted = new ClientUpdateState(NullLogger<ClientUpdateState>.Instance, path, "2.11.4", "2.11.3");
+            Assert.False(restarted.Current.Enabled);
+            Assert.Equal("2.11.4", restarted.Current.MinimumVersion);
+            Assert.False(restarted.IsOutdated("2.11.0"));
+        }
+        finally
+        {
+            var dir = Path.GetDirectoryName(path);
+            if (dir is not null && Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData("{")]
+    [InlineData("{\"MinimumVersion\":\"not-a-version\",\"ChangedAtUtc\":\"2026-10-19T00:00:00Z\",\"IosMinimumVersion\":\"\",\"Enabled\":false,\"IsManualOverride\":true}")]
+    public void Malformed_persisted_state_fails_closed_until_valid_admin_save(string contents)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"kf-client-update-{Guid.NewGuid():N}", "client-update.json");
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, contents);
+
+            // No configured minimum would normally disable the gate. Unknown disk state must block clients instead.
+            var server = new ClientUpdateState(NullLogger<ClientUpdateState>.Instance, path);
+            Assert.False(server.IsPersistedStateValid);
+            Assert.True(server.IsOutdated("2.11.0"));
+
+            server.Set("2.11.4", enabled: false, isManualOverride: true);
+            Assert.True(server.IsPersistedStateValid);
+            Assert.False(server.IsOutdated("2.11.0"));
+        }
+        finally
+        {
+            var dir = Path.GetDirectoryName(path);
+            if (dir is not null && Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Admin_endpoint_supports_enable_disable_and_reset_to_default()
+    {
+        // Set higher minimum version
+        var res1 = await AdminAsync("POST", JsonSerializer.Serialize(new { minimumVersion = "2.12.0", enabled = true }));
+        Assert.Equal(HttpStatusCode.OK, res1.StatusCode);
+        Assert.True(res1.Json.GetProperty("enabled").GetBoolean());
+        Assert.Equal("2.12.0", res1.Json.GetProperty("minimumVersion").GetString());
+        Assert.True(res1.Json.GetProperty("isManualOverride").GetBoolean());
+
+        // Disable gate via admin endpoint
+        var res2 = await AdminAsync("POST", JsonSerializer.Serialize(new { enabled = false }));
+        Assert.Equal(HttpStatusCode.OK, res2.StatusCode);
+        Assert.False(res2.Json.GetProperty("enabled").GetBoolean());
+        Assert.Equal("2.12.0", res2.Json.GetProperty("minimumVersion").GetString());
+
+        // Client with older version now passes because gate is disabled
+        using (var response = await PostAsync(_factory.CreateClient(), "/boot/index", "2.11.0"))
+        {
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal("0", response.Headers.GetValues("x-app-status-code").Single());
+        }
+
+        // Reset to deployment configuration defaults
+        var res3 = await AdminAsync("POST", JsonSerializer.Serialize(new { resetToDefault = true }));
+        Assert.Equal(HttpStatusCode.OK, res3.StatusCode);
+        Assert.False(res3.Json.GetProperty("isManualOverride").GetBoolean());
+
+        // GET verification
+        var resGet = await AdminAsync("GET", null);
+        Assert.Equal(HttpStatusCode.OK, resGet.StatusCode);
+        Assert.False(resGet.Json.GetProperty("isManualOverride").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Admin_endpoint_rejects_invalid_version_formats()
+    {
+        var invalidMin = await AdminAsync("POST", JsonSerializer.Serialize(new { minimumVersion = "not-a-version" }));
+        Assert.Equal(HttpStatusCode.BadRequest, invalidMin.StatusCode);
+
+        var invalidIos = await AdminAsync("POST", JsonSerializer.Serialize(new { iosMinimumVersion = "invalid-ios" }));
+        Assert.Equal(HttpStatusCode.BadRequest, invalidIos.StatusCode);
+
+        var invalidEnabled = await AdminAsync("POST", "{\"enabled\": \"yes\"}");
+        Assert.Equal(HttpStatusCode.BadRequest, invalidEnabled.StatusCode);
+    }
+
+    private async Task SetAsync(string minimumVersion, string? iosMinimumVersion = null)
+    {
+        var payload = iosMinimumVersion is not null
+            ? JsonSerializer.Serialize(new { minimumVersion, iosMinimumVersion })
+            : JsonSerializer.Serialize(new { minimumVersion });
+        var response = await AdminAsync("POST", payload);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(minimumVersion, response.Json.GetProperty("minimumVersion").GetString());
+        if (iosMinimumVersion is not null)
+        {
+            Assert.Equal(iosMinimumVersion, response.Json.GetProperty("iosMinimumVersion").GetString());
+        }
     }
 
     private sealed record AdminResponse(HttpStatusCode StatusCode, JsonElement Json);
@@ -232,7 +485,8 @@ public sealed class ClientUpdateTests : IClassFixture<ClientUpdateFixture>, IDis
 
     private Task<AdminResponse> AdminAsync(string method, string? body) => AdminAsync(method, body, IPAddress.Loopback);
 
-    private static async Task<HttpResponseMessage> PostAsync(HttpClient client, string path, string? version)
+    private static async Task<HttpResponseMessage> PostAsync(HttpClient client, string path, string? version,
+        string? assetPlatform = null, string? platform = null)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, path)
         {
@@ -240,6 +494,8 @@ public sealed class ClientUpdateTests : IClassFixture<ClientUpdateFixture>, IDis
         };
         request.Headers.Host = Host;
         if (version is not null) request.Headers.TryAddWithoutValidation("x-app-application-version", version);
+        if (assetPlatform is not null) request.Headers.TryAddWithoutValidation("x-app-asset-platform", assetPlatform);
+        if (platform is not null) request.Headers.TryAddWithoutValidation("x-app-platform", platform);
         return await client.SendAsync(request);
     }
 }

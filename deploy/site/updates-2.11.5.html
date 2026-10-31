@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffe243">
+  <meta name="description" content="Kick Flight 2.11.5 Update - VPS Connection Fix">
+  <title>Kick Flight 2.11.5 Update</title>
+  <style>
+    :root { color-scheme: light; --yellow: #ffe243; --black: #171719; --white: #fffdf6; --max: 820px; }
+    * { box-sizing: border-box; }
+    body {
+      min-width: 320px; margin: 0; color: var(--black); background: var(--yellow);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.5;
+    }
+    a { color: inherit; text-underline-offset: 2px; }
+    .wrap { width: min(var(--max), calc(100% - 32px)); margin-inline: auto; }
+    .topbar {
+      background-color: var(--yellow);
+      background-image: repeating-linear-gradient(135deg, rgba(23,23,25,.10) 0 2px, transparent 2px 11px);
+      border-bottom: 4px solid var(--black);
+    }
+    .topbar-inner { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .brand { display: inline-flex; padding: 7px 10px; background: var(--black); text-decoration: none; }
+    .brand img { display: block; width: clamp(118px, 20vw, 160px); height: auto; }
+    .nav-links { display: flex; align-items: center; gap: 16px; font-weight: 900; font-size: .82rem; letter-spacing: .08em; text-transform: uppercase; }
+    h1 {
+      margin: 30px 0 22px; font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+      font-size: clamp(2.2rem, 8vw, 3.6rem); font-style: italic; line-height: .95; text-transform: uppercase;
+    }
+    .patch {
+      margin: 0 0 26px; padding: clamp(16px, 4vw, 26px); background: var(--white);
+      border: 3px solid var(--black); box-shadow: 6px 6px 0 var(--black);
+    }
+    .patch-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 14px; }
+    .patch h2 {
+      margin: 0; font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+      font-size: clamp(1.5rem, 5vw, 2rem); font-style: italic; text-transform: uppercase;
+    }
+    .patch time { font-size: .82rem; font-weight: 800; }
+    .patch .headline { margin: 8px 0 0; font-weight: 800; font-size: 1.05rem; }
+    .patch h3 {
+      display: inline-block; margin: 18px 0 6px; padding: 3px 10px; color: var(--white); background: var(--black);
+      font-size: .78rem; letter-spacing: .1em; text-transform: uppercase;
+    }
+    .patch ul { margin: 0; padding-left: 1.2em; }
+    .patch li { margin: 4px 0; }
+    .download-box {
+      margin-top: 24px; padding: 18px; background: var(--yellow); border: 2px solid var(--black);
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .download-btn {
+      display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; background: var(--black);
+      color: var(--white); text-decoration: none; font-weight: 900; font-size: .9rem; text-transform: uppercase;
+    }
+    .download-btn:hover { background: #333; }
+    footer { padding: 6px 0 28px; font-size: .85rem; font-weight: 600; text-align: center; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="https://kick-flight-fenix.us.ci/" aria-label="Kick Flight home"><img src="https://kick-flight-fenix.us.ci/assets/kick-flight-logo.png" alt="Kick-Flight"></a>
+      <nav class="nav-links">
+        <a href="/updates">&larr; Back to Updates</a>
+        <a href="https://kick-flight-fenix.us.ci/">Download</a>
+      </nav>
+    </div>
+  </header>
+  <main class="wrap">
+    <h1>Patch 2.11.5</h1>
+
+    <article class="patch">
+      <div class="patch-head">
+        <h2>Release 2.11.5 Announcement</h2>
+        <time datetime="2026-10-19">2026-10-19</time>
+      </div>
+      <p class="headline">Android endpoint update for the VPS.</p>
+
+      <h3>Connection endpoints</h3>
+      <ul>
+        <li><strong>Configured Android endpoints:</strong> The client is configured to use API/resources at <code>http://159.54.134.159:18080</code> and Photon at <code>159.54.134.159</code>. This responds to startup reports involving the retired <code>kickflightsg.ddns.net</code> hostname.</li>
+        <li><strong>Verification gate:</strong> Startup, login, matchmaking, and an actual battle with the exact signed candidate must pass against the live VPS before publication.</li>
+      </ul>
+
+      <div class="download-box">
+        <div>
+          <strong>KickFlight 2.11.5 Remote APK</strong>
+          <div>Android &middot; Build 2.11.5 &middot; Runtime verification required before release</div>
+        </div>
+        <a class="download-btn" href="/apk/KickFlight-2.11.5-remote.apk">Download APK</a>
+      </div>
+
+      <p style="margin-top: 20px;"><a href="/updates">&larr; Return to All Updates</a></p>
+    </article>
+  </main>
+  <footer class="wrap">
+    Thank you for playing Kick-Flight Fenix! Join our official Discord at
+    <a href="https://discord.gg/nmrKeKh">discord.gg/nmrKeKh</a> for more resources and help.
+  </footer>
+</body>
+</html>

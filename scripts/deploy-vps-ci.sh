@@ -117,7 +117,7 @@ snapshots = {
     and isinstance(row.get("sourcePath"), str)
     and row["sourcePath"].startswith(".local/ios-resources/")
 }
-if snapshots in ({"12346-r5"}, {"12346-r6"}):
+if snapshots in ({"12346-r5"}, {"12346-r6"}, {"12346-r7"}):
     raise SystemExit("iOS catalog requires a verified snapshot archive; refusing deployment before sync/restart")
 PY
 fi
@@ -200,6 +200,13 @@ rollback_on_error() {
       python3 "$release_dir/scripts/build-cdn-tree.py" \
         --assets-root "$assets_root" --restore-backup "$backup_dir" || true
       cdn_restored=true
+    fi
+    if [[ -f "$ci_dir/latest-info-backup" ]]; then
+      latest_backup=$(cat "$ci_dir/latest-info-backup" 2>/dev/null || true)
+      if [[ -n "$latest_backup" && -f "$latest_backup" ]]; then
+        cp -f -- "$latest_backup" "$app_dir/.local/maintenance/latest-information.json" || true
+      fi
+      rm -f -- "$ci_dir/latest-info-backup"
     fi
     if [[ "$source_sync_started" == true && -n "$previous_release" && -d "$previous_release" ]]; then
       sync_release "$previous_release" || true
@@ -302,6 +309,25 @@ activated=true
 source_sync_started=true
 sync_release "$release_dir"
 
+# Update persistent Latest Information in-game announcement if docs/updates-page.html exists.
+# Inserts new release articles safely and idempotently into .local/maintenance/latest-information.json,
+# preserving prior announcement history, snapshot fields, and permissions, with pre-write backups.
+if [[ -f "$app_dir/docs/updates-page.html" && -f "$release_dir/scripts/update-latest-information.py" ]]; then
+  ci_info_backup="$ci_dir/latest-info-backup"
+  rm -f -- "$ci_info_backup"
+  python3 "$release_dir/scripts/update-latest-information.py" \
+    --state-file "$app_dir/.local/maintenance/latest-information.json" \
+    --source-docs "$app_dir/docs/updates-page.html" \
+    --article-id "v2-11-5" \
+    --backup-dir "$app_dir/.local/updates-backups" \
+    --record-backup-path "$ci_info_backup"
+fi
+if [[ -f "$release_dir/tools/badges/prepare_announcement.py" && -f "$app_dir/.local/maintenance/latest-information.json" ]]; then
+  python3 "$release_dir/tools/badges/prepare_announcement.py" \
+    --state-file "$app_dir/.local/maintenance/latest-information.json" \
+    --backup-dir "$app_dir/.local/updates-backups"
+fi
+
 compose_from_app config --quiet
 if [[ "$full_deploy" == true ]]; then
   compose_from_app up -d --build
@@ -333,6 +359,10 @@ else
   fi
   if [[ "$deploy_caddy" == true ]]; then
     compose_from_app up -d --no-deps --force-recreate caddy
+  fi
+  if [[ -f "$app_dir/deploy/badges/Dockerfile" ]]; then
+    compose_from_app build badges
+    compose_from_app up -d --no-deps badges
   fi
 fi
 if [[ "$deploy_balance" == true ]]; then
@@ -386,6 +416,55 @@ if [[ "$sync_site" == true ]]; then
   actual_site=$(sha256sum "$smoke_file" | cut -d ' ' -f 1)
   rm -f -- "$smoke_file"
   [[ "$actual_site" == "$expected_site" ]] || { echo "served website checksum does not match deploy/site/index.html" >&2; exit 1; }
+
+  if [[ -f "$app_dir/deploy/site/updates-2.11.4.html" ]]; then
+    expected_updates=$(sha256sum "$app_dir/deploy/site/updates-2.11.4.html" | cut -d ' ' -f 1)
+    curl --fail --silent --show-error --max-time 30 "http://127.0.0.1:$http_port/updates-2.11.4.html" -o "$smoke_file"
+    actual_updates=$(sha256sum "$smoke_file" | cut -d ' ' -f 1)
+    rm -f -- "$smoke_file"
+    [[ "$actual_updates" == "$expected_updates" ]] || { echo "served standalone updates checksum does not match deploy/site/updates-2.11.4.html" >&2; exit 1; }
+  fi
+
+  if [[ -f "$app_dir/deploy/site/updates-2.11.5.html" ]]; then
+    expected_updates=$(sha256sum "$app_dir/deploy/site/updates-2.11.5.html" | cut -d ' ' -f 1)
+    curl --fail --silent --show-error --max-time 30 "http://127.0.0.1:$http_port/updates-2.11.5.html" -o "$smoke_file"
+    actual_updates=$(sha256sum "$smoke_file" | cut -d ' ' -f 1)
+    rm -f -- "$smoke_file"
+    [[ "$actual_updates" == "$expected_updates" ]] || { echo "served standalone updates checksum does not match deploy/site/updates-2.11.5.html" >&2; exit 1; }
+  fi
+
+  if [[ -f "$app_dir/.local/maintenance/latest-information.json" ]]; then
+    python3 - "$http_port" <<'PY'
+import re
+import sys
+import urllib.request
+
+port = sys.argv[1]
+for path in ("/webview/information/index", "/updates"):
+    url = f"http://127.0.0.1:{port}{path}"
+    req = urllib.request.Request(url, headers={"User-Agent": "deploy-smoke-check"})
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        html = resp.read().decode("utf-8")
+
+    masked = re.sub(r'<!--[\s\S]*?-->', lambda m: ' ' * len(m.group(0)), html)
+    masked = re.sub(r'<head\b[^>]*>[\s\S]*?</head>', lambda m: ' ' * len(m.group(0)), masked, flags=re.IGNORECASE)
+    masked = re.sub(r'<script\b[^>]*>[\s\S]*?</script>', lambda m: ' ' * len(m.group(0)), masked, flags=re.IGNORECASE)
+    masked = re.sub(r'<style\b[^>]*>[\s\S]*?</style>', lambda m: ' ' * len(m.group(0)), masked, flags=re.IGNORECASE)
+    visible_articles = re.findall(r'<article[^>]*\bid=["\']([^"\']+)["\']', masked)
+    expected_articles = ["badge-catalog", "v2-11-5", "v2-11-4", "matchmaking-roles-2026-10-19"] if (visible_articles and visible_articles[0] == "badge-catalog") else ["v2-11-5", "v2-11-4", "matchmaking-roles-2026-10-19", "v2-11-3"]
+    if not visible_articles or visible_articles[:len(expected_articles)] != expected_articles:
+        raise SystemExit(
+            f"Smoke check failed on {path}: visible articles are {visible_articles}, expected starting with {expected_articles}"
+        )
+print("Latest Information visible articles verified on /webview/information/index and /updates")
+PY
+  fi
+
+  if [[ -f "$app_dir/deploy/badges/Dockerfile" ]]; then
+    if curl --fail --silent --show-error --max-time 15 "http://127.0.0.1:$http_port/badges/health" >/dev/null 2>&1; then
+      echo "Badges health verified on /badges/health"
+    fi
+  fi
 fi
 
 if [[ "$rebuild_farm" == true && -e "$backup_dir" ]]; then
@@ -401,6 +480,7 @@ if [[ "$previous_release" == "$releases_dir/.pre-ci-$release_sha" ]]; then
 fi
 printf '%s\n' "$release_sha" > "$state_file.tmp"
 mv -f -- "$state_file.tmp" "$state_file"
+rm -f -- "$ci_dir/latest-info-backup"
 activated=false
 cleanup_upload
 trap - EXIT ERR
