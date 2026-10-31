@@ -5,6 +5,12 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      activate_ios_r52_profile:
+        description: "One-way activation: serve the incomplete, test-only R52 iOS profile on Fenix"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -48,10 +54,17 @@ jobs:
         shell: bash
         env:
           BEFORE_SHA: ${{ github.event.before }}
+          WORKFLOW_EVENT_NAME: ${{ github.event_name }}
+          ACTIVATE_IOS_R52_PROFILE: ${{ inputs.activate_ios_r52_profile }}
         run: |
           set -euo pipefail
+          if [[ "$WORKFLOW_EVENT_NAME" == workflow_dispatch && "$ACTIVATE_IOS_R52_PROFILE" == true ]]; then
+            printf '%s\n' 'deploy=true' 'api=true' 'photon=false' 'cdn=false' 'farm=false' \
+              'site=false' 'caddy=false' 'balance=false' 'full=false' 'r52_api_only=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [[ ! "$BEFORE_SHA" =~ ^[0-9a-f]{40}$ ]] || ! git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
-            printf '%s\n' 'deploy=true' 'api=true' 'photon=true' 'cdn=true' 'farm=true' 'site=true' 'caddy=true' 'balance=true' 'full=true' >> "$GITHUB_OUTPUT"
+            printf '%s\n' 'deploy=true' 'api=true' 'photon=true' 'cdn=true' 'farm=true' 'site=true' 'caddy=true' 'balance=true' 'full=true' 'r52_api_only=false' >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -62,9 +75,39 @@ jobs:
           before, after = sys.argv[1:]
           changed = subprocess.check_output(["git", "diff", "--name-only", "-z", before, after]).decode().split("\0")
           changed = [path for path in changed if path]
+          r52_api_only_paths = {
+              ".github/workflows/deploy-vps-main.yml",
+              "config/ios-r52-profile-release.json",
+              "deploy/docker-compose.vps.yml",
+              "docs/IOS_R52_PROFILE_RELEASE.md",
+              "scripts/convert-android-model-to-ios.py",
+              "scripts/deploy-vps-ci.sh",
+              "scripts/ios-wire-floor.py",
+              "scripts/run-model-batch.py",
+              "scripts/stage-ios-r52-profile.py",
+              "src/KickFlight.BootstrapApi/HarnessOptions.cs",
+              "src/KickFlight.BootstrapApi/IosR52TestProfileStore.cs",
+              "src/KickFlight.BootstrapApi/Program.cs",
+              "src/KickFlight.BootstrapApi/ResourceCatalogStore.cs",
+              "src/KickFlight.BootstrapApi/appsettings.json",
+              "tests/KickFlight.BootstrapApi.Tests/IosR52ProfileRoutingTests.cs",
+              "tests/test_convert_android_model_to_ios.py",
+              "tests/test_ios_wire_floor.py",
+              "tests/test_stage_ios_r52_profile.py",
+          }
+          if changed and set(changed).issubset(r52_api_only_paths) and any(
+              path.startswith("src/KickFlight.BootstrapApi/") for path in changed
+          ):
+              print("deploy=true")
+              print("api=true")
+              for component in ("photon", "cdn", "farm", "site", "caddy", "balance", "full"):
+                  print(f"{component}=false")
+              print("r52_api_only=true")
+              sys.exit(0)
+
           flags = {"deploy": False, "api": False, "photon": False, "cdn": False,
                    "farm": False, "site": False, "caddy": False, "balance": False,
-                   "full": False}
+                   "full": False, "r52_api_only": False}
           generators = {
               "scripts/build-cdn-tree.py", "scripts/build-title-resource-catalog.py",
               "scripts/build-title-resource-catalog.ps1", "scripts/build_kicker_catalog.py",
@@ -153,7 +196,7 @@ jobs:
 
       - name: Download and verify the optional iOS snapshot release asset
         id: ios_snapshot
-        if: steps.main_tip.outputs.deployable == 'true' && steps.changes.outputs.deploy == 'true'
+        if: ${{ steps.main_tip.outputs.deployable == 'true' && steps.changes.outputs.deploy == 'true' && steps.changes.outputs.r52_api_only != 'true' && !(github.event_name == 'workflow_dispatch' && inputs.activate_ios_r52_profile) }}
         shell: bash
         env:
           IOS_SNAPSHOT_RELEASE_TAG: ${{ vars.IOS_SNAPSHOT_RELEASE_TAG }}
@@ -199,6 +242,82 @@ jobs:
           echo "enabled=true" >> "$GITHUB_OUTPUT"
           echo "archive=$archive" >> "$GITHUB_OUTPUT"
 
+      - name: Download and verify the opt-in R52 iOS profile release asset
+        id: ios_r52_profile
+        if: steps.main_tip.outputs.deployable == 'true' && steps.changes.outputs.deploy == 'true' && github.event_name == 'workflow_dispatch' && inputs.activate_ios_r52_profile
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 - config/ios-r52-profile-release.json "$GITHUB_OUTPUT" <<'PY'
+          import json
+          import pathlib
+          import re
+          import sys
+
+          config = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+          expected = {
+              "schemaVersion": 1, "assetVersion": 12346, "revisionFloor": 52,
+              "testOnly": True, "complete": False,
+              "runtimeContract": "kickflight.ios-r52-test-profile.v1",
+          }
+          if any(config.get(key) != value for key, value in expected.items()):
+              raise SystemExit("R52 release pin does not describe the reviewed test-only profile")
+          tag, asset, digest = (config.get("releaseTag"), config.get("assetName"), config.get("archiveSha256"))
+          if not isinstance(tag, str) or not re.fullmatch(r"[A-Za-z0-9._-]+", tag):
+              raise SystemExit("R52 release tag is invalid")
+          if asset != "ios-r52-profile.tar.gz" or not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+              raise SystemExit("R52 release asset pin is invalid")
+          with open(sys.argv[2], "a", encoding="utf-8") as output:
+              output.write(f"tag={tag}\nasset={asset}\nsha256={digest}\n")
+          PY
+          # Read the just-validated public pin without exposing any repository secrets.
+          pin_tag="$(sed -n 's/^tag=//p' "$GITHUB_OUTPUT" | tail -n 1)"
+          pin_asset="$(sed -n 's/^asset=//p' "$GITHUB_OUTPUT" | tail -n 1)"
+          pin_sha="$(sed -n 's/^sha256=//p' "$GITHUB_OUTPUT" | tail -n 1)"
+          gh release download "$pin_tag" --repo "$GITHUB_REPOSITORY" \
+            --pattern "$pin_asset" --dir "$RUNNER_TEMP"
+          archive="$RUNNER_TEMP/$pin_asset"
+          python3 scripts/stage-ios-r52-profile.py validate --archive "$archive" --archive-sha256 "$pin_sha"
+          {
+            echo "enabled=true"
+            echo "archive=$archive"
+            echo "sha256=$pin_sha"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up .NET 8 for opt-in R52 runtime validation
+        if: steps.ios_r52_profile.outputs.enabled == 'true'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Stage the exact R52 package for routing tests
+        id: ios_r52_test_profile
+        if: steps.ios_r52_profile.outputs.enabled == 'true'
+        shell: bash
+        env:
+          R52_ARCHIVE: ${{ steps.ios_r52_profile.outputs.archive }}
+          R52_ARCHIVE_SHA256: ${{ steps.ios_r52_profile.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          stage_root="$RUNNER_TEMP/ios-r52-test-stage"
+          python3 scripts/stage-ios-r52-profile.py stage \
+            --archive "$R52_ARCHIVE" --archive-sha256 "$R52_ARCHIVE_SHA256" \
+            --stage-root "$stage_root"
+          echo "profile=$stage_root/12346-r52/profile" >> "$GITHUB_OUTPUT"
+
+      - name: Run R52 API routing test against all staged payloads
+        if: steps.ios_r52_profile.outputs.enabled == 'true'
+        shell: bash
+        env:
+          KF_R52_REVIEW_PROFILE: ${{ steps.ios_r52_test_profile.outputs.profile }}
+        run: |
+          set -euo pipefail
+          dotnet test tests/KickFlight.BootstrapApi.Tests/KickFlight.BootstrapApi.Tests.csproj \
+            --filter FullyQualifiedName~R52_review_package_is_accepted_when_profile_path_is_set \
+            --verbosity minimal
+
       - name: Configure pinned SSH host verification
         if: steps.main_tip.outputs.deployable == 'true' && steps.changes.outputs.deploy == 'true'
         shell: bash
@@ -227,7 +346,7 @@ jobs:
       # Stage the immutable APK before the deployment can activate catalog links or the Android minimum.
       - name: Stage Android 2.11.5 release APK if configured in catalog
         id: android_apk
-        if: steps.main_tip.outputs.deployable == 'true' && steps.changes.outputs.deploy == 'true'
+        if: ${{ steps.main_tip.outputs.deployable == 'true' && steps.changes.outputs.deploy == 'true' && steps.changes.outputs.r52_api_only != 'true' && !(github.event_name == 'workflow_dispatch' && inputs.activate_ios_r52_profile) }}
         shell: bash
         env:
           ANDROID_RELEASE_TAG: android-2.11.5
@@ -383,6 +502,9 @@ jobs:
           IOS_SNAPSHOT_ENABLED: ${{ steps.ios_snapshot.outputs.enabled }}
           IOS_SNAPSHOT_ARCHIVE: ${{ steps.ios_snapshot.outputs.archive }}
           IOS_SNAPSHOT_ARCHIVE_SHA256: ${{ vars.IOS_SNAPSHOT_ARCHIVE_SHA256 }}
+          IOS_R52_PROFILE_REQUESTED: ${{ steps.ios_r52_profile.outputs.enabled || 'false' }}
+          IOS_R52_PROFILE_ARCHIVE: ${{ steps.ios_r52_profile.outputs.archive }}
+          IOS_R52_PROFILE_ARCHIVE_SHA256: ${{ steps.ios_r52_profile.outputs.sha256 }}
         run: |
           set -euo pipefail
           [[ -n "$VPS_HOST" && -n "$VPS_USER" && -n "$VPS_APP_DIR" ]] || {
@@ -402,13 +524,25 @@ jobs:
             -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/kf-vps-known-hosts")
           scp "${scp_opts[@]}" "$RUNNER_TEMP/kf-vps-release.tar.gz" "$remote:$remote_archive"
           remote_ios_archive=""
-          ios_archive_arg=""
-          ios_sha_arg=""
+          ios_archive_arg="-"
+          ios_sha_arg="-"
           if [[ "$IOS_SNAPSHOT_ENABLED" == true ]]; then
             remote_ios_archive="/tmp/kf-ios-snapshot-${GITHUB_SHA}.tar.gz"
             scp "${scp_opts[@]}" "$IOS_SNAPSHOT_ARCHIVE" "$remote:$remote_ios_archive"
             printf -v ios_archive_arg '%q' "$remote_ios_archive"
             printf -v ios_sha_arg '%q' "$IOS_SNAPSHOT_ARCHIVE_SHA256"
+          fi
+          remote_ios_r52_archive=""
+          r52_archive_arg="-"
+          r52_sha_arg="-"
+          if [[ "$IOS_R52_PROFILE_REQUESTED" == true ]]; then
+            [[ -f "$IOS_R52_PROFILE_ARCHIVE" && "$IOS_R52_PROFILE_ARCHIVE_SHA256" =~ ^[0-9a-f]{64}$ ]] || {
+              echo "R52 profile archive or pinned SHA-256 is missing" >&2; exit 1;
+            }
+            remote_ios_r52_archive="/tmp/kf-ios-r52-profile-${GITHUB_SHA}.tar.gz"
+            scp "${scp_opts[@]}" "$IOS_R52_PROFILE_ARCHIVE" "$remote:$remote_ios_r52_archive"
+            printf -v r52_archive_arg '%q' "$remote_ios_r52_archive"
+            printf -v r52_sha_arg '%q' "$IOS_R52_PROFILE_ARCHIVE_SHA256"
           fi
           printf -v q_app '%q' "$VPS_APP_DIR"
           printf -v q_archive '%q' "$remote_archive"
@@ -416,9 +550,12 @@ jobs:
           # compose environment, and the API records it in the ops telemetry's server_runs on every start.
           printf -v q_sha '%q' "$GITHUB_SHA"
           ssh "${ssh_opts[@]}" "$remote" \
-            "bash -s -- $q_app $q_sha $q_archive '$DEPLOY_API' '$DEPLOY_PHOTON' '$DEPLOY_CDN' '$REBUILD_FARM' '$SYNC_SITE' '$DEPLOY_CADDY' '$FULL_DEPLOY' '$DEPLOY_BALANCE' $ios_archive_arg $ios_sha_arg" \
+            "bash -s -- $q_app $q_sha $q_archive '$DEPLOY_API' '$DEPLOY_PHOTON' '$DEPLOY_CDN' '$REBUILD_FARM' '$SYNC_SITE' '$DEPLOY_CADDY' '$FULL_DEPLOY' '$DEPLOY_BALANCE' $ios_archive_arg $ios_sha_arg $r52_archive_arg $r52_sha_arg '$IOS_R52_PROFILE_REQUESTED'" \
             < scripts/deploy-vps-ci.sh
           ssh "${ssh_opts[@]}" "$remote" "rm -f -- '$remote_archive'"
           if [[ -n "$remote_ios_archive" ]]; then
             ssh "${ssh_opts[@]}" "$remote" "rm -f -- '$remote_ios_archive'"
+          fi
+          if [[ -n "$remote_ios_r52_archive" ]]; then
+            ssh "${ssh_opts[@]}" "$remote" "rm -f -- '$remote_ios_r52_archive'"
           fi

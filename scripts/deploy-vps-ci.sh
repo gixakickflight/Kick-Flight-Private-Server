@@ -3,8 +3,8 @@
 # must be available without sudo. Arguments are supplied by the workflow and are not secrets.
 set -Eeuo pipefail
 
-if [[ $# -ne 11 && $# -ne 13 ]]; then
-  echo "usage: deploy-vps-ci.sh APP_DIR SHA ARCHIVE API PHOTON CDN FARM SITE CADDY FULL BALANCE [IOS_SNAPSHOT_ARCHIVE IOS_SNAPSHOT_SHA256]" >&2
+if [[ $# -ne 11 && $# -ne 13 && $# -ne 16 ]]; then
+  echo "usage: deploy-vps-ci.sh APP_DIR SHA ARCHIVE API PHOTON CDN FARM SITE CADDY FULL BALANCE [IOS_SNAPSHOT_ARCHIVE IOS_SNAPSHOT_SHA256 [IOS_R52_ARCHIVE IOS_R52_SHA256 ACTIVATE_R52]]" >&2
   exit 2
 fi
 
@@ -21,24 +21,62 @@ full_deploy=${10}
 deploy_balance=${11}
 ios_snapshot_archive=${12:-}
 ios_snapshot_sha256=${13:-}
+ios_r52_archive=""
+ios_r52_sha256=""
+activate_ios_r52_requested=false
+ready_file=""
+smoke_file=""
+if [[ $# -eq 16 ]]; then
+  [[ "$ios_snapshot_archive" == "-" ]] && ios_snapshot_archive=""
+  [[ "$ios_snapshot_sha256" == "-" ]] && ios_snapshot_sha256=""
+  ios_r52_archive=${14}
+  ios_r52_sha256=${15}
+  activate_ios_r52_requested=${16}
+  [[ "$ios_r52_archive" == "-" ]] && ios_r52_archive=""
+  [[ "$ios_r52_sha256" == "-" ]] && ios_r52_sha256=""
+fi
 
 [[ "$app_dir" == /* ]] || { echo "VPS_APP_DIR must be an absolute path" >&2; exit 2; }
 [[ "$app_dir" != "/" && -d "$app_dir" ]] || { echo "VPS_APP_DIR must be an existing application directory" >&2; exit 2; }
 [[ "$release_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "invalid commit SHA" >&2; exit 2; }
 [[ "$archive" == "/tmp/kf-vps-$release_sha.tar.gz" && -f "$archive" ]] || { echo "release archive path is invalid or missing" >&2; exit 2; }
 if [[ -n "$ios_snapshot_archive" || -n "$ios_snapshot_sha256" ]]; then
-  [[ $# -eq 13 ]] || { echo "iOS snapshot archive and SHA-256 must be supplied together" >&2; exit 2; }
+  [[ $# -eq 13 || $# -eq 16 ]] || { echo "iOS snapshot archive and SHA-256 must be supplied together" >&2; exit 2; }
   [[ "$ios_snapshot_archive" == "/tmp/kf-ios-snapshot-$release_sha.tar.gz" && -f "$ios_snapshot_archive" ]] || {
     echo "iOS snapshot archive path is invalid or missing" >&2; exit 2;
   }
   [[ "$ios_snapshot_sha256" =~ ^[0-9a-f]{64}$ ]] || { echo "invalid iOS snapshot SHA-256" >&2; exit 2; }
 fi
+if [[ "$activate_ios_r52_requested" != true && "$activate_ios_r52_requested" != false ]]; then
+  echo "invalid R52 activation flag" >&2; exit 2
+fi
+if [[ -n "$ios_r52_archive" || -n "$ios_r52_sha256" ]]; then
+  [[ $# -eq 16 && "$activate_ios_r52_requested" == true ]] || {
+    echo "R52 archive may only be supplied for an explicit activation request" >&2; exit 2;
+  }
+  [[ "$ios_r52_archive" == "/tmp/kf-ios-r52-profile-$release_sha.tar.gz" && -f "$ios_r52_archive" ]] || {
+    echo "R52 profile archive path is invalid or missing" >&2; exit 2;
+  }
+  [[ "$ios_r52_sha256" =~ ^[0-9a-f]{64}$ ]] || { echo "invalid R52 profile SHA-256" >&2; exit 2; }
+elif [[ "$activate_ios_r52_requested" == true ]]; then
+  echo "explicit R52 activation requires its pinned release archive" >&2; exit 2
+fi
 for flag in "$deploy_api" "$deploy_photon" "$deploy_cdn" "$rebuild_farm" "$sync_site" "$deploy_caddy" "$full_deploy" "$deploy_balance"; do
   [[ "$flag" == true || "$flag" == false ]] || { echo "invalid component flag" >&2; exit 2; }
 done
+if [[ "$activate_ios_r52_requested" == true ]]; then
+  [[ "$deploy_api" == true && "$deploy_photon" == false && "$deploy_cdn" == false && \
+     "$rebuild_farm" == false && "$sync_site" == false && "$deploy_caddy" == false && \
+     "$full_deploy" == false && "$deploy_balance" == false ]] || {
+    echo "R52 activation must be an API-only deployment" >&2; exit 2;
+  }
+fi
 cleanup_upload() {
   rm -f -- "$archive"
   [[ -z "$ios_snapshot_archive" ]] || rm -f -- "$ios_snapshot_archive"
+  [[ -z "$ios_r52_archive" ]] || rm -f -- "$ios_r52_archive"
+  [[ -z "$ready_file" ]] || rm -f -- "$ready_file"
+  [[ -z "$smoke_file" ]] || rm -f -- "$smoke_file"
 }
 trap cleanup_upload EXIT
 
@@ -57,11 +95,43 @@ exec 9>"$ci_dir/deploy.lock"
 flock -n 9 || { echo "another VPS deployment is already running" >&2; exit 1; }
 
 state_file="$ci_dir/current-sha"
+ios_wire_floor_file="$ci_dir/ios-wire-floor.json"
+ios_wire_floor_sha256=""
+ios_wire_floor_active=false
+ios_wire_floor_state_valid=true
 previous_sha=""
 if [[ -f "$state_file" ]]; then
   IFS= read -r previous_sha < "$state_file" || true
 fi
-if [[ "$previous_sha" == "$release_sha" && -z "$ios_snapshot_archive" ]]; then
+if [[ -e "$ios_wire_floor_file" ]]; then
+  [[ -f "$app_dir/scripts/ios-wire-floor.py" ]] || {
+    echo "R52 wire floor is latched but its state verifier is missing; refusing a downgrade" >&2; exit 1;
+  }
+  ios_wire_floor_sha256=$(python3 "$app_dir/scripts/ios-wire-floor.py" read "$ios_wire_floor_file")
+  ios_wire_floor_active=true
+  [[ -f "$app_dir/scripts/stage-ios-r52-profile.py" ]] || {
+    echo "R52 wire floor is latched but its verifier is missing; refusing a downgrade" >&2; exit 1;
+  }
+  python3 "$app_dir/scripts/stage-ios-r52-profile.py" verify-stage \
+    --stage-root "$app_dir/.local/ios-resources" --archive-sha256 "$ios_wire_floor_sha256" >/dev/null || {
+      echo "R52 wire floor is latched but its staged profile failed immutable verification" >&2; exit 1;
+    }
+fi
+ios_r52_profile_enabled=false
+if [[ "$ios_wire_floor_active" == true ]]; then
+  ios_r52_profile_enabled=true
+  ios_r52_sha256=$ios_wire_floor_sha256
+fi
+if [[ "$activate_ios_r52_requested" == true ]]; then
+  [[ "$deploy_api" == true || "$full_deploy" == true ]] || {
+    echo "R52 activation requires an API deployment" >&2; exit 1;
+  }
+  if [[ -n "$ios_wire_floor_sha256" && "$ios_wire_floor_sha256" != "$ios_r52_sha256" ]]; then
+    echo "requested R52 archive differs from the latched immutable profile" >&2; exit 1;
+  fi
+  ios_r52_profile_enabled=true
+fi
+if [[ "$previous_sha" == "$release_sha" && -z "$ios_snapshot_archive" && -z "$ios_r52_archive" ]]; then
   echo "commit $release_sha is already deployed"
   exit 0
 fi
@@ -100,7 +170,7 @@ ln -s "$app_dir/.local" "$release_dir/.local"
 
 # Verify and stage the optional immutable iOS snapshot before syncing or restarting the API.
 # Staging publishes only a new versioned directory; it never replaces or activates the prior r4 tree.
-if [[ -z "$ios_snapshot_archive" ]]; then
+if [[ -z "$ios_snapshot_archive" && "$ios_r52_profile_enabled" != true ]]; then
   python3 - "$release_dir/src/KickFlight.BootstrapApi/catalog-ios-12346.json" <<'PY'
 import json
 import pathlib
@@ -153,6 +223,18 @@ PY
     --snapshot "$snapshot_name" --stage-root "$app_dir/.local/ios-resources"
 fi
 
+if [[ "$ios_r52_profile_enabled" == true ]]; then
+  python3 "$release_dir/scripts/ios-wire-floor.py" verify-release "$release_dir" \
+    --profile-sha256 "$ios_r52_sha256"
+  if [[ -n "$ios_r52_archive" ]]; then
+    python3 "$release_dir/scripts/stage-ios-r52-profile.py" stage \
+      --archive "$ios_r52_archive" --archive-sha256 "$ios_r52_sha256" \
+      --stage-root "$app_dir/.local/ios-resources"
+  fi
+  python3 "$release_dir/scripts/stage-ios-r52-profile.py" verify-stage \
+    --stage-root "$app_dir/.local/ios-resources" --archive-sha256 "$ios_r52_sha256"
+fi
+
 assets_root=$(python3 - "$app_dir/.env" "$app_dir" <<'PY'
 import pathlib
 import sys
@@ -180,11 +262,12 @@ if not root.is_absolute():
 print(root.resolve())
 PY
 )
-[[ -d "$assets_root" ]] || { echo "configured sibling assets directory is missing" >&2; exit 1; }
-
-# All checks run against the staged release before any live repository files or CDN paths change.
-python3 "$release_dir/scripts/build-cdn-tree.py" \
-  --assets-root "$assets_root" --repo-root "$release_dir" --verify-all-enabled --dry-run
+if [[ "$rebuild_farm" == true ]]; then
+  [[ -d "$assets_root" ]] || { echo "configured sibling assets directory is missing" >&2; exit 1; }
+  # Validate all resources before the CDN farm is actually rebuilt.
+  python3 "$release_dir/scripts/build-cdn-tree.py" \
+    --assets-root "$assets_root" --repo-root "$release_dir" --verify-all-enabled --dry-run
+fi
 
 backup_dir="$assets_root/.cdn-rollback-$release_sha"
 activated=false
@@ -193,6 +276,19 @@ rollback_on_error() {
   status=$?
   trap - EXIT ERR
   cleanup_upload
+  if [[ -e "$ios_wire_floor_file" && "$ios_wire_floor_active" != true ]]; then
+    # Catch a signal/failure after the atomic floor rename but before the caller updated its shell flag.
+    ios_wire_floor_active=true
+    if [[ -f "$release_dir/scripts/ios-wire-floor.py" ]]; then
+      if ios_wire_floor_sha256=$(python3 "$release_dir/scripts/ios-wire-floor.py" read "$ios_wire_floor_file"); then
+        ios_wire_floor_state_valid=true
+      else
+        ios_wire_floor_state_valid=false
+      fi
+    else
+      ios_wire_floor_state_valid=false
+    fi
+  fi
   if [[ $status -ne 0 && "$activated" == true ]]; then
     echo "deployment failed; restoring the prior source tree and CDN where available" >&2
     cdn_restored=false
@@ -208,12 +304,71 @@ rollback_on_error() {
       fi
       rm -f -- "$ci_dir/latest-info-backup"
     fi
+    if [[ "$ios_wire_floor_active" == true ]]; then
+      if [[ "$ios_wire_floor_state_valid" != true ]]; then
+        echo "iOS wire-floor state exists but could not be verified; refusing any source rollback" >&2
+        exit "$status"
+      fi
+      echo "iOS wire floor 52 is latched; refusing automatic rollback to a revision-47-only API" >&2
+      if [[ "$source_sync_started" == true ]]; then
+        rollback_release="$release_dir"
+        rollback_sha="$release_sha"
+        if [[ -n "$previous_release" && -d "$previous_release" ]] && \
+           python3 "$release_dir/scripts/ios-wire-floor.py" supports-release "$previous_release" \
+             --profile-sha256 "$ios_wire_floor_sha256"; then
+          rollback_release="$previous_release"
+          rollback_sha="$previous_sha"
+        fi
+        recovery_ok=true
+        if ! sync_release "$rollback_release"; then
+          echo "R52 recovery could not sync an R52-compatible source tree" >&2
+          recovery_ok=false
+        fi
+        compose_release_sha=$rollback_sha
+        if [[ "$recovery_ok" == true ]]; then
+          if [[ "$full_deploy" == true ]]; then
+            if ! compose_from_app up -d --build; then
+              echo "R52 recovery compose start failed" >&2
+              recovery_ok=false
+            fi
+          elif ! compose_from_app up -d --build api; then
+            echo "R52 API recovery start failed" >&2
+            recovery_ok=false
+          fi
+        fi
+        if [[ "$recovery_ok" == true ]] && ! wait_for_r52_health; then
+          echo "R52 recovery readiness failed; floor remains latched and operator roll-forward is required" >&2
+          recovery_ok=false
+        fi
+        if [[ "$recovery_ok" == true ]]; then
+          echo "R52-compatible recovery is healthy at revision 52"
+        else
+          echo "R52 wire floor remains latched; no revision-47 rollback was attempted" >&2
+        fi
+      elif [[ "$cdn_restored" == true ]]; then
+        compose_from_app restart cdn || true
+      fi
+      exit "$status"
+    fi
     if [[ "$source_sync_started" == true && -n "$previous_release" && -d "$previous_release" ]]; then
-      sync_release "$previous_release" || true
       compose_release_sha=${previous_sha:-unknown}
-      compose_from_app up -d --build || true
-      if [[ "$deploy_balance" == true ]]; then
-        sudo -n systemctl daemon-reload && sudo -n systemctl restart kickflight-balance || true
+      if [[ "$activate_ios_r52_requested" == true ]]; then
+        ios_r52_profile_enabled=false
+        if ! sync_release "$previous_release"; then
+          echo "pre-latch R52 activation failed and prior source restore failed; operator recovery is required" >&2
+        elif ! compose_from_app up -d --no-deps --build api; then
+          echo "pre-latch R52 activation failed and prior API restart failed; operator recovery is required" >&2
+        elif ! wait_for_previous_api_health; then
+          echo "pre-latch R52 activation failed and prior API readiness check failed; operator recovery is required" >&2
+        else
+          echo "pre-latch R52 activation failed; prior API restored and readiness verified"
+        fi
+      else
+        sync_release "$previous_release" || true
+        compose_from_app up -d --build || true
+        if [[ "$deploy_balance" == true ]]; then
+          sudo -n systemctl daemon-reload && sudo -n systemctl restart kickflight-balance || true
+        fi
       fi
     elif [[ "$cdn_restored" == true ]]; then
       compose_from_app restart cdn || true
@@ -282,10 +437,89 @@ PY
     if [[ "$db_mode" == external ]]; then
       compose_file="$app_dir/deploy/docker-compose.vps.external-db.yml"
     fi
-    KF_ASSETS_PATH="$assets_root" KF_RELEASE_SHA="$compose_release_sha" docker compose \
+    KF_ASSETS_PATH="$assets_root" KF_RELEASE_SHA="$compose_release_sha" \
+      KF_IOS_R52_PROFILE_ENABLED="$ios_r52_profile_enabled" docker compose \
       --env-file "$app_dir/.env" --project-name deploy \
       -f "$compose_file" "$@"
   )
+}
+wait_for_r52_health() {
+  local port
+  port=$(python3 - "$app_dir/.env" <<'PY'
+import sys
+
+port = "18080"
+for raw in open(sys.argv[1], encoding="utf-8"):
+    line = raw.strip()
+    if line.startswith("KF_HTTP_PORT="):
+        port = line.split("=", 1)[1].strip().strip("\"'") or port
+        break
+print(port)
+PY
+)
+  [[ "$port" =~ ^[0-9]{1,5}$ ]] || return 1
+  ready_file=$(mktemp)
+  for attempt in {1..60}; do
+    if curl --fail --silent --max-time 15 "http://127.0.0.1:$port/health/ready" -o "$ready_file" 2>/dev/null && \
+       python3 - "$ready_file" <<'PY'
+import json
+import pathlib
+import sys
+
+body = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+if body.get("status") != "ready" or body.get("iosCatalogReady") is not True or \
+        body.get("iosProfile") != "r52-test" or body.get("iosProfileRevision") != 52 or \
+        body.get("iosResourceCount") != 3389:
+    raise SystemExit(1)
+PY
+    then
+      rm -f -- "$ready_file"
+      ready_file=""
+      return 0
+    fi
+    sleep 2
+  done
+  rm -f -- "$ready_file"
+  ready_file=""
+  return 1
+}
+wait_for_previous_api_health() {
+  local port
+  port=$(python3 - "$app_dir/.env" <<'PY'
+import sys
+
+port = "18080"
+for raw in open(sys.argv[1], encoding="utf-8"):
+    line = raw.strip()
+    if line.startswith("KF_HTTP_PORT="):
+        port = line.split("=", 1)[1].strip().strip("\"'") or port
+        break
+print(port)
+PY
+)
+  [[ "$port" =~ ^[0-9]{1,5}$ ]] || return 1
+  ready_file=$(mktemp)
+  for attempt in {1..60}; do
+    if curl --fail --silent --max-time 15 "http://127.0.0.1:$port/health/ready" -o "$ready_file" 2>/dev/null && \
+       python3 - "$ready_file" <<'PY'
+import json
+import pathlib
+import sys
+
+body = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+if body.get("status") != "ready":
+    raise SystemExit(1)
+PY
+    then
+      rm -f -- "$ready_file"
+      ready_file=""
+      return 0
+    fi
+    sleep 2
+  done
+  rm -f -- "$ready_file"
+  ready_file=""
+  return 1
 }
 restart_balance_service() {
   jwt_secret_file=$(sudo -n python3 "$release_dir/scripts/resolve-balance-jwt-secret-path.py" \
@@ -312,7 +546,7 @@ sync_release "$release_dir"
 # Update persistent Latest Information in-game announcement if docs/updates-page.html exists.
 # Inserts new release articles safely and idempotently into .local/maintenance/latest-information.json,
 # preserving prior announcement history, snapshot fields, and permissions, with pre-write backups.
-if [[ -f "$app_dir/docs/updates-page.html" && -f "$release_dir/scripts/update-latest-information.py" ]]; then
+if [[ "$sync_site" == true && -f "$app_dir/docs/updates-page.html" && -f "$release_dir/scripts/update-latest-information.py" ]]; then
   ci_info_backup="$ci_dir/latest-info-backup"
   rm -f -- "$ci_info_backup"
   python3 "$release_dir/scripts/update-latest-information.py" \
@@ -322,13 +556,27 @@ if [[ -f "$app_dir/docs/updates-page.html" && -f "$release_dir/scripts/update-la
     --backup-dir "$app_dir/.local/updates-backups" \
     --record-backup-path "$ci_info_backup"
 fi
-if [[ -f "$release_dir/tools/badges/prepare_announcement.py" && -f "$app_dir/.local/maintenance/latest-information.json" ]]; then
+if [[ "$sync_site" == true && -f "$release_dir/tools/badges/prepare_announcement.py" && -f "$app_dir/.local/maintenance/latest-information.json" ]]; then
   python3 "$release_dir/tools/badges/prepare_announcement.py" \
     --state-file "$app_dir/.local/maintenance/latest-information.json" \
     --backup-dir "$app_dir/.local/updates-backups"
 fi
 
 compose_from_app config --quiet
+r52_api_prebuilt=false
+if [[ "$activate_ios_r52_requested" == true && "$ios_wire_floor_active" != true ]]; then
+  # Complete the only fallible build before latching the irreversible client revision floor.
+  compose_from_app build api
+  # Remove the old revision-47 responder before the floor can be observed as active.
+  compose_from_app stop api
+  r52_api_prebuilt=true
+fi
+if [[ "$activate_ios_r52_requested" == true && "$ios_wire_floor_active" != true ]]; then
+  python3 "$release_dir/scripts/ios-wire-floor.py" latch "$ios_wire_floor_file" \
+    --profile-sha256 "$ios_r52_sha256" --commit "$release_sha"
+  ios_wire_floor_active=true
+  echo "Latched persistent iOS wire floor at revision 52; R52 will remain enabled on future deployments."
+fi
 if [[ "$full_deploy" == true ]]; then
   compose_from_app up -d --build
   if [[ "$deploy_caddy" == true ]]; then
@@ -344,7 +592,9 @@ else
     compose_from_app up -d --no-deps photon
   fi
   if [[ "$deploy_api" == true ]]; then
-    compose_from_app build api
+    if [[ "$r52_api_prebuilt" != true ]]; then
+      compose_from_app build api
+    fi
     compose_from_app up -d --no-deps api
   fi
   if [[ "$deploy_cdn" == true ]]; then
@@ -352,15 +602,17 @@ else
     compose_from_app up -d --no-deps cdn
   fi
   if [[ "$deploy_api" == true ]]; then
-    # nginx caches the API container address at startup; gRPC has the same upstream behavior.
-    compose_from_app restart cdn grpc
+    if [[ "$ios_r52_profile_enabled" != true ]]; then
+      # Preserve the existing restart behavior for legacy deployments; R52 uses the dynamic Docker DNS resolver.
+      compose_from_app restart cdn grpc
+    fi
   elif [[ "$rebuild_farm" == true ]]; then
     compose_from_app restart cdn
   fi
   if [[ "$deploy_caddy" == true ]]; then
     compose_from_app up -d --no-deps --force-recreate caddy
   fi
-  if [[ -f "$app_dir/deploy/badges/Dockerfile" ]]; then
+  if [[ -f "$app_dir/deploy/badges/Dockerfile" && "$ios_r52_profile_enabled" != true ]]; then
     compose_from_app build badges
     compose_from_app up -d --no-deps badges
   fi
@@ -382,14 +634,77 @@ PY
 )
 [[ "$http_port" =~ ^[0-9]{1,5}$ ]] || { echo "invalid KF_HTTP_PORT" >&2; exit 1; }
 ready=false
+ready_file=$(mktemp)
 for attempt in {1..60}; do
-  if curl --fail --silent --show-error --max-time 15 "http://127.0.0.1:$http_port/health/ready" >/dev/null 2>&1; then
-    ready=true
-    break
+  if curl --fail --silent --show-error --max-time 15 "http://127.0.0.1:$http_port/health/ready" -o "$ready_file" 2>/dev/null; then
+    if python3 - "$ready_file" "$ios_r52_profile_enabled" <<'PY'
+import json
+import pathlib
+import sys
+
+body = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+if body.get("status") != "ready" or body.get("iosCatalogReady") is not True:
+    raise SystemExit(1)
+enabled = sys.argv[2] == "true"
+expected_profile = "r52-test" if enabled else "native"
+if body.get("iosProfile") != expected_profile:
+    raise SystemExit(1)
+if enabled and (body.get("iosProfileRevision") != 52 or body.get("iosResourceCount") != 3389):
+    raise SystemExit(1)
+PY
+    then
+      ready=true
+      break
+    fi
   fi
   sleep 2
 done
 [[ "$ready" == true ]] || { echo "VPS readiness smoke check failed" >&2; exit 1; }
+rm -f -- "$ready_file"
+ready_file=""
+
+if [[ "$ios_r52_profile_enabled" == true ]]; then
+  smoke_file=$(mktemp)
+  curl --fail --silent --show-error --max-time 30 \
+    -H "Host: kick-flight-fenix.us.ci" \
+    "http://127.0.0.1:$http_port/v1/list/12346/52" -o "$smoke_file"
+python3 - "$release_dir/scripts/stage-ios-r52-profile.py" "$smoke_file" <<'PY'
+import importlib.util
+import pathlib
+import sys
+
+script = pathlib.Path(sys.argv[1])
+spec = importlib.util.spec_from_file_location("stage_ios_r52_profile", script)
+stager = importlib.util.module_from_spec(spec)
+if spec is None or spec.loader is None:
+    raise SystemExit("R52 protobuf validator is unavailable")
+spec.loader.exec_module(stager)
+stager._validate_database(pathlib.Path(sys.argv[2]).read_bytes(), 52)
+PY
+
+  read -r r52_cdn_path r52_cdn_sha < <(python3 - "$app_dir/.local/ios-resources/12346-r52/profile/catalog.json" <<'PY'
+import json
+import pathlib
+import sys
+
+resources = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))["resources"]
+rows = sorted((row for row in resources if row.get("enabled") is True), key=lambda row: row["requestPath"])
+if not rows:
+    raise SystemExit("R52 profile has no enabled CDN rows")
+print(rows[0]["requestPath"], rows[0]["sha256"])
+PY
+)
+  curl --fail --silent --show-error --max-time 30 \
+    -H "Host: kick-flight-fenix.us.ci" \
+    "http://127.0.0.1:$http_port$r52_cdn_path" -o "$smoke_file"
+  actual_r52_sha=$(sha256sum "$smoke_file" | cut -d ' ' -f 1)
+  [[ "$actual_r52_sha" == "$r52_cdn_sha" ]] || {
+    echo "R52 CDN smoke payload checksum does not match the staged profile" >&2; exit 1;
+  }
+  rm -f -- "$smoke_file"
+  smoke_file=""
+  echo "R52 direct-client list and CDN health checks passed at revision 52"
+fi
 
 read -r cdn_path cdn_sha < <(python3 - "$app_dir/config/resources/catalog.json" <<'PY'
 import json

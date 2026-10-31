@@ -104,6 +104,9 @@ services:
       GrpcPort: "18081"
       KF_REPO_ROOT: /srv/repo
       KF_EXPERIMENTAL_AI_ROLES: ${KF_EXPERIMENTAL_AI_ROLES:-1}
+      # The deploy script latches this to true after R52 is first served; it cannot be switched off later.
+      Harness__EnableIosR52TestProfile: ${KF_IOS_R52_PROFILE_ENABLED:-false}
+      Harness__IosR52TestProfilePath: /srv/repo/.local/ios-resources/12346-r52/profile
       # Commit being deployed (scripts/deploy-vps-ci.sh exports it from the workflow's GITHUB_SHA). Every API start
       # records it in the ops telemetry's server_runs table; the Health tab's default window is "this release".
       KF_RELEASE_SHA: ${KF_RELEASE_SHA:-unknown}
