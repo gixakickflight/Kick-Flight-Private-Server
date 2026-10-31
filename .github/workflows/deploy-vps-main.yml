@@ -161,16 +161,20 @@ jobs:
         env:
           R52_ARCHIVE: ${{ steps.r52_profile.outputs.archive }}
           R52_ARCHIVE_SHA256: ${{ steps.r52_profile.outputs.sha256 }}
+          R52_PROFILE_PATH: ${{ steps.r52_test_profile.outputs.profile }}
           VPS_HOST: ${{ vars.VPS_HOST }}
           VPS_USER: ${{ vars.VPS_USER }}
           VPS_SSH_PORT: ${{ vars.VPS_SSH_PORT }}
+          VPS_APP_DIR: ${{ vars.VPS_APP_DIR }}
         run: |
           set -euo pipefail
           [[ -n "$VPS_HOST" && -n "$VPS_USER" ]] || { echo "Set repository variables VPS_HOST and VPS_USER" >&2; exit 1; }
           [[ "$VPS_HOST" =~ ^[A-Za-z0-9.-]+$ ]] || { echo "VPS_HOST contains unsupported characters" >&2; exit 1; }
           [[ "$VPS_USER" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "VPS_USER contains unsupported characters" >&2; exit 1; }
-          [[ "$R52_ARCHIVE_SHA256" =~ ^[0-9a-f]{64}$ ]] || { echo "Invalid pinned R52 SHA-256" >&2; exit 1; }
-          [[ -f "$R52_ARCHIVE" ]] || { echo "Validated R52 archive is missing" >&2; exit 1; }
+          [[ "$VPS_APP_DIR" == /* && "$VPS_APP_DIR" != "/" ]] || { echo "VPS_APP_DIR must be an absolute application directory" >&2; exit 1; }
+          [[ "${#GITHUB_SHA}" -eq 40 && "$GITHUB_SHA" != *[!0-9a-f]* ]] || { echo "Invalid workflow commit SHA" >&2; exit 1; }
+          [[ "${#R52_ARCHIVE_SHA256}" -eq 64 && "$R52_ARCHIVE_SHA256" != *[!0-9a-f]* ]] || { echo "Invalid pinned R52 SHA-256" >&2; exit 1; }
+          [[ -f "$R52_ARCHIVE" && -d "$R52_PROFILE_PATH" ]] || { echo "Validated R52 archive or staged profile is missing" >&2; exit 1; }
           port="${VPS_SSH_PORT:-22}"
           [[ "$port" =~ ^[0-9]{1,5}$ ]] || { echo "VPS_SSH_PORT must be numeric" >&2; exit 1; }
           remote="${VPS_USER}@${VPS_HOST}"
@@ -179,25 +183,162 @@ jobs:
             -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/kf-vps-known-hosts")
           scp_opts=(-q -i "$RUNNER_TEMP/kf-vps-deploy-key" -P "$port" -o BatchMode=yes -o IdentitiesOnly=yes
             -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/kf-vps-known-hosts")
+          archive_bytes=$(python3 - "$R52_ARCHIVE" <<'PY'
+          from pathlib import Path
+          import sys
+          print(Path(sys.argv[1]).stat().st_size)
+          PY
+          )
+          stage_tree_bytes=$(python3 - "$R52_PROFILE_PATH" <<'PY'
+          from pathlib import Path
+          import sys
+          profile = Path(sys.argv[1]).resolve(strict=True)
+          stage = profile.parent
+          paths = [stage, *stage.rglob("*")]
+          if any(path.is_symlink() for path in paths):
+              raise SystemExit("staged R52 tree contains a symbolic link")
+          print(sum(path.stat().st_size for path in paths if path.is_file()))
+          PY
+          )
+          [[ "$archive_bytes" =~ ^[0-9]+$ && "$stage_tree_bytes" =~ ^[0-9]+$ ]] || {
+            echo "R52 transfer: local archive/staged-size measurement failed" >&2; exit 1;
+          }
+          remote_stage_root="$VPS_APP_DIR/.local"
+          printf -v q_stage_root '%q' "$remote_stage_root"
+          remote_upload_started=false
+          scp_error_file="$RUNNER_TEMP/kf-r52-scp-error"
           remove_partial_upload() {
             local result=$?
             trap - EXIT
-            if [[ "$result" -ne 0 ]]; then
-              ssh "${ssh_opts[@]}" "$remote" "rm -f -- '$remote_archive'" >/dev/null 2>&1 || true
+            if [[ "$result" -ne 0 && "$remote_upload_started" == true ]]; then
+              if ssh "${ssh_opts[@]}" "$remote" "rm -f -- '$remote_archive'" >/dev/null 2>&1; then
+                echo "R52 transfer cleanup: remote temporary file removed or absent" >&2
+              else
+                echo "R52 transfer cleanup: could not confirm remote temporary file removal" >&2
+              fi
             fi
+            rm -f -- "$scp_error_file"
             exit "$result"
           }
           trap remove_partial_upload EXIT
-          scp "${scp_opts[@]}" "$R52_ARCHIVE" "$remote:$remote_archive"
-          ssh "${ssh_opts[@]}" "$remote" bash -s -- "$remote_archive" "$R52_ARCHIVE_SHA256" <<'REMOTE_VERIFY'
+          if space_result=$(ssh "${ssh_opts[@]}" "$remote" "bash -s -- $q_stage_root $archive_bytes $stage_tree_bytes" 2>/dev/null <<'REMOTE_SPACE_CHECK'
+          set -euo pipefail
+          stage_root=$1
+          archive_bytes=$2
+          stage_tree_bytes=$3
+          python3 - "$stage_root" "$archive_bytes" "$stage_tree_bytes" <<'PY'
+          from pathlib import Path
+          import shutil
+          import sys
+          stage_root = Path(sys.argv[1])
+          try:
+              archive_bytes, stage_tree_bytes = int(sys.argv[2]), int(sys.argv[3])
+              if archive_bytes <= 0 or stage_tree_bytes <= 0 or not stage_root.is_dir():
+                  print("R52_SPACE_INVALID_INPUT")
+                  raise SystemExit(20)
+              tmp_free = shutil.disk_usage("/tmp").free
+              stage_free = shutil.disk_usage(stage_root).free
+          except (OSError, ValueError):
+              print("R52_SPACE_CHECK_FAILED")
+              raise SystemExit(21)
+          reserve = 64 * 1024 * 1024
+          if tmp_free < archive_bytes + reserve:
+              print("R52_SPACE_TMP_LOW")
+              raise SystemExit(22)
+          if stage_free < stage_tree_bytes + reserve:
+              print("R52_SPACE_STAGE_LOW")
+              raise SystemExit(23)
+          print("R52_SPACE_OK")
+          PY
+          REMOTE_SPACE_CHECK
+          ); then
+            [[ "$space_result" == "R52_SPACE_OK" ]] || {
+              echo "R52 transfer: remote capacity check returned an unexpected result" >&2; exit 1;
+            }
+          else
+            status=$?
+            case "$space_result" in
+              R52_SPACE_INVALID_INPUT) reason="remote storage inputs invalid" ;;
+              R52_SPACE_CHECK_FAILED) reason="remote storage query failed" ;;
+              R52_SPACE_TMP_LOW) reason="insufficient free space in remote /tmp" ;;
+              R52_SPACE_STAGE_LOW) reason="insufficient free space for the staged profile" ;;
+              *) reason="SSH or remote capacity check failed" ;;
+            esac
+            echo "R52 transfer: $reason (exit $status)" >&2
+            exit "$status"
+          fi
+          remote_upload_started=true
+          if scp "${scp_opts[@]}" "$R52_ARCHIVE" "$remote:$remote_archive" 2>"$scp_error_file"; then
+            :
+          else
+            status=$?
+            if grep -qiE 'no space left|disk quota exceeded' "$scp_error_file"; then
+              reason="remote storage rejected the upload"
+            elif grep -qiE 'permission denied|authentication failed' "$scp_error_file"; then
+              reason="SSH authentication or write permission failed"
+            elif grep -qiE 'host key verification failed|remote host identification has changed' "$scp_error_file"; then
+              reason="SSH host verification failed"
+            elif grep -qiE 'timed out|connection reset|connection refused|broken pipe' "$scp_error_file"; then
+              reason="SSH/SCP connection failed"
+            else
+              reason="SCP failed with an unclassified error"
+            fi
+            echo "R52 transfer: $reason (exit $status)" >&2
+            exit "$status"
+          fi
+          if verify_result=$(ssh "${ssh_opts[@]}" "$remote" bash -s -- "$remote_archive" "$R52_ARCHIVE_SHA256" 2>/dev/null <<'REMOTE_VERIFY'
           set -euo pipefail
           archive_path=$1
           expected_sha=$2
-          [[ "$archive_path" =~ ^/tmp/kf-ios-r52-profile-[0-9a-f]{40}\.tar\.gz$ ] || exit 2
-          [[ "$expected_sha" =~ ^[0-9a-f]{64}$ ]] || exit 2
-          chmod 600 -- "$archive_path"
-          printf '%s  %s\n' "$expected_sha" "$archive_path" | sha256sum --check --status
+          if [[ ! "$archive_path" =~ ^/tmp/kf-ios-r52-profile-[0-9a-f]{40}\.tar\.gz$ ]]; then
+            echo R52_REMOTE_PATH_INVALID
+            exit 30
+          fi
+          if [[ "${#expected_sha}" -ne 64 || "$expected_sha" == *[!0-9a-f]* ]]; then
+            echo R52_REMOTE_SHA_INVALID
+            exit 31
+          fi
+          if ! chmod 600 "$archive_path"; then
+            echo R52_REMOTE_CHMOD_FAILED
+            exit 32
+          fi
+          if python3 - "$archive_path" "$expected_sha" <<'PY'
+          from pathlib import Path
+          import hashlib
+          import sys
+          digest = hashlib.sha256()
+          try:
+              with Path(sys.argv[1]).open("rb") as stream:
+                  for block in iter(lambda: stream.read(1024 * 1024), b""):
+                      digest.update(block)
+          except OSError:
+              raise SystemExit(1)
+          raise SystemExit(0 if digest.hexdigest() == sys.argv[2] else 1)
+          PY
+          then
+            echo R52_REMOTE_VERIFY_OK
+          else
+            echo R52_REMOTE_SHA256_FAILED
+            exit 33
+          fi
           REMOTE_VERIFY
+          ); then
+            [[ "$verify_result" == "R52_REMOTE_VERIFY_OK" ]] || {
+              echo "R52 transfer: remote verification returned an unexpected result" >&2; exit 1;
+            }
+          else
+            status=$?
+            case "$verify_result" in
+              R52_REMOTE_PATH_INVALID) reason="remote archive path guard rejected the upload" ;;
+              R52_REMOTE_SHA_INVALID) reason="remote checksum input guard rejected the upload" ;;
+              R52_REMOTE_CHMOD_FAILED) reason="remote archive could not be secured" ;;
+              R52_REMOTE_SHA256_FAILED) reason="remote checksum did not match or archive was unreadable" ;;
+              *) reason="SSH or remote verification failed" ;;
+            esac
+            echo "R52 transfer: $reason (exit $status)" >&2
+            exit "$status"
+          fi
+          rm -f -- "$scp_error_file"
           {
             echo "enabled=true"
             echo "sha256=$R52_ARCHIVE_SHA256"

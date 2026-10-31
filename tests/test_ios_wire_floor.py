@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -6,6 +7,7 @@ import sys
 import tempfile
 import textwrap
 import unittest
+import uuid
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "ios-wire-floor.py"
@@ -38,6 +40,22 @@ R52_PUSH_PATHS = {
 
 
 class IosWireFloorTests(unittest.TestCase):
+    @staticmethod
+    def r52_transfer_step():
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        return workflow.split("      - name: Transfer the validated profile privately to the VPS\n", 1)[1].split(
+            "\n  deploy:\n", 1
+        )[0]
+
+    @classmethod
+    def remote_transfer_heredoc(cls, name):
+        step = cls.r52_transfer_step()
+        marker = f"<<'{name}'\n"
+        if marker not in step:
+            raise AssertionError(f"missing {name} heredoc in R52 transfer step")
+        body = step.split(marker, 1)[1].split(f"\n          {name}", 1)[0]
+        return textwrap.dedent(body)
+
     def run_workflow_detector(self, changed_paths):
         with tempfile.TemporaryDirectory() as temp:
             repo = Path(temp)
@@ -87,6 +105,67 @@ class IosWireFloorTests(unittest.TestCase):
         self.assertIn("--stage-root", no_archive_guard)
         self.assertIn('"$snapshot_name"', no_archive_guard)
         self.assertNotIn("refusing deployment", no_archive_guard)
+
+    def test_r52_transfer_checks_remote_space_and_reports_safe_failure_categories(self):
+        transfer = self.r52_transfer_step()
+        self.assertIn("R52_PROFILE_PATH", transfer)
+        self.assertIn("R52_SPACE_OK", transfer)
+        self.assertIn("insufficient free space in remote /tmp", transfer)
+        self.assertIn("insufficient free space for the staged profile", transfer)
+        self.assertIn("SCP failed", transfer)
+        self.assertIn("remote verification failed", transfer)
+        self.assertIn("remote temporary file removed or absent", transfer)
+        self.assertIn("could not confirm remote temporary file removal", transfer)
+        self.assertNotIn("VPS_SSH_PRIVATE_KEY", transfer)
+        self.assertNotIn("VPS_KNOWN_HOSTS", transfer)
+
+        with tempfile.TemporaryDirectory() as temp:
+            capacity_check = self.remote_transfer_heredoc("REMOTE_SPACE_CHECK")
+            ok = subprocess.run(
+                ["bash", "-s", "--", temp, "1", "1"],
+                input=capacity_check, capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(0, ok.returncode, ok.stderr)
+            self.assertEqual("R52_SPACE_OK", ok.stdout.strip())
+
+            low_space = subprocess.run(
+                ["bash", "-s", "--", temp, "1000000000000000000", "1"],
+                input=capacity_check, capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(22, low_space.returncode, low_space.stderr)
+            self.assertEqual("R52_SPACE_TMP_LOW", low_space.stdout.strip())
+
+    def test_r52_remote_verifier_reports_guard_and_checksum_failures(self):
+        verifier = self.remote_transfer_heredoc("REMOTE_VERIFY")
+        bad_path = subprocess.run(
+            ["bash", "-s", "--", "/tmp/not-the-pinned-profile.tar.gz", "a" * 64],
+            input=verifier, capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(30, bad_path.returncode)
+        self.assertEqual("R52_REMOTE_PATH_INVALID", bad_path.stdout.strip())
+
+        archive_path = Path("/tmp") / f"kf-ios-r52-profile-{hashlib.sha256(uuid.uuid4().bytes).hexdigest()[:40]}.tar.gz"
+        payload = b"synthetic test archive"
+        expected_sha = hashlib.sha256(payload).hexdigest()
+        try:
+            archive_path.write_bytes(payload)
+            verified = subprocess.run(
+                ["bash", "-s", "--", str(archive_path), expected_sha],
+                input=verifier, capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(0, verified.returncode, verified.stderr)
+            self.assertEqual("R52_REMOTE_VERIFY_OK", verified.stdout.strip())
+
+            archive_path.write_bytes(b"changed synthetic archive")
+            mismatch = subprocess.run(
+                ["bash", "-s", "--", str(archive_path), expected_sha],
+                input=verifier, capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(33, mismatch.returncode)
+            self.assertEqual("R52_REMOTE_SHA256_FAILED", mismatch.stdout.strip())
+        finally:
+            archive_path.chmod(0o600)
+            archive_path.unlink(missing_ok=True)
 
     def test_extra_non_r52_path_uses_normal_full_deployment_classification(self):
         flags = self.run_workflow_detector(sorted(R52_PUSH_PATHS | {"config/masters_honor.json"}))
