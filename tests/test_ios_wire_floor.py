@@ -77,6 +77,17 @@ class IosWireFloorTests(unittest.TestCase):
         self.assertEqual(2, workflow.count("steps.changes.outputs.r52_api_only != 'true'"))
         self.assertIn("inputs.activate_ios_r52_profile", workflow)
 
+    def test_api_only_push_verifies_reused_native_snapshot_without_an_archive(self):
+        deploy = (SCRIPT.parent / "deploy-vps-ci.sh").read_text(encoding="utf-8")
+        start = deploy.index('if [[ -z "$ios_snapshot_archive" && "$ios_r52_profile_enabled" != true ]]; then')
+        end = deploy.index('if [[ -n "$ios_snapshot_archive" ]]; then', start)
+        no_archive_guard = deploy[start:end]
+        self.assertIn("stage-ios-resource-snapshot.py\" verify-stage", no_archive_guard)
+        self.assertIn("--manifest", no_archive_guard)
+        self.assertIn("--stage-root", no_archive_guard)
+        self.assertIn('"$snapshot_name"', no_archive_guard)
+        self.assertNotIn("refusing deployment", no_archive_guard)
+
     def test_extra_non_r52_path_uses_normal_full_deployment_classification(self):
         flags = self.run_workflow_detector(sorted(R52_PUSH_PATHS | {"config/masters_honor.json"}))
         self.assertEqual("false", flags["r52_api_only"])
