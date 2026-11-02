@@ -1,0 +1,504 @@
+{
+ "tenant": "kf",
+ "namespace_prefix": "kf.masters",
+ "document": "{\"rows\": [...]}",
+ "note": "One namespace per master table. Seeded and published by scripts/otomo/sync_masters.py; the schemas beside this file are this repository's, and otomo only stores them.",
+ "namespaces": [
+  {
+   "namespace": "kf.masters.battle_replay_channel",
+   "audience": "server",
+   "table": "battle_replay_channel",
+   "source": "config/masters_battle_replay_channel.json",
+   "schema": "masters/otomo/schema/kf.masters.battle_replay_channel.json",
+   "rows": 15
+  },
+  {
+   "namespace": "kf.masters.battle_rule",
+   "audience": "server",
+   "table": "battle_rule",
+   "source": "config/masters_battle_rule.json",
+   "schema": "masters/otomo/schema/kf.masters.battle_rule.json",
+   "rows": 9
+  },
+  {
+   "namespace": "kf.masters.battle_rule_flag_flight_score",
+   "audience": "server",
+   "table": "battle_rule_flag_flight_score",
+   "source": "config/masters_battle_rule_flag_flight_score.json",
+   "schema": "masters/otomo/schema/kf.masters.battle_rule_flag_flight_score.json",
+   "rows": 2
+  },
+  {
+   "namespace": "kf.masters.battle_rule_rapid_ball_score",
+   "audience": "server",
+   "table": "battle_rule_rapid_ball_score",
+   "source": "config/masters_battle_rule_rapid_ball_score.json",
+   "schema": "masters/otomo/schema/kf.masters.battle_rule_rapid_ball_score.json",
+   "rows": 2
+  },
+  {
+   "namespace": "kf.masters.common_condition_hit",
+   "audience": "server",
+   "table": "common_condition_hit",
+   "source": "config/masters_common_condition_hit.json",
+   "schema": "masters/otomo/schema/kf.masters.common_condition_hit.json",
+   "rows": 7
+  },
+  {
+   "namespace": "kf.masters.custom_battle_kicker_ai",
+   "audience": "server",
+   "table": "custom_battle_kicker_ai",
+   "source": "config/masters_custom_battle_kicker_ai.json",
+   "schema": "masters/otomo/schema/kf.masters.custom_battle_kicker_ai.json",
+   "rows": 14
+  },
+  {
+   "namespace": "kf.masters.custom_battle_rule_field",
+   "audience": "server",
+   "table": "custom_battle_rule_field",
+   "source": "config/masters_custom_battle_rule_field.json",
+   "schema": "masters/otomo/schema/kf.masters.custom_battle_rule_field.json",
+   "rows": 18
+  },
+  {
+   "namespace": "kf.masters.disc",
+   "audience": "server",
+   "table": "disc",
+   "source": "config/masters_disc.json",
+   "schema": "masters/otomo/schema/kf.masters.disc.json",
+   "rows": 131
+  },
+  {
+   "namespace": "kf.masters.disc_buildup",
+   "audience": "server",
+   "table": "disc_buildup",
+   "source": "config/masters_disc_buildup.json",
+   "schema": "masters/otomo/schema/kf.masters.disc_buildup.json",
+   "rows": 34
+  },
+  {
+   "namespace": "kf.masters.disc_gacha",
+   "audience": "server",
+   "table": "disc_gacha",
+   "source": "config/masters_disc_gacha.json",
+   "schema": "masters/otomo/schema/kf.masters.disc_gacha.json",
+   "rows": 1
+  },
+  {
+   "namespace": "kf.masters.disc_grow",
+   "audience": "server",
+   "table": "disc_grow",
+   "source": "config/masters_disc_grow.json",
+   "schema": "masters/otomo/schema/kf.masters.disc_grow.json",
+   "rows": 50
+  },
+  {
+   "namespace": "kf.masters.disc_rarity",
+   "audience": "server",
+   "table": "disc_rarity",
+   "source": "config/masters_disc_rarity.json",
+   "schema": "masters/otomo/schema/kf.masters.disc_rarity.json",
+   "rows": 4
+  },
+  {
+   "namespace": "kf.masters.gacha_group",
+   "audience": "server",
+   "table": "gacha_group",
+   "source": "config/masters_gacha_group.json",
+   "schema": "masters/otomo/schema/kf.masters.gacha_group.json",
+   "rows": 2
+  },
+  {
+   "namespace": "kf.masters.gear",
+   "audience": "server",
+   "table": "gear",
+   "source": "config/masters_gear.json",
+   "schema": "masters/otomo/schema/kf.masters.gear.json",
+   "rows": 500
+  },
+  {
+   "namespace": "kf.masters.gear_same_color_bonus",
+   "audience": "server",
+   "table": "gear_same_color_bonus",
+   "source": "config/masters_gear_same_color_bonus.json",
+   "schema": "masters/otomo/schema/kf.masters.gear_same_color_bonus.json",
+   "rows": 8
+  },
+  {
+   "namespace": "kf.masters.gear_skill",
+   "audience": "server",
+   "table": "gear_skill",
+   "source": "config/masters_gear_skill.json",
+   "schema": "masters/otomo/schema/kf.masters.gear_skill.json",
+   "rows": 25
+  },
+  {
+   "namespace": "kf.masters.guardian_parameter",
+   "audience": "server",
+   "table": "guardian_parameter",
+   "source": "config/masters_guardian_parameter.json",
+   "schema": "masters/otomo/schema/kf.masters.guardian_parameter.json",
+   "rows": 3
+  },
+  {
+   "namespace": "kf.masters.initial_disc_deck",
+   "audience": "server",
+   "table": "initial_disc_deck",
+   "source": "config/masters_initial_disc_deck.json",
+   "schema": "masters/otomo/schema/kf.masters.initial_disc_deck.json",
+   "rows": 3
+  },
+  {
+   "namespace": "kf.masters.kicker",
+   "audience": "server",
+   "table": "kicker",
+   "source": "config/masters_kicker.json",
+   "schema": "masters/otomo/schema/kf.masters.kicker.json",
+   "rows": 14
+  },
+  {
+   "namespace": "kf.masters.kicker_ability",
+   "audience": "server",
+   "table": "kicker_ability",
+   "source": "config/masters_kicker_ability.json",
+   "schema": "masters/otomo/schema/kf.masters.kicker_ability.json",
+   "rows": 15
+  },
+  {
+   "namespace": "kf.masters.kicker_ability_condition",
+   "audience": "server",
+   "table": "kicker_ability_condition",
+   "source": "config/masters_kicker_ability_condition.json",
+   "schema": "masters/otomo/schema/kf.masters.kicker_ability_condition.json",
+   "rows": 4
+  },
+  {
+   "namespace": "kf.masters.kicker_ai_disc",
+   "audience": "server",
+   "table": "kicker_ai_disc",
+   "source": "config/masters_kicker_ai_disc.json",
+   "schema": "masters/otomo/schema/kf.masters.kicker_ai_disc.json",
+   "rows": 91
+  },
+  {
+   "namespace": "kf.masters.kicker_ai_disc_deck",
+   "audience": "server",
+   "table": "kicker_ai_disc_deck",
+   "source": "config/masters_kicker_ai_disc_deck.json",
+   "schema": "masters/otomo/schema/kf.masters.kicker_ai_disc_deck.json",
+   "rows": 451
+  },
+  {
+   "namespace": "kf.masters.kicker_ai_parameter",
+   "audience": "server",
+   "table": "kicker_ai_parameter",
+   "source": "config/masters_kicker_ai_parameter.json",
+   "schema": "masters/otomo/schema/kf.masters.kicker_ai_parameter.json",
+   "rows": 14
+  },
+  {
+   "namespace": "kf.masters.kicker_costume",
+   "audience": "server",
+   "table": "kicker_costume",
+   "source": "config/masters_kicker_costume.json",
+   "schema": "masters/otomo/schema/kf.masters.kicker_costume.json",
+   "rows": 118
+  },
+  {
+   "namespace": "kf.masters.kicker_detail",
+   "audience": "server",
+   "table": "kicker_detail",
+   "source": "config/masters_kicker_detail.json",
+   "schema": "masters/otomo/schema/kf.masters.kicker_detail.json",
+   "rows": 14
+  },
+  {
+   "namespace": "kf.masters.kicker_gacha",
+   "audience": "server",
+   "table": "kicker_gacha",
+   "source": "config/masters_kicker_gacha.json",
+   "schema": "masters/otomo/schema/kf.masters.kicker_gacha.json",
+   "rows": 1
+  },
+  {
+   "namespace": "kf.masters.kicker_parameter",
+   "audience": "server",
+   "table": "kicker_parameter",
+   "source": "config/masters_kicker_parameter.json",
+   "schema": "masters/otomo/schema/kf.masters.kicker_parameter.json",
+   "rows": 14
+  },
+  {
+   "namespace": "kf.masters.lottery_cost",
+   "audience": "server",
+   "table": "lottery_cost",
+   "source": "config/masters_lottery_cost.json",
+   "schema": "masters/otomo/schema/kf.masters.lottery_cost.json",
+   "rows": 2
+  },
+  {
+   "namespace": "kf.masters.lottery_disc_drop_amount",
+   "audience": "server",
+   "table": "lottery_disc_drop_amount",
+   "source": "config/masters_lottery_disc_drop_amount.json",
+   "schema": "masters/otomo/schema/kf.masters.lottery_disc_drop_amount.json",
+   "rows": 1
+  },
+  {
+   "namespace": "kf.masters.lottery_disc_rarity",
+   "audience": "server",
+   "table": "lottery_disc_rarity",
+   "source": "config/masters_lottery_disc_rarity.json",
+   "schema": "masters/otomo/schema/kf.masters.lottery_disc_rarity.json",
+   "rows": 4
+  },
+  {
+   "namespace": "kf.masters.lottery_drop_count_reward",
+   "audience": "server",
+   "table": "lottery_drop_count_reward",
+   "source": "config/masters_lottery_drop_count_reward.json",
+   "schema": "masters/otomo/schema/kf.masters.lottery_drop_count_reward.json",
+   "rows": 1
+  },
+  {
+   "namespace": "kf.masters.lottery_drop_disc",
+   "audience": "server",
+   "table": "lottery_drop_disc",
+   "source": "config/masters_lottery_drop_disc.json",
+   "schema": "masters/otomo/schema/kf.masters.lottery_drop_disc.json",
+   "rows": 131
+  },
+  {
+   "namespace": "kf.masters.lottery_drop_kicker",
+   "audience": "server",
+   "table": "lottery_drop_kicker",
+   "source": "config/masters_lottery_drop_kicker.json",
+   "schema": "masters/otomo/schema/kf.masters.lottery_drop_kicker.json",
+   "rows": 118
+  },
+  {
+   "namespace": "kf.masters.lottery_gear_rarity",
+   "audience": "server",
+   "table": "lottery_gear_rarity",
+   "source": "config/masters_lottery_gear_rarity.json",
+   "schema": "masters/otomo/schema/kf.masters.lottery_gear_rarity.json",
+   "rows": 4
+  },
+  {
+   "namespace": "kf.masters.matchmaking_ping_threshold",
+   "audience": "server",
+   "table": "matchmaking_ping_threshold",
+   "source": "config/masters_matchmaking_ping_threshold.json",
+   "schema": "masters/otomo/schema/kf.masters.matchmaking_ping_threshold.json",
+   "rows": 3
+  },
+  {
+   "namespace": "kf.masters.movie_category",
+   "audience": "server",
+   "table": "movie_category",
+   "source": "config/masters_movie_category.json",
+   "schema": "masters/otomo/schema/kf.masters.movie_category.json",
+   "rows": 0
+  },
+  {
+   "namespace": "kf.masters.regular_match_battle_schedule",
+   "audience": "server",
+   "table": "regular_match_battle_schedule",
+   "source": "config/masters_regular_match_battle_schedule.json",
+   "schema": "masters/otomo/schema/kf.masters.regular_match_battle_schedule.json",
+   "rows": 6
+  },
+  {
+   "namespace": "kf.masters.skill",
+   "audience": "server",
+   "table": "skill",
+   "source": "config/masters_skill.json",
+   "schema": "masters/otomo/schema/kf.masters.skill.json",
+   "rows": 147
+  },
+  {
+   "namespace": "kf.masters.skill_blow_off",
+   "audience": "server",
+   "table": "skill_blow_off",
+   "source": "config/masters_skill_blow_off.json",
+   "schema": "masters/otomo/schema/kf.masters.skill_blow_off.json",
+   "rows": 38
+  },
+  {
+   "namespace": "kf.masters.skill_collision",
+   "audience": "server",
+   "table": "skill_collision",
+   "source": "config/masters_skill_collision.json",
+   "schema": "masters/otomo/schema/kf.masters.skill_collision.json",
+   "rows": 1
+  },
+  {
+   "namespace": "kf.masters.skill_condition",
+   "audience": "server",
+   "table": "skill_condition",
+   "source": "config/masters_skill_condition.json",
+   "schema": "masters/otomo/schema/kf.masters.skill_condition.json",
+   "rows": 62
+  },
+  {
+   "namespace": "kf.masters.skill_heal",
+   "audience": "server",
+   "table": "skill_heal",
+   "source": "config/masters_skill_heal.json",
+   "schema": "masters/otomo/schema/kf.masters.skill_heal.json",
+   "rows": 24
+  },
+  {
+   "namespace": "kf.masters.skill_hit",
+   "audience": "server",
+   "table": "skill_hit",
+   "source": "config/masters_skill_hit.json",
+   "schema": "masters/otomo/schema/kf.masters.skill_hit.json",
+   "rows": 1
+  },
+  {
+   "namespace": "kf.masters.skill_pull_in",
+   "audience": "server",
+   "table": "skill_pull_in",
+   "source": "config/masters_skill_pull_in.json",
+   "schema": "masters/otomo/schema/kf.masters.skill_pull_in.json",
+   "rows": 1
+  },
+  {
+   "namespace": "kf.masters.skill_trap",
+   "audience": "server",
+   "table": "skill_trap",
+   "source": "config/masters_skill_trap.json",
+   "schema": "masters/otomo/schema/kf.masters.skill_trap.json",
+   "rows": 23
+  },
+  {
+   "namespace": "kf.masters.special_skill",
+   "audience": "server",
+   "table": "special_skill",
+   "source": "config/masters_special_skill.json",
+   "schema": "masters/otomo/schema/kf.masters.special_skill.json",
+   "rows": 14
+  },
+  {
+   "namespace": "kf.masters.special_skill_blow_off",
+   "audience": "server",
+   "table": "special_skill_blow_off",
+   "source": "config/masters_special_skill_blow_off.json",
+   "schema": "masters/otomo/schema/kf.masters.special_skill_blow_off.json",
+   "rows": 2
+  },
+  {
+   "namespace": "kf.masters.special_skill_bullet",
+   "audience": "server",
+   "table": "special_skill_bullet",
+   "source": "config/masters_special_skill_bullet.json",
+   "schema": "masters/otomo/schema/kf.masters.special_skill_bullet.json",
+   "rows": 2
+  },
+  {
+   "namespace": "kf.masters.special_skill_collision",
+   "audience": "server",
+   "table": "special_skill_collision",
+   "source": "config/masters_special_skill_collision.json",
+   "schema": "masters/otomo/schema/kf.masters.special_skill_collision.json",
+   "rows": 14
+  },
+  {
+   "namespace": "kf.masters.special_skill_condition",
+   "audience": "server",
+   "table": "special_skill_condition",
+   "source": "config/masters_special_skill_condition.json",
+   "schema": "masters/otomo/schema/kf.masters.special_skill_condition.json",
+   "rows": 18
+  },
+  {
+   "namespace": "kf.masters.special_skill_hit",
+   "audience": "server",
+   "table": "special_skill_hit",
+   "source": "config/masters_special_skill_hit.json",
+   "schema": "masters/otomo/schema/kf.masters.special_skill_hit.json",
+   "rows": 14
+  },
+  {
+   "namespace": "kf.masters.special_skill_trap",
+   "audience": "server",
+   "table": "special_skill_trap",
+   "source": "config/masters_special_skill_trap.json",
+   "schema": "masters/otomo/schema/kf.masters.special_skill_trap.json",
+   "rows": 3
+  },
+  {
+   "namespace": "kf.masters.stamp",
+   "audience": "server",
+   "table": "stamp",
+   "source": "config/masters_stamp.json",
+   "schema": "masters/otomo/schema/kf.masters.stamp.json",
+   "rows": 78
+  },
+  {
+   "namespace": "kf.masters.stamp_situation",
+   "audience": "server",
+   "table": "stamp_situation",
+   "source": "config/masters_stamp_situation.json",
+   "schema": "masters/otomo/schema/kf.masters.stamp_situation.json",
+   "rows": 45
+  },
+  {
+   "namespace": "kf.masters.summon",
+   "audience": "server",
+   "table": "summon",
+   "source": "config/masters_summon.json",
+   "schema": "masters/otomo/schema/kf.masters.summon.json",
+   "rows": 131
+  },
+  {
+   "namespace": "kf.masters.translation",
+   "audience": "server",
+   "table": "translation",
+   "source": "config/masters_translation.json",
+   "schema": "masters/otomo/schema/kf.masters.translation.json",
+   "rows": 1032
+  },
+  {
+   "namespace": "kf.masters.weapon_attack",
+   "audience": "server",
+   "table": "weapon_attack",
+   "source": "config/masters_weapon_attack.json",
+   "schema": "masters/otomo/schema/kf.masters.weapon_attack.json",
+   "rows": 42
+  },
+  {
+   "namespace": "kf.masters.weapon_attack_bullet",
+   "audience": "server",
+   "table": "weapon_attack_bullet",
+   "source": "config/masters_weapon_attack_bullet.json",
+   "schema": "masters/otomo/schema/kf.masters.weapon_attack_bullet.json",
+   "rows": 21
+  },
+  {
+   "namespace": "kf.masters.weapon_attack_collision",
+   "audience": "server",
+   "table": "weapon_attack_collision",
+   "source": "config/masters_weapon_attack_collision.json",
+   "schema": "masters/otomo/schema/kf.masters.weapon_attack_collision.json",
+   "rows": 42
+  },
+  {
+   "namespace": "kf.masters.weapon_attack_condition",
+   "audience": "server",
+   "table": "weapon_attack_condition",
+   "source": "config/masters_weapon_attack_condition.json",
+   "schema": "masters/otomo/schema/kf.masters.weapon_attack_condition.json",
+   "rows": 0
+  },
+  {
+   "namespace": "kf.masters.weapon_attack_hit",
+   "audience": "server",
+   "table": "weapon_attack_hit",
+   "source": "config/masters_weapon_attack_hit.json",
+   "schema": "masters/otomo/schema/kf.masters.weapon_attack_hit.json",
+   "rows": 42
+  }
+ ]
+}

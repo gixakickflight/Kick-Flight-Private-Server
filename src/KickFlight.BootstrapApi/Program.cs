@@ -40,6 +40,15 @@ builder.Services.AddSingleton<IOtomoIdentity>(services => OtomoIdentity.Create(
     services.GetRequiredService<IOptions<OtomoOptions>>(),
     services.GetRequiredService<TimeProvider>(),
     services.GetRequiredService<ILogger<OtomoIdentity>>()));
+// Masters: otomo publishes them as a release and this adapter follows the channel (docs/OTOMO_MASTERS.md). The
+// tables named in Otomo:Masters:Tables are read from otomo and from nowhere else; every other table is still a
+// file under config/. The refresher is what turns a publish into a running server's new values.
+builder.Services.Configure<OtomoMastersOptions>(builder.Configuration.GetSection(OtomoMastersOptions.SectionName));
+builder.Services.AddSingleton(services => OtomoMasters.Create(
+    services.GetRequiredService<IOptions<OtomoMastersOptions>>(),
+    services.GetRequiredService<TimeProvider>(),
+    services.GetRequiredService<ILogger<OtomoMasters>>()));
+builder.Services.AddHostedService<OtomoMastersRefresher>();
 // Ops telemetry (Ops/OpsTelemetryService): the Record* calls are made by DemoSessionApi and the matchmaking room
 // events; the same singleton is the background batch writer and 60 s status sweep.
 builder.Services.AddSingleton<OpsTelemetryService>();
@@ -77,6 +86,11 @@ app.Services.GetRequiredService<MaintenanceState>();
 // Loads data/client-update.json now, so a restart keeps the forced-update minimum from the first request.
 app.Services.GetRequiredService<ClientUpdateState>();
 app.Services.GetRequiredService<LatestInformationState>();
+// Masters that come from otomo are fetched before the API resolves them: DemoSessionApi reads the tables it needs
+// in its constructor, so this is the one place where "otomo first, then files for the rest" is decided. It blocks
+// the boot on purpose - the same reason the player store is resolved here - and falls back to the last good bundle
+// on disk, so a restart while otomo is down still serves what it last served.
+await app.Services.GetRequiredService<OtomoMasters>().LoadInitialAsync(CancellationToken.None);
 // Loads every master now (rather than on the first player request) so the one-line "master overrides"
 // startup summary - and any missing config - is reported while the server boots.
 var demoSessionApi = app.Services.GetRequiredService<DemoSessionApi>();

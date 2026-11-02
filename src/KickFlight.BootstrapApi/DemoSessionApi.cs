@@ -17,9 +17,19 @@ public sealed partial class DemoSessionApi
 
     private const string CommonCode = "1a837b9ee2ae11a07a0f529a4cd4b61c";
     // The client keeps its downloaded masters until this header changes, so it must follow the content:
-    // a SHA-256 over every served table (see the end of the constructor). Editing any config/masters_*.json
-    // and restarting the server therefore makes the client re-download on its next launch.
-    public string MasterVersion { get; private set; } = "demo-master-v27";
+    // a SHA-256 over every served table (see RecomputeMasterVersion). Editing any config/masters_*.json
+    // and restarting the server therefore makes the client re-download on its next launch - and so does a
+    // published otomo release, without a restart, because ApplyOtomoTables recomputes it in place.
+    private string _masterVersion = "demo-master-v27";
+
+    /// <summary>
+    /// The master version the client compares before re-downloading. Read under the master lock because a
+    /// publish can replace a table at any moment: a reader must see one release's version, not half of two.
+    /// </summary>
+    public string MasterVersion
+    {
+        get { lock (_mastersLock) { return _masterVersion; } }
+    }
 
     // Rank is per player and persisted now (player_ranks, via IPlayerStore); the table it indexes into, the
     // range that renders, and the per-battle delta live in RankProgression.
@@ -58,7 +68,12 @@ public sealed partial class DemoSessionApi
     private readonly IOtomoIdentity _identity;
     private readonly KfAccessTokenCodec _accessTokens;
     private readonly IPlayerStore _playerStore;
+    private readonly OtomoMasters _otomoMasters;
     private readonly Dictionary<string, byte[]> _encryptedMasters = new(StringComparer.Ordinal);
+    // Guards _encryptedMasters and _masterVersion. A published release replaces table bytes while requests are
+    // reading them, so every read and every replacement takes this lock; the work inside it is a dictionary
+    // lookup or a SHA-256 over ~1 MB, which is cheap enough not to need a copy-on-write scheme.
+    private readonly object _mastersLock = new();
     private readonly Dictionary<int, int> _battleRuleTypeById = [];
     private readonly Dictionary<int, int> _battleMatchTypeById = [];
     private readonly Dictionary<int, int> _battleTimeSecondsById = [];
@@ -84,7 +99,8 @@ public sealed partial class DemoSessionApi
         BattleMatchmakingService matchmaking, BattleReplayService replays, IPlayerStore playerStore,
         IOtomoIdentity identity, KfAccessTokenCodec accessTokens,
         IConfiguration configuration, MaintenanceState maintenance, ClientUpdateState clientUpdate,
-        TimeProvider timeProvider, OpsTelemetryService ops, IOptions<HarnessOptions> harnessOptions)
+        TimeProvider timeProvider, OpsTelemetryService ops, IOptions<HarnessOptions> harnessOptions,
+        OtomoMasters otomoMasters)
     {
         _logger = logger;
         _ops = ops;
@@ -96,11 +112,15 @@ public sealed partial class DemoSessionApi
         _playerStore = playerStore;
         _identity = identity;
         _accessTokens = accessTokens;
+        _otomoMasters = otomoMasters;
         _harnessOptions = harnessOptions.Value;
         _contentRoot = environment.ContentRootPath;
         _grpcPort = configuration.GetValue("GrpcPort", 18081);
         _mastersOverrides = new MasterOverrides(configuration[MasterOverrides.ConfigurationKey], environment.ContentRootPath);
         InitializeMasters(environment.ContentRootPath);
+        // A publish replaces a table under the running process: re-encrypt it and recompute the version the client
+        // compares, so the next /download/master advertises the new content and /demo-master serves it.
+        _otomoMasters.Updated += ApplyOtomoTables;
 
         var overridden = _mastersOverrides.Applied;
         _logger.LogInformation("Master overrides in {OverrideDir}: {Count} ({Names})",
@@ -140,7 +160,7 @@ public sealed partial class DemoSessionApi
         var parameterJson = LoadJson(contentRoot, "config/masters_kicker_parameter.json", "[]");
         var abilityJson = LoadJson(contentRoot, "config/masters_kicker_ability.json", "[]");
         var abilityConditionJson = LoadJson(contentRoot, "config/masters_kicker_ability_condition.json", "[]");
-        var translationJson = LoadJson(contentRoot, "config/masters_translation.json", "[]");
+        var translationJson = MasterJson("Translation", contentRoot, "config/masters_translation.json", "[]");
 
         try
         {
@@ -775,18 +795,58 @@ public sealed partial class DemoSessionApi
         _encryptedMasters["BattleReplayChannel"] = EncryptMaster(battleReplayChannelJson);
         _encryptedMasters["MovieCategory"] = EncryptMaster(movieCategoryJson);
 
-        using (var sha = SHA256.Create())
+        RecomputeMasterVersion();
+        _logger.LogInformation("Master version {MasterVersion} ({Count} tables, {Otomo} from otomo)",
+            MasterVersion, _encryptedMasters.Count,
+            _otomoMasters.Enabled ? _otomoMasters.Source : "none");
+    }
+
+    // One master table's JSON, from wherever it now lives.
+    //
+    // A table named in Otomo:Masters:Tables comes from the release this server follows and from nowhere else: if
+    // the release did not carry it, Program.cs has already refused to start (OtomoMasters.LoadInitialAsync), so
+    // reaching here without it is a bug rather than a reason to quietly read the file the port replaced. Every
+    // other table is still the file, which is what makes moving one to otomo a single entry in that setting.
+    private string MasterJson(string masterName, string contentRoot, string relativePath, string fallback)
+    {
+        if (!_otomoMasters.Owns(masterName)) return LoadJson(contentRoot, relativePath, fallback);
+        if (_otomoMasters.TryGetTable(masterName, out var json)) return json;
+        throw new InvalidOperationException(
+            $"master {masterName} is configured to come from otomo ({_otomoMasters.Source}) but the release carried no table for it");
+    }
+
+    // A published release that changes a table this server serves. Runs on the refresher's thread, so it takes the
+    // master lock: a request must never read a version hash computed over half a release.
+    private void ApplyOtomoTables()
+    {
+        lock (_mastersLock)
         {
-            foreach (var kvp in _encryptedMasters.OrderBy(k => k.Key, StringComparer.Ordinal))
+            var applied = new List<string>();
+            foreach (var masterName in _encryptedMasters.Keys.ToList())
             {
-                var nameBytes = Encoding.UTF8.GetBytes(kvp.Key);
-                sha.TransformBlock(nameBytes, 0, nameBytes.Length, null, 0);
-                sha.TransformBlock(kvp.Value, 0, kvp.Value.Length, null, 0);
+                if (!_otomoMasters.Owns(masterName) || !_otomoMasters.TryGetTable(masterName, out var json)) continue;
+                _encryptedMasters[masterName] = EncryptMaster(ApplyObscuredOffsets(masterName, json));
+                applied.Add(masterName);
             }
-            sha.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
-            MasterVersion = "demo-master-" + Convert.ToHexString(sha.Hash!)[..16].ToLowerInvariant();
+            RecomputeMasterVersion();
+            _logger.LogInformation(
+                "Master version {MasterVersion}: {Count} table(s) reloaded from {Source} ({Tables})",
+                _masterVersion, applied.Count, _otomoMasters.Source, string.Join(", ", applied.OrderBy(n => n, StringComparer.Ordinal)));
         }
-        _logger.LogInformation("Master version {MasterVersion} ({Count} tables)", MasterVersion, _encryptedMasters.Count);
+    }
+
+    // The client's cache key: a SHA-256 over every served table, name and bytes. Called with the master lock held.
+    private void RecomputeMasterVersion()
+    {
+        using var sha = SHA256.Create();
+        foreach (var kvp in _encryptedMasters.OrderBy(k => k.Key, StringComparer.Ordinal))
+        {
+            var nameBytes = Encoding.UTF8.GetBytes(kvp.Key);
+            sha.TransformBlock(nameBytes, 0, nameBytes.Length, null, 0);
+            sha.TransformBlock(kvp.Value, 0, kvp.Value.Length, null, 0);
+        }
+        sha.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+        _masterVersion = "demo-master-" + Convert.ToHexString(sha.Hash!)[..16].ToLowerInvariant();
     }
 
     // Fallback for a checkout without config/masters_battle_replay_channel.json: the same table the config file
@@ -961,8 +1021,13 @@ public sealed partial class DemoSessionApi
     private static byte[] EncryptMaster(string json) =>
         D2CCodec.Encode(Encoding.UTF8.GetBytes(json), Encoding.ASCII.GetBytes(CommonCode), new byte[16]);
 
-    internal byte[]? GetEncryptedMaster(string masterName) =>
-        _encryptedMasters.TryGetValue(masterName, out var bytes) ? bytes : null;
+    internal byte[]? GetEncryptedMaster(string masterName)
+    {
+        lock (_mastersLock)
+        {
+            return _encryptedMasters.TryGetValue(masterName, out var bytes) ? bytes : null;
+        }
+    }
 
     public async Task<IResult?> TryHandleAsync(HttpContext context)
     {
@@ -973,7 +1038,7 @@ public sealed partial class DemoSessionApi
         if (HttpMethods.IsGet(context.Request.Method) && path.StartsWith("/demo-master/", StringComparison.Ordinal))
         {
             var masterName = path["/demo-master/".Length..];
-            if (_encryptedMasters.TryGetValue(masterName, out var masterBytes))
+            if (GetEncryptedMaster(masterName) is { } masterBytes)
             {
                 return new LocalFixtureResult(masterBytes, "application/octet-stream", StatusCodes.Status200OK);
             }
@@ -1103,7 +1168,7 @@ public sealed partial class DemoSessionApi
             context.Response.Headers["x-kickflight-fixture"] = "dynamic-demo-session";
             context.Response.Headers["x-app-master-hash"] = MasterVersion;
             var json = BuildDownloadMasterJson(context.Request);
-            _logger.LogInformation("Serving dynamic master list ({Count} masters)", _encryptedMasters.Count);
+            _logger.LogInformation("Serving dynamic master list ({Count} masters)", SnapshotMasters().Length);
             return BinaryJson(json, key);
         }
 
@@ -1774,7 +1839,9 @@ public sealed partial class DemoSessionApi
             : configuredOrigin.TrimEnd('/');
         return JsonSerializer.Serialize(new
         {
-            masterDownloadList = _encryptedMasters.Select(kvp => new
+            // Under the master lock so the list and the version header in the caller agree: a publish landing
+            // between the header and this snapshot would otherwise advertise one release and list another.
+            masterDownloadList = SnapshotMasters().Select(kvp => new
             {
                 name = kvp.Key,
                 hash = Convert.ToHexString(SHA256.HashData(kvp.Value)).ToLowerInvariant(),
@@ -1782,6 +1849,16 @@ public sealed partial class DemoSessionApi
                 size = kvp.Value.Length
             }).ToArray()
         });
+    }
+
+    // A consistent copy of the served tables. A publish replaces entries in place, so a plain enumeration can
+    // throw "collection was modified" mid-response; this is the one snapshot every reader takes.
+    private KeyValuePair<string, byte[]>[] SnapshotMasters()
+    {
+        lock (_mastersLock)
+        {
+            return _encryptedMasters.ToArray();
+        }
     }
 
     private async Task<IResult?> HandleAuthAsync(HttpContext context)
