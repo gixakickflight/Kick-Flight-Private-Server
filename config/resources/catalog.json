@@ -124,15 +124,15 @@
       "bytes": 149884376
     },
     {
-      "id": "apk-remote-2115",
+      "id": "apk-remote-2116",
       "enabled": true,
       "host": "10.0.2.2",
-      "requestPath": "/apk/KickFlight-2.11.5-remote.apk",
-      "logicalName": "Remote-play APK download (2.11.5)",
-      "description": "Android 2.11.5 connection update for the VPS; exact-candidate runtime verification required before publication.",
-      "sourcePath": ".local/KickFlight-2.11.5-remote.apk",
+      "requestPath": "/apk/KickFlight-2.11.6-remote.apk",
+      "logicalName": "Remote-play APK download (2.11.6)",
+      "description": "Android 2.11.6: global chat restored and up to 120 FPS; exact signed APK gate-verified on an AVD against the live VPS.",
+      "sourcePath": ".local/KickFlight-2.11.6-remote.apk",
       "contentType": "application/vnd.android.package-archive",
-      "sha256": "ae7b4ed16f4544b18348ed5068f02c3a582ed7cbb3b64d46fe9811a704405f4f",
+      "sha256": "9b87b6ebb21046b0c2fb1cca503181a6f99664a1896ffb5aef546d85cf0f4ab1",
       "bytes": 149876184
     },
     {
