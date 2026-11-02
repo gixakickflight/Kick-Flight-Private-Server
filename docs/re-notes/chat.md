@@ -184,5 +184,22 @@ Ring cap: query limit l=100 is client-side; server should keep >=100 per "<lang>
 Sent messages: client calls POST /chatRoomComment/write {chatRoomId, comment, stampId}; the SERVER must store it and push a child to listeners (round trip not hooked in the stub; not tested).
 Tabs: ChatRoom master rows -> tabs; chatRoomId = tab id = path component (Chatting=1 etc.); per-tab filtering is purely server-side (separate paths).
 Screenshot evidence: scratchpad t3.png (3 messages rendered incl. live append); logs .local/run/logcat-chat-exp.txt, chat-exp-stub.log.
-Remaining blockers/unknowns: sent-message round trip; profile-open from message (not tested; message carries userId only); honorId->title mapping; language code source ("en" observed);
-production wss host/URL form; auth (skipped via CheckSignedIn patch); Team/Friend/Beginner filtering semantics (server design).
+## Production implementation (2026-11-02, branch claude/global-chat)
+- Server: `ChatService.cs` (rooms persisted as data/chat/room-N.json, newest 100 kept, Chat:DataDirectory / Chat:Enabled config), `/.ws` in Program.cs
+  (UseWebSockets before the catch-all), `/chatRoomComment/write` in DemoSessionApi.Chat.cs. Tests: tests/.../ChatTests.cs.
+- Lang: the client listens on `<lang>/<chatRoomId>` but write carries NO lang, so rooms are language-independent server-side: every listener of room N
+  gets room N whatever lang prefix it used. Where the client's langCode comes from is still NOT resolved ("en" observed on the AVD).
+- Tabs = all channels open to everyone (user decision). Message identity (userId/name/honorId) is taken from the session, never from the request.
+  honorId = EquippedHonorId(state) (non-zero by construction; 6010000 default). 6010001 renders the badge; honorId=1 (not in HonorMaster) renders a white square.
+- Prod patches (no more KF_CHAT_EXP): metadata literal 15006 `https://{0}.firebaseio.com/` re-pointed through patch_metadata (kind chat_url,
+  any length) to CHAT_BASE_URL or, by default, `<scheme>://<host:port of SERVER_BASE_URL>?ns={0}`; CheckSignedIn skip (0x17BB934) is a normal arm64 patch.
+  For TLS set CHAT_BASE_URL=https://<api-domain>?ns={0} (no explicit port => the SDK forces wss). Dry run: 240 patches verified.
+- nginx: `location = /.ws` with Upgrade/Connection headers and 3600 s timeouts added to deploy/nginx.vps.conf and deploy/nginx.conf (not deployed).
+  Without it websocket upgrades through nginx fail (the `location /` has no Upgrade headers).
+- Old clients (unpatched firebase URL): startup now serves connection id "kfchat" + dummy token. Such a client would try https://kfchat.firebaseio.com and
+  the custom-token sign-in would fail -> SetupChatAsync reports error 10006 (static reading, NOT tested on an old APK). Previously the empty id made
+  BeginAsync never complete. Kill switch: Chat:Enabled=false serves the empty id again.
+- AVD evidence (real server, ws on :18090): empty initial render, own sent message appears (right-aligned, "0 min ago"), restart keeps messages
+  (persistence), other-user message renders name + badge, tapping its icon opens the profile (POST /user/detail, userId from the message).
+Remaining unknowns: client langCode source; Team/Friend/Beginner semantics (all open); old-client behaviour (untested); Postgres is not used for chat
+(JSON files under data/, which must be on a persistent volume in prod); message `name` is the session name at write time; honorId->title mapping.

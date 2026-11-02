@@ -74,3 +74,6 @@ handoff/
 
 # Local environment secrets
 /.env
+
+# Chat rooms persisted by ChatService at runtime
+src/KickFlight.BootstrapApi/data/chat/
