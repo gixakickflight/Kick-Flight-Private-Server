@@ -99,3 +99,34 @@ Goal: chat reads from our server, reuse managed code.
 Recommendation: Option B (RTDB emulation behind patched host literals) unless a response-with-data path (A/C) is proven; both need further RE: Firebase C# SDK host resolution (FirebaseDatabase uses the `Uri` via set_DatabaseUrl; ws://s-xxx.firebaseio.com), sign-in hosts (identitytoolkit.googleapis.com), and TLS validation.
 Risks: Firebase SDK native/managed plugin (libFirebaseCppApp) performs the networking natively (not IL2CPP) -> host literals live in the native .so, cert pinning/TLS unknown; high. Unknown: ring cap server vs client LimitToLast(100) at 0x31DEBF8.
 Effort rough: Option A/C ASM: 2-4 days + new request class risk; Option B: 3-6 days (RTDB websocket protocol server + native lib host patch + token auth), uncertain.
+
+# EMULATOR-MODE FEASIBILITY (3rd pass, static only)
+Evidence: base.apk 2.11.0 sha256 ffa620d2...; REA search_strings failed again (no Evidence IDs); Python fallback.
+
+## Verdict: NO-GO for Firebase useEmulator smali patch. Redirect-by-URL route = UNPROVEN (needs runtime test).
+- Native: libFirebaseCppApp-6_11_0.so (4.27MB), libFirebaseCppAuth.so, libFirebaseCppDatabase.so (+Analytics/Crashlytics/InstanceId/Messaging).
+  Java: firebase-database 19.2.1, firebase-auth 19.2.0, firebase-common 19.3.0. Emulator APIs arrived in database 19.4.0 / auth 20.0.0 => absent.
+- Dex FirebaseDatabase: getInstance(), (FirebaseApp), (FirebaseApp,String), (String), getReference, goOnline/Offline, setLogLevel, setPersistence*. FirebaseAuth: getInstance,
+  signInWithCustomToken(String), getAccessToken. DatabaseConfig has no host override. Literal search useEmulator / 10.0.2.2: 0 hits in dex and Firebase .so.
+- JNI refs to com/google/firebase/database/FirebaseDatabase and auth/FirebaseAuth live in libFirebaseCppApp (not the Database/Auth libs; which lib calls getInstance(app,url) unconfirmed).
+  libFirebaseCppDatabase exports Database::GetInstance(App*, const char* url, InitResult*) -> explicit URL accepted.
+- Manifest: FirebaseInitProvider (initOrder 100), Application = io.repro.android.UnityApplication, usesCleartextTraffic=true, network_security_config base-config cleartext permitted (any host).
+- App config: firebase_database_url=https://colorful-production.firebaseio.com, project_id=colorful-production, google_app_id 1:475128159434:android:b07cdc4bc1b8561b, package jp.grenge.kickflight;
+  assets/google-services-desktop.json matches. FirebaseApp init without Play Services: UNKNOWN.
+- URL: metadata literal "https://{0}.firebaseio.com/" (metadata off 0x864B5), {0} = ChatRoomConnectionId (SetupChatAsync). Also "guest/{0}/host" (invite DB).
+- Auth: managed FirebaseAuthManager.SignInByCustomTokenAsync(customToken) <- SignInAsObservable/CheckSignedIn; token = ArchiveData.ChatRoomConnectionCustomToken.
+  Java SDK 19.x signInWithCustomToken talks to Google identitytoolkit/securetoken over HTTPS; no host literal found in dex => host construction UNKNOWN (likely hard-coded in obfuscated/gms-free
+  firebase-auth REST code not visible by string search). Without emulator support, auth cannot be redirected cleanly; needs real signed custom token or an unauthenticated RTDB (rules open) path - UNPROVEN.
+- FirebaseStatusCode: Success=0, NotSignedIn=10000, AlreadySignedIn=10001, CustomTokenExpired=10002, SignInFailed=10003, WritingFailed=10004, ReadingFailed=10005,
+  FirebaseSdkNotAvailable=10006, TimeOutWithRetry=10007. (So SetupChatAsync error 10006 = SdkNotAvailable; success callback value 0.)
+- IsUseTextChat: TextChatSettingInfo._isUseTextChat / ArchiveData._textChatSetting are [SerializeField]; JSON key = field name presumed (_textChatSetting?) - serializer unknown.
+- GetChannelQuery root/field literals and langCode source: NOT resolved. Build-pipeline smali hooks: not inspected.
+
+## Remaining candidate routes (all need runtime proof)
+1. Patch format literal "https://{0}.firebaseio.com/" (global-metadata.dat string, same length constraint or repoint) so Database::GetInstance gets e.g. http://<host>:<port>?ns=<id>;
+   Java 19.2.1 parses Repo info with host/secure/namespace; plain ws possible if URL scheme http. Auth step still hits Google => skip auth by patching SetupChatAsync MoveNext
+   to not require sign-in (RTDB with open rules). Server = minimal RTDB websocket server (handshake, listen q/n, put/merge pushes) in C#. Needs one runtime experiment first.
+2. Smali: wrap FirebaseDatabase.getInstance(FirebaseApp,String) in dex to rewrite URL to our host (no metadata edit; keeps IL2CPP untouched). Cleartext already allowed. Candidate smali point: FirebaseDatabase.getInstance(FirebaseApp,String) in classes*.dex.
+3. Server effort: custom RTDB wire-protocol subset (connect handshake, 'q' listen with orderBy=insertDatetime limitToLast=100, 'd' data/'m' merge pushes, ping) ~3-5 days; official Emulator Suite needs Node+Java, same wire protocol but needs real Auth => not applicable (no emulator client mode).
+Risks: Java SDK wire details (ws path /.ws?v=5&ns=), Play Services-less init, iOS not covered, Auth still on Google unless bypassed.
+Next step before any decision: runtime experiment on emulator (Frida/logcat of FirebaseDatabase Repo connection host) with a stub websocket server.
