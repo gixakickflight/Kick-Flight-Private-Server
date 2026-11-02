@@ -782,7 +782,7 @@ for path in ("/webview/information/index", "/updates"):
     masked = re.sub(r'<script\b[^>]*>[\s\S]*?</script>', lambda m: ' ' * len(m.group(0)), masked, flags=re.IGNORECASE)
     masked = re.sub(r'<style\b[^>]*>[\s\S]*?</style>', lambda m: ' ' * len(m.group(0)), masked, flags=re.IGNORECASE)
     visible_articles = re.findall(r'<article[^>]*\bid=["\']([^"\']+)["\']', masked)
-    expected_articles = ["badge-catalog", "v2-11-5", "v2-11-4", "matchmaking-roles-2026-10-19"] if (visible_articles and visible_articles[0] == "badge-catalog") else ["v2-11-5", "v2-11-4", "matchmaking-roles-2026-10-19", "v2-11-3"]
+    expected_articles = ["badge-catalog", "v2-11-5", "badges-back", "v2-11-4", "matchmaking-roles-2026-10-19"] if (visible_articles and visible_articles[0] == "badge-catalog") else ["v2-11-5", "v2-11-4", "matchmaking-roles-2026-10-19", "v2-11-3"]
     if not visible_articles or visible_articles[:len(expected_articles)] != expected_articles:
         raise SystemExit(
             f"Smoke check failed on {path}: visible articles are {visible_articles}, expected starting with {expected_articles}"
