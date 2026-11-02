@@ -20,6 +20,20 @@ public sealed class SessionState
     // (see the tutorialProgressStatus handling in BuildStartupJson) - so it must not be defaulted here.
     public string UserName { get; set; } = "";
     public int KickerId { get; set; } = 1;
+    // The honor (badge) the player currently displays. The default honor is also owned by every new account.
+    public int HonorId { get; set; } = BadgeAwardRules.DefaultHonorId;
+    // Persisted ownership and lifetime facts used by the badge rules the server can verify.
+    public List<int> UserHonorIds { get; set; } = [BadgeAwardRules.DefaultHonorId];
+    public int VerifiedBattleCount { get; set; }
+    // A battle result is retried by clients. Keep the opaque issued entry IDs so a retry cannot award twice.
+    public HashSet<string> ProcessedBadgeBattleEntryIds { get; set; } = new(StringComparer.Ordinal);
+    public Dictionary<string, List<int>> ProcessedBadgeBattleAwards { get; set; } = new(StringComparer.Ordinal);
+    // Distinct server UTC calendar dates on which this account reached authenticated startup.
+    public List<string> VerifiedLoginDays { get; set; } = [];
+    // Count of successful server-side disc level increases, not attempted/capped requests.
+    public int DiscUpgradeCount { get; set; }
+    // Client-reported-but-bounded battle counters (wins, kills, MVPs, ...) for the stat badges. See BadgeStatState.
+    public BadgeStatState BadgeStats { get; set; } = new();
     // Kicker 1's first costume. Costume ids are the KickerCostume master's composite row ids (2|kicker|
     // costume|variant), not a sequential index: kicker 1 / costume 1 is 2010101, which is also the id the
     // client hardcodes for the tutorial's placeholder player (TutorialUtil.KICKER_COSTUME_ID). A fresh

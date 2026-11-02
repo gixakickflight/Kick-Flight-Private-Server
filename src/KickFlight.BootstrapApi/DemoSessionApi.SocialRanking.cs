@@ -136,7 +136,9 @@ public sealed partial class DemoSessionApi
             {
                 userId = ownProfile.PlayerId.ToString(),
                 name = ownProfile.DisplayName,
-                honorId = 6010000,
+                honorId = BadgeAwardRules.GetOwnedHonorIds(state).Contains(state.HonorId)
+                    ? state.HonorId
+                    : BadgeAwardRules.DefaultHonorId,
                 kickerId = ownProfile.KickerId,
                 kickerCostumeId = ownProfile.KickerCostumeId,
                 languageCode = "",
@@ -162,7 +164,7 @@ public sealed partial class DemoSessionApi
     {
         userId = row.Profile.PlayerId.ToString(),
         name = row.Profile.DisplayName,
-        honorId = 6010000,
+        honorId = EquippedHonorId(_playerStore.TryLoad(row.Profile.PlayerId)),
         kickerId = row.Profile.KickerId,
         kickerCostumeId = row.Profile.KickerCostumeId,
         languageCode = "",
@@ -173,6 +175,11 @@ public sealed partial class DemoSessionApi
         percentile = 0.0
     };
 
+    private static int EquippedHonorId(SessionState? state) => state is not null
+        && BadgeAwardRules.GetOwnedHonorIds(state).Contains(state.HonorId)
+            ? state.HonorId
+            : BadgeAwardRules.DefaultHonorId;
+
     private string SocialProfileJson(SessionState caller, PlayerProfile profile, int followStatus, bool isNew)
     {
         var targetState = _playerStore.TryLoad(profile.PlayerId) ?? caller;
@@ -181,7 +188,7 @@ public sealed partial class DemoSessionApi
             userId = profile.PlayerId.ToString(),
             displayUserId = PlayerDisplayIdCodec.ToPublic(profile.PlayerId),
             name = profile.DisplayName,
-            honorId = 6010000,
+            honorId = EquippedHonorId(targetState),
             userFrameList = new[]
             {
                 new { battleRuleType = 1, frameId = 1 },

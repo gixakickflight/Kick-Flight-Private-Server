@@ -69,6 +69,7 @@ public sealed partial class DemoSessionApi : IDisposable
 
     private readonly ConcurrentDictionary<string, CachedSession> _sessions = new(StringComparer.Ordinal);
     private readonly IPlayerStore _playerStore;
+    private readonly BadgeAwardRules _badgeAwardRules;
     private readonly Dictionary<string, byte[]> _encryptedMasters = new(StringComparer.Ordinal);
     private readonly Dictionary<int, int> _battleRuleTypeById = [];
     private readonly Dictionary<int, int> _battleMatchTypeById = [];
@@ -105,6 +106,7 @@ public sealed partial class DemoSessionApi : IDisposable
         _clientUpdate = clientUpdate;
         _timeProvider = timeProvider;
         _playerStore = playerStore;
+        _badgeAwardRules = BadgeAwardRules.Load(environment.ContentRootPath, logger);
         _harnessOptions = harnessOptions.Value;
         _botAiProfiles = botAiProfiles ?? ExperimentalAiRoleService.CurrentProvider;
         _contentRoot = environment.ContentRootPath;
@@ -920,7 +922,8 @@ public sealed partial class DemoSessionApi : IDisposable
         return state;
     }
 
-    private void SaveUserState(SessionState state, string? uuid = null) => _playerStore.Save(state, uuid);
+    private void SaveUserState(SessionState state, string? uuid = null, bool allowEquippedHonorChange = false) =>
+        _badgeAwardRules.SavePlayerState(state, _playerStore, uuid, allowEquippedHonorChange);
 
     // Gym-mode bots use KickerAiParameter row id 100 + kickerId (BattleMatchmakingService.GymAiParameterBase): a copy
     // of the kicker's real row with every motivation at 0, no lock-on and very long skill/dash intervals, so even a
@@ -1171,9 +1174,10 @@ public sealed partial class DemoSessionApi : IDisposable
 
         if (path == "/startup/index")
         {
+            var newLoginHonors = _badgeAwardRules.RecordVerifiedLoginDay(state, _playerStore, _timeProvider.GetUtcNow());
             context.Response.Headers["x-app-status-code"] = "0";
             context.Response.Headers["x-kickflight-fixture"] = "dynamic-demo-session";
-            var json = BuildStartupJson(state, context.Request);
+            var json = BuildStartupJson(state, context.Request, newLoginHonors);
             _logger.LogInformation("Serving dynamic startup index ({KickerCount} kickers, {DiscCount} discs)", _kickerList.Count, _discIdList.Count);
             return BinaryJson(json, key);
         }
@@ -1293,8 +1297,7 @@ public sealed partial class DemoSessionApi : IDisposable
 
         if (path == "/battle/good")
         {
-            context.Response.Headers["x-app-status-code"] = "0";
-            return BinaryJson("{}", key);
+            return await HandleBattleGoodAsync(context, state, key);
         }
 
         // Real client calls that used to vanish into the catch-all below: still answered {} with status 0, but
@@ -1428,6 +1431,7 @@ public sealed partial class DemoSessionApi : IDisposable
                 state.Discs[discId] = discState;
             }
 
+            var previousLevel = discState.Level;
             if (targetLevel > 0)
             {
                 discState.Level = targetLevel;
@@ -1437,6 +1441,12 @@ public sealed partial class DemoSessionApi : IDisposable
                 discState.Level = Math.Min(50, discState.Level + 1);
             }
 
+            // A retried request (level already applied) or a multi-level jump is not a verified single upgrade,
+            // and only discs that exist in the masters count toward badges.
+            var countsAsUpgrade = _discIdList.Contains(discId) && previousLevel < 50 && discState.Level == previousLevel + 1;
+            var receivedHonors = countsAsUpgrade
+                ? _badgeAwardRules.RecordVerifiedDiscUpgrade(state, _playerStore).ToArray()
+                : Array.Empty<int>();
             state.ItemDiscForce = Math.Max(0, state.ItemDiscForce - 1100);
             SaveUserState(state);
 
@@ -1450,6 +1460,7 @@ public sealed partial class DemoSessionApi : IDisposable
                     exp = 0,
                     registerDatetime = "2026-09-01 00:00:00"
                 },
+                receivedUserHonorList = receivedHonors.Select(honorId => new { honorId, newFlag = true }).ToArray(),
                 userItem = new
                 {
                     itemId = 3,
@@ -1584,7 +1595,7 @@ public sealed partial class DemoSessionApi : IDisposable
         return Task.FromResult<IResult?>(BinaryJson("{}", key));
     }
 
-    private string BuildStartupJson(SessionState state, HttpRequest request)
+    private string BuildStartupJson(SessionState state, HttpRequest request, IReadOnlyCollection<int>? newHonorIds = null)
     {
         NormalizeCostume(state);
         var pendingGear = state.PendingGear ?? new PendingGearState();
@@ -1633,7 +1644,8 @@ public sealed partial class DemoSessionApi : IDisposable
         {
             userKickerList,
             userDiscList,
-            userHonorList = new[] { new { honorId = 6010000, newFlag = false } },
+            userHonorList = BadgeAwardRules.GetOwnedHonorIds(state)
+                .Select(honorId => new { honorId, newFlag = newHonorIds?.Contains(honorId) == true }).ToArray(),
             // All 8 Item master rows: 1-4 the legacy counters, 5-8 the round C stocks (gear stamps, disc fragments
             // and the two gacha tickets) that the gear screen and the shop read their counters from.
             userItemList = BuildUserItemList(state),
@@ -1755,7 +1767,9 @@ public sealed partial class DemoSessionApi : IDisposable
             displayUserId = PlayerDisplayIdCodec.ToPublic(int.TryParse(state.UserId, out var uid) ? uid : 1000001),
             name = CurrentUserName(state),
             exp = 38500,
-            honorId = 6010000,
+            honorId = BadgeAwardRules.GetOwnedHonorIds(state).Contains(state.HonorId)
+                ? state.HonorId
+                : BadgeAwardRules.DefaultHonorId,
             userFrameList = new[]
             {
                 new { battleRuleType = 1, frameId = 1 },
@@ -1925,6 +1939,7 @@ public sealed partial class DemoSessionApi : IDisposable
         }
 
         state.UserName = name;
+        _badgeAwardRules.RecordRegistrationComplete(state, _playerStore);
         SaveUserState(state);
         _logger.LogInformation("Player {PlayerId} chose the name {UserName:l}", state.PlayerId, name);
         return OkJson(context, key, "{}");
@@ -2403,15 +2418,37 @@ public sealed partial class DemoSessionApi : IDisposable
     //
     // Rank progress applies only to ranked matches. The entry stores a server-derived snapshot of matchType and
     // battleRuleType; neither a result body nor a later master/schedule change can reclassify the match.
+    /// <summary>
+    /// True/false when the validated report decides a rank win/loss; null (with a reason) when rank must not move:
+    /// no report, undetermined outcome, tie, or a breakaway/badConnection caller.
+    /// </summary>
+    internal static bool? RankWinFor(BadgeBattleStatReport? report, out string reason)
+    {
+        reason = "";
+        if (report is null) { reason = "no_report"; return null; }
+        if (report.CallerFlagged) { reason = "caller_flagged"; return null; }
+        switch (report.Outcome)
+        {
+            case BadgeBattleOutcome.Win: return true;
+            case BadgeBattleOutcome.Loss: return false;
+            case BadgeBattleOutcome.Tie: reason = "tie"; return null;
+            default:
+                reason = string.IsNullOrEmpty(report.OutcomeReason) ? report.Reason : report.OutcomeReason;
+                return null;
+        }
+    }
+
     private async Task<IResult?> HandleBattleResultAsync(HttpContext context, SessionState state, byte[] key)
     {
         var battleEntryId = "";
+        string? resultBodyJson = null;
         try
         {
             var body = await ReadBodyAsync(context.Request);
             if (body.Length > 16)
             {
-                using var document = JsonDocument.Parse(D2CCodec.Decode(body, key));
+                resultBodyJson = Encoding.UTF8.GetString(D2CCodec.Decode(body, key));
+                using var document = JsonDocument.Parse(resultBodyJson);
                 if (document.RootElement.TryGetProperty("battleEntryId", out var entryProp)
                     && entryProp.ValueKind == JsonValueKind.String)
                     battleEntryId = entryProp.GetString() ?? "";
@@ -2444,11 +2481,42 @@ public sealed partial class DemoSessionApi : IDisposable
                 state.UserId, battleEntryId);
         }
 
+        // The client's own stats are credited only after BadgeBattleStatEvaluator bound them against what this
+        // server holds for the entry (owner, room roster/team, mode, timing). A rejected set still counts the
+        // battle as played; custom battles never reach this handler (see /customBattle/result).
+        BadgeBattleStatReport? statReport = null;
+        if (ownedEntry is not null)
+        {
+            statReport = BadgeBattleStatEvaluator.Evaluate(
+                resultBodyJson, _matchmaking.GetBadgeBattleContext(battleEntryId), _timeProvider.GetUtcNow());
+            if (!statReport.CreditStats)
+                _logger.LogInformation("Battle result stats for {UserId} entry {BattleEntryId} not credited: {Reason}",
+                    state.UserId, battleEntryId, statReport.Reason);
+        }
+
+        // Non-sensitive numeric summary of the client's report, kept permanently to validate field units live
+        // (movingDistance raw value + JSON type). The user is identified by a short hash only.
+        _logger.LogInformation("Battle result parsed: user={UserHash} {Summary} outcome={Outcome} credited={Credited} capReason={CapReason}",
+            BattleResultLogSummary.ShortHash(state.UserId), BattleResultLogSummary.Describe(resultBodyJson, battleRuleType),
+            statReport?.Outcome.ToString() ?? "n/a", statReport?.CreditStats ?? false,
+            statReport is { CreditStats: false } ? statReport.Reason : "none");
+
+        // Rank follows the validated team outcome (own team from the server-held room roster, own score > other).
+        // win -> win points, loss -> loss points; tie, undetermined and breakaway/badConnection callers leave the
+        // rank untouched (no relief rule exists in the masters, so a flagged caller is not punished either).
+        // The persistence callback runs at most once per entry; a null return applies and caches nothing.
         var processedRankedResult = applyProgression
             ? _matchmaking.ProcessRankedResultOnce(battleEntryId, state.UserId, ruleType =>
             {
+                var rankWon = RankWinFor(statReport, out var skipReason);
+                if (rankWon is null)
+                {
+                    _logger.LogInformation("Ranked result for {UserId} entry {BattleEntryId}: rank unchanged ({Reason})",
+                        state.UserId, battleEntryId, skipReason);
+                    return null;
+                }
                 var beforeRank = _playerStore.LoadRank(state.PlayerId, ruleType);
-                var afterRank = RankProgression.Apply(beforeRank, won: true);
+                var afterRank = RankProgression.Apply(beforeRank, won: rankWon.Value);
                 _playerStore.SaveRank(state.PlayerId, ruleType, afterRank);
                 return new BattleMatchmakingService.RankedResultSnapshot(ruleType, beforeRank, afterRank);
             })
@@ -2456,6 +2524,16 @@ public sealed partial class DemoSessionApi : IDisposable
         var rankSnapshot = processedRankedResult?.RankedResult;
         var before = rankSnapshot?.Before ?? _playerStore.LoadRank(state.PlayerId, battleRuleType);
         var after = rankSnapshot?.After ?? before;
+        var receivedHonors = ownedEntry is null
+            ? Array.Empty<int>()
+            : _badgeAwardRules.RecordVerifiedBattle(
+                state,
+                _playerStore,
+                battleEntryId,
+                applyProgression ? battleRuleType : null,
+                applyProgression ? after.Rank : null,
+                statReport,
+                _timeProvider.GetUtcNow()).ToArray();
 
         var rank = new { battleRuleType, battlePoint = after.BattlePoint, rank = after.Rank };
         var resp = new
@@ -2469,6 +2547,7 @@ public sealed partial class DemoSessionApi : IDisposable
             receivedUserPresentList = Array.Empty<object>(),
             userMissionProgressList = Array.Empty<object>(),
             userDailyRandomMissionTaskList = Array.Empty<object>(),
+            receivedUserHonorList = receivedHonors.Select(honorId => new { honorId, newFlag = true }).ToArray(),
             receivedRewardList = Array.Empty<object>(),
             badConnectionReliefFlag = false,
             battleCount = 1,
