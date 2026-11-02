@@ -47,8 +47,8 @@ async def read_frame(r):
 def fake_messages(path):
     now = time.strftime(os.environ.get("CHAT_STUB_DT_FMT", "%Y-%m-%dT%H:%M:%S-06:00"), time.localtime(time.time() - int(os.environ.get("CHAT_STUB_AGE", "3600"))))
     return {
-        "1001": {"userId": "1", "name": "StubUser", "comment": "hello from stub", "stampId": 0, "honorId": 1, "insertDatetime": now},
-        "1002": {"userId": "2", "name": "StubUser2", "comment": "second message", "stampId": 0, "honorId": 1, "insertDatetime": now},
+        "1001": {"userId": "1", "name": "StubUser", "comment": "hello from stub", "stampId": 0, "honorId": int(os.environ.get("CHAT_STUB_HONOR", "1")), "insertDatetime": now},
+        "1002": {"userId": "2", "name": "StubUser2", "comment": "second message", "stampId": 0, "honorId": int(os.environ.get("CHAT_STUB_HONOR", "1")), "insertDatetime": now},
     }
 
 
@@ -57,7 +57,7 @@ async def live_push(w, b):
     await asyncio.sleep(6)
     p = b.get("p", "").strip("/")
     key = str(2000 + int(time.time()) % 1000)
-    msg = {"userId": "3", "name": "LiveUser", "comment": "live message " + key, "stampId": 0, "honorId": 1,
+    msg = {"userId": "3", "name": "LiveUser", "comment": "live message " + key, "stampId": 0, "honorId": int(os.environ.get("CHAT_STUB_HONOR", "1")),
            "insertDatetime": time.strftime("%Y-%m-%dT%H:%M:%S-06:00")}
     push = {"p": p + "/" + key, "d": msg}
     if "t" in b:
