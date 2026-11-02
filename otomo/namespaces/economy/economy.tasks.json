@@ -1,0 +1,72 @@
+{
+  "tracks": [
+    {
+      "id": "mission.daily.play",
+      "counter": "battle.play",
+      "term": {
+        "kind": "daily",
+        "reset_hour": 4
+      },
+      "steps": [
+        {
+          "target": 3,
+          "class": "mission.daily.small"
+        },
+        {
+          "target": 6,
+          "class": "mission.daily.large"
+        }
+      ]
+    },
+    {
+      "id": "mission.daily.win",
+      "counter": "battle.win",
+      "term": {
+        "kind": "daily",
+        "reset_hour": 4
+      },
+      "steps": [
+        {
+          "target": 1,
+          "class": "mission.daily.small"
+        },
+        {
+          "target": 3,
+          "class": "mission.daily.large"
+        }
+      ]
+    },
+    {
+      "id": "mission.weekly.play",
+      "counter": "battle.play",
+      "term": {
+        "kind": "weekly",
+        "reset_hour": 4
+      },
+      "steps": [
+        {
+          "target": 20,
+          "class": "mission.weekly"
+        }
+      ]
+    },
+    {
+      "id": "mission.lifetime.play",
+      "counter": "battle.play",
+      "term": {
+        "kind": "lifetime"
+      },
+      "steps": [
+        {
+          "target": 50,
+          "class": "mission.lifetime"
+        },
+        {
+          "target": 200,
+          "class": "mission.lifetime"
+        }
+      ],
+      "repeat": true
+    }
+  ]
+}

@@ -1,0 +1,2383 @@
+{
+  "offers": [
+    {
+      "id": "ticket.single",
+      "cost": [
+        {
+          "currency": "jetcoin",
+          "amount": 800
+        }
+      ],
+      "grants": [
+        {
+          "currency": "kicker_ticket",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 0
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2010101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2010101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2010201",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2010201",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2010301",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2010301",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2010401",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2010401",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2010501",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2010501",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2010601",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2010601",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2010701",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2010701",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2012201",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2012201",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2012301",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2012301",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2020101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2020101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2020201",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2020201",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2020301",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2020301",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2020401",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2020401",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2020501",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2020501",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2020601",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2020601",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2020701",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2020701",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2022201",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2022201",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2022301",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2022301",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2030101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2030101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2030201",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2030201",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2030301",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2030301",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2030401",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2030401",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2030501",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2030501",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2030601",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2030601",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2030701",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2030701",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2032201",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2032201",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2032301",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2032301",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2035101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2035101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2035201",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2035201",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2040101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2040101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2040201",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2040201",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2040301",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2040301",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2040401",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2040401",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2040501",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2040501",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2040601",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2040601",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2040701",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2040701",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2045101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2045101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2050101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2050101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2050201",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2050201",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2050301",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2050301",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2050401",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2050401",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2050501",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2050501",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2050601",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2050601",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2050701",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2050701",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2052101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2052101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2060101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2060101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2060201",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2060201",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2060301",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2060301",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2060401",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2060401",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2060501",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2060501",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2060601",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2060601",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2060701",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2060701",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2062201",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2062201",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2065101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2065101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2070101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2070101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2070201",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2070201",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2070301",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2070301",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2070401",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2070401",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2070501",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2070501",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2070601",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2070601",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2070701",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2070701",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2075101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2075101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2075201",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2075201",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2080101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2080101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2080201",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2080201",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2080301",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2080301",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2080401",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2080401",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2080501",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2080501",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2080601",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2080601",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2080701",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2080701",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2082101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2082101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2085101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2085101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2085201",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2085201",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2090101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2090101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2090201",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2090201",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2090301",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2090301",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2090401",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2090401",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2090501",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2090501",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2090601",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2090601",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2090701",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2090701",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2092101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2092101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2095101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2095101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2100101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2100101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2100201",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2100201",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2100301",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2100301",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2100401",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2100401",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2100501",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2100501",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2100601",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2100601",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2100701",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2100701",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2102101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2102101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2102301",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2102301",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2105101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2105101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2110101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2110101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2110201",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2110201",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2110301",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2110301",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2110401",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2110401",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2110501",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2110501",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2110601",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2110601",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2110701",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2110701",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2112101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2112101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2115101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2115101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2120101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2120101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2120201",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2120201",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2120301",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2120301",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2120401",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2120401",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2120501",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2120501",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2120601",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2120601",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2120701",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2120701",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2122201",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2122201",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2130101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2130101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2130201",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2130201",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2130301",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2130301",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2130401",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2130401",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2130701",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2130701",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2140101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2140101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2140201",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2140201",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2140301",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2140301",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    },
+    {
+      "id": "shard.skin.2145101",
+      "cost": [
+        {
+          "currency": "shard",
+          "amount": 60
+        }
+      ],
+      "grants": [
+        {
+          "item": "skin:2145101",
+          "amount": 1
+        }
+      ],
+      "limit": {
+        "count": 1,
+        "window": "876000h"
+      },
+      "window": {}
+    }
+  ]
+}
