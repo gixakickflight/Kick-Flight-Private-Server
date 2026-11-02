@@ -92,12 +92,15 @@ public sealed partial class DemoSessionApi : IDisposable
     private readonly OpsTelemetryService _ops;
     private readonly HarnessOptions _harnessOptions;
 
+    private readonly ChatService _chat;
+
     public DemoSessionApi(ILogger<DemoSessionApi> logger, IWebHostEnvironment environment,
         BattleMatchmakingService matchmaking, BattleReplayService replays, IPlayerStore playerStore,
         IConfiguration configuration, MaintenanceState maintenance, ClientUpdateState clientUpdate,
         TimeProvider timeProvider, OpsTelemetryService ops, IOptions<HarnessOptions> harnessOptions,
-        IBotAiProfileProvider? botAiProfiles = null)
+        IBotAiProfileProvider? botAiProfiles = null, ChatService? chat = null)
     {
+        _chat = chat ?? new ChatService(environment, configuration, timeProvider, Microsoft.Extensions.Logging.Abstractions.NullLogger<ChatService>.Instance);
         _logger = logger;
         _ops = ops;
         _matchmaking = matchmaking;
@@ -1684,8 +1687,8 @@ public sealed partial class DemoSessionApi : IDisposable
             interruptNotificationList = Array.Empty<object>(),
             teamBattleInvitationCustomToken = "",
             teamBattleInvitationId = "",
-            chatRoomConnectionCustomToken = ChatExperiment ? "kfchat-dummy-token" : "",
-            chatRoomConnectionId = ChatExperiment ? "kfchat" : "",
+            chatRoomConnectionCustomToken = _chat.Enabled ? "kfchat-dummy-token" : "",
+            chatRoomConnectionId = _chat.Enabled ? "kfchat" : "",
             officialUrl = ""
         };
 
@@ -1761,7 +1764,6 @@ public sealed partial class DemoSessionApi : IDisposable
         _maintenance.IsBypassClient(context.Request.Headers["x-app-application-version"].ToString());
 
     // KF_CHAT_EXP=1: serve a non-empty chat connection id so the client attempts Firebase chat setup (experiment only).
-    private static readonly bool ChatExperiment = Environment.GetEnvironmentVariable("KF_CHAT_EXP") == "1";
 
     private string BuildHomeJson(SessionState state)
     {

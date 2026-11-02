@@ -41,6 +41,9 @@ ORIGINAL_LITERALS = {
     "kickflight-api.grenge.jp/": "authority",
     "ns.exitgames.com": "photon_host",
     "market://details?id={0}": "update_url",
+    # FirebaseManager.SetupChatAsync: String.Format(literal, ArchiveData.ChatRoomConnectionId). Re-pointed at our own
+    # Firebase-RTDB-compatible websocket (/.ws on the API host, docs/re-notes/chat.md).
+    "https://{0}.firebaseio.com/": "chat_url",
 }
 # Forced-update window (NetworkManager.OpenErrorWindowOnFailed, ~0x31B82D4): the update button opens
 # String.Format(literal 9231, "jp.grenge.kickflight"). Literal 9231 is only materialised there (slot 0x43F5A10;
@@ -53,7 +56,24 @@ LITERAL_INDEXES = {
     "kickflight-api.grenge.jp/": 9244,
     "ns.exitgames.com": 2039,
     "market://details?id={0}": 9231,
+    "https://{0}.firebaseio.com/": 15006,
 }
+
+# Chat database URL. The Firebase Java SDK parses "<scheme>://host[:port]?ns=<namespace>": http -> ws, https -> wss
+# (quirk: with no explicit port it is always wss). CHAT_BASE_URL overrides; the default follows --base-url's host:port
+# over the same scheme, e.g. http://10.0.2.2:18080 -> http://10.0.2.2:18080?ns={0}. For production behind TLS set
+# CHAT_BASE_URL=https://<api-domain>?ns={0} (same host/cert as the API, nginx proxies /.ws).
+CHAT_BASE_URL = os.environ.get("CHAT_BASE_URL", "")
+
+
+def chat_url_for(base_url: str) -> str:
+    if CHAT_BASE_URL:
+        if "{0}" not in CHAT_BASE_URL or "?ns=" not in CHAT_BASE_URL:
+            raise ValueError("CHAT_BASE_URL must look like http(s)://host[:port]?ns={0}")
+        return CHAT_BASE_URL
+    parsed = urlsplit(base_url)
+    return f"{parsed.scheme}://{parsed.netloc}?ns={{0}}"
+
 
 # Ready scene. The "ponytail" patches (2026-09-07) skip the whole GameReadyScene intro cinematic (whose end is the
 # 3-2-1 countdown) because the high-model game_ready animators were not served back then, and then fake its
@@ -2918,6 +2938,8 @@ def patch_metadata(path: Path, base_url: str, authority: str, photon_host: str |
             # at a separately hosted LuxonServer (e.g. 51.79.241.70, 2026-09-21).
             parsed_host = urlsplit(base_url).hostname
             replacement = photon_host or (parsed_host if parsed_host else "10.0.2.2")
+        elif kind == "chat_url":
+            replacement = chat_url_for(base_url)
         elif kind == "update_url":
             if "{" in UPDATE_PAGE_URL or "}" in UPDATE_PAGE_URL:
                 raise ValueError("KF_UPDATE_URL must not contain braces (it goes through String.Format)")
@@ -2940,6 +2962,8 @@ def patch_metadata(path: Path, base_url: str, authority: str, photon_host: str |
             accepted = current == original or current == "10.0.2.2" or (
                 len(current.split(".")) == 4
             )
+        elif kind == "chat_url":
+            accepted = current == original or (current.startswith(("https://", "http://")) and "?ns={0}" in current)
         elif kind == "update_url":
             accepted = current == original or (current.startswith(("https://", "http://")) and "{" not in current)
         else:
@@ -2987,29 +3011,11 @@ if PHOTON_FLOW:
     ])
 
 
-# ---- KF_CHAT_EXP=1: Firebase chat redirect experiment (docs/re-notes/chat.md); never part of prod builds ----
-CHAT_EXP = os.environ.get("KF_CHAT_EXP") == "1"
-CHAT_EXP_URL_OLD = b"https://{0}.firebaseio.com/"
-CHAT_EXP_URL_NEW = os.environ.get("KF_CHAT_EXP_URL", "http://10.0.2.2:5099?ns={0}").encode()
-if CHAT_EXP:
-    assert len(CHAT_EXP_URL_NEW) == len(CHAT_EXP_URL_OLD), "KF_CHAT_EXP_URL must be 27 bytes"
-    NATIVE_PATCHES["arm64-v8a"].append(
-        {"description": "KF_CHAT_EXP: FirebaseManager.CheckSignedIn -> mov w0,#1; ret (skip Firebase custom-token sign-in)", "offset": 0x17BB934, "expected": bytes.fromhex("0860403968000034"), "replacement": bytes.fromhex("20008052c0035fd6")},
-    )
-
-
-def patch_chat_exp_metadata(path: Path) -> list[dict[str, object]]:
-    if not CHAT_EXP:
-        return []
-    data = bytearray(path.read_bytes())
-    if data.count(CHAT_EXP_URL_NEW) == 1 and data.count(CHAT_EXP_URL_OLD) == 0:
-        return [{"description": "chat-exp firebase url", "alreadyPatched": True}]
-    if data.count(CHAT_EXP_URL_OLD) != 1:
-        raise ValueError(f"chat-exp: expected exactly one firebaseio literal, found {data.count(CHAT_EXP_URL_OLD)}")
-    i = data.index(CHAT_EXP_URL_OLD)
-    data[i : i + len(CHAT_EXP_URL_OLD)] = CHAT_EXP_URL_NEW
-    path.write_bytes(data)
-    return [{"description": "chat-exp firebase url", "offset": f"0x{i:x}", "to": CHAT_EXP_URL_NEW.decode()}]
+# ---- Chat: skip the Firebase custom-token sign-in (our /.ws accepts anonymous listeners) ----
+# docs/re-notes/chat.md. The URL re-point is a metadata literal (kind "chat_url" above).
+NATIVE_PATCHES["arm64-v8a"].append(
+    {"description": "Chat: FirebaseManager.CheckSignedIn -> mov w0,#1; ret (skip Firebase custom-token sign-in)", "offset": 0x17BB934, "expected": bytes.fromhex("0860403968000034"), "replacement": bytes.fromhex("20008052c0035fd6")},
+)
 
 
 def patch_native(path: Path, abi: str, dry_run: bool = False) -> list[dict[str, object]]:
@@ -3134,7 +3140,6 @@ def main() -> int:
         "photonHost": resolved_photon_host,
         "metadata": patch_metadata(args.metadata, base_url, authority, resolved_photon_host),
         "native": native_reports,
-        "chatExp": patch_chat_exp_metadata(args.metadata),
     }
     print(json.dumps(report, indent=2))
     return 0

@@ -108,7 +108,7 @@ public sealed partial class DemoSessionApi
                 return OkJson(context, key, """{"festivalMatchResultList":[]}""");
 
             case "/chatRoomComment/write":
-                return OkJson(context, key, "{}");
+                return await HandleChatWriteAsync(context, state, key);
 
             case "/capsule/immediateOpen":
                 // Only this one repeats userItemList: the client refreshes the item counters from it without

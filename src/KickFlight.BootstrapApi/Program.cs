@@ -35,6 +35,7 @@ builder.Services.AddSingleton<IPlayerStore>(services => PlayerStoreFactory.Creat
 // events; the same singleton is the background batch writer and 60 s status sweep.
 builder.Services.AddSingleton<OpsTelemetryService>();
 builder.Services.AddHostedService(services => services.GetRequiredService<OpsTelemetryService>());
+builder.Services.AddSingleton<ChatService>();
 builder.Services.AddSingleton<DemoSessionApi>();
 builder.Services.AddGrpc();
 
@@ -245,6 +246,36 @@ app.MapGet("/health/ready", async (FixtureStore store, ResourceCatalogStore reso
             iosCatalogReady, iosProfile = iosProfileName, iosProfileRevision,
             iosBootFixtureReady, iosCatalogErrors = iosErrors, photon = photonStatus
         }, statusCode: 503);
+});
+
+// Firebase-RTDB-compatible chat websocket (docs/re-notes/chat.md). The client's Firebase URL is patched to this
+// host, so the SDK connects to /.ws?ns=<ns>&v=5[&ls=<sid>]. Must be mapped before the catch-all.
+app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(30) });
+app.Map("/.ws", async (HttpContext context, ChatService chat) =>
+{
+    if (!context.WebSockets.IsWebSocketRequest) return Results.BadRequest();
+    using var socket = await context.WebSockets.AcceptWebSocketAsync();
+    var connection = chat.Register(socket);
+    try
+    {
+        await connection.SendAsync(ChatService.Handshake(context.Request.Host.Value, Guid.NewGuid().ToString("N")[..12]));
+        var buffer = new byte[16 * 1024];
+        while (socket.State == System.Net.WebSockets.WebSocketState.Open)
+        {
+            using var message = new MemoryStream();
+            System.Net.WebSockets.WebSocketReceiveResult result;
+            do
+            {
+                result = await socket.ReceiveAsync(buffer, context.RequestAborted);
+                if (result.MessageType == System.Net.WebSockets.WebSocketMessageType.Close) return Results.Empty;
+                message.Write(buffer, 0, result.Count);
+            } while (!result.EndOfMessage);
+            await chat.HandleFrameAsync(connection, System.Text.Encoding.UTF8.GetString(message.ToArray()));
+        }
+    }
+    catch (Exception ex) when (ex is System.Net.WebSockets.WebSocketException or OperationCanceledException) { }
+    finally { chat.Unregister(connection); }
+    return Results.Empty;
 });
 
 app.MapMethods("/{**path}", new[] { "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS" },
