@@ -29,3 +29,10 @@ Test: install, `adb shell dumpsys SurfaceFlinger --latency <layer>` or `dumpsys 
 
 ## Recommendation
 60 first (halves risk, matches typical displays); 120 only after battle verification. Unknowns: SPFXSettings override, helper movement/animation coupling, QualitySettings vSync, Unity frame pacing.
+
+## Runtime result (2026-11-02, AVD x86_64 API 35, arm64 via ndk_translation, display 60 Hz)
+- Patch applied at 0x1CB5904 and 0x25DC224 (KF_TARGET_FPS; dry-run 242 patches). Only SystemManager.Setting and SPFXSettings.Awake are relevant
+  setTargetFrameRate callers (the other 11 are AR/ARKit samples).
+- Measured with `dumpsys SurfaceFlinger --latency <SurfaceView layer>` on Home: stock 30.0 fps; KF_TARGET_FPS=60 build 29-31 fps; KF_TARGET_FPS=15 build 15.0 fps.
+  => the patch takes effect (15 proves it) but the AVD cannot render above ~30 fps under ndk_translation, so 60/120 and 60-vs-30 battle behaviour are NOT
+  verifiable on the AVD. Needs a real 60/120 Hz arm64 device (menu + battle: attack timing, effects, EffectManager force-finish).
