@@ -62,6 +62,14 @@
     .ai-card { min-width: 0; margin: 0; padding: 6px; border: 2px solid var(--black); background: var(--white); text-align: center; }
     .ai-card img { display: block; width: min(100%,200px); margin-inline: auto; aspect-ratio: 200 / 162; object-fit: contain; background: var(--yellow); }
     .ai-card figcaption { padding: 7px 2px 2px; font-size: .74rem; font-weight: 900; line-height: 1.2; text-transform: uppercase; }
+    .news { padding: 8px 0 42px; }
+    .news-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
+    .news-item { padding: 14px 16px; border: 2px solid var(--black); background: var(--white); font-family: system-ui, sans-serif; }
+    .news-date { margin: 0 0 4px; font-size: .72rem; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+    .news-item h3 { margin: 0 0 6px; font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif; font-size: 1.3rem; font-style: italic; line-height: 1.1; text-transform: uppercase; }
+    .news-item p { margin: 0; font-size: .9rem; font-weight: 600; line-height: 1.45; }
+    .news-item .news-link { display: inline-block; margin-top: 8px; font-size: .82rem; font-weight: 900; text-transform: uppercase; }
+    .news-all { margin: 16px 0 0; font: 900 .9rem/1.4 system-ui, sans-serif; text-transform: uppercase; }
     .download { padding: 7px 0 45px; }
     .download-card { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 20px; padding: clamp(20px, 4vw, 35px); background: var(--white); border: 3px solid var(--black); box-shadow: 7px 7px 0 var(--black); }
     .project-name { margin: 0 0 7px; font-size: .88rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
@@ -95,6 +103,9 @@
       .ai-card figcaption { font-size: .7rem; }
       .ai-content { padding-bottom: 36px; }
       .download { padding-bottom: 37px; }
+      .news { padding-bottom: 34px; }
+      .news-item { padding: 12px; }
+      .news-item h3 { font-size: 1.15rem; }
       .download-card { grid-template-columns: minmax(0,1fr); gap: 20px; padding: 19px; }
       .download-card h3 { font-size: clamp(1.55rem, 7vw, 2.05rem); }
       .button { width: 100%; padding-inline: 12px; font-size: .91rem; }
@@ -130,6 +141,49 @@
       <p class="hero-kicker" data-i18n="heroKicker">Descarga para Android</p>
       <h1 id="page-title"><span>Kick Flight:</span><span>The Fenix Returns</span></h1>
       <div class="hero-cta"><a class="button" href="/apk/KickFlight-2.11.6-remote.apk"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M4 16.5v2A2.5 2.5 0 0 0 6.5 21h11a2.5 2.5 0 0 0 2.5-2.5v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="heroDownload">Descargar APK para Android</span></a></div>
+    </section>
+    <section class="news" id="news" aria-labelledby="news-title">
+      <div class="band"><h2 id="news-title" data-i18n="newsTitle">Novedades</h2></div>
+      <div class="wrap">
+        <ul class="news-list" lang="en">
+          <li class="news-item">
+            <p class="news-date"><time datetime="2026-11-02">2026-11-02</time></p>
+            <h3>Patch 2.11.6: Global chat is back, up to 120 FPS</h3>
+            <p>Global chat returns with chat tabs, and the frame-rate cap is raised from 30 to 120 FPS. Android 2.11.5 and older can no longer connect.</p>
+            <a class="news-link" href="/updates-2.11.6.html">Read the full notes</a>
+          </li>
+          <li class="news-item">
+            <p class="news-date"><time datetime="2026-11-01">2026-11-01</time></p>
+            <h3>Badges Are Back</h3>
+            <p>The badge catalog is visible again with 211 badges, 131 of them earnable. Progress counts from now on; Custom and Trial matches are excluded.</p>
+            <a class="news-link" href="/badges">Open the badge catalog</a>
+          </li>
+          <li class="news-item">
+            <p class="news-date"><time datetime="2026-10-30">2026-10-30</time></p>
+            <h3>Community Badge Catalog &amp; Contributor Rewards</h3>
+            <p>Browse all 211 badges in the community catalog. Contributors receive a badge granted manually.</p>
+            <a class="news-link" href="/badges">Open the badge catalog</a>
+          </li>
+          <li class="news-item">
+            <p class="news-date"><time datetime="2026-10-19">2026-10-19</time></p>
+            <h3>Patch 2.11.5: New server endpoints</h3>
+            <p>Android now connects to the new server address for the API and Photon, replacing the retired dynamic-DNS host.</p>
+            <a class="news-link" href="/updates-2.11.5.html">Read the full notes</a>
+          </li>
+          <li class="news-item">
+            <p class="news-date"><time datetime="2026-10-19">2026-10-19</time></p>
+            <h3>Patch 2.11.4: Scramble AI roles</h3>
+            <p>Experimental Scramble AI roles and low-HP carrier deposit behavior. Requires the new APK.</p>
+            <a class="news-link" href="/updates-2.11.4.html">Read the full notes</a>
+          </li>
+          <li class="news-item">
+            <p class="news-date"><time datetime="2026-10-19">2026-10-19</time></p>
+            <h3>New matchmaking and more bot variety</h3>
+            <p>Role-based team assignment and bot fill for more varied matches. Combat AI is unchanged.</p>
+          </li>
+        </ul>
+        <p class="news-all"><a href="/updates" data-i18n="newsAll">Ver todas las actualizaciones</a></p>
+      </div>
     </section>
     <section class="visuals" aria-labelledby="visuals-title">
       <div class="band"><h2 id="visuals-title" data-i18n="visualsTitle">Imágenes del juego</h2></div>
@@ -186,7 +240,7 @@
         description: "Kick Flight: The Fenix Returns. Descarga la APK para Android y vuelve a la arena.",
         brandAria: "Kick Flight, inicio", logoAlt: "Kick-Flight", languagePickerAria: "Idioma / Language",
         heroKicker: "Descarga para Android", heroDownload: "Descargar APK para Android",
-        visualsTitle: "Imágenes del juego", visualsIntro: "Captura de la pantalla de título de Kick Flight, versión 2.11.0.",
+        newsTitle: "Novedades", newsAll: "Ver todas las actualizaciones", visualsTitle: "Imágenes del juego", visualsIntro: "Captura de la pantalla de título de Kick Flight, versión 2.11.0.",
         titleScreenAlt: "Captura real de la pantalla de título de Kick Flight, versión 2.11.0", titleScreenCaption: "Pantalla de título · Versión 2.11.0",
         aiTitle: "Contenido AI", aiDisclaimer: "Estos 11 retratos para skins faltantes se generaron con IA a partir de referencias de Kick Flight. Son recreaciones de la comunidad, no arte oficial de Grenge. Este proyecto fan no está afiliado a Grenge.",
         aiGridAria: "Retratos de personajes generados con IA",
@@ -209,7 +263,7 @@
         description: "Kick Flight: The Fenix Returns. Download the Android APK and return to the arena.",
         brandAria: "Kick Flight, home", logoAlt: "Kick-Flight", languagePickerAria: "Language / Idioma",
         heroKicker: "Download for Android", heroDownload: "Download Android APK",
-        visualsTitle: "In-game image", visualsIntro: "Kick Flight title-screen capture from version 2.11.0.",
+        newsTitle: "News", newsAll: "See all updates", visualsTitle: "In-game image", visualsIntro: "Kick Flight title-screen capture from version 2.11.0.",
         titleScreenAlt: "Real capture of the Kick Flight title screen, version 2.11.0", titleScreenCaption: "Title screen · Version 2.11.0",
         aiTitle: "AI Content", aiDisclaimer: "These 11 portraits for missing skins were generated with AI from Kick Flight references. They are community recreations, not official Grenge artwork. This fan project is not affiliated with Grenge.",
         aiGridAria: "AI-generated character portraits",
