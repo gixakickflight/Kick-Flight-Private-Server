@@ -66,6 +66,8 @@ public sealed partial class DemoSessionApi
     // itself is the store's, and an evicted entry is reloaded from there on the next request.
     private readonly ConcurrentDictionary<long, SessionState> _statesByPlayer = new();
     private readonly IOtomoIdentity _identity;
+    // The only source of value: this process holds no balance, no ticket and no disc (see DemoSessionApi.Economy.cs).
+    private readonly IOtomoEconomy _economy;
     private readonly KfAccessTokenCodec _accessTokens;
     private readonly IPlayerStore _playerStore;
     private readonly OtomoMasters _otomoMasters;
@@ -97,7 +99,7 @@ public sealed partial class DemoSessionApi
 
     public DemoSessionApi(ILogger<DemoSessionApi> logger, IWebHostEnvironment environment,
         BattleMatchmakingService matchmaking, BattleReplayService replays, IPlayerStore playerStore,
-        IOtomoIdentity identity, KfAccessTokenCodec accessTokens,
+        IOtomoIdentity identity, IOtomoEconomy economy, KfAccessTokenCodec accessTokens,
         IConfiguration configuration, MaintenanceState maintenance, ClientUpdateState clientUpdate,
         TimeProvider timeProvider, OpsTelemetryService ops, IOptions<HarnessOptions> harnessOptions,
         OtomoMasters otomoMasters)
@@ -111,6 +113,7 @@ public sealed partial class DemoSessionApi
         _timeProvider = timeProvider;
         _playerStore = playerStore;
         _identity = identity;
+        _economy = economy;
         _accessTokens = accessTokens;
         _otomoMasters = otomoMasters;
         _harnessOptions = harnessOptions.Value;
@@ -565,7 +568,6 @@ public sealed partial class DemoSessionApi
             ]
             """;
         _encryptedMasters["Item"] = EncryptMaster(itemJson);
-        ParseItemMaster(itemJson);
 
         var discJson = LoadJson(contentRoot, "config/masters_disc.json", "[]");
         var skillJson = LoadJson(contentRoot, "config/masters_skill.json", "[]");
@@ -884,15 +886,6 @@ public sealed partial class DemoSessionApi
         var loaded = _playerStore.TryLoad(playerId);
         if (loaded is not null)
         {
-            foreach (var discId in _discIdList)
-            {
-                if (!loaded.Discs.ContainsKey(discId))
-                {
-                    // A disc added to the masters after this save was written: hand it over at the base level so
-                    // the client's disc list matches the masters it just downloaded.
-                    loaded.Discs[discId] = new UserDiscState { DiscId = discId, Level = 10, Amount = 99 };
-                }
-            }
             // a deck slot pointing at a disc that no longer exists in masters_disc.json makes the
             // client throw in PlayerDeckParameter..ctor and the battle never loads: swap it for a valid disc
             foreach (var (deckNumber, deck) in loaded.Decks)
@@ -914,15 +907,9 @@ public sealed partial class DemoSessionApi
         return state;
     }
 
-    private SessionState NewUserState(long playerId)
-    {
-        var state = new SessionState { UserId = playerId.ToString() };
-        foreach (var discId in _discIdList)
-        {
-            state.Discs[discId] = new UserDiscState { DiscId = discId, Level = 10, Amount = 99 };
-        }
-        return state;
-    }
+    // A new account's save holds no value at all: what it owns is whatever economy says, and a fresh otomo account
+    // owns nothing until a grant has run.
+    private static SessionState NewUserState(long playerId) => new() { UserId = playerId.ToString() };
 
     private void SaveUserState(SessionState state) => _playerStore.Save(state);
 
@@ -1115,7 +1102,7 @@ public sealed partial class DemoSessionApi
 
         if (path == "/disc/buildup")
         {
-            return await HandleDiscBuildupAsync(context, state, key);
+            return await HandleDiscBuildupAsync(context, ticket, state, key);
         }
 
         if (path == "/gear/create")
@@ -1136,13 +1123,13 @@ public sealed partial class DemoSessionApi
         // Round C: the gacha screens, the goods shop, and the real-money IAP endpoints the shop view also calls.
         if (path.StartsWith("/gacha/", StringComparison.Ordinal))
         {
-            var gacha = await TryHandleGachaAsync(path, context, state, key);
+            var gacha = await TryHandleGachaAsync(path, context, ticket, state, key);
             if (gacha is not null) return gacha;
         }
 
         if (path.StartsWith("/goodsShop/", StringComparison.Ordinal) || path.StartsWith("/shop/", StringComparison.Ordinal))
         {
-            var shop = await TryHandleShopAsync(path, context, state, key);
+            var shop = await TryHandleShopAsync(path, context, ticket, state, key);
             if (shop is not null) return shop;
         }
 
@@ -1172,21 +1159,38 @@ public sealed partial class DemoSessionApi
             return BinaryJson(json, key);
         }
 
+        // Every value-bearing payload is assembled from economy, per request. The adapter holds no balance, no
+        // ticket and no disc, so a startup or a home that cannot read the player's economy state fails closed
+        // rather than answering zeroes the client would believe.
         if (path == "/startup/index")
         {
+            var economy = await ReadPlayerEconomyAsync(ticket, EconomyRead.Balances | EconomyRead.Inventory,
+                path, context.RequestAborted);
+            if (economy.Snapshot is null) return EconomyUnavailable(context, path, economy.Error);
+            var snapshot = economy.Snapshot!;
+
             context.Response.Headers["x-app-status-code"] = "0";
             context.Response.Headers["x-kickflight-fixture"] = "dynamic-demo-session";
-            var json = BuildStartupJson(state, context.Request);
-            _logger.LogInformation("Serving dynamic startup index ({KickerCount} kickers, {DiscCount} discs)", _kickerList.Count, _discIdList.Count);
+            var json = BuildStartupJson(state, snapshot, context.Request);
+            _logger.LogInformation("Serving dynamic startup index ({ItemRows} item rows, {DiscCount} discs owned, {KickerCount} kickers owned)",
+                EconomyCatalog.ItemMasterIds.Length,
+                snapshot.Items.Count(item => EconomyCatalog.TryDiscId(item.Item, out _)),
+                snapshot.Items.Count(item => EconomyCatalog.TryCostumeId(item.Item, out _)));
             return BinaryJson(json, key);
         }
 
         if (path == "/home/index")
         {
+            var economy = await ReadPlayerEconomyAsync(ticket, EconomyRead.Shop | EconomyRead.Pools,
+                path, context.RequestAborted);
+            if (economy.Snapshot is null) return EconomyUnavailable(context, path, economy.Error);
+            var snapshot = economy.Snapshot!;
+
             context.Response.Headers["x-app-status-code"] = "0";
             context.Response.Headers["x-kickflight-fixture"] = "dynamic-demo-session";
-            var json = BuildHomeJson(state);
-            _logger.LogInformation("Serving dynamic home index (active kickerId={KickerId}, costumeId={CostumeId}, activeDeck={Deck})", state.KickerId, state.KickerCostumeId, state.ActiveDeckNumber);
+            var json = BuildHomeJson(state, snapshot);
+            _logger.LogInformation("Serving dynamic home index (active kickerId={KickerId}, costumeId={CostumeId}, activeDeck={Deck}, offers={Offers}, pools={Pools})",
+                state.KickerId, state.KickerCostumeId, state.ActiveDeckNumber, snapshot.Offers.Count, snapshot.Pools.Count);
             return BinaryJson(json, key);
         }
 
@@ -1263,7 +1267,7 @@ public sealed partial class DemoSessionApi
 
         if (path == "/battle/result" || path == "/customBattle/result")
         {
-            return await HandleBattleResultAsync(context, state, key);
+            return await HandleBattleResultAsync(context, ticket, state, key);
         }
 
         // Replays: /battle/upload receives the master client's gzip archive, /battleReplay/index lists the Kicker
@@ -1337,7 +1341,7 @@ public sealed partial class DemoSessionApi
 
         // Screens the client opens but this server has no data for (rankings, presents, missions, replays...).
         // They answer with a schema-complete neutral payload so the UI renders instead of showing "Network Error".
-        var stub = await TryHandleStubAsync(path, context, state, key);
+        var stub = await TryHandleStubAsync(path, context, ticket, state, key);
         if (stub is not null) return stub;
 
         return null;
@@ -1414,62 +1418,61 @@ public sealed partial class DemoSessionApi
         }
     }
 
-    private async Task<IResult?> HandleDiscBuildupAsync(HttpContext context, SessionState state, byte[] key)
+    // /disc/buildup is retired with the disc gacha. Discs are not levelled in the economy's model - a disc you own
+    // is level 10 - and the Disc Force it used to spend is a wallet currency this process may not debit on its own.
+    // The request is still read, so a malformed body fails the way it did, and the answer is the disc as it stands:
+    // no level changed, nothing spent. The route stays in the switch rather than disappearing, because the client
+    // is a binary and a missing route is a network error on a screen that works.
+    private async Task<IResult?> HandleDiscBuildupAsync(HttpContext context, KfIdentityTicket ticket,
+        SessionState state, byte[] key)
     {
         var body = await ReadBodyAsync(context.Request);
+        int discId;
         try
         {
             var plaintext = D2CCodec.Decode(body, key);
             using var document = JsonDocument.Parse(plaintext);
-            var root = document.RootElement;
-            var discId = root.GetProperty("discId").GetInt32();
-            var targetLevel = root.TryGetProperty("level", out var lvlProp) ? lvlProp.GetInt32() : -1;
-
-            if (!state.Discs.TryGetValue(discId, out var discState))
-            {
-                discState = new UserDiscState { DiscId = discId, Level = 10, Amount = 99 };
-                state.Discs[discId] = discState;
-            }
-
-            if (targetLevel > 0)
-            {
-                discState.Level = targetLevel;
-            }
-            else
-            {
-                discState.Level = Math.Min(50, discState.Level + 1);
-            }
-
-            state.ItemDiscForce = Math.Max(0, state.ItemDiscForce - 1100);
-            SaveUserState(state);
-
-            var resp = new
-            {
-                userDisc = new
-                {
-                    discId = discState.DiscId,
-                    amount = discState.Amount,
-                    level = discState.Level,
-                    exp = 0,
-                    registerDatetime = "2026-09-01 00:00:00"
-                },
-                userItem = new
-                {
-                    itemId = 3,
-                    amount = state.ItemDiscForce
-                }
-            };
-
-            _logger.LogInformation("Disc buildup succeeded: discId={DiscId}, newLevel={Level}", discId, discState.Level);
-            context.Response.Headers["x-app-status-code"] = "0";
-            context.Response.Headers["x-kickflight-fixture"] = "dynamic-disc-buildup";
-            return BinaryJson(JsonSerializer.Serialize(resp), key);
+            discId = document.RootElement.GetProperty("discId").GetInt32();
         }
         catch (Exception ex)
         {
             _logger.LogWarning("Could not decode disc buildup request: {Error}", ex.Message);
             return null;
         }
+
+        _logger.LogInformation("disc/buildup is retired: disc {DiscId} stays at level {Level} and nothing was spent",
+            discId, EconomyPayloads.OwnedDiscLevel);
+
+        var economy = await ReadPlayerEconomyAsync(ticket, EconomyRead.Balances | EconomyRead.Inventory,
+            "/disc/buildup", context.RequestAborted);
+        if (economy.Snapshot is null) return EconomyUnavailable(context, "/disc/buildup", economy.Error);
+        var snapshot = economy.Snapshot!;
+
+        var owned = snapshot.Items.FirstOrDefault(item =>
+            EconomyCatalog.TryDiscId(item.Item, out var ownedDiscId) && ownedDiscId == discId);
+        var discForce = snapshot.Balances.FirstOrDefault(balance =>
+            EconomyCatalog.TryItemIdForCurrency(balance.Currency, out var itemId) && itemId == 3)?.Balance ?? 0;
+
+        var resp = new
+        {
+            userDisc = new
+            {
+                discId,
+                amount = (int)Math.Clamp(owned?.Qty ?? 0, 0, int.MaxValue),
+                level = EconomyPayloads.OwnedDiscLevel,
+                exp = 0,
+                registerDatetime = EconomyPayloads.Stamp(owned?.AcquiredAt)
+            },
+            userItem = new
+            {
+                itemId = 3,
+                amount = (int)Math.Clamp(discForce, 0, int.MaxValue)
+            }
+        };
+
+        context.Response.Headers["x-app-status-code"] = "0";
+        context.Response.Headers["x-kickflight-fixture"] = "dynamic-disc-buildup";
+        return BinaryJson(JsonSerializer.Serialize(resp), key);
     }
 
     // Slot array of a costume: always three entries, padded from whatever the save file holds (a file from before
@@ -1587,31 +1590,14 @@ public sealed partial class DemoSessionApi
         return Task.FromResult<IResult?>(BinaryJson("{}", key));
     }
 
-    private string BuildStartupJson(SessionState state, HttpRequest request)
+    private string BuildStartupJson(SessionState state, EconomySnapshot economy, HttpRequest request)
     {
         NormalizeCostume(state);
         var pendingGear = state.PendingGear ?? new PendingGearState();
-        var userKickerList = _kickerList.Select(k =>
-        {
-            var costumes = _costumesByKicker.GetValueOrDefault(k.Id, [1]);
-            var selectedCostume = k.Id == state.KickerId ? state.KickerCostumeId : costumes[0];
-            return new
-            {
-                kickerId = k.Id,
-                kickerCostumeId = selectedCostume,
-                userKickerCostumeList = costumes.Select(c =>
-                {
-                    var slots = GearSlots(state, c);
-                    return new
-                    {
-                        kickerCostumeId = c,
-                        gearId1 = slots[0],
-                        gearId2 = slots[1],
-                        gearId3 = slots[2]
-                    };
-                }).ToArray()
-            };
-        }).ToArray();
+        // The kickers and costumes the player owns, from the inventory's skin:<costumeId> items: owning a costume
+        // owns its kicker. The active costume is always included, so a save whose inventory says nothing still
+        // renders the player it says is selected.
+        var userKickerList = Payloads(state).BuildUserKickerList(economy, state.KickerId, state.KickerCostumeId);
 
         var kickerTrainingList = _kickerList.Select(k => new
         {
@@ -1619,18 +1605,8 @@ public sealed partial class DemoSessionApi
             clearTrainingMissionTaskCount = 0
         }).ToArray();
 
-        var userDiscList = _discIdList.Select(discId =>
-        {
-            var dState = state.Discs.GetValueOrDefault(discId) ?? new UserDiscState { DiscId = discId, Level = 10, Amount = 99 };
-            return new
-            {
-                discId = dState.DiscId,
-                amount = dState.Amount,
-                level = dState.Level,
-                exp = 0,
-                registerDatetime = "2026-09-01 00:00:00"
-            };
-        }).ToArray();
+        // The discs the player owns, from the inventory's disc:<discId> items. A disc is level 10 when owned.
+        var userDiscList = Payloads(state).BuildUserDiscList(economy);
 
         var data = new
         {
@@ -1639,7 +1615,7 @@ public sealed partial class DemoSessionApi
             userHonorList = new[] { new { honorId = 6010000, newFlag = false } },
             // All 8 Item master rows: 1-4 the legacy counters, 5-8 the round C stocks (gear stamps, disc fragments
             // and the two gacha tickets) that the gear screen and the shop read their counters from.
-            userItemList = BuildUserItemList(state),
+            userItemList = Payloads(state).BuildUserItemList(economy),
             // The client reads userGear.gearId != 0 as "there is a rolled gear waiting for equip/discard", and
             // userGear.kickerId as whose it is; with nothing pending it keeps pointing at the active kicker.
             userGear = new
@@ -1748,7 +1724,7 @@ public sealed partial class DemoSessionApi
     private bool IsDiagClient(HttpContext context) =>
         _maintenance.IsBypassClient(context.Request.Headers["x-app-application-version"].ToString());
 
-    private string BuildHomeJson(SessionState state)
+    private string BuildHomeJson(SessionState state, EconomySnapshot economy)
     {
         NormalizeCostume(state);
 
@@ -1790,14 +1766,14 @@ public sealed partial class DemoSessionApi
             // from these two lists through GachaGroupListInfo(ResponseGachaGroup[]); serving them empty left the
             // scroller with a data list shorter than the cell range EnhancedScroller._Resize walks and GetCellHeight
             // threw ArgumentOutOfRangeException (List<T>.get_Item).
-            discGachaGroupList = BuildHomeGachaGroupList(DiscGachaGroupId),
-            kickerGachaGroupList = BuildHomeGachaGroupList(KickerGachaGroupId),
+            discGachaGroupList = BuildHomeDiscGachaGroupList(),
+            kickerGachaGroupList = BuildHomeKickerGachaGroupList(economy),
             userBattleRankList = BuildBattleRankList(state),
             userMissionProgressList = Array.Empty<object>(),
             // shopProductList is the real-money IAP list, which this server does not sell; the goods shop is the
             // JetCoin one and is served in full.
             shopProductList = Array.Empty<object>(),
-            goodsShopProductList = BuildGoodsShopProducts(),
+            goodsShopProductList = BuildGoodsShopProducts(economy),
             // The exchange tab's own scroller (ShopExchangeScroller) stays empty: no disc fragments are converted.
             discFragmentConversionDiscIdList = Array.Empty<int>(),
             userMissionTaskStatusNotification = new { newFlagCount = 0, completionCount = 0 },
@@ -2460,9 +2436,14 @@ public sealed partial class DemoSessionApi
     //
     // Rank progress applies only to ranked matches. The entry stores a server-derived snapshot of matchType and
     // battleRuleType; neither a result body nor a later master/schedule change can reclassify the match.
-    private async Task<IResult?> HandleBattleResultAsync(HttpContext context, SessionState state, byte[] key)
+    private async Task<IResult?> HandleBattleResultAsync(HttpContext context, KfIdentityTicket ticket,
+        SessionState state, byte[] key)
     {
         var battleEntryId = "";
+        // The two counters the client reports that economy keeps: kills and the MVP flag. Both are the client's
+        // word, which is the same trust level as the ranked result this handler already applies.
+        var killCount = 0;
+        var mvp = false;
         try
         {
             var body = await ReadBodyAsync(context.Request);
@@ -2472,6 +2453,12 @@ public sealed partial class DemoSessionApi
                 if (document.RootElement.TryGetProperty("battleEntryId", out var entryProp)
                     && entryProp.ValueKind == JsonValueKind.String)
                     battleEntryId = entryProp.GetString() ?? "";
+                if (document.RootElement.TryGetProperty("killCount", out var killProp) &&
+                    killProp.ValueKind == JsonValueKind.Number && killProp.TryGetInt32(out var reportedKills))
+                {
+                    killCount = reportedKills;
+                }
+                mvp = TryGetBool(document.RootElement, "mvpFlag", out var reportedMvp) && reportedMvp;
             }
         }
         catch (Exception ex)
@@ -2537,6 +2524,11 @@ public sealed partial class DemoSessionApi
             lotteryFestivalPointId = 0
         };
 
+        // The battle's counters go to economy as facts, before the client is told the battle is over: what they
+        // are worth is a track's step, claimed later on the player's own plane.
+        await ReportBattleProgressAsync(ticket, battleEntryId, won: applyProgression, killCount, mvp,
+            context.RequestAborted);
+
         context.Response.Headers["x-app-status-code"] = "0";
         context.Response.Headers["x-kickflight-fixture"] = "dynamic-battle-result";
         _ops.RecordBattleResult(state.UserId, battleEntryId, OpsClientInfo.FromRequest(context));
@@ -2547,8 +2539,9 @@ public sealed partial class DemoSessionApi
 
     private async Task<IResult?> HandleBattleEndAsync(HttpContext context, SessionState state, byte[] key)
     {
-        state.ItemKickPoints += 200;
-        state.ItemJetCoins += 1000;
+        // The battle pays nothing here. What a finished battle is worth is economy's - a counter reported by
+        // /battle/result and a track the player claims - and an adapter that minted coins on its own would be a
+        // second, unaudited economy.
         SaveUserState(state);
 
         // Snapshot the match while the matchmaking room is still in memory: /battle/upload arrives seconds later

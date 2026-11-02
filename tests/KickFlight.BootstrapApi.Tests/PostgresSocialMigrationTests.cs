@@ -58,7 +58,7 @@ public sealed class PostgresSocialMigrationTests
         Assert.Equal(3, Assert.Single(store.ListRanks(4, new[] { carol }, 0, 10)).Position);
 
         var restarted = NewStore(connectionString);
-        Assert.Equal(3, ReadSchemaVersion(connectionString));
+        Assert.Equal(4, ReadSchemaVersion(connectionString));
         Assert.Equal(token, restarted.GetOrCreateRealFriendToken(alice));
         Assert.True(restarted.AreRealFriends(alice, carol));
         Assert.Equal(1, restarted.CountFollowing(alice));
@@ -78,14 +78,14 @@ public sealed class PostgresSocialMigrationTests
         using (var connection = new NpgsqlConnection(connectionString))
         {
             connection.Open();
-            using var insertFutureVersion = new NpgsqlCommand("insert into schema_meta(version) values (4)", connection);
+            using var insertFutureVersion = new NpgsqlCommand("insert into schema_meta(version) values (5)", connection);
             insertFutureVersion.ExecuteNonQuery();
         }
         Assert.Throws<InvalidOperationException>(() => NewStore(connectionString));
         using (var connection = new NpgsqlConnection(connectionString))
         {
             connection.Open();
-            using var removeFutureVersion = new NpgsqlCommand("delete from schema_meta where version = 4", connection);
+            using var removeFutureVersion = new NpgsqlCommand("delete from schema_meta where version = 5", connection);
             removeFutureVersion.ExecuteNonQuery();
         }
     }

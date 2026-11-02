@@ -40,6 +40,12 @@ builder.Services.AddSingleton<IOtomoIdentity>(services => OtomoIdentity.Create(
     services.GetRequiredService<IOptions<OtomoOptions>>(),
     services.GetRequiredService<TimeProvider>(),
     services.GetRequiredService<ILogger<OtomoIdentity>>()));
+// Economy: every balance, ticket, disc and costume is otomo's (docs/OTOMO_ECONOMY.md). One client, holding no state
+// of its own: a request reads the slices it needs on the player's own token, and this process keeps nothing.
+builder.Services.Configure<OtomoEconomyOptions>(builder.Configuration.GetSection(OtomoEconomyOptions.SectionName));
+builder.Services.AddSingleton<IOtomoEconomy>(services => OtomoEconomy.Create(
+    services.GetRequiredService<IOptions<OtomoEconomyOptions>>(),
+    services.GetRequiredService<ILogger<OtomoEconomy>>()));
 // Masters: otomo publishes them as a release and this adapter follows the channel (docs/OTOMO_MASTERS.md). The
 // tables named in Otomo:Masters:Tables are read from otomo and from nowhere else; every other table is still a
 // file under config/. The refresher is what turns a publish into a running server's new values.

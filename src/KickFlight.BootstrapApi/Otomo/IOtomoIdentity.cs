@@ -41,6 +41,15 @@ public interface IOtomoIdentity
     // when only the access token has expired. Concurrent calls for one device share a single login or refresh.
     ValueTask<OtomoSession> GetSessionAsync(string deviceUuid, CancellationToken cancellationToken);
 
+    // The same session, for an otomo device id this process already derived (KfIdentityTicket.DeviceId). A later
+    // request carries that id rather than the client's original one, so re-deriving it would reach a different
+    // account; the economy client needs the player's own access token and has nothing but the ticket.
+    //
+    // It is the same cache and the same gate, so a warm entry costs nothing. A cold one is a single login with that
+    // device id, which otomo answers with the same account: an evicted cache or a restart costs a login, never a
+    // different identity.
+    ValueTask<OtomoSession> GetSessionForDeviceIdAsync(string otomoDeviceId, CancellationToken cancellationToken);
+
     // Revokes this device's refresh family at otomo and drops it from the cache. Other devices of the same
     // account keep their own families: otomo starts one per login.
     ValueTask LogoutAsync(string deviceUuid, CancellationToken cancellationToken);

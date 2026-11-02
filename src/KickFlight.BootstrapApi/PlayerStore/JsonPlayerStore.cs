@@ -161,8 +161,6 @@ public sealed class JsonPlayerStore : IPlayerStore
             // "no gear", never as a null dictionary the gear handlers would then dereference.
             loaded.CostumeGears ??= new Dictionary<int, int[]>();
             loaded.PendingGear ??= new PendingGearState();
-            loaded.ItemAmounts ??= new Dictionary<int, int>();
-            loaded.Discs ??= new Dictionary<int, UserDiscState>();
             loaded.Decks ??= new Dictionary<int, List<int>>();
             return loaded;
         }

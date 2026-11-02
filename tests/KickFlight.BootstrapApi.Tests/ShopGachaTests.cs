@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using KickFlight.BootstrapApi;
+using KickFlight.BootstrapApi.Otomo;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,8 +10,9 @@ using Xunit;
 
 namespace KickFlight.BootstrapApi.Tests;
 
-// Round C: the item stocks (gear stamps, gacha tickets), the disc/kicker gacha, the goods shop and the gacha masters.
-// Same auth -> access token -> encrypted POST flow as HarnessTests/PolishEndpointsTests.
+// The shop screen's DTO shapes and the gacha masters - the parts of the storefront that are the client's contract
+// rather than a value. What a purchase or a draw *does* is economy's, and EconomyEndToEndTests covers that; these
+// tests are here so a field the client deserializes cannot go missing while the value side is rewritten.
 public sealed class ShopGachaTests : IClassFixture<ServerTestHostFixture>
 {
     private const string Host = "kickflight-api.grenge.jp";
@@ -18,11 +20,9 @@ public sealed class ShopGachaTests : IClassFixture<ServerTestHostFixture>
 
     // The Item master rows the round adds on top of the four legacy counters.
     private const int GearMaterialItemId = 5;      // GoodsType 202, the gear stamps the gear screen counts
-    private const int KickerTicketItemId = 7;      // GoodsType 401
-    private const int DiscTicketItemId = 8;        // GoodsType 402
-    private const int DefaultStockAmount = 9999;
 
     private readonly WebApplicationFactory<Program> _factory;
+    private readonly FakeOtomoEconomy _economy = OtomoTestEnvironment.Economy;
 
     public ShopGachaTests(ServerTestHostFixture fixture)
     {
@@ -30,107 +30,16 @@ public sealed class ShopGachaTests : IClassFixture<ServerTestHostFixture>
     }
 
     [Fact]
-    public async Task Startup_lists_the_eight_items_with_the_round_c_stocks_at_9999()
+    public async Task Startup_carries_the_eight_item_rows_with_no_stock_of_its_own()
     {
+        // A player who owns nothing: the adapter has no demo stock to fall back on, so every counter is economy's
+        // answer, and economy says zero.
         var session = await CreateSessionAsync();
         var items = (await PostAsync(session, "/startup/index", null)).GetProperty("userItemList").EnumerateArray().ToList();
 
         Assert.Equal(8, items.Count);
-        for (var i = 0; i < items.Count; i++)
-        {
-            Assert.Equal(i + 1, items[i].GetProperty("itemId").GetInt32());
-        }
-        // A fresh user owns the full stock: the four legacy counters keep their own defaults, 5-8 are the stocks.
-        Assert.Equal(208754, items[0].GetProperty("amount").GetInt32());
-        Assert.Equal(999999, items[2].GetProperty("amount").GetInt32());
-        foreach (var itemId in new[] { 5, 6, 7, 8 })
-        {
-            Assert.Equal(DefaultStockAmount, items[itemId - 1].GetProperty("amount").GetInt32());
-        }
-    }
-
-    [Fact]
-    public async Task Disc_draw_grants_a_disc_and_spends_one_ticket()
-    {
-        var session = await CreateSessionAsync();
-        var discIds = LoadMasterIds("masters_disc.json");
-
-        var draw = await PostAsync(session, "/gacha/discDraw", new { gachaId = 1, count = 1 });
-        var drops = draw.GetProperty("dropDiscList").EnumerateArray().ToList();
-        Assert.Single(drops);
-        Assert.Equal(1, drops[0].GetProperty("amount").GetInt32());
-        Assert.Contains(drops[0].GetProperty("discId").GetInt32(), discIds);
-
-        var received = draw.GetProperty("receivedUserDiscList").EnumerateArray().ToList();
-        Assert.Single(received);
-        Assert.Equal(drops[0].GetProperty("discId").GetInt32(), received[0].GetProperty("discId").GetInt32());
-        Assert.True(received[0].GetProperty("amount").GetInt32() >= 1);
-
-        // The draw repeats the whole item list, and the ticket really came down in the persisted save too.
-        Assert.Equal(8, draw.GetProperty("userItemList").GetArrayLength());
-        Assert.Equal(DefaultStockAmount, draw.GetProperty("drawableCount").GetInt32());
-
-        var startup = await PostAsync(session, "/startup/index", null);
-        Assert.Equal(DefaultStockAmount - 1, ItemAmount(startup, DiscTicketItemId));
-        Assert.Equal(DefaultStockAmount, ItemAmount(startup, KickerTicketItemId));
-        Assert.Equal(DefaultStockAmount - 1, ReadStockAmount(session, DiscTicketItemId));
-    }
-
-    [Fact]
-    public async Task Kicker_draw_returns_a_costume_row_id_and_spends_one_ticket()
-    {
-        var session = await CreateSessionAsync();
-        var costumeRowIds = LoadMasterIds("masters_kicker_costume.json");
-
-        var draw = await PostAsync(session, "/gacha/kickerDraw", new { gachaId = 1, count = 1 });
-        var drops = draw.GetProperty("dropKickerCostumeList").EnumerateArray().ToList();
-        Assert.Single(drops);
-        var costumeId = drops[0].GetProperty("kickerCostumeId").GetInt32();
-        Assert.Contains(costumeId, costumeRowIds);
-        Assert.True(drops[0].GetProperty("kickerId").GetInt32() > 0);
-        Assert.NotEmpty(draw.GetProperty("receivedUserKickerList").EnumerateArray().ToList());
-
-        var startup = await PostAsync(session, "/startup/index", null);
-        Assert.Equal(DefaultStockAmount - 1, ItemAmount(startup, KickerTicketItemId));
-        Assert.Equal(DefaultStockAmount, ItemAmount(startup, DiscTicketItemId));
-    }
-
-    [Fact]
-    public async Task Goods_shop_buy_adds_ten_stamps_and_subtracts_a_hundred_coins()
-    {
-        var session = await CreateSessionAsync();
-        var before = (await PostAsync(session, "/startup/index", null));
-        var coinsBefore = ItemAmount(before, 1);
-        var stampsBefore = ItemAmount(before, GearMaterialItemId);
-
-        // product 3 = "Gear Stamps x10": 100 JetCoin -> 10x item 5
-        var buy = await PostAsync(session, "/goodsShop/buy", new { goodsShopProductId = 3 });
-
-        Assert.Equal(coinsBefore - 100, ItemAmount(buy, 1));
-        Assert.Equal(stampsBefore + 10, ItemAmount(buy, GearMaterialItemId));
-        var received = buy.GetProperty("receivedUserItemList").EnumerateArray().ToList();
-        Assert.Single(received);
-        Assert.Equal(GearMaterialItemId, received[0].GetProperty("itemId").GetInt32());
-        Assert.Equal(stampsBefore + 10, received[0].GetProperty("amount").GetInt32());
-        Assert.Equal(8, buy.GetProperty("userItemList").GetArrayLength()); // 4 legacy counters + 4 stocks
-
-        // ... and it is persisted, not just echoed back
-        var startup = await PostAsync(session, "/startup/index", null);
-        Assert.Equal(coinsBefore - 100, ItemAmount(startup, 1));
-        Assert.Equal(stampsBefore + 10, ItemAmount(startup, GearMaterialItemId));
-        Assert.Equal(stampsBefore + 10, ReadStockAmount(session, GearMaterialItemId));
-    }
-
-    [Fact]
-    public async Task Goods_shop_buy_refuses_a_product_it_cannot_afford()
-    {
-        var session = await CreateSessionAsync();
-        var buy = await PostAsync(session, "/goodsShop/buy", new { goodsShopProductId = 999 }, expectStatusZero: false);
-        Assert.Equal(JsonValueKind.Object, buy.ValueKind);
-
-        // The unknown product left the wallet alone.
-        var startup = await PostAsync(session, "/startup/index", null);
-        Assert.Equal(208754, ItemAmount(startup, 1));
+        Assert.Equal(new[] { 1, 2, 3, 4, 5, 6, 7, 8 }, items.Select(item => item.GetProperty("itemId").GetInt32()).ToArray());
+        Assert.All(items, item => Assert.Equal(0, item.GetProperty("amount").GetInt32()));
     }
 
     [Theory]
@@ -165,15 +74,18 @@ public sealed class ShopGachaTests : IClassFixture<ServerTestHostFixture>
     public async Task Draw_and_information_responses_carry_every_field_of_their_dto()
     {
         var session = await CreateSessionAsync();
+        // The kicker draw is a real roll on economy, so this player needs the pool's price to draw once.
+        _economy.Seed(session.Account, balances: [("jetcoin", 400)]);
 
+        // The disc draw is retired: the DTO is complete, the drops are empty, and the tab says it is finished.
         var discDraw = await PostAsync(session, "/gacha/discDraw", new { gachaId = 1, count = 1 });
         AssertFields(discDraw,
             "dropDiscList", "receivedUserDiscList", "receivedUserItemList", "userItemList", "gachaDropCountRewardList",
             "modelId", "effectTopImageFilename", "effectBottomImageFilename", "capsuleEffectType", "drawableCount",
             "drawableDatetime", "completedDisplayFlag", "userPresentList", "userMissionProgressList",
             "userDailyRandomMissionTaskList", "receivedRewardList", "premiumFlag");
-        AssertFields(discDraw.GetProperty("dropDiscList")[0], "discId", "amount", "discForceAmount");
-        AssertFields(discDraw.GetProperty("receivedUserDiscList")[0], "discId", "amount", "level", "registerDatetime");
+        Assert.Empty(discDraw.GetProperty("dropDiscList").EnumerateArray());
+        Assert.True(discDraw.GetProperty("completedDisplayFlag").GetBoolean());
 
         var kickerDraw = await PostAsync(session, "/gacha/kickerDraw", new { gachaId = 1, count = 1 });
         AssertFields(kickerDraw,
@@ -200,7 +112,8 @@ public sealed class ShopGachaTests : IClassFixture<ServerTestHostFixture>
     }
 
     // The home payload the shop screen is built from: HomeResponseData.discGachaGroupList / kickerGachaGroupList feed
-    // ShopDiscScroller._data, so both must carry a group (an empty list is what made GetCellHeight throw).
+    // ShopDiscScroller._data, so both must carry a group and a gacha row (an empty list is what made GetCellHeight
+    // throw).
     [Fact]
     public async Task Home_lists_both_gacha_groups_and_the_four_goods_shop_products()
     {
@@ -221,10 +134,13 @@ public sealed class ShopGachaTests : IClassFixture<ServerTestHostFixture>
         AssertFields(discGroups[0].GetProperty("gachaList")[0],
             "id", "dropAmount", "drawableCount", "drawableDatetime", "costGoodsType", "costGoodsId", "costAmount",
             "gachaBoxStatus", "stepNumber", "effectTopImageFilename", "effectBottomImageFilename");
-        // The disc gacha costs the disc ticket (item 8 / GoodsType 402), the kicker one the kicker ticket.
+        // The disc gacha is retired but still priced from its own master (item 8 / GoodsType 402), and not drawable.
         Assert.Equal(402, discGroups[0].GetProperty("gachaList")[0].GetProperty("costGoodsType").GetInt32());
         Assert.Equal(8, discGroups[0].GetProperty("gachaList")[0].GetProperty("costGoodsId").GetInt32());
-        Assert.Equal(401, kickerGroups[0].GetProperty("gachaList")[0].GetProperty("costGoodsType").GetInt32());
+        Assert.Equal(0, discGroups[0].GetProperty("gachaList")[0].GetProperty("drawableCount").GetInt32());
+        // The kicker gacha is economy's pool, and its banner carries the pool's own price.
+        Assert.Equal(101, kickerGroups[0].GetProperty("gachaList")[0].GetProperty("costGoodsType").GetInt32());
+        Assert.Equal(300, kickerGroups[0].GetProperty("gachaList")[0].GetProperty("costAmount").GetInt32());
 
         var products = home.GetProperty("goodsShopProductList").EnumerateArray().ToList();
         Assert.Equal(4, products.Count);
@@ -264,7 +180,7 @@ public sealed class ShopGachaTests : IClassFixture<ServerTestHostFixture>
         Assert.All(rows, row => Assert.True(row.TryGetProperty("id", out _), $"{masterName} row without id"));
     }
 
-    // LotteryDropDisc has to cover the whole disc master: the draw picks from these rows.
+    // LotteryDropDisc has to cover the whole disc master: the (retired) disc tab's information page still lists it.
     [Fact]
     public async Task Lottery_drop_disc_covers_every_disc_and_lottery_drop_kicker_every_costume()
     {
@@ -304,19 +220,6 @@ public sealed class ShopGachaTests : IClassFixture<ServerTestHostFixture>
         }
     }
 
-    private static int ItemAmount(JsonElement startup, int itemId) =>
-        startup.GetProperty("userItemList").EnumerateArray()
-            .First(item => item.GetProperty("itemId").GetInt32() == itemId)
-            .GetProperty("amount").GetInt32();
-
-    private int ReadStockAmount(DemoSession session, int itemId)
-    {
-        var file = Path.Combine(_factory.Services.GetRequiredService<IWebHostEnvironment>().ContentRootPath,
-            "data", "users", $"{session.UserId}.json");
-        using var document = JsonDocument.Parse(File.ReadAllText(file));
-        return document.RootElement.GetProperty("ItemAmounts").GetProperty(itemId.ToString()).GetInt32();
-    }
-
     private async Task<List<JsonElement>> ReadMasterAsync(string masterName)
     {
         using var client = _factory.CreateClient();
@@ -340,8 +243,9 @@ public sealed class ShopGachaTests : IClassFixture<ServerTestHostFixture>
     private async Task<DemoSession> CreateSessionAsync()
     {
         var client = _factory.CreateClient();
+        var uuid = Guid.NewGuid().ToString("N");
         var key = Encoding.ASCII.GetBytes("0123456789abcdef0123456789abcdef");
-        var payload = JsonSerializer.Serialize(new { hash = Encoding.ASCII.GetString(key), uuid = Guid.NewGuid().ToString("N") });
+        var payload = JsonSerializer.Serialize(new { hash = Encoding.ASCII.GetString(key), uuid });
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "/auth/index")
         {
@@ -352,7 +256,8 @@ public sealed class ShopGachaTests : IClassFixture<ServerTestHostFixture>
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         client.DefaultRequestHeaders.Add("x-app-access-token", response.Headers.GetValues("x-app-access-token").Single());
-        return new DemoSession(client, key, response.Headers.GetValues("x-app-user-id").Single());
+        var account = OtomoTestEnvironment.Server.AccountFor(OtomoDeviceId.FromDeviceUuid(uuid)) ?? "";
+        return new DemoSession(client, key, response.Headers.GetValues("x-app-user-id").Single(), account);
     }
 
     private static async Task<JsonElement> PostAsync(DemoSession session, string path, object? body, bool expectStatusZero = true)
@@ -373,5 +278,5 @@ public sealed class ShopGachaTests : IClassFixture<ServerTestHostFixture>
         return document.RootElement.Clone();
     }
 
-    private sealed record DemoSession(HttpClient Client, byte[] Key, string UserId);
+    private sealed record DemoSession(HttpClient Client, byte[] Key, string UserId, string Account);
 }
