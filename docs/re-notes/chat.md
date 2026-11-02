@@ -130,3 +130,36 @@ Evidence: base.apk 2.11.0 sha256 ffa620d2...; REA search_strings failed again (n
 3. Server effort: custom RTDB wire-protocol subset (connect handshake, 'q' listen with orderBy=insertDatetime limitToLast=100, 'd' data/'m' merge pushes, ping) ~3-5 days; official Emulator Suite needs Node+Java, same wire protocol but needs real Auth => not applicable (no emulator client mode).
 Risks: Java SDK wire details (ws path /.ws?v=5&ns=), Play Services-less init, iOS not covered, Auth still on Google unless bypassed.
 Next step before any decision: runtime experiment on emulator (Frida/logcat of FirebaseDatabase Repo connection host) with a stub websocket server.
+
+# RUNTIME EXPERIMENT (4th pass, 2026-11-02, emulator-5554 API35, KF_CHAT_EXP=1 build)
+Build: scripts/patch-il2cpp-endpoints.py KF_CHAT_EXP=1 => (a) metadata literal "https://{0}.firebaseio.com/" -> "http://10.0.2.2:5099?ns={0}" (27 B, in place, unique at 0x864A9);
+(b) native 0x17BB934 FirebaseManager.CheckSignedIn -> `mov w0,#1; ret` (guard 0860403968000034). Server: KF_CHAT_EXP=1 serves chatRoomConnectionId="kfchat" + dummy token;
+new master "ChatRoom" (config/masters_chat_room.json: 1 Chatting, 2 Team, 3 Friend, 4 Beginner). Stub: scripts/chat_rtdb_stub.py (logs frames). APK built via .local/build-fedora.sh,
+re-signed with the key matching the installed cert (discs-balance-audit .jks, sha256 4b0793de...). Logs: .local/run/logcat-chat-exp.txt, chat-exp-stub.log, chat-exp-api.log.
+
+## Findings (observed at runtime)
+- Firebase initializes WITHOUT Play Services; no crash/exception during startup, home load or chat open. Java SDK 19.2.1 parses http://10.0.2.2:5099?ns=kfchat as namespace kfchat, secure=false, and
+  connects plain ws: `GET /.ws?ns=kfchat&v=5` (+ `&ls=<session>` on reconnect), UA `Firebase/5/19.2.1/35/Android`. Connection happens right after login (SetupChatAsync) and the stub sees
+  {"t":"d","d":{"a":"s","r":0,"b":{"c":{"sdk.android.19-2-1":1}}}} (stats); NO auth frame (sign-in skipped). Idle connection closed by server after ~60 s; SDK reconnects on demand.
+- Home chat button APPEARS (bottom-left speech bubble) with chatRoomConnectionId set; IsUseTextChat gate passed with default settings (no server field needed for a new account).
+- Opening chat: tabs Chatting/Team/Friend/Beginner render from the ChatRoom master (so master name "ChatRoom" and row shape {id,name} are correct); input bar + stamp button + Send render.
+- Listen request on open (GetChannelQuery strings resolved): `{"t":"d","d":{"a":"q","r":N,"b":{"p":"en/1","q":{"vf":"r","i":"insertDatetime","l":100},"t":TAG,"h":""}}}`
+  => path = "<langCode>/<chatRoomId>" ("en" here), orderBy child insertDatetime, limitToLast 100, tag TAG. One listen per open/switch; no get/unlisten seen.
+- Sending a message from the client issues POST /chatRoomComment/write (confirmed in API log); nothing is written to RTDB by the client.
+- Handshake reply `{"t":"c","d":{"t":"h","d":{"ts":..,"v":"5","h":"<host>","s":"<sid>"}}}` and `{"r":N,"b":{"s":"ok","d":{}}}` are accepted by the SDK. Data push needs the query tag (`b.t`).
+- FirebaseStatusCode.Success=0; SetupChatAsync success path never calls onComplete (ChatManager passes null).
+- Not crashed anywhere (no fault addr / SIGSEGV).
+
+## Not resolved
+- Fake messages did NOT render, in 3 variants: keys "-Kfake..." (non-integer) / "1001","1002" (CreateMessagesList does Int32.Parse(key)); insertDatetime ISO "+09:00", "yyyy-MM-dd HH:mm:ss",
+  ISO with real offset and 1 h in the past; tagged push. No exception logged. Suspects: ChatDatabaseModel.SetData value types/DateTime parse format (0x31DD444), FetchAsync/OnChildAdded
+  datetime threshold direction (0x31DF5AC), lists reload only on Open vs push timing. REA was down (provider timeouts), so SetData/FetchAsync were not disassembled in this pass.
+  Next: disassemble SetData + FetchAsync d__34.MoveNext (0x31E0700) and OnChildAdded (non-REA a64dis is acceptable per AGENTS.md), then fix the stub payload; or test pushing after open (child_added events, "a":"d" with partial path en/1/<key>).
+- Tab semantics, IsUseTextChat JSON key (not needed for new accounts), lobby chat distinct from Home button (Matching screen button = same ChatManager.Open).
+
+## Next steps for real C# RTDB server (prod wss)
+Implement /.ws endpoint (WebSocket, ns query param; reply handshake; ack every request with r; handle a(listen q with path/params/tag, n unlisten), push `d` with tag;
+`s` stats ack; ping "0"). Store messages per "<lang>/<chatRoomId>" ring buffer (100) written by /chatRoomComment/write, and broadcast child additions to listeners
+(`{"a":"d","b":{"p":"en/1/<key>","d":{...}}}` once message format is confirmed). Prod: change format literal to a fixed wss host form that Utilities.parseUrl accepts
+(careful: when URL has no explicit port the SDK forces secure=true regardless of scheme - fine for wss) and keep ns from query. Patch CheckSignedIn (or serve a verifiable
+token path) in prod build behind a flag.

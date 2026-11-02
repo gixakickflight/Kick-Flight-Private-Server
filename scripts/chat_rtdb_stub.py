@@ -45,10 +45,10 @@ async def read_frame(r):
 
 
 def fake_messages(path):
-    now = time.strftime(os.environ.get("CHAT_STUB_DT_FMT", "%Y-%m-%dT%H:%M:%S+09:00"))
+    now = time.strftime(os.environ.get("CHAT_STUB_DT_FMT", "%Y-%m-%dT%H:%M:%S-06:00"), time.localtime(time.time() - int(os.environ.get("CHAT_STUB_AGE", "3600"))))
     return {
-        "-Kfake0000000000001": {"userId": "1", "name": "StubUser", "comment": "hello from stub", "stampId": 0, "honorId": 0, "insertDatetime": now},
-        "-Kfake0000000000002": {"userId": "2", "name": "StubUser2", "comment": "second message", "stampId": 0, "honorId": 0, "insertDatetime": now},
+        "1001": {"userId": "1", "name": "StubUser", "comment": "hello from stub", "stampId": 0, "honorId": 0, "insertDatetime": now},
+        "1002": {"userId": "2", "name": "StubUser2", "comment": "second message", "stampId": 0, "honorId": 0, "insertDatetime": now},
     }
 
 
