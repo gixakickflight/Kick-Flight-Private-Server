@@ -201,6 +201,7 @@ public sealed partial class DemoSessionApi : IDisposable
         _encryptedMasters["KickerAbility"] = EncryptMaster(ApplyObscuredOffsets("KickerAbility", abilityJson));
         _encryptedMasters["KickerAbilityCondition"] = EncryptMaster(abilityConditionJson);
         _encryptedMasters["Translation"] = EncryptMaster(translationJson);
+        _encryptedMasters["Honor"] = EncryptMaster(BadgeAwardRules.BuildHonorMasterJson(LoadJson(contentRoot, BadgeAwardRules.CatalogPath, "")));
 
         // FieldManager.InitializeAsync does FieldMaster[fieldId] and silently gives up (FieldInfo stays null, every
         // PlayerCharacter.Initialize then NREs and the loading screen never ends) when the row is missing. 801 is the
@@ -1645,7 +1646,7 @@ public sealed partial class DemoSessionApi : IDisposable
             userKickerList,
             userDiscList,
             userHonorList = BadgeAwardRules.GetOwnedHonorIds(state)
-                .Select(honorId => new { honorId, newFlag = newHonorIds?.Contains(honorId) == true }).ToArray(),
+                .Select(honorId => new { honorId, registerDatetime = "2026-09-01 00:00:00", newFlag = newHonorIds?.Contains(honorId) == true }).ToArray(),
             // All 8 Item master rows: 1-4 the legacy counters, 5-8 the round C stocks (gear stamps, disc fragments
             // and the two gacha tickets) that the gear screen and the shop read their counters from.
             userItemList = BuildUserItemList(state),

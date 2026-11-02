@@ -508,6 +508,44 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
     }
 
     [Fact]
+    public async Task Served_honor_master_contains_every_catalog_id_in_client_shape()
+    {
+        using var client = _factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/demo-master/Honor");
+        request.Headers.Host = Host;
+        using var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var decrypted = D2CCodec.Decode(await response.Content.ReadAsByteArrayAsync(), Encoding.ASCII.GetBytes(CommonCode));
+        using var served = JsonDocument.Parse(decrypted);
+        var rows = served.RootElement.EnumerateArray().ToArray();
+
+        var catalogPath = Path.Combine(AppContext.BaseDirectory, "config", "badge_rule_catalog.json");
+        using var catalog = JsonDocument.Parse(File.ReadAllText(catalogPath));
+        var ids = catalog.RootElement.GetProperty("entries").EnumerateArray().Select(e => e.GetProperty("id").GetInt32()).ToArray();
+        Assert.Equal(211, ids.Length);
+        Assert.Equal(ids.Order(), rows.Select(r => r.GetProperty("id").GetInt32()).Order());
+        Assert.All(rows, row =>
+        {
+            Assert.Equal(JsonValueKind.Number, row.GetProperty("honorType").ValueKind);
+            Assert.Equal(JsonValueKind.String, row.GetProperty("name").ValueKind);
+            Assert.Equal(JsonValueKind.String, row.GetProperty("title").ValueKind);
+            Assert.Equal(JsonValueKind.Number, row.GetProperty("sortOrder").ValueKind);
+        });
+        Assert.Contains(rows, r => r.GetProperty("id").GetInt32() == BadgeAwardRules.DefaultHonorId);
+    }
+
+    [Fact]
+    public async Task New_player_owns_default_honor_with_register_datetime()
+    {
+        var session = await CreateSessionAsync();
+        var startup = await PostAsync(session, "/startup/index", null);
+        var row = Assert.Single(startup.GetProperty("userHonorList").EnumerateArray());
+        Assert.Equal(6010000, row.GetProperty("honorId").GetInt32());
+        Assert.Equal(JsonValueKind.String, row.GetProperty("registerDatetime").ValueKind);
+        Assert.True(row.TryGetProperty("newFlag", out _));
+    }
+
+    [Fact]
     public async Task Startup_lists_owned_honors_and_user_change_rejects_an_unowned_honor()
     {
         var session = await CreateSessionAsync();

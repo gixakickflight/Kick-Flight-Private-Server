@@ -12,6 +12,45 @@ namespace KickFlight.BootstrapApi;
 public sealed class BadgeAwardRules
 {
     public const int DefaultHonorId = 6010000;
+    public const string CatalogPath = "config/badge_rule_catalog.json";
+
+    /// <summary>
+    /// Client HonorMaster rows (Colorful.HonorMasterData: honorType, name, title, sortOrder + id) built from the rule
+    /// catalog. HonorType enum order from metadata: Invalid, Other, Battle, Kicker (1/2/3 assumed; medium confidence).
+    /// Without this table the badge screen shows "0/0 collected".
+    /// </summary>
+    public static string BuildHonorMasterJson(string? catalogJson)
+    {
+        var rows = new List<object>();
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(catalogJson))
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(catalogJson);
+                foreach (var e in doc.RootElement.GetProperty("entries").EnumerateArray())
+                {
+                    var id = e.GetProperty("id").GetInt32();
+                    var kind = e.TryGetProperty("requirements", out var req) && req.TryGetProperty("kind", out var k)
+                        ? k.GetString() : null;
+                    var honorType = kind switch
+                    {
+                        "kicker_wins" => 3,
+                        "default" or "registration_complete" or "login_days" or "disc_upgrades" => 1,
+                        _ => 2,
+                    };
+                    var name = e.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                    var sort = e.TryGetProperty("sortOrder", out var so) && so.TryGetInt32(out var sv) ? sv : id;
+                    rows.Add(new { id, honorType, name, title = "", sortOrder = sort });
+                }
+            }
+        }
+        catch (Exception ex) when (ex is System.Text.Json.JsonException or KeyNotFoundException or InvalidOperationException or FormatException)
+        {
+            rows.Clear();
+        }
+        if (rows.Count == 0) rows.Add(new { id = DefaultHonorId, honorType = 1, name = "Kick-Flight", title = "", sortOrder = DefaultHonorId });
+        return System.Text.Json.JsonSerializer.Serialize(rows);
+    }
     private const string CatalogRelativePath = "config/badge_rule_catalog.json";
     private static readonly ConcurrentDictionary<long, object> PlayerLocks = new();
 
