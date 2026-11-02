@@ -206,7 +206,7 @@ def upsert_announcement_state(
                 current_ids = get_visible_article_ids(cleaned_html)
 
                 # Check if already up-to-date and first visible article
-                if current_ids and current_ids[0] == ARTICLE_ID and "/badges" in current_html and "exclusive in-game" in current_html and "no automated granting" in current_html:
+                if ARTICLE_ID in current_ids and "/badges" in current_html and "exclusive in-game" in current_html and "no automated granting" in current_html:
                     logger.info("Article '%s' is already the first visible article in %s. No changes needed (idempotent).", ARTICLE_ID, state_file)
                     return False
 
@@ -276,7 +276,7 @@ def upsert_via_admin_api(api_url: str = "http://127.0.0.1:8080") -> bool:
     if mode == "html":
         cleaned = strip_articles_from_comments(html_content)
         current_ids = get_visible_article_ids(cleaned)
-        if current_ids and current_ids[0] == ARTICLE_ID and "/badges" in html_content and "exclusive in-game" in html_content and "no automated granting" in html_content:
+        if ARTICLE_ID in current_ids and "/badges" in html_content and "exclusive in-game" in html_content and "no automated granting" in html_content:
             logger.info("Badge announcement is already first visible article at %s (idempotent).", admin_url)
             return True
         new_html = insert_article_into_html(html_content, ARTICLE_HTML, ARTICLE_ID)
