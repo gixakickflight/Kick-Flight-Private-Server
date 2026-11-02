@@ -127,11 +127,14 @@ services:
       # Replay blobs/metadata live in the host's .local/ (excluded from the CI rsync, so a deploy never wipes
       # them) but the .local tree is mounted read-only above, hence the dedicated writable sub-mount.
       Replays__Directory: /srv/replays
+      # In-game chat rooms (ChatService). Same pattern as replays: a writable sub-mount of the rsync-excluded .local/.
+      Chat__DataDirectory: /srv/chat
     volumes:
       - ../config:/srv/repo/config:ro
       - ../content:/srv/repo/content:ro
       - ../.local:/srv/repo/.local:ro
       - ../.local/replays:/srv/replays
+      - ../.local/chat:/srv/chat
       - ../.local/maintenance:/srv/repo/data
       - ../.local/diag-uploads:/srv/diag-uploads
       - ${KF_ASSETS_PATH:-../../Kick-Flight-Assets}:/srv/Kick-Flight-Assets:ro

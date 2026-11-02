@@ -414,7 +414,6 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
     [InlineData("/battleSummary/index", "userBattleSummaryList")]
     [InlineData("/battleSummary/season", "userBattleSummarySeasonList")]
     [InlineData("/battleSummary/festival", "festivalMatchResultList")]
-    [InlineData("/chatRoomComment/write", null)]
     [InlineData("/capsule/immediateOpen", "userItemList")]
     [InlineData("/capsule/open", "capsuleEffectType")]
     public async Task Stub_endpoints_answer_status_zero_with_a_schema_complete_object(string path, string? expectedMember)

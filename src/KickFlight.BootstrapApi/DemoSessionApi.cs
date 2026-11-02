@@ -92,12 +92,15 @@ public sealed partial class DemoSessionApi : IDisposable
     private readonly OpsTelemetryService _ops;
     private readonly HarnessOptions _harnessOptions;
 
+    private readonly ChatService _chat;
+
     public DemoSessionApi(ILogger<DemoSessionApi> logger, IWebHostEnvironment environment,
         BattleMatchmakingService matchmaking, BattleReplayService replays, IPlayerStore playerStore,
         IConfiguration configuration, MaintenanceState maintenance, ClientUpdateState clientUpdate,
         TimeProvider timeProvider, OpsTelemetryService ops, IOptions<HarnessOptions> harnessOptions,
-        IBotAiProfileProvider? botAiProfiles = null)
+        IBotAiProfileProvider? botAiProfiles = null, ChatService? chat = null)
     {
+        _chat = chat ?? new ChatService(environment, configuration, timeProvider, Microsoft.Extensions.Logging.Abstractions.NullLogger<ChatService>.Instance);
         _logger = logger;
         _ops = ops;
         _matchmaking = matchmaking;
@@ -661,6 +664,8 @@ public sealed partial class DemoSessionApi : IDisposable
             // List.get_Item(0) threw ArgumentOutOfRangeException on every result screen.
             ("Stamp", "masters_stamp.json"),
             ("StampSituation", "masters_stamp_situation.json"),
+            // Chat tabs (ChatView.Initialize iterates MasterManager.ChatRoomMaster); experimental, see docs/re-notes/chat.md.
+            ("ChatRoom", "masters_chat_room.json"),
         })
         {
             var json = LoadJson(contentRoot, "config/" + fileName, "[]");
@@ -1682,8 +1687,8 @@ public sealed partial class DemoSessionApi : IDisposable
             interruptNotificationList = Array.Empty<object>(),
             teamBattleInvitationCustomToken = "",
             teamBattleInvitationId = "",
-            chatRoomConnectionCustomToken = "",
-            chatRoomConnectionId = "",
+            chatRoomConnectionCustomToken = _chat.Enabled ? "kfchat-dummy-token" : "",
+            chatRoomConnectionId = _chat.Enabled ? "kfchat" : "",
             officialUrl = ""
         };
 
@@ -1757,6 +1762,8 @@ public sealed partial class DemoSessionApi : IDisposable
     /// <summary>True when this request identifies itself as a diagnostic build (see MaintenanceState.IsBypassClient).</summary>
     private bool IsDiagClient(HttpContext context) =>
         _maintenance.IsBypassClient(context.Request.Headers["x-app-application-version"].ToString());
+
+    // KF_CHAT_EXP=1: serve a non-empty chat connection id so the client attempts Firebase chat setup (experiment only).
 
     private string BuildHomeJson(SessionState state)
     {

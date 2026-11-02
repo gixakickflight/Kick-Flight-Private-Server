@@ -41,6 +41,9 @@ ORIGINAL_LITERALS = {
     "kickflight-api.grenge.jp/": "authority",
     "ns.exitgames.com": "photon_host",
     "market://details?id={0}": "update_url",
+    # FirebaseManager.SetupChatAsync: String.Format(literal, ArchiveData.ChatRoomConnectionId). Re-pointed at our own
+    # Firebase-RTDB-compatible websocket (/.ws on the API host, docs/re-notes/chat.md).
+    "https://{0}.firebaseio.com/": "chat_url",
 }
 # Forced-update window (NetworkManager.OpenErrorWindowOnFailed, ~0x31B82D4): the update button opens
 # String.Format(literal 9231, "jp.grenge.kickflight"). Literal 9231 is only materialised there (slot 0x43F5A10;
@@ -53,7 +56,24 @@ LITERAL_INDEXES = {
     "kickflight-api.grenge.jp/": 9244,
     "ns.exitgames.com": 2039,
     "market://details?id={0}": 9231,
+    "https://{0}.firebaseio.com/": 15006,
 }
+
+# Chat database URL. The Firebase Java SDK parses "<scheme>://host[:port]?ns=<namespace>": http -> ws, https -> wss
+# (quirk: with no explicit port it is always wss). CHAT_BASE_URL overrides; the default follows --base-url's host:port
+# over the same scheme, e.g. http://10.0.2.2:18080 -> http://10.0.2.2:18080?ns={0}. For production behind TLS set
+# CHAT_BASE_URL=https://<api-domain>?ns={0} (same host/cert as the API, nginx proxies /.ws).
+CHAT_BASE_URL = os.environ.get("CHAT_BASE_URL", "")
+
+
+def chat_url_for(base_url: str) -> str:
+    if CHAT_BASE_URL:
+        if "{0}" not in CHAT_BASE_URL or "?ns=" not in CHAT_BASE_URL:
+            raise ValueError("CHAT_BASE_URL must look like http(s)://host[:port]?ns={0}")
+        return CHAT_BASE_URL
+    parsed = urlsplit(base_url)
+    return f"{parsed.scheme}://{parsed.netloc}?ns={{0}}"
+
 
 # Ready scene. The "ponytail" patches (2026-09-07) skip the whole GameReadyScene intro cinematic (whose end is the
 # 3-2-1 countdown) because the high-model game_ready animators were not served back then, and then fake its
@@ -2918,6 +2938,8 @@ def patch_metadata(path: Path, base_url: str, authority: str, photon_host: str |
             # at a separately hosted LuxonServer (e.g. 51.79.241.70, 2026-09-21).
             parsed_host = urlsplit(base_url).hostname
             replacement = photon_host or (parsed_host if parsed_host else "10.0.2.2")
+        elif kind == "chat_url":
+            replacement = chat_url_for(base_url)
         elif kind == "update_url":
             if "{" in UPDATE_PAGE_URL or "}" in UPDATE_PAGE_URL:
                 raise ValueError("KF_UPDATE_URL must not contain braces (it goes through String.Format)")
@@ -2940,6 +2962,8 @@ def patch_metadata(path: Path, base_url: str, authority: str, photon_host: str |
             accepted = current == original or current == "10.0.2.2" or (
                 len(current.split(".")) == 4
             )
+        elif kind == "chat_url":
+            accepted = current == original or (current.startswith(("https://", "http://")) and "?ns={0}" in current)
         elif kind == "update_url":
             accepted = current == original or (current.startswith(("https://", "http://")) and "{" not in current)
         else:
@@ -2985,6 +3009,30 @@ if PHOTON_FLOW:
         {"description": "Photon cave: GameStartPresenter gate -> ready-gate cave && (!IsPlaybackSession || local PlayerState >= Readied) (dead body of GetDelayTime, Photon-stubbed)", "offset": 0x13efea0, "expected": bytes.fromhex("e8000037a88101b0084d42f9000140b9d8e7f797e8030032a8562239ff1f00f9f68401b0d6fa47f900e4006fe083823ce083813cc00240f9ffff00a955c25494f50300aa550000b5c190f897e00315aae1031faa85c103941f00146b0d070054c00240f94bc25494f30300aa530000b5b790f897e00313aae1031faa"), "replacement": bytes.fromhex("fd7bbfa9fd0300910a27069440030034488401f008e142f9000140f9089c44398800083608d840b948000035a51cf897e0031faa870e0e94c0010036e0031faa479b1394088501d0080942f9298101f0299d43f9e2031f2a010140f9230140f9571718941f0c0071e0b79f1a0200001420008052fd7bc1a8c0035fd6")},
         {"description": "Photon: <BeginAsync>b__6 IsCreatedGuardian(this, 1) -> (this, -1): wait for the field's guardian points (0 on flag fields)", "offset": 0x1579c60, "expected": bytes.fromhex("e1030032"), "replacement": bytes.fromhex("01008012")},
     ])
+
+
+# ---- Target frame rate (docs/re-notes/fps.md) ----
+# GRE.SystemManager.Setting (0x1CB589C) calls Application.set_targetFrameRate(SystemSettings._targetFrameRate), which is
+# serialized as 30. Replace `mov w0,w20` @0x1CB5904 with `mov w0,#N`. KF_TARGET_FPS: integer 1..240, default 120;
+# 0 or 30 leaves the stock cap untouched.
+TARGET_FPS = int(os.environ.get("KF_TARGET_FPS", "120"))
+if TARGET_FPS not in (0, 30):
+    assert 1 <= TARGET_FPS <= 240, "KF_TARGET_FPS must be 0 (off) or 1..240"
+    NATIVE_PATCHES["arm64-v8a"].append(
+        {"description": f"FPS: GRE.SystemManager.Setting targetFrameRate -> mov w0,#{TARGET_FPS}", "offset": 0x1CB5904, "expected": bytes.fromhex("e003142a"), "replacement": (0x52800000 | (TARGET_FPS << 5)).to_bytes(4, "little")},
+    )
+    # SPFXSettings.Awake (0x25DC1E4) is a second writer: set_targetFrameRate(this.FrameRate @+0x18) @0x25DC22C. Same
+    # `ldr w0,[x19,#0x18]` -> `mov w0,#N` so it cannot lower the cap again whatever its serialized value or init order.
+    NATIVE_PATCHES["arm64-v8a"].append(
+        {"description": f"FPS: SPFXSettings.Awake targetFrameRate -> mov w0,#{TARGET_FPS}", "offset": 0x25DC224, "expected": bytes.fromhex("601a40b9"), "replacement": (0x52800000 | (TARGET_FPS << 5)).to_bytes(4, "little")},
+    )
+
+
+# ---- Chat: skip the Firebase custom-token sign-in (our /.ws accepts anonymous listeners) ----
+# docs/re-notes/chat.md. The URL re-point is a metadata literal (kind "chat_url" above).
+NATIVE_PATCHES["arm64-v8a"].append(
+    {"description": "Chat: FirebaseManager.CheckSignedIn -> mov w0,#1; ret (skip Firebase custom-token sign-in)", "offset": 0x17BB934, "expected": bytes.fromhex("0860403968000034"), "replacement": bytes.fromhex("20008052c0035fd6")},
+)
 
 
 def patch_native(path: Path, abi: str, dry_run: bool = False) -> list[dict[str, object]]:
