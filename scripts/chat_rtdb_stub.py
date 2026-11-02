@@ -47,9 +47,27 @@ async def read_frame(r):
 def fake_messages(path):
     now = time.strftime(os.environ.get("CHAT_STUB_DT_FMT", "%Y-%m-%dT%H:%M:%S-06:00"), time.localtime(time.time() - int(os.environ.get("CHAT_STUB_AGE", "3600"))))
     return {
-        "1001": {"userId": "1", "name": "StubUser", "comment": "hello from stub", "stampId": 0, "honorId": 0, "insertDatetime": now},
-        "1002": {"userId": "2", "name": "StubUser2", "comment": "second message", "stampId": 0, "honorId": 0, "insertDatetime": now},
+        "1001": {"userId": "1", "name": "StubUser", "comment": "hello from stub", "stampId": 0, "honorId": 1, "insertDatetime": now},
+        "1002": {"userId": "2", "name": "StubUser2", "comment": "second message", "stampId": 0, "honorId": 1, "insertDatetime": now},
     }
+
+
+async def live_push(w, b):
+    """Simulate a write: a NEW child pushed 6 s after the listen (live append test)."""
+    await asyncio.sleep(6)
+    p = b.get("p", "").strip("/")
+    key = str(2000 + int(time.time()) % 1000)
+    msg = {"userId": "3", "name": "LiveUser", "comment": "live message " + key, "stampId": 0, "honorId": 1,
+           "insertDatetime": time.strftime("%Y-%m-%dT%H:%M:%S-06:00")}
+    push = {"p": p + "/" + key, "d": msg}
+    if "t" in b:
+        push["t"] = b["t"]
+    o = {"t": "d", "d": {"a": "d", "b": push}}
+    log("WS-SEND(live)", json.dumps(o))
+    try:
+        w.write(frame(json.dumps(o).encode())); await w.drain()
+    except Exception as e:
+        log("live push failed", e)
 
 
 async def handle(r, w):
@@ -103,6 +121,8 @@ async def handle(r, w):
                     log("WS-SEND", json.dumps(o))
                     w.write(frame(json.dumps(o).encode()))
                 await w.drain()
+                if a == "q":
+                    asyncio.get_event_loop().create_task(live_push(w, b))
     except asyncio.IncompleteReadError:
         log("WS-EOF", peer)
     finally:

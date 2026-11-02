@@ -163,3 +163,26 @@ Implement /.ws endpoint (WebSocket, ns query param; reply handshake; ack every r
 (`{"a":"d","b":{"p":"en/1/<key>","d":{...}}}` once message format is confirmed). Prod: change format literal to a fixed wss host form that Utilities.parseUrl accepts
 (careful: when URL has no explicit port the SDK forces secure=true regardless of scheme - fine for wss) and keep ns from query. Patch CheckSignedIn (or serve a verifiable
 token path) in prod build behind a flag.
+
+# RENDER FIX (5th pass, runtime-verified 2026-11-02)
+Root cause (a64dis, non-REA): ChatListView.IsInvalidData 0x31DDF0C silently drops a row when userId (+0x18), name (+0x20) or insertDatetime (+0x38) is null/empty
+OR honorId (+0x34) == 0. Both render paths use it: ChatListView.AddChat 0x31DDBC4 and ChatListView.ReloadChats 0x31DE2E4 (check at 0x31DE3F4). comment/stampId are not validated.
+=> honorId MUST be non-zero (a real server must map it to a valid Honor id / title; 1 works with the stub).
+
+## Verified wire format (client Firebase Java SDK 19.2.1 <-> stub)
+Connect: `GET /.ws?ns=<chatRoomConnectionId>&v=5[&ls=<sid>]` (Upgrade websocket, UA Firebase/5/19.2.1/35/Android).
+Server first frame: `{"t":"c","d":{"t":"h","d":{"ts":<ms>,"v":"5","h":"<host:port>","s":"<sid>"}}}`
+Client: `{"t":"d","d":{"a":"s","r":0,"b":{"c":{"sdk.android.19-2-1":1}}}}` -> ack `{"t":"d","d":{"r":0,"b":{"s":"ok","d":{}}}}` (every request with "r" is acked this way).
+Listen (on chat open/tab switch): `{"t":"d","d":{"a":"q","r":N,"b":{"p":"<lang>/<chatRoomId>","q":{"vf":"r","i":"insertDatetime","l":100},"t":TAG,"h":""}}}`
+ -> ack with r:N then initial data:
+`{"t":"d","d":{"a":"d","b":{"p":"en/1","t":TAG,"d":{"<key>":{"userId":"1","name":"..","comment":"..","stampId":0,"honorId":1,"insertDatetime":"2026-11-01T22:37:36-06:00"}, ...}}}}`
+Live append (verified rendering instantly, "0 min ago"): `{"t":"d","d":{"a":"d","b":{"p":"en/1/<key>","t":TAG,"d":{...message...}}}}`.
+Data types (SetData 0x31DD444 via GetValue<T>): userId string (numbers coerced), name/comment string, stampId int, honorId int, insertDatetime ISO-8601 string with offset
+(TimeUtil.GetDatetimeFromString 0x161E520 -> DateTimeOffset.TryParse; epoch numbers would parse to default). Timestamps shown relative ("N hours ago"). Keys: any string worked ("1001").
+Client behaviour: OnChildAdded drops messages whose datetime <= _lastFetchChatDatetime; initial fetch window waits up to 2.0 s or 100 items, sorts ascending by datetime, then ReloadChats.
+Ring cap: query limit l=100 is client-side; server should keep >=100 per "<lang>/<chatRoomId>" (older ones are simply not delivered).
+Sent messages: client calls POST /chatRoomComment/write {chatRoomId, comment, stampId}; the SERVER must store it and push a child to listeners (round trip not hooked in the stub; not tested).
+Tabs: ChatRoom master rows -> tabs; chatRoomId = tab id = path component (Chatting=1 etc.); per-tab filtering is purely server-side (separate paths).
+Screenshot evidence: scratchpad t3.png (3 messages rendered incl. live append); logs .local/run/logcat-chat-exp.txt, chat-exp-stub.log.
+Remaining blockers/unknowns: sent-message round trip; profile-open from message (not tested; message carries userId only); honorId->title mapping; language code source ("en" observed);
+production wss host/URL form; auth (skipped via CheckSignedIn patch); Team/Friend/Beginner filtering semantics (server design).
