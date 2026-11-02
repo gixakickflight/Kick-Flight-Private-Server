@@ -177,11 +177,38 @@ public sealed class JsonPlayerStore : IPlayerStore
 
             var file = Path.Combine(_usersDirectory, $"{state.PlayerId}.json");
             var json = JsonSerializer.Serialize(state, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(file, json);
+            // Write-then-rename so a crash or a concurrent reader never sees a truncated save file.
+            var temporary = file + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            File.WriteAllText(temporary, json);
+            File.Move(temporary, file, overwrite: true);
         }
         catch (Exception ex)
         {
             _logger.LogWarning("Error saving user state for {PlayerId}: {Error}", state.PlayerId, ex.Message);
+        }
+    }
+
+    private static readonly ConcurrentDictionary<string, object> BadgeLocks = new(StringComparer.Ordinal);
+
+    public BadgeMutationResult MutateBadges(
+        long playerId, SessionState? fallback, BadgeLedgerKey? ledger, Func<SessionState, IReadOnlyList<int>?> mutate)
+    {
+        ArgumentNullException.ThrowIfNull(mutate);
+        if (playerId <= 0) return new BadgeMutationResult(false, [], null);
+
+        // One lock per player and directory: every badge writer of this process goes through here.
+        lock (BadgeLocks.GetOrAdd(Path.GetFullPath(_usersDirectory) + "|" + playerId, static _ => new object()))
+        {
+            var current = TryLoad(playerId) ?? fallback;
+            if (current is null) return new BadgeMutationResult(false, [], null);
+            if (ledger is not null && BadgeTableMapping.TryGetLedger(current, ledger, out var previous))
+                return new BadgeMutationResult(false, previous, current);
+
+            var awarded = mutate(current);
+            if (awarded is null) return new BadgeMutationResult(false, [], current);
+            if (ledger is not null) BadgeTableMapping.RecordLedgerAwards(current, ledger, awarded);
+            Save(current);
+            return new BadgeMutationResult(true, awarded, current);
         }
     }
 

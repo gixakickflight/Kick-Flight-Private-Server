@@ -38,6 +38,15 @@ public interface IPlayerStore
     // Upsert. Also records the uuid -> player id mapping when the state carries one (see SessionState).
     void Save(SessionState state, string? uuid = null);
 
+    // Atomic, idempotent badge update for one player (PostgreSQL: one transaction under the player's row lock, so it
+    // is safe across API processes; JSON: per-player lock in this process). `mutate` receives the player's current
+    // state and changes its badge fields; it returns the honors it newly awarded, or null to decline (nothing is
+    // persisted). With a ledger key the mutation runs at most once per (player, kind, key): a repeat returns the
+    // originally awarded honors with Applied=false. `fallback` is used by the JSON store when the player file does
+    // not exist yet. Counters only ever increase and honors are never removed by this path or by Save.
+    BadgeMutationResult MutateBadges(
+        long playerId, SessionState? fallback, BadgeLedgerKey? ledger, Func<SessionState, IReadOnlyList<int>?> mutate);
+
     // Session tokens outlive the process: a restart must not drop every logged-in client and re-issue them
     // a different identity.
     void SaveSession(string accessToken, long playerId, byte[] key);

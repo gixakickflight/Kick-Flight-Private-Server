@@ -508,6 +508,47 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
     }
 
     [Fact]
+    public async Task Startup_lists_owned_honors_and_user_change_rejects_an_unowned_honor()
+    {
+        var session = await CreateSessionAsync();
+        var startup = await PostAsync(session, "/startup/index", null);
+        var owned = startup.GetProperty("userHonorList").EnumerateArray()
+            .Select(row => row.GetProperty("honorId").GetInt32()).ToArray();
+
+        Assert.Equal([BadgeAwardRules.DefaultHonorId], owned);
+        Assert.Single(ReadUserState(session).GetProperty("VerifiedLoginDays").EnumerateArray());
+        await PostAsync(session, "/startup/index", null);
+        Assert.Single(ReadUserState(session).GetProperty("VerifiedLoginDays").EnumerateArray());
+        await PostAsync(session, "/user/change", new { honorId = 6010101 }, expectStatusZero: false);
+
+        var home = await PostAsync(session, "/home/index", null);
+        Assert.Equal(BadgeAwardRules.DefaultHonorId, home.GetProperty("userPlayer").GetProperty("honorId").GetInt32());
+    }
+
+    [Fact]
+    public async Task Disc_buildup_counts_only_a_real_single_level_increase_for_badges()
+    {
+        var session = await CreateSessionAsync();
+
+        await PostAsync(session, "/disc/buildup", new { discId = 3010001 });
+        Assert.Equal(1, ReadUserState(session).GetProperty("DiscUpgradeCount").GetInt32());
+
+        // A retry of the same target level succeeds as before but is not counted again.
+        await PostAsync(session, "/disc/buildup", new { discId = 3010002, level = 11 });
+        Assert.Equal(2, ReadUserState(session).GetProperty("DiscUpgradeCount").GetInt32());
+        await PostAsync(session, "/disc/buildup", new { discId = 3010002, level = 11 });
+        Assert.Equal(2, ReadUserState(session).GetProperty("DiscUpgradeCount").GetInt32());
+
+        // A multi-level jump is not a verified single upgrade.
+        await PostAsync(session, "/disc/buildup", new { discId = 3010001, level = 50 });
+        Assert.Equal(2, ReadUserState(session).GetProperty("DiscUpgradeCount").GetInt32());
+
+        // Ids missing from the masters never count.
+        await PostAsync(session, "/disc/buildup", new { discId = 9999999 });
+        Assert.Equal(2, ReadUserState(session).GetProperty("DiscUpgradeCount").GetInt32());
+    }
+
+    [Fact]
     public async Task Capsule_open_repeats_the_startup_item_counters()
     {
         var session = await CreateSessionAsync();
@@ -576,7 +617,13 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
         await PostAsync(session, "/tutorial/end", new { name });
 
         // The client re-issues /startup/index the moment the name is accepted, so that reply is what has to agree.
-        Assert.Equal(207, (await PostAsync(session, "/startup/index", null)).GetProperty("tutorialProgressStatus").GetInt32());
+        var startup = await PostAsync(session, "/startup/index", null);
+        Assert.Equal(207, startup.GetProperty("tutorialProgressStatus").GetInt32());
+        Assert.Contains(6010001, startup.GetProperty("userHonorList").EnumerateArray()
+            .Select(row => row.GetProperty("honorId").GetInt32()));
+        await PostAsync(session, "/user/change", new { honorId = 6010001 });
+        Assert.Equal(6010001, (await PostAsync(session, "/home/index", null))
+            .GetProperty("userPlayer").GetProperty("honorId").GetInt32());
         Assert.Equal(name, (await PostAsync(session, "/home/index", null)).GetProperty("userPlayer").GetProperty("name").GetString());
         Assert.Equal(name, ReadUserState(session).GetProperty("UserName").GetString());
     }
