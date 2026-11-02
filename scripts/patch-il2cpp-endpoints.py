@@ -3011,6 +3011,23 @@ if PHOTON_FLOW:
     ])
 
 
+# ---- Target frame rate (docs/re-notes/fps.md) ----
+# GRE.SystemManager.Setting (0x1CB589C) calls Application.set_targetFrameRate(SystemSettings._targetFrameRate), which is
+# serialized as 30. Replace `mov w0,w20` @0x1CB5904 with `mov w0,#N`. KF_TARGET_FPS: integer 1..240, default 120;
+# 0 or 30 leaves the stock cap untouched.
+TARGET_FPS = int(os.environ.get("KF_TARGET_FPS", "120"))
+if TARGET_FPS not in (0, 30):
+    assert 1 <= TARGET_FPS <= 240, "KF_TARGET_FPS must be 0 (off) or 1..240"
+    NATIVE_PATCHES["arm64-v8a"].append(
+        {"description": f"FPS: GRE.SystemManager.Setting targetFrameRate -> mov w0,#{TARGET_FPS}", "offset": 0x1CB5904, "expected": bytes.fromhex("e003142a"), "replacement": (0x52800000 | (TARGET_FPS << 5)).to_bytes(4, "little")},
+    )
+    # SPFXSettings.Awake (0x25DC1E4) is a second writer: set_targetFrameRate(this.FrameRate @+0x18) @0x25DC22C. Same
+    # `ldr w0,[x19,#0x18]` -> `mov w0,#N` so it cannot lower the cap again whatever its serialized value or init order.
+    NATIVE_PATCHES["arm64-v8a"].append(
+        {"description": f"FPS: SPFXSettings.Awake targetFrameRate -> mov w0,#{TARGET_FPS}", "offset": 0x25DC224, "expected": bytes.fromhex("601a40b9"), "replacement": (0x52800000 | (TARGET_FPS << 5)).to_bytes(4, "little")},
+    )
+
+
 # ---- Chat: skip the Firebase custom-token sign-in (our /.ws accepts anonymous listeners) ----
 # docs/re-notes/chat.md. The URL re-point is a metadata literal (kind "chat_url" above).
 NATIVE_PATCHES["arm64-v8a"].append(

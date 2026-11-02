@@ -192,7 +192,11 @@ public sealed class ChatService
         // Same file DemoSessionApi serves as the ChatRoom master; the config dir sits at (or above) the content root.
         var ids = new HashSet<int>();
         string? file = null;
-        for (var dir = new DirectoryInfo(contentRoot); dir is not null; dir = dir.Parent)
+        // KF_REPO_ROOT is where the container mounts config/ (deploy/docker-compose.vps.yml).
+        var repoRoot = Environment.GetEnvironmentVariable("KF_REPO_ROOT");
+        if (!string.IsNullOrEmpty(repoRoot) && File.Exists(Path.Combine(repoRoot, "config", "masters_chat_room.json")))
+            file = Path.Combine(repoRoot, "config", "masters_chat_room.json");
+        for (var dir = new DirectoryInfo(contentRoot); file is null && dir is not null; dir = dir.Parent)
         {
             var candidate = Path.Combine(dir.FullName, "config", "masters_chat_room.json");
             if (File.Exists(candidate)) { file = candidate; break; }
