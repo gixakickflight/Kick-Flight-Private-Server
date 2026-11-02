@@ -5,7 +5,7 @@ Usage: chat_rtdb_stub.py [port] [logfile]
 Logs every HTTP request and websocket frame verbatim. Answers the RTDB handshake and any
 'q' (listen) request with ok + a few fake chat messages at the listened path.
 """
-import asyncio, base64, hashlib, json, struct, sys, time
+import os, asyncio, base64, hashlib, json, struct, sys, time
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 5099
 LOG = open(sys.argv[2], "a", buffering=1) if len(sys.argv) > 2 else sys.stdout
@@ -45,7 +45,7 @@ async def read_frame(r):
 
 
 def fake_messages(path):
-    now = time.strftime("%Y-%m-%dT%H:%M:%S+09:00")
+    now = time.strftime(os.environ.get("CHAT_STUB_DT_FMT", "%Y-%m-%dT%H:%M:%S+09:00"))
     return {
         "-Kfake0000000000001": {"userId": "1", "name": "StubUser", "comment": "hello from stub", "stampId": 0, "honorId": 0, "insertDatetime": now},
         "-Kfake0000000000002": {"userId": "2", "name": "StubUser2", "comment": "second message", "stampId": 0, "honorId": 0, "insertDatetime": now},
@@ -95,7 +95,10 @@ async def handle(r, w):
                 out = [{"t": "d", "d": {"r": d["r"], "b": {"s": "ok", "d": {}}}}]
                 if a == "q":
                     p = b.get("p", "")
-                    out.append({"t": "d", "d": {"a": "d", "b": {"p": p.strip("/"), "d": fake_messages(p)}}})
+                    push = {"p": p.strip("/"), "d": fake_messages(p)}
+                    if "t" in b:
+                        push["t"] = b["t"]  # tagged (query) listen: data must carry the tag
+                    out.append({"t": "d", "d": {"a": "d", "b": push}})
                 for o in out:
                     log("WS-SEND", json.dumps(o))
                     w.write(frame(json.dumps(o).encode()))

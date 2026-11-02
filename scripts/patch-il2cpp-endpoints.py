@@ -2987,6 +2987,31 @@ if PHOTON_FLOW:
     ])
 
 
+# ---- KF_CHAT_EXP=1: Firebase chat redirect experiment (docs/re-notes/chat.md); never part of prod builds ----
+CHAT_EXP = os.environ.get("KF_CHAT_EXP") == "1"
+CHAT_EXP_URL_OLD = b"https://{0}.firebaseio.com/"
+CHAT_EXP_URL_NEW = os.environ.get("KF_CHAT_EXP_URL", "http://10.0.2.2:5099?ns={0}").encode()
+if CHAT_EXP:
+    assert len(CHAT_EXP_URL_NEW) == len(CHAT_EXP_URL_OLD), "KF_CHAT_EXP_URL must be 27 bytes"
+    NATIVE_PATCHES["arm64-v8a"].append(
+        {"description": "KF_CHAT_EXP: FirebaseManager.CheckSignedIn -> mov w0,#1; ret (skip Firebase custom-token sign-in)", "offset": 0x17BB934, "expected": bytes.fromhex("0860403968000034"), "replacement": bytes.fromhex("20008052c0035fd6")},
+    )
+
+
+def patch_chat_exp_metadata(path: Path) -> list[dict[str, object]]:
+    if not CHAT_EXP:
+        return []
+    data = bytearray(path.read_bytes())
+    if data.count(CHAT_EXP_URL_NEW) == 1 and data.count(CHAT_EXP_URL_OLD) == 0:
+        return [{"description": "chat-exp firebase url", "alreadyPatched": True}]
+    if data.count(CHAT_EXP_URL_OLD) != 1:
+        raise ValueError(f"chat-exp: expected exactly one firebaseio literal, found {data.count(CHAT_EXP_URL_OLD)}")
+    i = data.index(CHAT_EXP_URL_OLD)
+    data[i : i + len(CHAT_EXP_URL_OLD)] = CHAT_EXP_URL_NEW
+    path.write_bytes(data)
+    return [{"description": "chat-exp firebase url", "offset": f"0x{i:x}", "to": CHAT_EXP_URL_NEW.decode()}]
+
+
 def patch_native(path: Path, abi: str, dry_run: bool = False) -> list[dict[str, object]]:
     patches = NATIVE_PATCHES[abi]
     data = bytearray(path.read_bytes())
@@ -3109,6 +3134,7 @@ def main() -> int:
         "photonHost": resolved_photon_host,
         "metadata": patch_metadata(args.metadata, base_url, authority, resolved_photon_host),
         "native": native_reports,
+        "chatExp": patch_chat_exp_metadata(args.metadata),
     }
     print(json.dumps(report, indent=2))
     return 0
