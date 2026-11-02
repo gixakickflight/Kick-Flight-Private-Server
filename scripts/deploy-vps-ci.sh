@@ -764,32 +764,11 @@ if [[ "$sync_site" == true ]]; then
     [[ "$actual_updates" == "$expected_updates" ]] || { echo "served standalone updates checksum does not match deploy/site/updates-2.11.5.html" >&2; exit 1; }
   fi
 
-  if [[ -f "$app_dir/.local/maintenance/latest-information.json" ]]; then
-    python3 - "$http_port" <<'PY'
-import re
-import sys
-import urllib.request
-
-port = sys.argv[1]
-for path in ("/webview/information/index", "/updates"):
-    url = f"http://127.0.0.1:{port}{path}"
-    req = urllib.request.Request(url, headers={"User-Agent": "deploy-smoke-check"})
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        html = resp.read().decode("utf-8")
-
-    masked = re.sub(r'<!--[\s\S]*?-->', lambda m: ' ' * len(m.group(0)), html)
-    masked = re.sub(r'<head\b[^>]*>[\s\S]*?</head>', lambda m: ' ' * len(m.group(0)), masked, flags=re.IGNORECASE)
-    masked = re.sub(r'<script\b[^>]*>[\s\S]*?</script>', lambda m: ' ' * len(m.group(0)), masked, flags=re.IGNORECASE)
-    masked = re.sub(r'<style\b[^>]*>[\s\S]*?</style>', lambda m: ' ' * len(m.group(0)), masked, flags=re.IGNORECASE)
-    visible_articles = re.findall(r'<article[^>]*\bid=["\']([^"\']+)["\']', masked)
-    expected_articles = ["badge-catalog", "v2-11-5", "badges-back", "v2-11-4", "matchmaking-roles-2026-10-19"] if (visible_articles and visible_articles[0] == "badge-catalog") else ["v2-11-5", "v2-11-4", "matchmaking-roles-2026-10-19", "v2-11-3"]
-    if not visible_articles or visible_articles[:len(expected_articles)] != expected_articles:
-        raise SystemExit(
-            f"Smoke check failed on {path}: visible articles are {visible_articles}, expected starting with {expected_articles}"
-        )
-print("Latest Information visible articles verified on /webview/information/index and /updates")
-PY
-  fi
+  # Announcement content is variable by design; only require the pages to be served.
+  for info_path in /webview/information/index /updates; do
+    curl --fail --silent --show-error --max-time 15 "http://127.0.0.1:$http_port$info_path" -o /dev/null
+  done
+  echo "Information pages respond on /webview/information/index and /updates"
 
   if [[ -f "$app_dir/deploy/badges/Dockerfile" ]]; then
     if curl --fail --silent --show-error --max-time 15 "http://127.0.0.1:$http_port/badges/health" >/dev/null 2>&1; then
