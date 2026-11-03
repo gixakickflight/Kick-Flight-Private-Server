@@ -80,6 +80,12 @@ builder.Services.AddHostedService<OtomoMastersRefresher>();
 // events; the same singleton is the background batch writer and 60 s status sweep.
 builder.Services.AddSingleton<OpsTelemetryService>();
 builder.Services.AddHostedService(services => services.GetRequiredService<OpsTelemetryService>());
+// Chat is otomo's (services/chat). The adapter translates the client's websocket frames and HTTP write onto it.
+builder.Services.Configure<OtomoChatOptions>(builder.Configuration.GetSection(OtomoChatOptions.SectionName));
+builder.Services.AddSingleton<IOtomoChat>(services => OtomoChat.Create(
+    services.GetRequiredService<IOptions<OtomoChatOptions>>(),
+    services.GetRequiredService<ILogger<OtomoChat>>()));
+builder.Services.AddSingleton<IChatSenders, ChatSenders>();
 builder.Services.AddSingleton<ChatService>();
 builder.Services.AddSingleton<DemoSessionApi>();
 builder.Services.AddGrpc();

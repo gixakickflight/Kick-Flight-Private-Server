@@ -471,7 +471,7 @@ public sealed class HarnessTests : IClassFixture<ServerTestHostFixture>
         var forbidden = new[] { "HttpClient", "SocketsHttpHandler", "WebRequest.Create", "TcpClient" };
         // The policy this pins is that production code never proxies to the defunct upstream, which is why it is
         // strict about the symbol rather than about where a request would go. The exceptions are the three otomo
-        // clients - identity, masters, economy, and session (the follow relation, the ranking board and
+        // clients - identity, masters, economy, chat, and session (the follow relation, the ranking board and
         // battle points, docs/OTOMO_SOCIAL_DISCS.md): otomo is a service this project runs, and none of it can be delegated without
         // an outbound call. Every other file stays forbidden, and this list stays this short.
         var exempt = new[]
@@ -480,7 +480,8 @@ public sealed class HarnessTests : IClassFixture<ServerTestHostFixture>
             Path.Combine("src", "KickFlight.BootstrapApi", "Otomo", "OtomoMasters.cs"),
             Path.Combine("src", "KickFlight.BootstrapApi", "Otomo", "OtomoEconomy.cs"),
             Path.Combine("src", "KickFlight.BootstrapApi", "Otomo", "OtomoSocial.cs"),
-            Path.Combine("src", "KickFlight.BootstrapApi", "Otomo", "OtomoRank.cs")
+            Path.Combine("src", "KickFlight.BootstrapApi", "Otomo", "OtomoRank.cs"),
+            Path.Combine("src", "KickFlight.BootstrapApi", "Otomo", "OtomoChat.cs")
         };
         foreach (var file in sourceFiles)
         {

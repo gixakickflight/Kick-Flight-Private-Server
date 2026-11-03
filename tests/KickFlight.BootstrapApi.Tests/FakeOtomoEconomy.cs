@@ -788,6 +788,8 @@ public sealed class FakeOtomoEconomy : IAsyncDisposable
     private static readonly Dictionary<string, Grant[]> Classes = new(StringComparer.Ordinal)
     {
         ["starter.disc_force"] = [new Grant("disc_force", null, StarterDiscForce)],
+        // The 15 chat stamps; chat's attachment ownership check asks for stamp:<id>.
+        ["starter.stamps"] = Enumerable.Range(6051001, 15).Select(id => new Grant(null, "stamp:" + id, 1)).ToArray(),
         ["tutorial.disc"] = [new Grant(null, "disc:3010013", 1)],
         ["tutorial.kicker"] = [new Grant(null, "skin:2010201", 1)],
         // A battle capsule's class pays one capsule_<type> token (the capsule.<type> pool costs one per draw).

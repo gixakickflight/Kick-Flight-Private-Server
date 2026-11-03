@@ -514,7 +514,7 @@ public sealed partial class DemoSessionApi
     private static int FollowStatus(HashSet<long> followedIds, long callerId, long targetId) =>
         callerId != targetId && followedIds.Contains(targetId) ? 1 : 0;
 
-    private static int EquippedHonorId(SessionState? state) => state is not null
+    internal static int EquippedHonorId(SessionState? state) => state is not null
         && BadgeAwardRules.GetOwnedHonorIds(state).Contains(state.HonorId)
             ? state.HonorId
             : BadgeAwardRules.DefaultHonorId;
