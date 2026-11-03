@@ -162,6 +162,15 @@ fi
 echo "==> Patching previous-session exit reporter"
 "$python" "$repo/scripts/patch-exit-reporter.py" "$work/decoded" --base-url "$server_base_url"
 
+if [[ "${KF_PUSH:-}" == "1" ]]; then
+  echo "==> Patching Firebase push (FCM token -> our server)"
+  if [[ -z "${KF_FIREBASE_CONFIG:-}" || ! -f "$KF_FIREBASE_CONFIG" ]]; then
+    echo "KF_PUSH=1 requires KF_FIREBASE_CONFIG=<google-services.json> (file missing)" >&2
+    exit 1
+  fi
+  "$python" "$repo/scripts/patch-firebase-push.py" "$work/decoded" --base-url "$server_base_url" --firebase-config "$KF_FIREBASE_CONFIG"
+fi
+
 echo "==> Building APK"
 apktool b "$work/decoded" -o "$work/unsigned.apk"
 

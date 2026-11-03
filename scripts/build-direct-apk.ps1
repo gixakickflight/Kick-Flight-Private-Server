@@ -98,6 +98,14 @@ try {
     & python (Join-Path $repo 'scripts\patch-exit-reporter.py') $decoded --base-url $config.serverBaseUrl
     if ($LASTEXITCODE -ne 0) { throw "Exit reporter patch failed with exit code $LASTEXITCODE." }
 
+    if ($env:KF_PUSH -eq '1') {
+        if (-not $env:KF_FIREBASE_CONFIG -or -not (Test-Path -LiteralPath $env:KF_FIREBASE_CONFIG -PathType Leaf)) {
+            throw "KF_PUSH=1 requires KF_FIREBASE_CONFIG=<google-services.json> (file missing)."
+        }
+        & python (Join-Path $repo 'scripts\patch-firebase-push.py') $decoded --base-url $config.serverBaseUrl --firebase-config $env:KF_FIREBASE_CONFIG
+        if ($LASTEXITCODE -ne 0) { throw "Firebase push patch failed with exit code $LASTEXITCODE." }
+    }
+
     & java -jar $apktool b $decoded -o $unsigned
     if ($LASTEXITCODE -ne 0) { throw "Apktool build failed with exit code $LASTEXITCODE." }
 
