@@ -601,6 +601,24 @@ public sealed class BattleMatchmakingService
         FinalizeRoom(room);
     }
 
+    /// <summary>True while the user has a ticket that is not yet in a finalized room (push recipient filtering).</summary>
+    public bool IsUserQueued(string userId)
+    {
+        if (string.IsNullOrEmpty(userId)) return false;
+        var cutoff = DateTime.UtcNow.AddMinutes(-10);
+        lock (_matchLock)
+        {
+            foreach (var entry in _entriesByBattleEntryId.Values)
+            {
+                if (entry.UserId != userId || entry.CreatedAt < cutoff) continue;
+                var ticketId = entry.TicketId;
+                if (_roomsByBattleId.Values.Any(room => room.IsFinalized && room.AssignedTicketIds.Contains(ticketId))) continue;
+                return true;
+            }
+        }
+        return false;
+    }
+
     /// <summary>
     /// /battle/cancel, the matching screen's back button: withdraws a waiting human from its room right away instead of
     /// when its GetAssignments stream ends, and drops the room with the last one. False (and nothing changes) for an

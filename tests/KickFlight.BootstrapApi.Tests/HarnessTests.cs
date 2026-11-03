@@ -471,6 +471,9 @@ public sealed class HarnessTests : IClassFixture<ServerTestHostFixture>
         var forbidden = new[] { "HttpClient", "SocketsHttpHandler", "WebRequest.Create", "TcpClient" };
         foreach (var file in sourceFiles)
         {
+            // The one sanctioned outbound client: the FCM push sender (Push/FcmSender.cs) calls Google's FCM/OAuth
+            // endpoints, never an upstream Kick-Flight/Grenge API.
+            if (file.EndsWith(Path.Combine("Push", "FcmSender.cs"), StringComparison.Ordinal)) continue;
             var source = File.ReadAllText(file);
             foreach (var symbol in forbidden) Assert.DoesNotContain(symbol, source);
         }
