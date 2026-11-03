@@ -119,7 +119,7 @@ public sealed class OtomoMatchmaking : IOtomoMatchmaking, IDisposable
             return party;
         }
 
-        if (response.StatusCode == 409 && string.Equals(response.ErrorCode, "already_in_party", StringComparison.Ordinal))
+        if ((int)response.StatusCode == 409 && string.Equals(response.ErrorCode, "already_in_party", StringComparison.Ordinal))
         {
             if (TryFindPartyId(response.Element) is { } existing)
             {
