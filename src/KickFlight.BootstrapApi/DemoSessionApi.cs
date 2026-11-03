@@ -1332,7 +1332,9 @@ public sealed partial class DemoSessionApi : IDisposable
             {
                 return SocialUnavailable(context, path, exception);
             }
-            var json = BuildHomeJson(state, snapshot, ranks);
+            var (capsules, capsuleError) = await TryBuildUserCapsuleListAsync(ticket, context.RequestAborted);
+            if (capsules is null) return EconomyUnavailable(context, path, capsuleError);
+            var json = BuildHomeJson(state, snapshot, ranks, capsules);
             _logger.LogInformation("Serving dynamic home index (active kickerId={KickerId}, costumeId={CostumeId}, activeDeck={Deck}, offers={Offers}, pools={Pools})",
                 state.KickerId, state.KickerCostumeId, state.ActiveDeckNumber, snapshot.Offers.Count, snapshot.Pools.Count);
             return BinaryJson(json, key);
@@ -2071,7 +2073,8 @@ public sealed partial class DemoSessionApi : IDisposable
 
     // KF_CHAT_EXP=1: serve a non-empty chat connection id so the client attempts Firebase chat setup (experiment only).
 
-    private string BuildHomeJson(SessionState state, EconomySnapshot economy, IReadOnlyList<BattleRankLine> ranks)
+    private string BuildHomeJson(SessionState state, EconomySnapshot economy, IReadOnlyList<BattleRankLine> ranks,
+        object[] userCapsuleList)
     {
         NormalizeCostume(state);
 
@@ -2109,7 +2112,7 @@ public sealed partial class DemoSessionApi : IDisposable
             userPlayer,
             userDiscDeckList,
             // The capsules battles have handed out and the player has not opened (DemoSessionApi.Capsules.cs).
-            userCapsuleList = BuildUserCapsuleList(state),
+            userCapsuleList = userCapsuleList,
             // The shop's disc/kicker scrollers (Colorful.ShopDiscScroller._data : List<GachaGroupInfo>) are filled
             // from these two lists through GachaGroupListInfo(ResponseGachaGroup[]); serving them empty left the
             // scroller with a data list shorter than the cell range EnhancedScroller._Resize walks and GetCellHeight

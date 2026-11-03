@@ -84,10 +84,8 @@ public sealed class SessionState
     // per player, so this only saves the call on later startups; a lost flag pays nothing twice.
     public bool StarterDiscForcePaid { get; set; }
 
-    // The capsules a battle has handed out and the player has not opened yet, one per client slot. The token that
-    // pays for each one's roll is already in the player's wallet (see DemoSessionApi.Capsules.cs); this is only
-    // which slot shows which capsule, and when it may be opened.
-    public List<PendingCapsule> Capsules { get; set; } = [];
+    // Capsules are not here: a battle's capsule is an entitlement in economy, and the home's slots are built from the
+    // open ones (DemoSessionApi.Capsules.cs).
 
     // True once the player has chosen a name, which is also what ends onboarding.
     public bool HasName => !string.IsNullOrEmpty(UserName);
@@ -107,21 +105,4 @@ public sealed class PendingGearState
 {
     public int KickerId { get; set; }
     public int GearId { get; set; }
-}
-
-public sealed class PendingCapsule
-{
-    // The client's slot, 1..EconomyTuning.CapsuleSlots.
-    public int SlotNumber { get; set; }
-    // The Capsule master row the slot renders (EconomyTuning.CapsuleType.CapsuleId).
-    public int CapsuleId { get; set; }
-    // The tuning's type name: wooden, standard or golden. It names the economy currency, class and pool.
-    public string Type { get; set; } = "";
-    // How many discs the open draws, chosen when the capsule was handed out; it is also how many tokens were paid.
-    public int DiscCount { get; set; }
-    public DateTimeOffset GrantedAt { get; set; }
-    public DateTimeOffset UnlockAt { get; set; }
-    // The battle entry the capsule came from. Every economy key for this capsule derives from it, so a retried
-    // result, a retried grant and a retried open all name the same fact.
-    public string Source { get; set; } = "";
 }

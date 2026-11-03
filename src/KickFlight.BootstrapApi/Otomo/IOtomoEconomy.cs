@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
 namespace KickFlight.BootstrapApi.Otomo;
@@ -286,6 +288,36 @@ public sealed record EconomyProgress(
 public sealed record EconomyProgressReport(string PlayerId, string Counter, long Delta, string Key,
     string Reason, string Reference);
 
+// One row of economy's entitlement table (internal/entitlement): a reward owed to a player, claimable once and not before
+// `available_at`, paid through the reward class `rule` when it is claimed. `meta` is the caller's own document, handed
+// back untouched. A row the player has claimed carries `claimed_at`.
+public sealed record EconomyEntitlement(
+    [property: JsonPropertyName("id")] string Id,
+    [property: JsonPropertyName("player_id")] string PlayerId,
+    [property: JsonPropertyName("kind")] string Kind,
+    [property: JsonPropertyName("rule")] string Rule,
+    [property: JsonPropertyName("source")] string? Source,
+    [property: JsonPropertyName("available_at")] DateTimeOffset AvailableAt,
+    [property: JsonPropertyName("claimed_at")] DateTimeOffset? ClaimedAt,
+    [property: JsonPropertyName("meta")] JsonElement? Meta,
+    [property: JsonPropertyName("created_at")] DateTimeOffset? CreatedAt = null);
+
+// GET /internal/economy/entitlements: `{player_id, entitlements: [...]}`, newest first.
+public sealed record EconomyEntitlements(
+    [property: JsonPropertyName("player_id")] string? PlayerId,
+    [property: JsonPropertyName("entitlements")] IReadOnlyList<EconomyEntitlement>? Entitlements);
+
+// POST /internal/economy/entitlements/{id}/claim. `applied` is false when the payout had already been made (a claim that
+// raced, or one that crashed after paying): the class is paid once per entitlement whatever the caller's key.
+public sealed record EconomyEntitlementClaim(
+    [property: JsonPropertyName("applied")] bool Applied,
+    [property: JsonPropertyName("balances")] IReadOnlyList<EconomyBalance>? Balances);
+
+// One entitlement to record. `Rule` is a reward class (never an amount), `Kind` one the deployment declares, `Key` the
+// caller's name for this create: the same key for the same player answers the row it already made.
+public sealed record EconomyEntitlementRequest(string PlayerId, string Kind, string Rule, string Source,
+    DateTimeOffset AvailableAt, JsonNode? Meta, string Key);
+
 // A player's economy state as one request needs it. It is assembled per request from the routes that request
 // actually uses and is never kept: the adapter holds no value, not even in a cache.
 public sealed record EconomySnapshot(
@@ -355,4 +387,20 @@ public interface IOtomoEconomy
     // switch, key and plane as the consume. The answer carries the item's state afterwards, which is the fact a badge
     // is recorded from - the level moved, and economy is the only thing that knows it did.
     Task<EconomyAdvanceResult> AdvanceAsync(EconomyAdvanceRequest advance, CancellationToken cancellationToken);
+
+    // Records a reward owed to a player, for later (POST /internal/economy/entitlements): a battle capsule is one. Same
+    // switch, key and plane as the grant. Refused 422 kind_unknown / class_unknown for a kind or rule the deployment does
+    // not declare, 409 entitlement_cap when the player already holds the kind's max_open, and 409 idempotency_key_reused
+    // when the key already made a row with another kind or rule.
+    Task<EconomyEntitlement> CreateEntitlementAsync(EconomyEntitlementRequest request, CancellationToken cancellationToken);
+
+    // One player's entitlements, newest first (GET /internal/economy/entitlements). Unclaimed rows only unless
+    // `includeClaimed`.
+    Task<IReadOnlyList<EconomyEntitlement>> ListEntitlementsAsync(string playerId, bool includeClaimed,
+        CancellationToken cancellationToken);
+
+    // Pays the row's reward class, once (POST /internal/economy/entitlements/{id}/claim). Refused 409 entitlement_not_ready
+    // before `available_at`, 409 entitlement_claimed when the row was already claimed, 404 entitlement_not_found.
+    Task<EconomyEntitlementClaim> ClaimEntitlementAsync(string entitlementId, string playerId, string key,
+        CancellationToken cancellationToken);
 }
