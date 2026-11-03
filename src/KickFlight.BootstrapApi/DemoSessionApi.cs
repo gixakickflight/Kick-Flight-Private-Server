@@ -157,9 +157,9 @@ public sealed partial class DemoSessionApi : IDisposable
         IConfiguration configuration, MaintenanceState maintenance, ClientUpdateState clientUpdate,
         TimeProvider timeProvider, OpsTelemetryService ops, IOptions<HarnessOptions> harnessOptions,
         IOptions<OtomoSocialOptions> socialOptions, OtomoMasters otomoMasters,
-        IBotAiProfileProvider? botAiProfiles = null, ChatService? chat = null)
+        ChatService chat, IBotAiProfileProvider? botAiProfiles = null)
     {
-        _chat = chat ?? new ChatService(environment, configuration, timeProvider, Microsoft.Extensions.Logging.Abstractions.NullLogger<ChatService>.Instance);
+        _chat = chat;
         _logger = logger;
         _ops = ops;
         _matchmaking = matchmaking;

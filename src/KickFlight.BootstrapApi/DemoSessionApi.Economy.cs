@@ -197,7 +197,12 @@ public sealed partial class DemoSessionApi
 
     // Paid once per account, before the name step. Order matters only for the log.
     private static readonly string[] StarterClasses =
-        ["starter.discs", "starter.jetcoin", StarterDiscForceClass];
+        ["starter.discs", "starter.jetcoin", StarterDiscForceClass, StarterStampsClass];
+
+    // The 15 chat stamps (item ids stamp:6051001 ... stamp:6051015). Chat checks ownership of a stamp attachment in
+    // economy (services/chat/README.md, "Attachments are items"), so a new account must own them. Last in the list so
+    // an economy that does not declare the class yet leaves everything above paid.
+    private const string StarterStampsClass = "starter.stamps";
 
     private const string StarterDiscForceClass = "starter.disc_force";
 

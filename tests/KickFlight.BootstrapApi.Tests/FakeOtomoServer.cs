@@ -216,7 +216,18 @@ public static class OtomoTestEnvironment
     private static readonly Lazy<FakeOtomoEconomy> LazyEconomy = new(FakeOtomoEconomy.Start);
     private static readonly Lazy<FakeOtomoSocial> LazySocial = new(FakeOtomoSocial.Start);
 
+    private static readonly Lazy<FakeOtomoChat> LazyChat = new(() =>
+    {
+        var chat = FakeOtomoChat.Start();
+        // Ownership is economy's: the chat fake asks the same economy fake every host in the suite reads from.
+        chat.Owns = (player, item) => LazyEconomy.Value.ItemsOf(player, item) > 0;
+        return chat;
+    });
+
     public static FakeOtomoServer Server => LazyServer.Value;
+
+    // otomo chat, as the adapter's chat client sees it.
+    public static FakeOtomoChat Chat => LazyChat.Value;
 
     // The economy every host in this suite reads its values from: the adapter holds none of its own, so a test host
     // without one could not serve a startup payload at all.
@@ -235,6 +246,11 @@ public static class OtomoTestEnvironment
         Environment.SetEnvironmentVariable("Otomo__Economy__Enabled", "true");
         Environment.SetEnvironmentVariable("Otomo__Economy__BaseUrl", Economy.BaseUrl);
         Environment.SetEnvironmentVariable("Otomo__Economy__Timeout", "00:00:10");
+        Environment.SetEnvironmentVariable("Otomo__Chat__Enabled", "true");
+        Environment.SetEnvironmentVariable("Otomo__Chat__BaseUrl", Chat.BaseUrl);
+        Environment.SetEnvironmentVariable("Otomo__Chat__ServiceKey", FakeOtomoChat.ServiceKey);
+        Environment.SetEnvironmentVariable("Otomo__Chat__Timeout", "00:00:10");
+        Environment.SetEnvironmentVariable("Otomo__Chat__PollInterval", "00:00:00.100");
         Environment.SetEnvironmentVariable("Otomo__Social__Enabled", "true");
         Environment.SetEnvironmentVariable("Otomo__Social__BaseUrl", Social.BaseUrl);
         Environment.SetEnvironmentVariable("Otomo__Social__Timeout", "00:00:10");

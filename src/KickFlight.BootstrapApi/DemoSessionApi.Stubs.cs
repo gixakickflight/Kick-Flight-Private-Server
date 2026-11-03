@@ -111,7 +111,7 @@ public sealed partial class DemoSessionApi
                 return OkJson(context, key, """{"festivalMatchResultList":[]}""");
 
             case "/chatRoomComment/write":
-                return await HandleChatWriteAsync(context, state, key);
+                return await HandleChatWriteAsync(context, ticket, state, key);
 
             default:
                 return null;
