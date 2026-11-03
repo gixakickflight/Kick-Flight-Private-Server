@@ -3,9 +3,11 @@ using System.Text;
 using System.Text.Json;
 using KickFlight.BootstrapApi;
 using KickFlight.BootstrapApi.Otomo;
+using KickFlight.BootstrapApi.PlayerStore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace KickFlight.BootstrapApi.Tests;
@@ -218,6 +220,65 @@ public sealed class OnboardingEndToEndTests : IDisposable
         Assert.Equal(4, DiscRow(after, 3010003).GetProperty("level").GetInt32());
         Assert.Equal(5, DiscRow(after, 3010003).GetProperty("amount").GetInt32());
     }
+
+    // The disc-upgrade badge fact is the economy advance's answer, and nothing else.
+    //
+    // BadgeAwardRules counts a verified disc upgrade. It used to count the adapter's own write to the save's discLevels
+    // key; that key is gone, the level is attrs.level on the disc's possession in economy's inventory, and the fact is
+    // now POST /internal/economy/items/advance's answer. Both halves are asserted here, on the same request and the same
+    // spend: with the advance answering, the counter moves; with the advance unavailable, it does not - so the badge can
+    // only be riding on economy's answer, not on anything this adapter decided locally.
+    [Fact]
+    public async Task A_disc_upgrade_counts_for_the_badges_only_when_the_economy_advance_answers_it()
+    {
+        var host = Host_(ladder: false);
+        var store = host.Services.GetRequiredService<IPlayerStore>();
+
+        var session = await CreateSessionAsync(host);
+        _economy.Seed(session.Account, balances: [("disc_force", 2000)], items: [("disc:3010003", 5)]);
+        await PostAsync(session, "/startup/index", null);
+
+        var raised = await PostAsync(session, "/disc/buildup", new { discId = 3010003 }, cacheId: "badge-tap");
+        Assert.Equal(3, raised.GetProperty("userDisc").GetProperty("level").GetInt32());
+
+        // The advance names the possession, moves exactly one level, and carries its own key: economy keys idempotency
+        // per player across every operation, so a key shared with the consume would replay the consume instead.
+        var advance = _economy.Requests.Last(call => call.Path == "/internal/economy/items/advance");
+        Assert.Contains($"\"player_id\":\"{session.Account}\"", advance.Body);
+        Assert.Contains("\"item_id\":\"disc:3010003\"", advance.Body);
+        Assert.Contains("\"field\":\"level\"", advance.Body);
+        Assert.Contains("\"by\":1", advance.Body);
+        Assert.Contains("level-up-advance:", advance.Body);
+        Assert.DoesNotContain("\"key\":\"level-up:", advance.Body);
+
+        var counted = Assert.IsType<SessionState>(store.TryLoad(LinkOf(store, session.Account).PlayerId));
+        Assert.Equal(1, counted.DiscUpgradeCount);
+
+        // The same level-up with the advance refused: the charge still happens, and no badge is counted, because the
+        // only thing that can tell the adapter the level moved is the answer that never arrived.
+        var refused = await CreateSessionAsync(host);
+        _economy.Seed(refused.Account, balances: [("disc_force", 2000)], items: [("disc:3010003", 5)]);
+        await PostAsync(refused, "/startup/index", null);
+        _economy.AdvanceUnavailable = true;
+        try
+        {
+            using var request = Request(refused, "/disc/buildup", new { discId = 3010003 }, "refused-tap");
+            using var response = await refused.Client.SendAsync(request);
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        }
+        finally
+        {
+            _economy.AdvanceUnavailable = false;
+        }
+
+        var uncounted = Assert.IsType<SessionState>(store.TryLoad(LinkOf(store, refused.Account).PlayerId));
+        Assert.Equal(0, uncounted.DiscUpgradeCount);
+        // And the disc is where it was: a level the adapter could not be told about is not a level it writes itself.
+        Assert.Equal(0, _economy.LevelOf(refused.Account, "disc:3010003"));
+    }
+
+    private static OtomoPlayer LinkOf(IPlayerStore store, string account) =>
+        Assert.Single(store.FindOtomoPlayers([account]));
 
     [Fact]
     public async Task Disc_buildup_that_cannot_be_paid_is_refused_in_the_error_contract_and_changes_nothing()

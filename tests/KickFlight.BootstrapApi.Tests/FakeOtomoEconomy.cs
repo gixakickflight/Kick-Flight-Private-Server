@@ -45,6 +45,34 @@ public sealed class FakeOtomoEconomy : IAsyncDisposable
 
     public IReadOnlyList<RecordedRequest> Requests => _requests.ToArray();
 
+    // When true, POST /internal/economy/items/advance answers 503 and moves nothing. It is how a test proves the
+    // badge fact comes from the advance's answer rather than from anything the adapter decided locally.
+    public bool AdvanceUnavailable { get; set; }
+
+    // The advances that were asked for, in order, as the service received them.
+    public IReadOnlyList<RecordedRequest> AdvanceRequests =>
+        _requests.Where(request => request.Path == "/internal/economy/items/advance").ToArray();
+
+    // The level a possession stands at in this fake. A seeded or granted item starts at 0, which every reader treats
+    // as "the game has set nothing".
+    public long LevelOf(string accountId, string item)
+    {
+        lock (_lock)
+        {
+            return _players.TryGetValue(accountId, out var player) ? player.Levels.GetValueOrDefault(item) : 0;
+        }
+    }
+
+    // Gives a possession a level directly, for a test that wants to start above the rarity's first rung.
+    public void SeedLevel(string accountId, string item, long level)
+    {
+        var player = _players.GetOrAdd(accountId, _ => new PlayerEconomy());
+        lock (_lock)
+        {
+            player.Levels[item] = level;
+        }
+    }
+
     public static FakeOtomoEconomy Start()
     {
         var builder = WebApplication.CreateBuilder();
@@ -152,17 +180,24 @@ public sealed class FakeOtomoEconomy : IAsyncDisposable
         {
             var (account, failure) = await IdentifyAsync(context);
             if (account is null) return failure;
-            var items = Snapshot(account).Items;
+            var snapshot = Snapshot(account);
             return Results.Json(new
             {
                 player_id = account,
-                items = items.Select(pair => new
+                items = snapshot.Items.Select(pair => new
                 {
                     item = pair.Key,
                     qty = pair.Value,
                     stackable = pair.Key is "fragment",
                     acquired_at = "2026-10-01T12:00:00Z",
-                    updated_at = "2026-10-01T12:00:00Z"
+                    updated_at = "2026-10-01T12:00:00Z",
+                    // The possession's own state, which is where a disc's level lives: attrs.level.
+                    attrs = new
+                    {
+                        level = snapshot.Levels.GetValueOrDefault(pair.Key),
+                        counter = 0L,
+                        available_at = (string?)null
+                    }
                 }).ToArray()
             });
         });
@@ -362,6 +397,57 @@ public sealed class FakeOtomoEconomy : IAsyncDisposable
             return Error(context, StatusCodes.Status409Conflict, "not_claimable", "track not claimable");
         });
 
+        // POST /internal/economy/items/advance: one value of one possession moved by a positive amount, up to the
+        // ceiling the caller names. Idempotent on `key`, like the other two; it never creates a possession, so an item
+        // the player does not hold is refused rather than added.
+        _app.MapPost("/internal/economy/items/advance", async (HttpContext context) =>
+        {
+            var (root, failure) = await InternalAsync(context);
+            if (root is null) return failure;
+            if (AdvanceUnavailable)
+            {
+                return Error(context, StatusCodes.Status503ServiceUnavailable, "internal_error", "internal server error");
+            }
+
+            var playerId = root.Value.GetProperty("player_id").GetString() ?? "";
+            var key = root.Value.GetProperty("key").GetString() ?? "";
+            var itemId = root.Value.GetProperty("item_id").GetString() ?? "";
+            var advance = root.Value.GetProperty("advance");
+            var field = advance.GetProperty("field").GetString() ?? "";
+            var by = advance.GetProperty("by").GetInt64();
+            var max = advance.GetProperty("max").GetInt64();
+
+            lock (_lock)
+            {
+                if (_internalReplies.TryGetValue(key, out var first)) return Replay(first);
+                var player = _players.GetOrAdd(playerId, _ => new PlayerEconomy());
+                if (player.Items.GetValueOrDefault(itemId) <= 0)
+                {
+                    return Error(context, StatusCodes.Status409Conflict, "insufficient_items",
+                        $"{itemId}: the player does not hold it");
+                }
+                if (field != "level")
+                {
+                    return Error(context, StatusCodes.Status400BadRequest, "invalid_body",
+                        "this fake only moves a level");
+                }
+
+                var value = player.Levels.GetValueOrDefault(itemId) + by;
+                if (max > 0 && value > max)
+                {
+                    return Error(context, StatusCodes.Status409Conflict, "attrs_above_max", "attrs above max");
+                }
+                player.Levels[itemId] = value;
+                return Remember(key, new
+                {
+                    player_id = playerId,
+                    item = itemId,
+                    attrs = new { level = value, counter = 0L, available_at = (string?)null },
+                    value
+                });
+            }
+        });
+
         // The internal plane: the caller names the player and authenticates with the game-server key. Both routes
         // are idempotent on `key` - a replay answers the first call's body with replayed = true and moves nothing -
         // which is the property the adapter's retries and the level-up's double-tap guard depend on.
@@ -446,8 +532,15 @@ public sealed class FakeOtomoEconomy : IAsyncDisposable
                 foreach (var (item, qty) in items)
                 {
                     var total = player.Items.GetValueOrDefault(item) - qty;
-                    if (total == 0) player.Items.Remove(item);
-                    else player.Items[item] = total;
+                    if (total == 0)
+                    {
+                        player.Items.Remove(item);
+                        player.Levels.Remove(item);
+                    }
+                    else
+                    {
+                        player.Items[item] = total;
+                    }
                     moved.Add(new { item, qty, total });
                 }
                 foreach (var (currency, amount) in currencies)
@@ -545,13 +638,15 @@ public sealed class FakeOtomoEconomy : IAsyncDisposable
             : (account, Results.Empty);
     }
 
-    private (Dictionary<string, long> Balances, Dictionary<string, long> Items) Snapshot(string accountId)
+    private (Dictionary<string, long> Balances, Dictionary<string, long> Items, Dictionary<string, long> Levels)
+        Snapshot(string accountId)
     {
         lock (_lock)
         {
             var player = _players.GetOrAdd(accountId, _ => new PlayerEconomy());
             return (new Dictionary<string, long>(player.Balances, StringComparer.Ordinal),
-                new Dictionary<string, long>(player.Items, StringComparer.Ordinal));
+                new Dictionary<string, long>(player.Items, StringComparer.Ordinal),
+                new Dictionary<string, long>(player.Levels, StringComparer.Ordinal));
         }
     }
 
@@ -570,5 +665,7 @@ public sealed class FakeOtomoEconomy : IAsyncDisposable
     {
         public Dictionary<string, long> Balances { get; } = new(StringComparer.Ordinal);
         public Dictionary<string, long> Items { get; } = new(StringComparer.Ordinal);
+        // item id -> the level of that possession, which is attrs.level on the real service's row.
+        public Dictionary<string, long> Levels { get; } = new(StringComparer.Ordinal);
     }
 }

@@ -2,14 +2,19 @@ using KickFlight.BootstrapApi.PlayerStore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 using Xunit;
-using Xunit.Sdk;
 
 namespace KickFlight.BootstrapApi.Tests;
 
+// The migration that ends this store's ownership of the social relation: version 6 drops player_follows,
+// real_friend_tokens and player_real_friends - every write to them having been removed first - and adds the two
+// columns a follow is addressed through instead (the tag otomo answered for an account).
+//
+// It starts from a database at version 1, which is what the previous migration test also started from, so it covers the
+// whole ladder rather than only the last rung.
 public sealed class PostgresSocialMigrationTests
 {
     [PostgresIntegrationFact]
-    public void V1_schema_migrates_to_v2_and_social_operations_are_idempotent()
+    public void V1_schema_migrates_to_v6_dropping_the_social_tables_and_keeping_the_accounts()
     {
         var connectionString = Environment.GetEnvironmentVariable("KF_TEST_POSTGRES_CONNECTION_STRING");
         Assert.False(string.IsNullOrWhiteSpace(connectionString));
@@ -32,24 +37,16 @@ public sealed class PostgresSocialMigrationTests
         var bob = CreatePlayer(store, "bob");
         var carol = CreatePlayer(store, "carol");
 
-        store.AddFollow(alice, bob);
-        store.AddFollow(alice, bob);
-        Assert.Equal(1, store.CountFollowing(alice));
-        Assert.Equal(1, store.CountFollowers(bob));
-        Assert.Equal(1, store.CountNewFollowers(bob));
-        Assert.Equal("bob", Assert.Single(store.ListFollowing(alice, 0, 10)).Profile.DisplayName);
-        store.MarkFollowersRead(bob, new[] { alice });
-        Assert.Equal(0, store.CountNewFollowers(bob));
+        Assert.Equal(6, ReadSchemaVersion(connectionString));
 
-        var token = store.GetOrCreateRealFriendToken(alice);
-        Assert.Equal(token, store.GetOrCreateRealFriendToken(alice));
-        Assert.Equal(alice, store.TryGetRealFriendTokenOwner(token));
-        store.AddRealFriend(alice, bob);
-        store.AddRealFriend(bob, alice);
-        store.AddRealFriend(alice, carol);
-        Assert.True(store.AreRealFriends(bob, alice));
-        Assert.True(store.AreRealFriends(alice, carol));
-        Assert.False(store.AreRealFriends(bob, carol));
+        // The relation is otomo's; what this store keeps of a player is who the account behind the row is.
+        store.SaveOtomoTag("otomo-alice", "Alice", 4417);
+        store.SaveOtomoTag("otomo-bob", "Bob", 812);
+        var tag = Assert.IsType<OtomoPlayer>(store.FindOtomoPlayer(alice));
+        Assert.Equal("Alice", tag.DisplayName);
+        Assert.Equal(4417, tag.Discriminator);
+        Assert.Equal(new[] { alice, bob },
+            store.FindOtomoPlayers(["otomo-bob", "otomo-alice", "otomo-unknown"]).Select(player => player.PlayerId));
 
         store.SaveRank(alice, 4, new RankState(3000, 7));
         store.SaveRank(bob, 4, new RankState(3100, 7));
@@ -58,35 +55,40 @@ public sealed class PostgresSocialMigrationTests
         Assert.Equal(3, Assert.Single(store.ListRanks(4, new[] { carol }, 0, 10)).Position);
 
         var restarted = NewStore(connectionString);
-        Assert.Equal(5, ReadSchemaVersion(connectionString));
-        Assert.Equal(token, restarted.GetOrCreateRealFriendToken(alice));
-        Assert.True(restarted.AreRealFriends(alice, carol));
-        Assert.Equal(1, restarted.CountFollowing(alice));
+        Assert.Equal("Alice", restarted.FindOtomoPlayer(alice)?.DisplayName);
+        Assert.Equal(812, restarted.FindOtomoPlayer(bob)?.Discriminator);
 
-        // Migration 4 is the identity move (3 is main's badge tables): the sessions table is gone and a player
-        // row carries otomo's account id.
+        // The three tables are gone, and a player row carries the two columns that replaced them.
         using (var connection = new NpgsqlConnection(connectionString))
         {
             connection.Open();
+            foreach (var table in new[] { "player_follows", "real_friend_tokens", "player_real_friends" })
+            {
+                using var dropped = new NpgsqlCommand($"select to_regclass('public.{table}') is null", connection);
+                Assert.True(Convert.ToBoolean(dropped.ExecuteScalar()), $"{table} should have been dropped");
+            }
+            using var columns = new NpgsqlCommand("""
+                select count(*) from information_schema.columns
+                where table_name = 'players' and column_name in ('otomo_display_name', 'otomo_discriminator')
+                """, connection);
+            Assert.Equal(2, Convert.ToInt32(columns.ExecuteScalar()));
+            // Migration 4 is the identity move (3 is main's badge tables): there is still no session table here.
             using var sessionsTable = new NpgsqlCommand("select to_regclass('public.sessions') is null", connection);
             Assert.True(Convert.ToBoolean(sessionsTable.ExecuteScalar()));
-            using var identityColumn = new NpgsqlCommand(
-                "select count(*) from information_schema.columns where table_name = 'players' and column_name = 'otomo_player_id'",
-                connection);
-            Assert.Equal(1, Convert.ToInt32(identityColumn.ExecuteScalar()));
         }
 
+        // A database ahead of this code fails fast rather than serving with a column that does not exist.
         using (var connection = new NpgsqlConnection(connectionString))
         {
             connection.Open();
-            using var insertFutureVersion = new NpgsqlCommand("insert into schema_meta(version) values (6)", connection);
+            using var insertFutureVersion = new NpgsqlCommand("insert into schema_meta(version) values (7)", connection);
             insertFutureVersion.ExecuteNonQuery();
         }
         Assert.Throws<InvalidOperationException>(() => NewStore(connectionString));
         using (var connection = new NpgsqlConnection(connectionString))
         {
             connection.Open();
-            using var removeFutureVersion = new NpgsqlCommand("delete from schema_meta where version = 6", connection);
+            using var removeFutureVersion = new NpgsqlCommand("delete from schema_meta where version = 7", connection);
             removeFutureVersion.ExecuteNonQuery();
         }
     }
@@ -94,12 +96,10 @@ public sealed class PostgresSocialMigrationTests
     private static PostgresPlayerStore NewStore(string connectionString) =>
         new(NullLogger<PostgresPlayerStore>.Instance, connectionString);
 
-    private static long CreatePlayer(PostgresPlayerStore store, string name)
-    {
-        var id = store.ResolveGamePlayer($"social-player-{Guid.NewGuid()}", $"social-test-{Guid.NewGuid():N}");
-        store.Save(new SessionState { UserId = id.ToString(), UserName = name });
-        return id;
-    }
+    // The account id is the store's own key, so it is derived from the name the test gave: a row created here can be
+    // addressed by its tag afterwards.
+    private static long CreatePlayer(PostgresPlayerStore store, string name) =>
+        store.ResolveGamePlayer($"otomo-{name}", $"social-test-{Guid.NewGuid():N}");
 
     private static int ReadSchemaVersion(string connectionString)
     {

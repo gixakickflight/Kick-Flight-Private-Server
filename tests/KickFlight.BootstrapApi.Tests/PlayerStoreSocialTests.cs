@@ -6,6 +6,9 @@ using Xunit;
 
 namespace KickFlight.BootstrapApi.Tests;
 
+// The player store's identity surface, now that the social relation is otomo's: what is left of the old social tests
+// is the link between a game row and the account behind it (and the tag a follow is addressed by), and the rank
+// projection the adapter still owns.
 public sealed class PlayerStoreSocialTests : IDisposable
 {
     private readonly string _directory =
@@ -29,63 +32,49 @@ public sealed class PlayerStoreSocialTests : IDisposable
     }
 
     [Fact]
-    public void Follows_are_idempotent_durable_and_track_unread_followers()
+    public void An_accounts_tag_is_remembered_by_account_and_survives_a_restart()
     {
         var store = NewStore();
-        var alice = CreatePlayer(store, "alice-device", "Alice");
-        var bob = CreatePlayer(store, "bob-device", "Bob");
+        var alice = CreatePlayer(store, "tag-alice-device", "Alice");
+        var bob = CreatePlayer(store, "tag-bob-device", "Bob");
 
-        store.AddFollow(alice, bob);
-        store.AddFollow(alice, bob);
+        // Nothing has been asked of otomo yet: the rows have accounts, and no tags.
+        var before = Assert.Single(store.FindOtomoPlayers(["otomo-tag-alice-device"]));
+        Assert.Equal(alice, before.PlayerId);
+        Assert.Equal("", before.DisplayName);
+        Assert.Equal(0, before.Discriminator);
+        Assert.Null(store.FindOtomoPlayer(long.MaxValue));
 
-        Assert.Equal(1, store.CountFollowing(alice));
-        Assert.Equal(1, store.CountFollowers(bob));
-        Assert.Equal(1, store.CountNewFollowers(bob));
-        Assert.Equal(new[] { bob }, store.FindFollowedIds(alice, new[] { bob, alice }));
-        var follower = Assert.Single(store.ListFollowers(bob, 0, 10));
-        Assert.Equal("Alice", follower.Profile.DisplayName);
-        Assert.True(follower.IsNew);
+        store.SaveOtomoTag("otomo-tag-alice-device", "Alice", 4417);
+        store.SaveOtomoTag("otomo-tag-bob-device", "Bob", 812);
 
-        store.MarkFollowersRead(bob, new[] { alice, alice });
-        Assert.Equal(0, store.CountNewFollowers(bob));
-        Assert.False(Assert.Single(store.ListFollowers(bob, 0, 10)).IsNew);
+        var tag = Assert.IsType<OtomoPlayer>(store.FindOtomoPlayer(alice));
+        Assert.Equal("otomo-tag-alice-device", tag.OtomoPlayerId);
+        Assert.Equal("Alice", tag.DisplayName);
+        Assert.Equal(4417, tag.Discriminator);
+
+        // Both in one read, in row order, and an account this store has never seen is absent rather than blank.
+        var both = store.FindOtomoPlayers(["otomo-tag-bob-device", "otomo-unknown", "otomo-tag-alice-device"]);
+        Assert.Equal(new[] { alice, bob }, both.Select(player => player.PlayerId));
+        Assert.Equal(new[] { 4417, 812 }, both.Select(player => player.Discriminator));
 
         var restarted = NewStore();
-        Assert.Equal(1, restarted.CountFollowing(alice));
-        Assert.Equal(0, restarted.CountNewFollowers(bob));
-        Assert.Equal("Bob", Assert.Single(restarted.ListFollowing(alice, 0, 10)).Profile.DisplayName);
-
-        restarted.RemoveFollow(alice, bob);
-        restarted.RemoveFollow(alice, bob);
-        Assert.Equal(0, restarted.CountFollowing(alice));
-        Assert.Equal(0, restarted.CountFollowers(bob));
+        Assert.Equal("Alice", restarted.FindOtomoPlayer(alice)?.DisplayName);
+        Assert.Equal(812, restarted.FindOtomoPlayer(bob)?.Discriminator);
+        Assert.Equal(17, restarted.FindProfile(alice)?.KickerId);
     }
 
     [Fact]
-    public void Real_friend_token_is_stable_reusable_and_separate_from_following()
+    public void A_tag_for_an_account_with_no_row_is_not_stored()
     {
         var store = NewStore();
-        var alice = CreatePlayer(store, "real-alice-device", "Alice");
-        var bob = CreatePlayer(store, "real-bob-device", "Bob");
-        var carol = CreatePlayer(store, "real-carol-device", "Carol");
+        var alice = CreatePlayer(store, "orphan-alice-device", "Alice");
 
-        var token = store.GetOrCreateRealFriendToken(alice);
-        Assert.Equal(token, NewStore().GetOrCreateRealFriendToken(alice));
-        Assert.Equal(alice, store.TryGetRealFriendTokenOwner(token));
-        Assert.Null(store.TryGetRealFriendTokenOwner("unknown-token"));
+        // This store does not create identities for the social service, so there is nowhere to put this one.
+        store.SaveOtomoTag("otomo-not-a-player", "Nobody", 5);
 
-        store.AddRealFriend(alice, bob);
-        store.AddRealFriend(bob, alice);
-        store.AddRealFriend(alice, carol);
-        Assert.True(store.AreRealFriends(alice, bob));
-        Assert.True(store.AreRealFriends(bob, alice));
-        Assert.True(store.AreRealFriends(alice, carol));
-        Assert.False(store.AreRealFriends(bob, carol));
-        Assert.Equal(0, store.CountFollowing(alice));
-        Assert.Equal(0, store.CountFollowers(alice));
-
-        Assert.Throws<ArgumentException>(() => store.AddRealFriend(alice, alice));
-        Assert.True(NewStore().AreRealFriends(alice, carol));
+        Assert.Equal(0, store.FindOtomoPlayer(alice)?.Discriminator ?? 0);
+        Assert.Empty(store.FindOtomoPlayers(["otomo-not-a-player"]));
     }
 
     [Fact]
@@ -111,21 +100,16 @@ public sealed class PlayerStoreSocialTests : IDisposable
     }
 
     [Fact]
-    public void Concurrent_stores_keep_one_follow_edge_and_one_reusable_token()
+    public void Concurrent_stores_keep_one_tag_per_account()
     {
         var store = NewStore();
         var alice = CreatePlayer(store, "parallel-alice-device", "Alice");
-        var bob = CreatePlayer(store, "parallel-bob-device", "Bob");
         var stores = Enumerable.Range(0, 12).Select(_ => NewStore()).ToArray();
 
-        Parallel.ForEach(stores, instance =>
-        {
-            instance.AddFollow(alice, bob);
-            instance.GetOrCreateRealFriendToken(alice);
-        });
+        Parallel.ForEach(stores, instance => instance.SaveOtomoTag("otomo-parallel-alice-device", "Alice", 4417));
 
-        Assert.Equal(1, NewStore().CountFollowing(alice));
-        Assert.All(stores, instance => Assert.Equal(stores[0].GetOrCreateRealFriendToken(alice), instance.GetOrCreateRealFriendToken(alice)));
+        Assert.Equal(4417, NewStore().FindOtomoPlayer(alice)?.Discriminator);
+        Assert.All(stores, instance => Assert.Equal(4417, instance.FindOtomoPlayer(alice)?.Discriminator));
     }
 
     public void Dispose()
