@@ -4,21 +4,26 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using KickFlight.BootstrapApi;
+using KickFlight.BootstrapApi.Otomo;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace KickFlight.BootstrapApi.Tests;
 
+// The replay screens are a translation over otomo's patch recordings (IOtomoRecordings): nothing is stored here, so
+// these tests pin the translation - the tags an upload carries, the channel rows read back by tag, the Featured row
+// read from the published curated list, the sealed play URL - against FakeOtomoRecordings, which honours patch's own
+// contract. Where the old tests exercised local storage, a rotation and a retention clock, those subjects moved to
+// patch and their tests went with them.
 public sealed class BattleReplayTests
 {
     private const string Host = "kickflight-api.grenge.jp";
     private const string CommonCode = "1a837b9ee2ae11a07a0f529a4cd4b61c";
+    private const string Secret = "replay-test-secret";
 
     // ---------------------------------------------------------------- archive parser
 
@@ -71,14 +76,14 @@ public sealed class BattleReplayTests
         Assert.Throws<InvalidDataException>(() => BattleReplayService.ParseArchive(archive));
     }
 
-    // ---------------------------------------------------------------- storage + human count
+    // ---------------------------------------------------------------- upload
 
     [Fact]
-    public void Store_upload_counts_human_players_and_keeps_the_first_upload_per_battle()
+    public async Task Upload_files_the_recording_under_one_tag_per_kicker_and_the_facts_the_row_shows()
     {
-        using var directory = new TempDirectory();
+        await using var patch = FakeOtomoRecordings.Start();
         var clock = new AdjustableTimeProvider(DateTimeOffset.UnixEpoch);
-        var service = NewService(directory.Path, clock);
+        var service = NewService(patch, clock);
         var blob = Gzip(BuildArchive(
             ("header", Encoding.UTF8.GetBytes(HeaderJson())),
             ("battle", Encoding.UTF8.GetBytes(BattleJson("battle-77",
@@ -86,28 +91,52 @@ public sealed class BattleReplayTests
                 ("bot-1", true, 3, 1), ("bot-2", true, 4, 1)))),
             ("result", Encoding.UTF8.GetBytes(ResultJson([3, 1], "1000001")))));
 
-        Assert.True(service.StoreUpload("battle-77", blob, clock.GetUtcNow().UtcDateTime));
-        var record = Assert.Single(service.Records);
-        Assert.Equal("battle-77", record.ReplayId);
-        Assert.Equal(2, record.HumanCount);
-        Assert.Equal(new[] { 1, 2, 3, 4 }, record.KickerIds);
-        Assert.Equal(2, record.Teams.Count);
-        Assert.Equal(3, record.Teams.Single(t => t.TeamType == 0).Score);
-        Assert.Equal(1, record.Teams.Single(t => t.TeamType == 1).Score);
-        Assert.True(record.Teams.Single(t => t.TeamType == 0).Players.Single(p => p.UserId == "1000001").MvpFlag);
-        Assert.True(record.Teams.Single(t => t.TeamType == 1).Players.All(p => !p.MvpFlag));
+        var created = await service.StoreUploadAsync("battle-77", blob, "acct-uploader", ResolveHumans,
+            clock.GetUtcNow().UtcDateTime, default);
 
-        // The master client is the only uploader, so a second upload of the same battle is ignored.
-        Assert.False(service.StoreUpload("battle-77", blob, clock.GetUtcNow().UtcDateTime));
-        Assert.Single(service.Records);
+        Assert.True(created);
+        var stored = patch.Get("battle-77") ?? throw new Xunit.Sdk.XunitException("patch holds no recording");
+        Assert.Equal(blob, stored.Bytes);
+        Assert.Equal(BattleReplayService.RecordingKind, stored.Kind);
+        // One tag per kicker that played (bots included, as the old channel index did), then the facts the row shows.
+        Assert.Equal(new[] { "humans:2", "kicker:1", "kicker:2", "kicker:3", "kicker:4", "rule:1", "ver:2.11.0" },
+            stored.Tags.Order(StringComparer.Ordinal));
+        // The players patch lets fetch the bytes: the uploader and the humans this server can link; never a bot.
+        Assert.Equal(new[] { "acct-1000001", "acct-1000002", "acct-uploader" }, stored.Players.Order(StringComparer.Ordinal));
+
+        // The index row rides in meta, so any adapter instance can draw it.
+        var meta = stored.Meta;
+        Assert.Equal(2, meta["HumanCount"]!.GetValue<int>());
+        Assert.Equal("2.11.0", meta["ApplicationVersion"]!.GetValue<string>());
+        Assert.Equal(2, meta["Teams"]!.AsArray().Count);
     }
 
     [Fact]
-    public void Store_upload_falls_back_to_the_battle_end_snapshot_when_the_archive_roster_is_missing()
+    public async Task Upload_keeps_the_first_upload_per_battle_and_a_retry_does_not_duplicate()
     {
-        using var directory = new TempDirectory();
+        await using var patch = FakeOtomoRecordings.Start();
         var clock = new AdjustableTimeProvider(DateTimeOffset.UnixEpoch);
-        var service = NewService(directory.Path, clock);
+        var service = NewService(patch, clock);
+        var first = Gzip(BuildArchive(("battle", Encoding.UTF8.GetBytes(BattleJson("battle-5", ("u1", false, 1, 0))))));
+        var other = Gzip(BuildArchive(("battle", Encoding.UTF8.GetBytes(BattleJson("battle-5", ("u1", false, 2, 0))))));
+
+        Assert.True(await service.StoreUploadAsync("battle-5", first, "acct-a", ResolveHumans, clock.GetUtcNow().UtcDateTime, default));
+        // The same bytes again (a retry after a lost answer): patch keeps one recording, so this is not "created".
+        Assert.False(await service.StoreUploadAsync("battle-5", first, "acct-a", ResolveHumans, clock.GetUtcNow().UtcDateTime, default));
+        // Different bytes under the same battle (a second uploader): patch refuses with 409, the first stays.
+        Assert.False(await service.StoreUploadAsync("battle-5", other, "acct-b", ResolveHumans, clock.GetUtcNow().UtcDateTime, default));
+
+        Assert.Equal(1, patch.Count);
+        Assert.Equal(first, patch.Get("battle-5")!.Bytes);
+        Assert.DoesNotContain("acct-b", patch.Get("battle-5")!.Players);
+    }
+
+    [Fact]
+    public async Task Upload_falls_back_to_the_battle_end_snapshot_when_the_archive_roster_is_missing()
+    {
+        await using var patch = FakeOtomoRecordings.Start();
+        var clock = new AdjustableTimeProvider(DateTimeOffset.UnixEpoch);
+        var service = NewService(patch, clock);
         service.RecordBattleEnd(new BattleReplayService.PendingMatch
         {
             BattleId = "battle-9",
@@ -127,124 +156,272 @@ public sealed class BattleReplayTests
         // A battle member with no _playerBattleInfos: the pending snapshot supplies the roster.
         var blob = Gzip(BuildArchive(("battle", Encoding.UTF8.GetBytes(
             """{"_battleInfo":{"_battleId":"battle-9"},"_battleRuleInfo":{"_battleRuleId":2,"_fieldId":301}}"""))));
-        Assert.True(service.StoreUpload("battle-9", blob, clock.GetUtcNow().UtcDateTime));
+        Assert.True(await service.StoreUploadAsync("battle-9", blob, "acct-a", _ => null, clock.GetUtcNow().UtcDateTime, default));
 
-        var record = Assert.Single(service.Records);
-        Assert.Equal(3, record.HumanCount);
-        Assert.Equal(2, record.BattleRuleId);
-        Assert.Equal(301, record.FieldId);
-        var team = Assert.Single(record.Teams);
-        Assert.Equal(7, team.Score);
-        Assert.Equal(64, Assert.Single(team.Players).KickerCostumeId);
+        var stored = patch.Get("battle-9")!;
+        Assert.Contains("kicker:5", stored.Tags);
+        Assert.Contains("humans:3", stored.Tags);
+        Assert.Contains("rule:2", stored.Tags);
+        Assert.Equal(301, stored.Meta["FieldId"]!.GetValue<int>());
+        var team = Assert.Single(stored.Meta["Teams"]!.AsArray());
+        Assert.Equal(7, team!["Score"]!.GetValue<int>());
+        Assert.Equal(64, Assert.Single(team["Players"]!.AsArray())!["KickerCostumeId"]!.GetValue<int>());
     }
 
-    // ---------------------------------------------------------------- kicker channel
+    [Fact]
+    public void Tags_stay_inside_patchs_budget_with_the_kickers_first()
+    {
+        var many = new BattleReplayService.ReplayRecord
+        {
+            KickerIds = Enumerable.Range(1, 20).ToArray(), HumanCount = 4, BattleRuleId = 1, ApplicationVersion = "2.11.0"
+        };
+        var tags = BattleReplayService.RecordingTags(many, null);
+        Assert.Equal(16, tags.Count); // services/patch/internal/recording/recording.go:41
+        Assert.All(tags, tag => Assert.StartsWith(BattleReplayService.KickerTagPrefix, tag));
+
+        var few = new BattleReplayService.ReplayRecord { KickerIds = [3, 9], HumanCount = 1, BattleRuleId = 4, ApplicationVersion = "weird version!" };
+        var custom = BattleReplayService.RecordingTags(few, new BattleReplayService.PendingMatch { Custom = true });
+        // A version patch's tag alphabet cannot hold is left off rather than sent to be refused.
+        Assert.Equal(new[] { "kicker:3", "kicker:9", "humans:1", "rule:4", "custom" }, custom);
+    }
 
     [Fact]
-    public void Kicker_channel_returns_only_replays_where_that_kicker_played_newest_first()
+    public async Task Upload_with_patch_unreachable_or_without_a_key_throws_instead_of_pretending()
     {
-        using var directory = new TempDirectory();
+        await using var patch = FakeOtomoRecordings.Start();
         var clock = new AdjustableTimeProvider(DateTimeOffset.UnixEpoch);
-        var service = NewService(directory.Path, clock);
+        var blob = Gzip(BuildArchive(("battle", Encoding.UTF8.GetBytes(BattleJson("battle-3", ("u1", false, 1, 0))))));
 
-        Store(service, clock, "battle-1", ticksBase: 1, humans: 1, kickers: [1, 2]);
-        Store(service, clock, "battle-2", ticksBase: 2, humans: 1, kickers: [2, 3]);
-        Store(service, clock, "battle-3", ticksBase: 3, humans: 1, kickers: [1, 4]);
+        patch.SetUnavailable(true);
+        var down = await Assert.ThrowsAsync<OtomoRecordingsException>(() =>
+            NewService(patch, clock).StoreUploadAsync("battle-3", blob, "acct-a", ResolveHumans, clock.GetUtcNow().UtcDateTime, default));
+        Assert.Equal(OtomoRecordingsFailure.Unavailable, down.Failure);
+        patch.SetUnavailable(false);
 
-        var tsubame = service.GetLatestForKicker(1, clock.GetUtcNow().UtcDateTime);
-        Assert.Equal(new[] { "battle-3", "battle-1" }, tsubame.Select(r => r.ReplayId).ToArray());
-        Assert.Empty(service.GetLatestForKicker(14, clock.GetUtcNow().UtcDateTime));
+        var keyless = await Assert.ThrowsAsync<OtomoRecordingsException>(() =>
+            NewService(patch, clock, o => o.ServiceKey = "").StoreUploadAsync("battle-3", blob, "acct-a", ResolveHumans, clock.GetUtcNow().UtcDateTime, default));
+        Assert.Equal(OtomoRecordingsFailure.Disabled, keyless.Failure);
+
+        var wrongKey = await Assert.ThrowsAsync<OtomoRecordingsException>(() =>
+            NewService(patch, clock, o => o.ServiceKey = "not-the-key").StoreUploadAsync("battle-3", blob, "acct-a", ResolveHumans, clock.GetUtcNow().UtcDateTime, default));
+        Assert.Equal(OtomoRecordingsFailure.Refused, wrongKey.Failure);
+        Assert.Equal(401, wrongKey.StatusCode);
+        Assert.Equal(0, patch.Count);
     }
 
-    // ---------------------------------------------------------------- featured rotation
+    // ---------------------------------------------------------------- index: kicker channels
 
     [Fact]
-    public void Featured_picks_the_highest_human_counts_and_freezes_for_the_rotation()
+    public async Task Kicker_channel_lists_only_replays_where_that_kicker_played_newest_first()
     {
-        using var directory = new TempDirectory();
-        var clock = new AdjustableTimeProvider(new DateTimeOffset(2026, 10, 10, 0, 0, 0, TimeSpan.Zero));
-        var service = NewService(directory.Path, clock, featuredCount: 2, rotationHours: 3);
+        await using var patch = FakeOtomoRecordings.Start();
+        var clock = new AdjustableTimeProvider(DateTimeOffset.UnixEpoch);
+        var service = NewService(patch, clock);
 
-        Store(service, clock, "battle-a", ticksBase: 1, humans: 1, kickers: [1]);
-        Store(service, clock, "battle-b", ticksBase: 2, humans: 4, kickers: [2]);
-        Store(service, clock, "battle-c", ticksBase: 3, humans: 3, kickers: [3]);
+        await StoreAsync(service, clock, "battle-1", humans: 1, kickers: [1, 2]);
+        await StoreAsync(service, clock, "battle-2", humans: 1, kickers: [2, 3]);
+        await StoreAsync(service, clock, "battle-3", humans: 1, kickers: [1, 4]);
 
-        var first = service.GetFeatured(clock.GetUtcNow().UtcDateTime);
-        Assert.Equal(new[] { "battle-b", "battle-c" }, first.Select(r => r.ReplayId).ToArray());
+        var index = await IndexAsync(service, [1, 2, 14]);
 
-        // A new, better upload within the same rotation must NOT change the frozen set...
-        clock.Advance(TimeSpan.FromHours(1));
-        Store(service, clock, "battle-d", ticksBase: 4, humans: 8, kickers: [4]);
-        var frozen = service.GetFeatured(clock.GetUtcNow().UtcDateTime);
-        Assert.Equal(new[] { "battle-b", "battle-c" }, frozen.Select(r => r.ReplayId).ToArray());
-
-        // ...but once the rotation rolls it is recomputed and includes it.
-        clock.Advance(TimeSpan.FromHours(2) + TimeSpan.FromMinutes(1));
-        var rotated = service.GetFeatured(clock.GetUtcNow().UtcDateTime);
-        Assert.Equal(new[] { "battle-d", "battle-b" }, rotated.Select(r => r.ReplayId).ToArray());
-
-        // A fresh service instance on the same directory serves the persisted rotation (restart-safe).
-        var restarted = NewService(directory.Path, clock, featuredCount: 2, rotationHours: 3);
-        Assert.Equal(rotated.Select(r => r.ReplayId).ToArray(),
-            restarted.GetFeatured(clock.GetUtcNow().UtcDateTime).Select(r => r.ReplayId).ToArray());
+        Assert.Equal(new[] { "battle-3", "battle-1" }, ReplayIds(index, 1001));
+        Assert.Equal(new[] { "battle-2", "battle-1" }, ReplayIds(index, 1002));
+        Assert.Empty(ReplayIds(index, 1014));
+        // Each channel is the by-tag read of its kicker, newest N, with the player's own token.
+        Assert.Contains(patch.Requests, r => r.Query.StartsWith("?tag=kicker%3A1&limit=20", StringComparison.Ordinal)
+            && r.Authorization == "Bearer " + Token);
     }
 
     [Fact]
-    public void Featured_computed_while_short_is_topped_up_inside_the_rotation()
+    public async Task Kicker_channel_shows_only_the_newest_configured_number()
     {
-        using var directory = new TempDirectory();
-        var clock = new AdjustableTimeProvider(new DateTimeOffset(2026, 10, 10, 0, 0, 0, TimeSpan.Zero));
-        var service = NewService(directory.Path, clock, featuredCount: 2, rotationHours: 3);
+        await using var patch = FakeOtomoRecordings.Start();
+        var clock = new AdjustableTimeProvider(DateTimeOffset.UnixEpoch);
+        var service = NewService(patch, clock, o => o.KickerChannelSize = 2);
 
-        // The first index request of a rotation can come before any upload: an empty set must not stay frozen.
-        Assert.Empty(service.GetFeatured(clock.GetUtcNow().UtcDateTime));
+        foreach (var n in new[] { 1, 2, 3 }) await StoreAsync(service, clock, $"battle-{n}", humans: 1, kickers: [1]);
 
-        clock.Advance(TimeSpan.FromMinutes(10));
-        Store(service, clock, "battle-a", ticksBase: 1, humans: 1, kickers: [1]);
-        Assert.Equal(new[] { "battle-a" }, service.GetFeatured(clock.GetUtcNow().UtcDateTime).Select(r => r.ReplayId).ToArray());
+        Assert.Equal(new[] { "battle-3", "battle-2" }, ReplayIds(await IndexAsync(service, [1]), 1001));
+    }
 
-        Store(service, clock, "battle-b", ticksBase: 2, humans: 5, kickers: [2]);
-        Store(service, clock, "battle-c", ticksBase: 3, humans: 6, kickers: [3]);
-        // Appended up to the count, never swapped: battle-a stays although battle-c has more humans.
-        Assert.Equal(new[] { "battle-a", "battle-c" }, service.GetFeatured(clock.GetUtcNow().UtcDateTime).Select(r => r.ReplayId).ToArray());
+    [Fact]
+    public async Task Index_draws_a_row_from_the_meta_the_upload_carried()
+    {
+        await using var patch = FakeOtomoRecordings.Start();
+        var clock = new AdjustableTimeProvider(DateTimeOffset.UnixEpoch);
+        var service = NewService(patch, clock);
+        await StoreAsync(service, clock, "battle-100", humans: 2, kickers: [1, 2], appVersion: "2.11.0");
 
-        // Outside the window, old replays still fill a rotation that has nothing newer.
-        clock.Advance(TimeSpan.FromHours(30));
-        Assert.Equal(new[] { "battle-c", "battle-b" }, service.GetFeatured(clock.GetUtcNow().UtcDateTime).Select(r => r.ReplayId).ToArray());
+        var row = AllRows(await IndexAsync(service, [1])).First(r => r.Channel == 1001).Row;
+
+        Assert.Equal("battle-100", row.GetProperty("battleReplayId").GetString());
+        Assert.Equal(1, row.GetProperty("battleRuleId").GetInt32());
+        Assert.Equal(101, row.GetProperty("fieldId").GetInt32());
+        Assert.Equal("2.11.0", row.GetProperty("applicationVersion").GetString());
+        Assert.Equal(2, row.GetProperty("battleReplayTeamList").GetArrayLength());
+        Assert.False(string.IsNullOrEmpty(row.GetProperty("displayEndDatetime").GetString()));
+    }
+
+    [Fact]
+    public async Task Index_leaves_out_a_recording_whose_meta_is_not_a_replay_row()
+    {
+        await using var patch = FakeOtomoRecordings.Start();
+        var clock = new AdjustableTimeProvider(DateTimeOffset.UnixEpoch);
+        var service = NewService(patch, clock);
+        await StoreAsync(service, clock, "battle-1", humans: 1, kickers: [1]);
+        // Somebody else's producer filed a recording under the same tag.
+        patch.Seed("foreign-1", ["kicker:1"], ["acct-viewer"], """{"x":1}""");
+
+        Assert.Equal(new[] { "battle-1" }, ReplayIds(await IndexAsync(service, [1]), 1001));
+    }
+
+    // ---------------------------------------------------------------- index: Featured
+
+    [Fact]
+    public async Task Featured_is_empty_when_nothing_is_published_whatever_has_been_uploaded()
+    {
+        await using var patch = FakeOtomoRecordings.Start();
+        var clock = new AdjustableTimeProvider(DateTimeOffset.UnixEpoch);
+        var service = NewService(patch, clock);
+        await StoreAsync(service, clock, "battle-a", humans: 4, kickers: [1]);
+        await StoreAsync(service, clock, "battle-b", humans: 1, kickers: [2]);
+
+        // patch.curated has no list yet (a 404), and the adapter invents no rotation to fill it.
+        var unpublished = await IndexAsync(service, [1]);
+        Assert.Empty(ReplayIds(unpublished, 1));
+        Assert.Contains(patch.Requests, r => r.Query == "?list=featured");
+
+        // Published but empty (what the seed document carries) is the same row.
+        patch.PublishCurated("featured");
+        Assert.Empty(ReplayIds(await IndexAsync(service, [1]), 1));
+    }
+
+    [Fact]
+    public async Task Featured_is_the_published_curated_list_in_its_order_without_the_recordings_that_are_gone()
+    {
+        await using var patch = FakeOtomoRecordings.Start();
+        var clock = new AdjustableTimeProvider(DateTimeOffset.UnixEpoch);
+        var service = NewService(patch, clock);
+        await StoreAsync(service, clock, "battle-a", humans: 1, kickers: [1]);
+        await StoreAsync(service, clock, "battle-b", humans: 4, kickers: [2]);
+        await StoreAsync(service, clock, "battle-c", humans: 3, kickers: [3]);
+
+        // The operator's order, not newest-first and not most-humans-first.
+        patch.PublishCurated("featured", "battle-a", "battle-c", "battle-b");
+        Assert.Equal(new[] { "battle-a", "battle-c", "battle-b" }, ReplayIds(await IndexAsync(service, [1]), 1));
+
+        // An entry whose recording patch no longer holds is omitted, never a hole.
+        patch.Delete("battle-c");
+        Assert.Equal(new[] { "battle-a", "battle-b" }, ReplayIds(await IndexAsync(service, [1]), 1));
+    }
+
+    [Fact]
+    public async Task Featured_reads_the_configured_list_name()
+    {
+        await using var patch = FakeOtomoRecordings.Start();
+        var clock = new AdjustableTimeProvider(DateTimeOffset.UnixEpoch);
+        var service = NewService(patch, clock, o => o.FeaturedList = "staff.picks");
+        await StoreAsync(service, clock, "battle-a", humans: 1, kickers: [1]);
+        patch.PublishCurated("featured");
+        patch.PublishCurated("staff.picks", "battle-a");
+
+        Assert.Equal(new[] { "battle-a" }, ReplayIds(await IndexAsync(service, [1]), 1));
+    }
+
+    [Fact]
+    public async Task Index_fails_closed_when_patch_is_down_instead_of_serving_empty_channels()
+    {
+        await using var patch = FakeOtomoRecordings.Start();
+        var service = NewService(patch, new AdjustableTimeProvider(DateTimeOffset.UnixEpoch));
+        patch.SetUnavailable(true);
+
+        var failure = await Assert.ThrowsAsync<OtomoRecordingsException>(() => IndexAsync(service, [1]));
+        Assert.Equal(OtomoRecordingsFailure.Unavailable, failure.Failure);
     }
 
     // ---------------------------------------------------------------- playback
 
     [Fact]
-    public void Play_key_encodes_the_stored_blob_back_to_the_uploaded_bytes()
+    public async Task Play_key_round_trips_to_the_uploaded_bytes_in_the_clients_encryption()
     {
-        using var directory = new TempDirectory();
+        await using var patch = FakeOtomoRecordings.Start();
         var clock = new AdjustableTimeProvider(DateTimeOffset.UnixEpoch);
-        var service = NewService(directory.Path, clock);
-        var blob = Gzip(BuildArchive(("battle", Encoding.UTF8.GetBytes(BattleJson("battle-5", ("u1", false, 1, 0))))));
-        Assert.True(service.StoreUpload("battle-5", blob, clock.GetUtcNow().UtcDateTime));
+        var service = NewService(patch, clock);
+        var blob = await StoreAsync(service, clock, "battle-5", humans: 1, kickers: [1]);
+        var now = clock.GetUtcNow().UtcDateTime;
 
-        var (keyId, key) = service.CreatePlayKey("battle-5", clock.GetUtcNow().UtcDateTime);
+        var (keyId, key) = await service.CreatePlayKeyAsync("battle-5", "device-1", Token, now, default);
         Assert.NotEmpty(keyId);
         Assert.Equal(32, Encoding.UTF8.GetByteCount(key));
 
-        Assert.True(service.TryEncodeBlob(keyId, clock.GetUtcNow().UtcDateTime, out var encoded));
-        var decrypted = D2CCodec.Decode(encoded, Encoding.ASCII.GetBytes(key));
-        Assert.Equal(blob, decrypted);
+        string? deviceAsked = null;
+        var encoded = await service.TryEncodeBlobAsync(keyId, now, (device, _) =>
+        {
+            deviceAsked = device;
+            return Task.FromResult(Token);
+        }, default);
 
-        // Unknown replay -> no key/url; expired key -> no blob.
-        Assert.Equal(("", ""), service.CreatePlayKey("does-not-exist", clock.GetUtcNow().UtcDateTime));
+        Assert.NotNull(encoded);
+        Assert.Equal(blob, D2CCodec.Decode(encoded!, Encoding.ASCII.GetBytes(key)));
+        // The sealed id is what carried the player: the blob request has no session of its own.
+        Assert.Equal("device-1", deviceAsked);
+        // The bytes were fetched with the player's token, from patch, not from anywhere in this process.
+        Assert.Contains(patch.Requests, r => r.Path == "/patch/v1/recordings/battle-5/blob" && r.Authorization == "Bearer " + Token && r.Range == "");
+    }
+
+    [Fact]
+    public async Task Play_key_is_refused_for_an_unknown_replay_one_the_player_was_not_in_and_a_forged_or_expired_id()
+    {
+        await using var patch = FakeOtomoRecordings.Start();
+        var clock = new AdjustableTimeProvider(DateTimeOffset.UnixEpoch);
+        var service = NewService(patch, clock);
+        await StoreAsync(service, clock, "battle-5", humans: 1, kickers: [1]);
+        var now = clock.GetUtcNow().UtcDateTime;
+        Task<string> TokenFor(string _, CancellationToken __) => Task.FromResult(Token);
+
+        Assert.Equal(("", ""), await service.CreatePlayKeyAsync("does-not-exist", "d", Token, now, default));
+        // Patch answers 404 for a recording the caller was not in; the adapter promises no URL it cannot fetch.
+        Assert.Equal(("", ""), await service.CreatePlayKeyAsync("battle-5", "d", FakeOtomoRecordings.TokenFor("acct-stranger"), now, default));
+        Assert.Equal(("", ""), await service.CreatePlayKeyAsync("../etc/passwd", "d", Token, now, default));
+
+        var (keyId, _) = await service.CreatePlayKeyAsync("battle-5", "d", Token, now, default);
+        var forged = keyId[..^2] + (keyId.EndsWith("AA", StringComparison.Ordinal) ? "BB" : "AA");
+        Assert.Null(await service.TryEncodeBlobAsync(forged, now, TokenFor, default));
+        Assert.Null(await service.TryEncodeBlobAsync("garbage", now, TokenFor, default));
+        Assert.Null(await service.TryEncodeBlobAsync("", now, TokenFor, default));
+
         clock.Advance(TimeSpan.FromMinutes(11));
-        Assert.False(service.TryEncodeBlob(keyId, clock.GetUtcNow().UtcDateTime, out _));
+        Assert.Null(await service.TryEncodeBlobAsync(keyId, clock.GetUtcNow().UtcDateTime, TokenFor, default));
+    }
+
+    [Fact]
+    public async Task Play_url_needs_no_server_state_so_another_instance_with_the_same_secret_serves_it()
+    {
+        await using var patch = FakeOtomoRecordings.Start();
+        var clock = new AdjustableTimeProvider(DateTimeOffset.UnixEpoch);
+        var service = NewService(patch, clock);
+        var blob = await StoreAsync(service, clock, "battle-5", humans: 1, kickers: [1]);
+        var now = clock.GetUtcNow().UtcDateTime;
+        var (keyId, key) = await service.CreatePlayKeyAsync("battle-5", "d", Token, now, default);
+        Task<string> TokenFor(string _, CancellationToken __) => Task.FromResult(Token);
+
+        // A restarted adapter (or a second replica) is a new object that has seen nothing.
+        var restarted = NewService(patch, clock);
+        var encoded = await restarted.TryEncodeBlobAsync(keyId, now, TokenFor, default);
+        Assert.Equal(blob, D2CCodec.Decode(encoded!, Encoding.ASCII.GetBytes(key)));
+
+        // An adapter with another secret cannot open it, and could not have derived its key.
+        var stranger = NewService(patch, clock, secret: "another-secret");
+        Assert.Null(await stranger.TryEncodeBlobAsync(keyId, now, TokenFor, default));
     }
 
     // ---------------------------------------------------------------- endpoint behaviour
 
     [Fact]
-    public async Task Battle_end_returns_replay_upload_flag_true_and_index_exposes_the_served_dtos()
+    public async Task Battle_end_upload_index_and_play_are_translated_from_patch()
     {
-        using var directory = new TempDirectory();
-        using var factory = NewFactory(directory.Path);
+        await using var patch = FakeOtomoRecordings.Start();
+        using var factory = NewFactory(patch);
         var session = await CreateSessionAsync(factory);
 
         var endResponse = await PostAsync(session, "/battle/end", new
@@ -269,11 +446,16 @@ public sealed class BattleReplayTests
             ("battle", Encoding.UTF8.GetBytes(BattleJson("battle-100",
                 (session.UserId, false, 1, 0), ("bot-77", true, 2, 1)))),
             ("result", Encoding.UTF8.GetBytes(ResultJson([5, 3], session.UserId)))));
-        await PostAsync(session, "/battle/upload", new
-        {
-            battleId = "battle-100",
-            uploadFile = Convert.ToBase64String(blob)
-        });
+        await PostAsync(session, "/battle/upload", new { battleId = "battle-100", uploadFile = Convert.ToBase64String(blob) });
+
+        // The upload reached patch, with the game-server key, once, and the uploader is a player of it.
+        var stored = patch.Get("battle-100") ?? throw new Xunit.Sdk.XunitException("patch holds no recording");
+        Assert.Equal(blob, stored.Bytes);
+        Assert.Single(patch.Requests, r => r.Method == "PUT" && r.Authorization == "Bearer " + FakeOtomoRecordings.ServiceKey);
+        Assert.Contains("kicker:1", stored.Tags);
+        Assert.Contains("kicker:2", stored.Tags);
+        Assert.Contains("humans:1", stored.Tags);
+        Assert.Single(stored.Players);
 
         var index = await PostAsync(session, "/battleReplay/index", null);
         var channels = index.GetProperty("battleReplayChannelList");
@@ -285,28 +467,27 @@ public sealed class BattleReplayTests
         Assert.Equal(1, channelIds[0]);
         Assert.Equal(Enumerable.Range(1001, 14).ToArray(), channelIds.Skip(1).ToArray());
 
-        var featured = channels[0].GetProperty("battleReplayList");
-        Assert.Equal(1, featured.GetArrayLength());
-        var replay = featured[0];
+        // Nothing is published as Featured, so that row is empty - no rotation is made up.
+        Assert.Equal(0, channels[0].GetProperty("battleReplayList").GetArrayLength());
+
+        var tsubame = channels.EnumerateArray().Single(c => c.GetProperty("battleReplayChannelId").GetInt32() == 1001);
+        var replay = Assert.Single(tsubame.GetProperty("battleReplayList").EnumerateArray());
         Assert.Equal("battle-100", replay.GetProperty("battleReplayId").GetString());
-        Assert.Equal(1, replay.GetProperty("battleRuleId").GetInt32());
         Assert.Equal("2.11.0", replay.GetProperty("applicationVersion").GetString());
         Assert.False(string.IsNullOrEmpty(replay.GetProperty("displayStartDatetime").GetString()));
-        Assert.False(string.IsNullOrEmpty(replay.GetProperty("displayEndDatetime").GetString()));
-
         var teams = replay.GetProperty("battleReplayTeamList");
         Assert.Equal(2, teams.GetArrayLength());
-        var blue = teams[0];
-        Assert.Equal(0, blue.GetProperty("teamType").GetInt32());
-        Assert.Equal(5, blue.GetProperty("score").GetInt32());
-        var player = blue.GetProperty("battleReplayPlayerList")[0];
+        Assert.Equal(5, teams[0].GetProperty("score").GetInt32());
+        var player = teams[0].GetProperty("battleReplayPlayerList")[0];
         Assert.Equal(session.UserId, player.GetProperty("userId").GetString());
         Assert.True(player.GetProperty("mvpFlag").GetBoolean());
         Assert.True(player.GetProperty("kickerCostumeId").GetInt32() > 0);
 
-        // The kicker channel for kickerId 1 carries the same replay.
-        var tsubameChannel = channels.EnumerateArray().Single(c => c.GetProperty("battleReplayChannelId").GetInt32() == 1001);
-        Assert.Equal("battle-100", tsubameChannel.GetProperty("battleReplayList")[0].GetProperty("battleReplayId").GetString());
+        // Once the curated list names it, the Featured row carries it.
+        patch.PublishCurated("featured", "battle-100");
+        var featured = (await PostAsync(session, "/battleReplay/index", null))
+            .GetProperty("battleReplayChannelList")[0].GetProperty("battleReplayList");
+        Assert.Equal("battle-100", Assert.Single(featured.EnumerateArray()).GetProperty("battleReplayId").GetString());
 
         // /battleReplay/play hands out a 32-char key and a blob URL that decrypts back to the upload.
         var play = await PostAsync(session, "/battleReplay/play", new { battleReplayId = "battle-100" });
@@ -323,13 +504,16 @@ public sealed class BattleReplayTests
         var missing = await PostAsync(session, "/battleReplay/play", new { battleReplayId = "battle-unknown" });
         Assert.Equal("", missing.GetProperty("battleReplayUrl").GetString());
         Assert.Equal("", missing.GetProperty("encryptionKey").GetString());
+
+        using var forged = await session.Client.GetAsync(url![..^3] + "AAA");
+        Assert.Equal(HttpStatusCode.NotFound, forged.StatusCode);
     }
 
     [Fact]
     public async Task Custom_battle_end_is_recorded_and_served_fields_are_fieldless()
     {
-        using var directory = new TempDirectory();
-        using var factory = NewFactory(directory.Path);
+        await using var patch = FakeOtomoRecordings.Start();
+        using var factory = NewFactory(patch);
         var session = await CreateSessionAsync(factory);
 
         var response = await PostAsync(session, "/customBattle/end", new
@@ -347,48 +531,109 @@ public sealed class BattleReplayTests
         var blob = Gzip(BuildArchive(
             ("battle", Encoding.UTF8.GetBytes(BattleJson("custom-123-1", (session.UserId, false, 8, 0)))),
             ("result", Encoding.UTF8.GetBytes(ResultJson([1, 0], session.UserId)))));
-        await PostAsync(session, "/battle/upload", new
-        {
-            battleId = "custom-123-1",
-            uploadFile = Convert.ToBase64String(blob)
-        });
+        await PostAsync(session, "/battle/upload", new { battleId = "custom-123-1", uploadFile = Convert.ToBase64String(blob) });
 
+        Assert.Contains("custom", patch.Get("custom-123-1")!.Tags);
         var index = await PostAsync(session, "/battleReplay/index", null);
-        var featured = index.GetProperty("battleReplayChannelList")[0].GetProperty("battleReplayList");
-        var replay = Assert.Single(featured.EnumerateArray());
+        var kicker8 = index.GetProperty("battleReplayChannelList").EnumerateArray()
+            .Single(c => c.GetProperty("battleReplayChannelId").GetInt32() == 1008);
+        var replay = Assert.Single(kicker8.GetProperty("battleReplayList").EnumerateArray());
         Assert.Equal("custom-123-1", replay.GetProperty("battleReplayId").GetString());
         // The upload's own battleRuleInfo filled the rule/field the custom end body never carried.
         Assert.Equal(1, replay.GetProperty("battleRuleId").GetInt32());
         Assert.Equal(101, replay.GetProperty("fieldId").GetInt32());
     }
 
-    // ---------------------------------------------------------------- helpers
-
-    private static BattleReplayService NewService(string directory, TimeProvider clock,
-        int featuredCount = 20, double rotationHours = 3)
+    [Fact]
+    public async Task Replay_screens_fail_closed_in_the_game_error_contract_when_patch_is_down_or_switched_off()
     {
-        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        await using var patch = FakeOtomoRecordings.Start();
+        using var down = NewFactory(patch);
+        var session = await CreateSessionAsync(down);
+        patch.SetUnavailable(true);
+
+        var blob = Gzip(BuildArchive(("battle", Encoding.UTF8.GetBytes(BattleJson("battle-1", (session.UserId, false, 1, 0))))));
+        foreach (var (path, body) in new (string, object?)[]
         {
-            [BattleReplayService.DirectoryKey] = directory,
-            [BattleReplayService.FeaturedCountKey] = featuredCount.ToString(),
-            [BattleReplayService.RotationHoursKey] = rotationHours.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            [BattleReplayService.FeaturedWindowHoursKey] = (rotationHours * 2).ToString(System.Globalization.CultureInfo.InvariantCulture)
-        }).Build();
-        return new BattleReplayService(configuration, new TestEnvironment(), clock, NullLogger<BattleReplayService>.Instance);
+            ("/battleReplay/index", null),
+            ("/battleReplay/play", new { battleReplayId = "battle-1" }),
+            ("/battle/upload", new { battleId = "battle-1", uploadFile = Convert.ToBase64String(blob) })
+        })
+        {
+            var (status, headers, json) = await PostRawAsync(session, path, body);
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, status);
+            Assert.Equal("1", headers);
+            Assert.Equal("replay-unavailable", json.GetProperty("error").GetString());
+            Assert.Equal("Unavailable", json.GetProperty("reason").GetString());
+        }
+
+        // Switched off (the default): the same refusal, with its own reason, and no empty list served as fact.
+        using var off = NewFactory(new Dictionary<string, string?> { ["Otomo:Recordings:Enabled"] = "false" });
+        var offSession = await CreateSessionAsync(off);
+        var (offStatus, _, offJson) = await PostRawAsync(offSession, "/battleReplay/index", null);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, offStatus);
+        Assert.Equal("Disabled", offJson.GetProperty("reason").GetString());
     }
 
-    private static void Store(BattleReplayService service, TimeProvider clock, string battleId, long ticksBase,
-        int humans, int[] kickers)
+    // ---------------------------------------------------------------- helpers
+
+    private static readonly string Token = FakeOtomoRecordings.TokenFor("acct-viewer");
+
+    // A battle's numeric user ids to otomo accounts: the humans of this suite are linked, bots never are.
+    private static string? ResolveHumans(string userId) =>
+        userId.StartsWith("bot-", StringComparison.Ordinal) ? null : "acct-" + userId;
+
+    private static BattleReplayService NewService(FakeOtomoRecordings patch, TimeProvider clock,
+        Action<OtomoRecordingsOptions>? tweak = null, string secret = Secret)
+    {
+        var options = new OtomoRecordingsOptions
+        {
+            Enabled = true,
+            BaseUrl = patch.BaseUrl,
+            InternalBaseUrl = patch.BaseUrl,
+            ServiceKey = FakeOtomoRecordings.ServiceKey,
+            RetryDelay = TimeSpan.Zero,
+            Timeout = TimeSpan.FromSeconds(10),
+            PlaySecret = secret
+        };
+        tweak?.Invoke(options);
+        var wrapped = Options.Create(options);
+        var client = OtomoRecordings.Create(wrapped, Options.Create(new OtomoSocialOptions()), NullLogger<OtomoRecordings>.Instance);
+        return new BattleReplayService(client, wrapped, new ConfigurationBuilder().Build(), clock, NullLogger<BattleReplayService>.Instance);
+    }
+
+    // Uploads one four-player battle (the first `humans` are people, the rest bots) and returns the gzip bytes.
+    private static async Task<byte[]> StoreAsync(BattleReplayService service, TimeProvider clock, string battleId,
+        int humans, int[] kickers, string appVersion = "2.11.0")
     {
         var players = new List<(string, bool, int, int)>();
         for (var i = 0; i < humans; i++) players.Add(($"human-{battleId}-{i}", false, kickers[i % kickers.Length], i % 2));
         for (var i = humans; i < 4; i++) players.Add(($"bot-{battleId}-{i}", true, kickers[i % kickers.Length], i % 2));
         var blob = Gzip(BuildArchive(
-            ("header", Encoding.UTF8.GetBytes(HeaderJson(ticks: DateTime.UnixEpoch.Ticks + ticksBase))),
+            ("header", Encoding.UTF8.GetBytes(HeaderJson(appVersion))),
             ("battle", Encoding.UTF8.GetBytes(BattleJson(battleId, players.ToArray()))),
             ("result", Encoding.UTF8.GetBytes(ResultJson([humans, 4 - humans], players[0].Item1)))));
-        Assert.True(service.StoreUpload(battleId, blob, clock.GetUtcNow().UtcDateTime));
+        // The viewer is a player of every battle here, so the play path can fetch its bytes.
+        Assert.True(await service.StoreUploadAsync(battleId, blob, "acct-viewer", ResolveHumans, clock.GetUtcNow().UtcDateTime, default));
+        return blob;
     }
+
+    private static async Task<JsonElement> IndexAsync(BattleReplayService service, int[] kickers)
+    {
+        using var document = JsonDocument.Parse(await service.BuildIndexJsonAsync(Token, kickers, _ => 1, default));
+        return document.RootElement.Clone();
+    }
+
+    private static IEnumerable<(int Channel, JsonElement Row)> AllRows(JsonElement index) =>
+        index.GetProperty("battleReplayChannelList").EnumerateArray().SelectMany(channel =>
+            channel.GetProperty("battleReplayList").EnumerateArray()
+                .Select(row => (channel.GetProperty("battleReplayChannelId").GetInt32(), row.Clone())));
+
+    private static string[] ReplayIds(JsonElement index, int channelId) =>
+        index.GetProperty("battleReplayChannelList").EnumerateArray()
+            .Single(c => c.GetProperty("battleReplayChannelId").GetInt32() == channelId)
+            .GetProperty("battleReplayList").EnumerateArray()
+            .Select(r => r.GetProperty("battleReplayId").GetString()!).ToArray();
 
     private static byte[] BuildArchive(params (string Name, byte[] Bytes)[] members)
     {
@@ -464,11 +709,24 @@ public sealed class BattleReplayTests
             _mvpUserId = mvpUserId
         });
 
-    private static WebApplicationFactory<Program> NewFactory(string replayDirectory) =>
+    // A host whose patch is this test's own fake. In-memory configuration is added last, so it wins over the suite-wide
+    // environment variables that point every other host at the shared one.
+    private static WebApplicationFactory<Program> NewFactory(FakeOtomoRecordings patch) =>
+        NewFactory(new Dictionary<string, string?>
+        {
+            ["Otomo:Recordings:Enabled"] = "true",
+            ["Otomo:Recordings:BaseUrl"] = patch.BaseUrl,
+            ["Otomo:Recordings:InternalBaseUrl"] = patch.BaseUrl,
+            ["Otomo:Recordings:ServiceKey"] = FakeOtomoRecordings.ServiceKey,
+            ["Otomo:Recordings:RetryDelay"] = "00:00:00",
+            ["Otomo:Recordings:Timeout"] = "00:00:10"
+        });
+
+    private static WebApplicationFactory<Program> NewFactory(Dictionary<string, string?> settings) =>
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseContentRoot(AppContext.BaseDirectory);
-            builder.UseSetting(BattleReplayService.DirectoryKey, replayDirectory);
+            builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(settings));
         });
 
     private static async Task<DemoSession> CreateSessionAsync(WebApplicationFactory<Program> factory)
@@ -489,6 +747,16 @@ public sealed class BattleReplayTests
 
     private static async Task<JsonElement> PostAsync(DemoSession session, string path, object? body)
     {
+        var (status, headers, json) = await PostRawAsync(session, path, body);
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal("0", headers);
+        return json;
+    }
+
+    // The status, the x-app-status-code header and the body (decoded when the game's contract encrypted it).
+    private static async Task<(HttpStatusCode Status, string AppStatus, JsonElement Json)> PostRawAsync(
+        DemoSession session, string path, object? body)
+    {
         var json = body is null ? "{}" : JsonSerializer.Serialize(body);
         using var request = new HttpRequestMessage(HttpMethod.Post, path)
         {
@@ -496,36 +764,14 @@ public sealed class BattleReplayTests
         };
         request.Headers.Host = Host;
         using var response = await session.Client.SendAsync(request);
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("0", response.Headers.GetValues("x-app-status-code").Single());
-        using var document = JsonDocument.Parse(D2CCodec.Decode(await response.Content.ReadAsByteArrayAsync(), session.Key));
-        return document.RootElement.Clone();
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        var appStatus = response.Headers.GetValues("x-app-status-code").Single();
+        // A 503 is plain JSON (SocialUnavailable's shape); a 200 is the D2C-encrypted body.
+        using var document = JsonDocument.Parse(response.StatusCode == HttpStatusCode.OK ? D2CCodec.Decode(bytes, session.Key) : bytes);
+        return (response.StatusCode, appStatus, document.RootElement.Clone());
     }
 
     private sealed record DemoSession(HttpClient Client, byte[] Key, string UserId);
-
-    private sealed class TestEnvironment : IWebHostEnvironment
-    {
-        public string ApplicationName { get; set; } = "tests";
-        public IFileProvider WebRootFileProvider { get; set; } = new NullFileProvider();
-        public string WebRootPath { get; set; } = "";
-        public string EnvironmentName { get; set; } = "Development";
-        public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
-        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
-    }
-
-    private sealed class TempDirectory : IDisposable
-    {
-        public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "kf-replay-" + Guid.NewGuid().ToString("N"));
-
-        public TempDirectory() => System.IO.Directory.CreateDirectory(Path);
-
-        public void Dispose()
-        {
-            try { System.IO.Directory.Delete(Path, recursive: true); }
-            catch (IOException) { /* best effort */ }
-        }
-    }
 
     private sealed class AdjustableTimeProvider(DateTimeOffset now) : TimeProvider
     {

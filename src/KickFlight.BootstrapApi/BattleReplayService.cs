@@ -1,51 +1,38 @@
 using System.Buffers.Binary;
 using System.Collections.Concurrent;
-using System.IO;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using KickFlight.BootstrapApi.Otomo;
+using Microsoft.Extensions.Options;
 
 namespace KickFlight.BootstrapApi;
 
 /// <summary>
-/// Server-side store for uploaded battle replays (Colorful /battle/upload) plus the two data-driven tabs the
-/// unmodified client renders: one BattleReplayChannel type-2 row per kicker, and one type-3 "Featured" row whose
-/// content is the rotation's matches with the most human players.
+/// The adapter's translation between the unmodified client's replay screens and otomo's patch recordings
+/// (<see cref="IOtomoRecordings"/>). It stores nothing: no blob, no index, no rotation, no retention.
 ///
-/// Storage layout (directory from <c>Replays:Directory</c>, default <c>.local/replays</c>):
-/// <code>
-///   blobs/&lt;replayId&gt;.bin    the uploaded gzip archive, byte-for-byte (this is the plaintext D2CCodec.Encode
-///                            wraps for /battleReplay/play)
-///   meta/&lt;replayId&gt;.json    the index row, one per replay; every file here rebuilds the in-memory index
-///   featured.json            the frozen Featured rotation (survives restarts)
-/// </code>
+/// <list type="bullet">
+/// <item><b>Upload</b> (Colorful /battle/upload): the gzip archive goes to patch as one recording keyed by the battle id,
+/// its index row as the recording's <c>meta</c>, the kickers that played as <c>kicker:&lt;id&gt;</c> tags (plus the facts
+/// the row shows: human count, rule, version), and the players who were in it as the recording's players.</item>
+/// <item><b>Index</b> (/battleReplay/index): one type-2 channel per kicker from patch's by-tag listing (newest first), and
+/// the type-3 "Featured" row from the published <c>patch.curated</c> list, in the order it was published.</item>
+/// <item><b>Play</b> (/battleReplay/play and GET /battleReplay/blob/{keyId}): the client's own encryption
+/// (<see cref="D2CCodec"/>) around bytes fetched from patch with the player's token. The URL is sealed, so no key table
+/// exists to lose.</item>
+/// </list>
+///
+/// The only state in this process is <see cref="RecordBattleEnd"/>'s map of the battle-end facts waiting for the
+/// master client's upload (kicker costumes are not in the archive). It is request correlation, bounded and in memory,
+/// like the matchmaking room it is copied from; losing it costs a default costume on a row.
 ///
 /// The archive the client uploads is NOT a zip: it is <c>gzip( [TYPE_UINT][uint32-le length][TYPE_STRING]
 /// [int32-le nameLen][utf8 name][raw bytes] ... )</c>. See docs/REPLAYS.md for the RVAs that pin the encoding.
 /// </summary>
 public sealed class BattleReplayService
 {
-    public const string DirectoryKey = "Replays:Directory";
-    public const string MaxUploadBytesKey = "Replays:MaxUploadBytes";
-    public const string MaxDecompressedBytesKey = "Replays:MaxDecompressedBytes";
-    public const string KickerChannelSizeKey = "Replays:KickerChannelSize";
-    public const string FeaturedCountKey = "Replays:FeaturedCount";
-    public const string RotationHoursKey = "Replays:RotationHours";
-    public const string FeaturedWindowHoursKey = "Replays:FeaturedWindowHours";
-    public const string RetentionDaysKey = "Replays:RetentionDays";
-    public const string MaxTotalBytesKey = "Replays:MaxTotalBytes";
-    public const string KeyLifetimeMinutesKey = "Replays:KeyLifetimeMinutes";
-
-    public const string DefaultRelativeDirectory = ".local/replays";
-    public const long DefaultMaxUploadBytes = 64L * 1024 * 1024;          // client frames cap is 50 MiB before gzip
-    public const long DefaultMaxDecompressedBytes = 256L * 1024 * 1024;
-    public const int DefaultKickerChannelSize = 20;
-    public const int DefaultFeaturedCount = 20;
-    public const double DefaultRotationHours = 3;
-    public const double DefaultRetentionDays = 30;
-    public const long DefaultMaxTotalBytes = 5L * 1024 * 1024 * 1024;
-
     // ReplayValue value-type tags (Colorful.ReplayValue, dump.cs:531629-531646). Only the two the archive uses.
     private const byte TypeUInt = 2;
     private const byte TypeString = 6;
@@ -53,66 +40,48 @@ public sealed class BattleReplayService
     // 2030 is the sentinel most other served windows use; the Featured/Kicker windows never expire.
     private const string FarFutureDatetime = "2099-12-31 23:59:59";
 
-    private readonly string _directory;
-    private readonly string _blobDirectory;
-    private readonly string _metaDirectory;
-    private readonly string _featuredPath;
-    private readonly long _maxUploadBytes;
-    private readonly long _maxDecompressedBytes;
-    private readonly int _kickerChannelSize;
-    private readonly int _featuredCount;
-    private readonly TimeSpan _rotation;
-    private readonly TimeSpan _featuredWindow;
-    private readonly TimeSpan _retention;
-    private readonly long _maxTotalBytes;
-    private readonly TimeSpan _keyLifetime;
+    // The recording kind patch stores these under (kindPattern: lowercase, dotted or dashed).
+    public const string RecordingKind = "kickflight.replay";
+
+    // Patch's tag budget (services/patch/internal/recording/recording.go:41): 16 per recording.
+    private const int MaxTags = 16;
+
+    public const string KickerTagPrefix = "kicker:";
+
+    private readonly IOtomoRecordings _recordings;
+    private readonly OtomoRecordingsOptions _options;
+    private readonly byte[] _sealKey;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<BattleReplayService> _logger;
 
-    private readonly ConcurrentDictionary<string, ReplayRecord> _records = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, PendingMatch> _pending = new(StringComparer.Ordinal);
-    private readonly ConcurrentDictionary<string, PlayKey> _playKeys = new(StringComparer.Ordinal);
-    private readonly object _writeLock = new();
-    private readonly object _rotationLock = new();
-    private FeaturedSnapshot? _featured;
 
-    public BattleReplayService(IConfiguration configuration, IWebHostEnvironment environment,
-        TimeProvider timeProvider, ILogger<BattleReplayService> logger)
+    public BattleReplayService(IOtomoRecordings recordings, IOptions<OtomoRecordingsOptions> options,
+        IConfiguration configuration, TimeProvider timeProvider, ILogger<BattleReplayService> logger)
     {
+        _recordings = recordings;
+        _options = options.Value;
         _timeProvider = timeProvider;
         _logger = logger;
-        _directory = RepositoryPaths.Resolve(
-            configuration[DirectoryKey] is { Length: > 0 } configured ? configured : DefaultRelativeDirectory,
-            environment.ContentRootPath);
-        _blobDirectory = Path.Combine(_directory, "blobs");
-        _metaDirectory = Path.Combine(_directory, "meta");
-        _featuredPath = Path.Combine(_directory, "featured.json");
-        _maxUploadBytes = GetLong(configuration, MaxUploadBytesKey, DefaultMaxUploadBytes);
-        _maxDecompressedBytes = GetLong(configuration, MaxDecompressedBytesKey, DefaultMaxDecompressedBytes);
-        _kickerChannelSize = (int)GetLong(configuration, KickerChannelSizeKey, DefaultKickerChannelSize);
-        _featuredCount = (int)GetLong(configuration, FeaturedCountKey, DefaultFeaturedCount);
-        _rotation = TimeSpan.FromHours(GetDouble(configuration, RotationHoursKey, DefaultRotationHours));
-        _featuredWindow = TimeSpan.FromHours(GetDouble(configuration, FeaturedWindowHoursKey, DefaultRotationHours * 2));
-        _retention = TimeSpan.FromDays(GetDouble(configuration, RetentionDaysKey, DefaultRetentionDays));
-        _maxTotalBytes = GetLong(configuration, MaxTotalBytesKey, DefaultMaxTotalBytes);
-        _keyLifetime = TimeSpan.FromMinutes(GetDouble(configuration, KeyLifetimeMinutesKey, 10));
 
-        Directory.CreateDirectory(_blobDirectory);
-        Directory.CreateDirectory(_metaDirectory);
-        LoadIndex();
-        _logger.LogInformation(
-            "Battle replays: {Count} record(s) in {Directory} (kickerChannelSize={KickerSize}, featuredCount={FeaturedCount}, rotation={Rotation}h)",
-            _records.Count, _directory, _kickerChannelSize, _featuredCount, _rotation.TotalHours);
+        var secret = !string.IsNullOrWhiteSpace(_options.PlaySecret)
+            ? _options.PlaySecret
+            : configuration[$"{OtomoOptions.SectionName}:TokenSecret"];
+        if (string.IsNullOrWhiteSpace(secret))
+        {
+            _sealKey = RandomNumberGenerator.GetBytes(32);
+            _logger.LogWarning("Otomo:Recordings:PlaySecret (and Otomo:TokenSecret) is not set: replay play URLs are sealed with " +
+                "a key generated at startup and stop working at a restart");
+        }
+        else
+        {
+            _sealKey = SHA256.HashData(Encoding.UTF8.GetBytes("kf-replay-play:" + secret));
+        }
     }
 
-    public long MaxUploadBytes => _maxUploadBytes;
+    public long MaxUploadBytes => _options.MaxUploadBytes;
 
-    private static long GetLong(IConfiguration configuration, string key, long fallback) =>
-        long.TryParse(configuration[key], out var parsed) && parsed > 0 ? parsed : fallback;
-
-    private static double GetDouble(IConfiguration configuration, string key, double fallback) =>
-        double.TryParse(configuration[key], System.Globalization.CultureInfo.InvariantCulture, out var parsed) && parsed > 0
-            ? parsed : fallback;
+    public bool Enabled => _recordings.Enabled;
 
     // ------------------------------------------------------------------ pending matches (/battle/end, custom)
 
@@ -168,7 +137,7 @@ public sealed class BattleReplayService
             match.BattleId, match.Custom, match.BattleRuleId, match.FieldId, match.HumanCount);
     }
 
-    // ------------------------------------------------------------------ storage records
+    // ------------------------------------------------------------------ the index row
 
     public sealed class ReplayPlayerRecord
     {
@@ -191,8 +160,14 @@ public sealed class BattleReplayService
         public List<ReplayPlayerRecord> Players { get; set; } = [];
     }
 
+    /// <summary>
+    /// What the index row shows, stored as the recording's <c>meta</c> object in patch (an opaque JSON object, at most
+    /// 64 KiB, that patch keeps verbatim and never reads). The bytes, their size and digest, who was in it and when
+    /// patch received it are patch's own fields on the recording.
+    /// </summary>
     public sealed class ReplayRecord
     {
+        // Filled from the recording's id when a row is read back; it is not part of the stored meta.
         public string ReplayId { get; set; } = "";
         public string BattleId { get; set; } = "";
         public string ApplicationVersion { get; set; } = "";
@@ -202,78 +177,28 @@ public sealed class BattleReplayService
         public int HumanCount { get; set; }
         public int[] KickerIds { get; set; } = [];
         public List<ReplayTeamRecord> Teams { get; set; } = [];
-        public long SizeBytes { get; set; }
-        public string Sha256 { get; set; } = "";
         public DateTime EndUtc { get; set; }
-        public DateTime CreatedUtc { get; set; }
     }
-
-    public sealed class FeaturedSnapshot
-    {
-        public DateTime RotationStartUtc { get; set; }
-        public List<string> ReplayIds { get; set; } = [];
-        public DateTime ComputedUtc { get; set; }
-    }
-
-    private sealed class PlayKey
-    {
-        public string ReplayId { get; set; } = "";
-        public byte[] Key { get; set; } = [];
-        public DateTime ExpiresUtc { get; set; }
-    }
-
-    private void LoadIndex()
-    {
-        foreach (var metaFile in Directory.EnumerateFiles(_metaDirectory, "*.json"))
-        {
-            try
-            {
-                var record = JsonSerializer.Deserialize<ReplayRecord>(File.ReadAllText(metaFile));
-                if (record is null || string.IsNullOrEmpty(record.ReplayId)) continue;
-                if (!File.Exists(BlobPath(record.ReplayId))) continue;
-                if (string.IsNullOrEmpty(record.ApplicationVersion)) BackfillVersion(record, metaFile);
-                _records[record.ReplayId] = record;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning("Ignoring unreadable replay metadata {File}: {Error}", metaFile, ex.Message);
-            }
-        }
-    }
-
-    // Replays stored before the archive parser handled path-qualified member names have no application version, and
-    // the client marks such cells as an invalid version. Re-read it from the blob once and rewrite the metadata.
-    private void BackfillVersion(ReplayRecord record, string metaFile)
-    {
-        try
-        {
-            var version = ParseGzip(File.ReadAllBytes(BlobPath(record.ReplayId))).AppVersion;
-            if (string.IsNullOrEmpty(version)) return;
-            record.ApplicationVersion = version;
-            File.WriteAllText(metaFile, JsonSerializer.Serialize(record));
-        }
-        catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException)
-        {
-            _logger.LogWarning("Could not backfill the version of replay {ReplayId}: {Error}", record.ReplayId, ex.Message);
-        }
-    }
-
-    public string StorageDirectory => _directory;
-
-    public IReadOnlyCollection<ReplayRecord> Records => _records.Values.ToArray();
 
     // ------------------------------------------------------------------ upload
 
     /// <summary>
-    /// Stores one uploaded replay. Returns false for a duplicate battle (the master client is the only uploader, so
-    /// the first upload wins), an oversized body, or an archive that does not parse.
+    /// Sends one uploaded replay to patch. Returns true when patch created the recording and false when it already held
+    /// the battle (the master client is the only uploader, so the first upload wins: patch answers 200 for an identical
+    /// retry and 409 recording_conflict for anything else under that id, and both are "already stored"), an oversized
+    /// body, or an archive that does not parse. A patch that cannot be reached or refuses for another reason throws
+    /// <see cref="OtomoRecordingsException"/>: the caller's client is told, because nothing here can retry it later.
     /// </summary>
-    public bool StoreUpload(string requestedBattleId, byte[] gzip, DateTime nowUtc)
+    /// <param name="uploaderOtomoPlayerId">The master client's otomo account; always one of the recording's players.</param>
+    /// <param name="resolveOtomoPlayer">A battle's numeric user id to the otomo account behind it, or null (a bot, or a
+    /// player this server has no link for).</param>
+    public async Task<bool> StoreUploadAsync(string requestedBattleId, byte[] gzip, string uploaderOtomoPlayerId,
+        Func<string, string?> resolveOtomoPlayer, DateTime nowUtc, CancellationToken cancellationToken)
     {
-        if (gzip.Length == 0 || gzip.Length > _maxUploadBytes)
+        if (gzip.Length == 0 || gzip.Length > _options.MaxUploadBytes)
         {
             _logger.LogWarning("Rejected replay upload for {BattleId}: {Bytes} bytes (cap {Cap})",
-                requestedBattleId, gzip.Length, _maxUploadBytes);
+                requestedBattleId, gzip.Length, _options.MaxUploadBytes);
             return false;
         }
 
@@ -282,7 +207,7 @@ public sealed class BattleReplayService
         {
             parsed = ParseGzip(gzip);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is InvalidDataException or JsonException or ArgumentException)
         {
             _logger.LogWarning("Rejected replay upload for {BattleId}: archive did not parse: {Error}",
                 requestedBattleId, ex.Message);
@@ -293,34 +218,91 @@ public sealed class BattleReplayService
         if (string.IsNullOrWhiteSpace(battleId)) return false;
         var replayId = SafeId(battleId);
 
-        lock (_writeLock)
+        _pending.TryGetValue(replayId, out var pending);
+        pending ??= _pending.Values.FirstOrDefault(p => p.Custom && p.BattleId == requestedBattleId);
+
+        var record = BuildRecord(replayId, battleId, parsed, pending, nowUtc);
+        var players = RecordingPlayers(uploaderOtomoPlayerId, parsed, pending, resolveOtomoPlayer);
+        var upload = new RecordingUpload(RecordingKind, gzip, players, RecordingTags(record, pending),
+            JsonSerializer.Serialize(record));
+
+        bool created;
+        try
         {
-            if (_records.ContainsKey(replayId))
-            {
-                _logger.LogInformation("Ignoring duplicate replay upload for {BattleId} (first one is kept)", battleId);
-                return false;
-            }
-
-            _pending.TryGetValue(SafeId(battleId), out var pending);
-            pending ??= _pending.Values.FirstOrDefault(p => p.Custom && p.BattleId == requestedBattleId);
-
-            var record = BuildRecord(replayId, battleId, parsed, pending, gzip, nowUtc);
-            WriteBlob(replayId, gzip);
-            WriteMeta(record);
-            _records[replayId] = record;
-            if (pending is not null) _pending.TryRemove(SafeId(pending.BattleId), out _);
-            PruneLocked(nowUtc);
+            created = await _recordings.PutAsync(replayId, upload, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OtomoRecordingsException ex) when (ex is { Failure: OtomoRecordingsFailure.Refused, Code: "recording_conflict" })
+        {
+            _logger.LogInformation("Ignoring duplicate replay upload for {BattleId} (first one is kept)", battleId);
+            if (pending is not null) _pending.TryRemove(replayId, out _);
+            return false;
         }
 
+        if (pending is not null) _pending.TryRemove(SafeId(pending.BattleId), out _);
         _logger.LogInformation(
-            "Stored replay {ReplayId} for {BattleId}: version={AppVersion} rule={RuleId} field={FieldId} humans={Humans} size={Bytes}",
-            replayId, battleId, parsed.AppVersion, parsed.BattleRuleId, parsed.FieldId,
-            _records[replayId].HumanCount, gzip.Length);
-        return true;
+            "Sent replay {ReplayId} for {BattleId} to patch ({Outcome}): version={AppVersion} rule={RuleId} field={FieldId} humans={Humans} size={Bytes} players={Players} tags={Tags}",
+            replayId, battleId, created ? "created" : "already held", parsed.AppVersion, record.BattleRuleId, record.FieldId,
+            record.HumanCount, gzip.Length, players.Count, string.Join(',', upload.Tags));
+        return created;
+    }
+
+    // Who was in the recording, in patch's terms (otomo account ids): the uploader, plus every human the battle named
+    // that this server can link to an account. Bots and unlinked ids are not players patch could ever match a token to.
+    private static List<string> RecordingPlayers(string uploader, ParsedReplay parsed, PendingMatch? pending,
+        Func<string, string?> resolve)
+    {
+        var players = new List<string>();
+        void Add(string? id)
+        {
+            if (!string.IsNullOrEmpty(id) && PatchIdPattern.IsMatch(id) && !players.Contains(id, StringComparer.Ordinal))
+                players.Add(id);
+        }
+
+        Add(uploader);
+        var userIds = parsed.Players.Where(p => !p.IsAi).Select(p => p.UserId)
+            .Concat(pending?.Players.Where(p => !p.Ai).Select(p => p.UserId) ?? []);
+        foreach (var userId in userIds)
+        {
+            if (string.IsNullOrEmpty(userId) || userId.StartsWith("bot-", StringComparison.OrdinalIgnoreCase)) continue;
+            Add(resolve(userId));
+            if (players.Count == 64) break; // services/patch/internal/recording/recording.go:34
+        }
+        return players;
+    }
+
+    // services/patch/internal/recording/recording.go:44-50 (the id alphabet a recording and a player share).
+    private static readonly System.Text.RegularExpressions.Regex PatchIdPattern =
+        new(@"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    // services/patch/internal/recording/recording.go:57-66 (the tag alphabet).
+    private static readonly System.Text.RegularExpressions.Regex PatchTagPattern =
+        new(@"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    /// <summary>
+    /// The tags a recording is filed under. One <c>kicker:&lt;id&gt;</c> per kicker that played, which is what the channel
+    /// rows are read by; then the facts the index row shows (<c>humans:&lt;n&gt;</c>, <c>rule:&lt;id&gt;</c>,
+    /// <c>ver:&lt;appVersion&gt;</c>, and <c>custom</c> for a custom battle). Patch allows 16 per recording, so the kickers
+    /// are written first and the facts take what is left.
+    /// </summary>
+    public static IReadOnlyList<string> RecordingTags(ReplayRecord record, PendingMatch? pending)
+    {
+        var tags = new List<string>();
+        void Add(string tag)
+        {
+            if (tags.Count < MaxTags && PatchTagPattern.IsMatch(tag) && !tags.Contains(tag, StringComparer.Ordinal))
+                tags.Add(tag);
+        }
+
+        foreach (var kickerId in record.KickerIds) Add(KickerTagPrefix + kickerId);
+        Add("humans:" + record.HumanCount);
+        Add("rule:" + record.BattleRuleId);
+        if (!string.IsNullOrEmpty(record.ApplicationVersion)) Add("ver:" + record.ApplicationVersion);
+        if (pending?.Custom == true) Add("custom");
+        return tags;
     }
 
     private ReplayRecord BuildRecord(string replayId, string battleId, ParsedReplay parsed, PendingMatch? pending,
-        byte[] gzip, DateTime nowUtc)
+        DateTime nowUtc)
     {
         // Pending roster supplies the kicker row costume ids: PlayerBattleInfo in the archive has no costume field.
         var costumeByUser = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -405,7 +387,7 @@ public sealed class BattleReplayService
 
         // The header's _dateTimeTicks is device wall-clock. It is only trusted when it is near the receipt time:
         // a wrong sign, a different ticks epoch or a clock-skewed phone must not put a 1970 date on the index row
-        // (retention and the Featured tie-break both read this value).
+        // (the index row shows this value).
         var endUtc = parsed.EndUtc is { } parsedEnd && Math.Abs((parsedEnd - nowUtc).TotalDays) <= 1 ? parsedEnd : nowUtc;
         return new ReplayRecord
         {
@@ -418,115 +400,42 @@ public sealed class BattleReplayService
             HumanCount = humanCount,
             KickerIds = kickerIds,
             Teams = teams.Values.OrderBy(t => t.TeamType).ToList(),
-            SizeBytes = gzip.Length,
-            Sha256 = Convert.ToHexString(SHA256.HashData(gzip)).ToLowerInvariant(),
-            EndUtc = endUtc,
-            CreatedUtc = nowUtc
+            EndUtc = endUtc
         };
     }
 
-    private void WriteBlob(string replayId, byte[] gzip)
+
+    // ------------------------------------------------------------------ index
+
+    /// <summary>
+    /// Builds the /battleReplay/index body: Featured (type 3, id 1) from the published curated list, plus one type-2
+    /// channel per kicker from patch's by-tag listing. Order is patch's in both: the curated order as published, and
+    /// newest first for a kicker. A curated list patch has never been given is an empty Featured row, not an invented one.
+    /// </summary>
+    public async Task<string> BuildIndexJsonAsync(string accessToken, IReadOnlyList<int> kickerIds,
+        Func<int, int> defaultCostumeId, CancellationToken cancellationToken)
     {
-        var target = BlobPath(replayId);
-        var temp = target + ".tmp";
-        File.WriteAllBytes(temp, gzip);
-        File.Move(temp, target, overwrite: true);
-    }
+        var displayStart = _timeProvider.GetUtcNow().UtcDateTime.AddDays(-1).ToString("yyyy-MM-dd HH:mm:ss");
 
-    private void WriteMeta(ReplayRecord record)
-    {
-        var target = MetaPath(record.ReplayId);
-        var temp = target + ".tmp";
-        File.WriteAllText(temp, JsonSerializer.Serialize(record));
-        File.Move(temp, target, overwrite: true);
-    }
+        var featuredTask = _recordings.ListCuratedAsync(accessToken, _options.FeaturedList, cancellationToken);
+        var kickerTasks = kickerIds.Select(kickerId => _recordings.ListByTagAsync(accessToken,
+            KickerTagPrefix + kickerId, _options.KickerChannelSize, cancellationToken)).ToArray();
+        await Task.WhenAll(kickerTasks.Cast<Task>().Append(featuredTask)).ConfigureAwait(false);
 
-    private string BlobPath(string replayId) => Path.Combine(_blobDirectory, replayId + ".bin");
-    private string MetaPath(string replayId) => Path.Combine(_metaDirectory, replayId + ".json");
-
-    // ------------------------------------------------------------------ index queries
-
-    /// <summary>The frozen Featured set for the current rotation. Recomputed when the rotation rolls; until it is full
-    /// (fewer than FeaturedCount replays existed when it was computed) new replays are appended, never swapped in.</summary>
-    public IReadOnlyList<ReplayRecord> GetFeatured(DateTime nowUtc)
-    {
-        lock (_rotationLock)
-        {
-            var rotationStart = RotationStart(nowUtc);
-            _featured ??= LoadFeatured();
-            if (_featured is null || _featured.RotationStartUtc != rotationStart)
-            {
-                _featured = ComputeFeatured(rotationStart, nowUtc);
-                PersistFeatured(_featured);
-                _logger.LogInformation("Featured rotation {Start:o}: {Count} replay(s)",
-                    rotationStart, _featured.ReplayIds.Count);
-            }
-            else if (_featured.ReplayIds.Count < _featuredCount)
-            {
-                var fill = RankFeatured(nowUtc).Where(id => !_featured.ReplayIds.Contains(id))
-                    .Take(_featuredCount - _featured.ReplayIds.Count).ToList();
-                if (fill.Count > 0)
-                {
-                    _featured.ReplayIds.AddRange(fill);
-                    PersistFeatured(_featured);
-                }
-            }
-
-            return _featured.ReplayIds
-                .Select(id => _records.GetValueOrDefault(id))
-                .Where(record => record is not null)
-                .Cast<ReplayRecord>()
-                .ToArray();
-        }
-    }
-
-    public FeaturedSnapshot? FeaturedSnapshotForTests
-    {
-        get { lock (_rotationLock) return _featured; }
-    }
-
-    private FeaturedSnapshot ComputeFeatured(DateTime rotationStart, DateTime nowUtc) =>
-        new() { RotationStartUtc = rotationStart, ReplayIds = RankFeatured(nowUtc).Take(_featuredCount).ToList(), ComputedUtc = nowUtc };
-
-    // Most humans first among the replays of the last window; older replays only fill what the window cannot, so a quiet
-    // server still shows something.
-    private IEnumerable<string> RankFeatured(DateTime nowUtc)
-    {
-        var windowStart = nowUtc - _featuredWindow;
-        return _records.Values
-            .OrderByDescending(r => r.CreatedUtc >= windowStart)
-            .ThenByDescending(r => r.HumanCount)
-            .ThenByDescending(r => r.EndUtc)
-            .ThenByDescending(r => r.ReplayId, StringComparer.Ordinal)
-            .Select(r => r.ReplayId);
-    }
-
-    public IReadOnlyList<ReplayRecord> GetLatestForKicker(int kickerId, DateTime nowUtc) =>
-        _records.Values
-            .Where(r => r.KickerIds.Contains(kickerId))
-            .OrderByDescending(r => r.EndUtc)
-            .ThenByDescending(r => r.ReplayId, StringComparer.Ordinal)
-            .Take(_kickerChannelSize)
-            .ToArray();
-
-    /// <summary>Builds the /battleReplay/index body: Featured (type 3, id 1) plus one type-2 channel per kicker.</summary>
-    public string BuildIndexJson(IReadOnlyList<int> kickerIds, Func<int, int> defaultCostumeId, DateTime nowUtc)
-    {
-        var displayStart = nowUtc.AddDays(-1).ToString("yyyy-MM-dd HH:mm:ss");
         var channels = new List<object>
         {
             new
             {
                 battleReplayChannelId = 1,
-                battleReplayList = BuildReplayJson(GetFeatured(nowUtc), defaultCostumeId, displayStart)
+                battleReplayList = BuildReplayJson(ToRecords(await featuredTask.ConfigureAwait(false) ?? []), defaultCostumeId, displayStart)
             }
         };
-        foreach (var kickerId in kickerIds)
+        for (var i = 0; i < kickerIds.Count; i++)
         {
             channels.Add(new
             {
-                battleReplayChannelId = 1000 + kickerId,
-                battleReplayList = BuildReplayJson(GetLatestForKicker(kickerId, nowUtc), defaultCostumeId, displayStart)
+                battleReplayChannelId = 1000 + kickerIds[i],
+                battleReplayList = BuildReplayJson(ToRecords(await kickerTasks[i].ConfigureAwait(false)), defaultCostumeId, displayStart)
             });
         }
 
@@ -537,7 +446,34 @@ public sealed class BattleReplayService
         });
     }
 
-    private static object[] BuildReplayJson(IReadOnlyList<ReplayRecord> records, Func<int, int> defaultCostumeId,
+    // A recording's meta back into the row it was uploaded as. A recording whose meta is not ours (somebody else's
+    // producer, an older shape) cannot be drawn as a row and is left out, not guessed at.
+    private IEnumerable<ReplayRecord> ToRecords(IEnumerable<PatchRecording> recordings)
+    {
+        foreach (var recording in recordings)
+        {
+            ReplayRecord? record = null;
+            try
+            {
+                record = recording.Meta.ValueKind == JsonValueKind.Object
+                    ? recording.Meta.Deserialize<ReplayRecord>()
+                    : null;
+            }
+            catch (JsonException)
+            {
+                // fall through: logged below
+            }
+            if (record is null || record.Teams.Count == 0 && string.IsNullOrEmpty(record.BattleId))
+            {
+                _logger.LogWarning("Leaving recording {RecordingId} out of the replay index: its meta is not a replay row", recording.Id);
+                continue;
+            }
+            record.ReplayId = recording.Id;
+            yield return record;
+        }
+    }
+
+    private static object[] BuildReplayJson(IEnumerable<ReplayRecord> records, Func<int, int> defaultCostumeId,
         string displayStart)
     {
         return records.Select(record => (object)new
@@ -569,105 +505,87 @@ public sealed class BattleReplayService
         }).ToArray();
     }
 
-    // ------------------------------------------------------------------ playback keys / blob
+    // ------------------------------------------------------------------ playback
 
-    /// <summary>Creates a one-shot download key and the key id the URL must carry, or ("","") for an unknown replay.</summary>
-    public (string KeyId, string EncryptionKey) CreatePlayKey(string replayId, DateTime nowUtc)
+    /// <summary>
+    /// Mints the URL id and encryption key /battleReplay/play answers with, or ("","") when the player cannot fetch that
+    /// recording (patch says 404 for one that does not exist and for one the player was not in).
+    ///
+    /// Nothing is stored. The id is the replay id, the player's otomo device and an expiry sealed with AES-GCM under the
+    /// server's secret, and the key is an HMAC of that id, so the blob request (which carries no session) can open the id,
+    /// fetch with the right player's token and encrypt with the key the client was given. A replayed URL works until it
+    /// expires, as the one-shot map it replaces did (the entry was only dropped by expiry).
+    /// </summary>
+    public async Task<(string KeyId, string EncryptionKey)> CreatePlayKeyAsync(string replayId, string otomoDeviceId,
+        string accessToken, DateTime nowUtc, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(replayId) || !_records.ContainsKey(replayId)) return ("", "");
-        var key = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)); // 32 ASCII chars = AES-256 key material
-        var keyId = Guid.NewGuid().ToString("N");
-        _playKeys[keyId] = new PlayKey { ReplayId = replayId, Key = Encoding.UTF8.GetBytes(key), ExpiresUtc = nowUtc + _keyLifetime };
+        if (string.IsNullOrWhiteSpace(replayId) || !PatchIdPattern.IsMatch(replayId)) return ("", "");
+        if (!await _recordings.CanFetchAsync(accessToken, replayId, cancellationToken).ConfigureAwait(false)) return ("", "");
 
-        // Drop expired keys opportunistically; the map is tiny (one entry per download started in the last 10 min).
-        foreach (var expired in _playKeys.Where(kv => kv.Value.ExpiresUtc < nowUtc).Select(kv => kv.Key).ToList())
-            _playKeys.TryRemove(expired, out _);
-
-        return (keyId, key);
+        var keyId = Seal(new PlayClaim(replayId, otomoDeviceId, new DateTimeOffset(nowUtc, TimeSpan.Zero).Add(_options.PlayLifetime).ToUnixTimeSeconds()));
+        return (keyId, DeriveKey(keyId));
     }
 
-    /// <summary>Encrypts the stored blob exactly as the client expects (D2CCodec = IV || AES-256-CBC/PKCS7).</summary>
-    public bool TryEncodeBlob(string keyId, DateTime nowUtc, out byte[] encoded)
+    /// <summary>
+    /// Encrypts the recording exactly as the client expects (D2CCodec = IV || AES-256-CBC/PKCS7) from patch's bytes.
+    /// <paramref name="accessTokenForDevice"/> turns the sealed device into that player's current access token.
+    /// Returns null for an id that is forged, expired, or whose recording patch no longer serves.
+    /// </summary>
+    public async Task<byte[]?> TryEncodeBlobAsync(string keyId, DateTime nowUtc,
+        Func<string, CancellationToken, Task<string>> accessTokenForDevice, CancellationToken cancellationToken)
     {
-        encoded = [];
-        if (string.IsNullOrWhiteSpace(keyId) || !_playKeys.TryGetValue(keyId, out var playKey)) return false;
-        if (playKey.ExpiresUtc < nowUtc)
-        {
-            _playKeys.TryRemove(keyId, out _);
-            return false;
-        }
-        var blobPath = BlobPath(playKey.ReplayId);
-        if (!File.Exists(blobPath)) return false;
-        var blob = File.ReadAllBytes(blobPath);
-        encoded = D2CCodec.Encode(blob, playKey.Key, RandomNumberGenerator.GetBytes(D2CCodec.VectorSizeBytes));
-        return true;
+        var claim = Open(keyId);
+        if (claim is null || claim.ExpiresUnix < new DateTimeOffset(nowUtc, TimeSpan.Zero).ToUnixTimeSeconds()) return null;
+
+        var accessToken = await accessTokenForDevice(claim.Device, cancellationToken).ConfigureAwait(false);
+        var blob = await _recordings.GetBlobAsync(accessToken, claim.Replay, cancellationToken).ConfigureAwait(false);
+        return blob is null
+            ? null
+            : D2CCodec.Encode(blob, Encoding.ASCII.GetBytes(DeriveKey(keyId)),
+                RandomNumberGenerator.GetBytes(D2CCodec.VectorSizeBytes));
     }
 
-    // ------------------------------------------------------------------ retention
+    private sealed record PlayClaim(string Replay, string Device, long ExpiresUnix);
 
-    private void PruneLocked(DateTime nowUtc)
+    private string DeriveKey(string keyId) =>
+        Convert.ToHexString(HMACSHA256.HashData(_sealKey, Encoding.UTF8.GetBytes("key:" + keyId))[..16]); // 32 ASCII chars = AES-256 key material
+
+    private string Seal(PlayClaim claim)
     {
-        var cutoff = nowUtc - _retention;
-        var pinned = new HashSet<string>(
-            (_featured ?? LoadFeatured())?.ReplayIds ?? [], StringComparer.Ordinal);
-
-        var removed = 0;
-        foreach (var record in _records.Values.OrderBy(r => r.EndUtc).ToList())
-        {
-            if (pinned.Contains(record.ReplayId)) continue;
-            // Age is measured by server receipt, not the (untrusted) header timestamp.
-            var tooOld = record.CreatedUtc < cutoff;
-            var totalBytes = _records.Values.Sum(r => r.SizeBytes);
-            var overBudget = totalBytes > _maxTotalBytes;
-            if (!tooOld && !overBudget) continue;
-            _records.TryRemove(record.ReplayId, out _);
-            TryDelete(BlobPath(record.ReplayId));
-            TryDelete(MetaPath(record.ReplayId));
-            removed++;
-        }
-
-        if (removed > 0) _logger.LogInformation("Replay retention pruned {Count} record(s)", removed);
+        var plain = JsonSerializer.SerializeToUtf8Bytes(claim);
+        var nonce = RandomNumberGenerator.GetBytes(12);
+        var tag = new byte[16];
+        var cipher = new byte[plain.Length];
+        using var aes = new AesGcm(_sealKey, 16);
+        aes.Encrypt(nonce, plain, cipher, tag);
+        return Base64Url(nonce.Concat(tag).Concat(cipher).ToArray());
     }
 
-    private static void TryDelete(string path)
-    {
-        try { if (File.Exists(path)) File.Delete(path); } catch (IOException) { /* best effort */ }
-    }
-
-    // ------------------------------------------------------------------ featured persistence
-
-    private DateTime RotationStart(DateTime nowUtc)
-    {
-        var ticks = _rotation.Ticks;
-        return ticks <= 0 ? nowUtc : new DateTime(nowUtc.Ticks - (nowUtc.Ticks % ticks), DateTimeKind.Utc);
-    }
-
-    private FeaturedSnapshot? LoadFeatured()
+    private PlayClaim? Open(string keyId)
     {
         try
         {
-            if (!File.Exists(_featuredPath)) return null;
-            return JsonSerializer.Deserialize<FeaturedSnapshot>(File.ReadAllText(_featuredPath));
+            var raw = FromBase64Url(keyId);
+            if (raw.Length <= 28) return null;
+            var plain = new byte[raw.Length - 28];
+            using var aes = new AesGcm(_sealKey, 16);
+            aes.Decrypt(raw.AsSpan(0, 12), raw.AsSpan(28), raw.AsSpan(12, 16), plain);
+            return JsonSerializer.Deserialize<PlayClaim>(plain);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is FormatException or CryptographicException or JsonException or ArgumentException)
         {
-            _logger.LogWarning("Ignoring unreadable featured rotation {File}: {Error}", _featuredPath, ex.Message);
-            return null;
+            return null; // forged, truncated, or sealed by another key
         }
     }
 
-    private void PersistFeatured(FeaturedSnapshot snapshot)
+    private static string Base64Url(byte[] bytes) =>
+        Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+
+    private static byte[] FromBase64Url(string value)
     {
-        try
-        {
-            var temp = _featuredPath + ".tmp";
-            File.WriteAllText(temp, JsonSerializer.Serialize(snapshot));
-            File.Move(temp, _featuredPath, overwrite: true);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning("Could not persist featured rotation: {Error}", ex.Message);
-        }
+        var padded = value.Replace('-', '+').Replace('_', '/');
+        padded = padded.PadRight(padded.Length + (4 - padded.Length % 4) % 4, '=');
+        return Convert.FromBase64String(padded);
     }
 
     // ------------------------------------------------------------------ archive parsing
@@ -708,8 +626,8 @@ public sealed class BattleReplayService
         int read;
         while ((read = gunzip.Read(buffer, 0, buffer.Length)) > 0)
         {
-            if (output.Length + read > _maxDecompressedBytes)
-                throw new InvalidDataException($"decompressed archive exceeds {_maxDecompressedBytes} bytes");
+            if (output.Length + read > _options.MaxDecompressedBytes)
+                throw new InvalidDataException($"decompressed archive exceeds {_options.MaxDecompressedBytes} bytes");
             output.Write(buffer, 0, read);
         }
 

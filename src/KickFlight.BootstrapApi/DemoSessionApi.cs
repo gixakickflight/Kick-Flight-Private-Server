@@ -1140,14 +1140,11 @@ public sealed partial class DemoSessionApi : IDisposable
             return Results.NotFound();
         }
 
-        // The replay blob /battleReplay/play handed out. UnityWebRequest.Get sends no session headers, so this is
-        // authenticated by the one-shot key id in the URL only.
+        // The replay blob /battleReplay/play handed out (DemoSessionApi.Replay.cs). UnityWebRequest.Get sends no session
+        // headers, so this is authenticated by the sealed key id in the URL only.
         if (HttpMethods.IsGet(context.Request.Method) && path.StartsWith("/battleReplay/blob/", StringComparison.Ordinal))
         {
-            var keyId = path["/battleReplay/blob/".Length..];
-            return _replays.TryEncodeBlob(keyId, _timeProvider.GetUtcNow().UtcDateTime, out var encoded)
-                ? Results.Bytes(encoded, "application/octet-stream")
-                : Results.NotFound();
+            return await HandleBattleReplayBlobAsync(context, path["/battleReplay/blob/".Length..]);
         }
 
         if (!HttpMethods.IsPost(context.Request.Method)) return null;
@@ -1411,21 +1408,22 @@ public sealed partial class DemoSessionApi : IDisposable
             return await HandleBattleResultAsync(context, ticket, state, key);
         }
 
-        // Replays: /battle/upload receives the master client's gzip archive, /battleReplay/index lists the Kicker
-        // and Featured channels, /battleReplay/play hands out a per-download key and blob URL.
+        // Replays (DemoSessionApi.Replay.cs): /battle/upload hands the master client's gzip archive to otomo's patch,
+        // /battleReplay/index lists the Kicker and Featured channels from it, /battleReplay/play hands out a
+        // per-download key and blob URL.
         if (path == "/battle/upload")
         {
-            return await HandleBattleUploadAsync(context, state, key);
+            return await HandleBattleUploadAsync(context, ticket, state, key);
         }
 
         if (path == "/battleReplay/index")
         {
-            return HandleBattleReplayIndex(context, state, key);
+            return await HandleBattleReplayIndexAsync(context, ticket, state, key);
         }
 
         if (path == "/battleReplay/play")
         {
-            return await HandleBattleReplayPlayAsync(context, state, key);
+            return await HandleBattleReplayPlayAsync(context, ticket, state, key);
         }
 
         if (path == "/battle/cancel")
@@ -3193,94 +3191,6 @@ public sealed partial class DemoSessionApi : IDisposable
         if (prop.ValueKind == JsonValueKind.True) { value = true; return true; }
         if (prop.ValueKind == JsonValueKind.False) { value = false; return true; }
         return false;
-    }
-
-    // /battle/upload: base64( gzip( archive ) ) inside the D2C body, exactly what ReplayUtility.GetReplayWorkZipData
-    // hands to Convert.ToBase64String (see docs/REPLAYS.md). The response DTO is empty.
-    private async Task<IResult?> HandleBattleUploadAsync(HttpContext context, SessionState state, byte[] key)
-    {
-        var body = await ReadBodyAsync(context.Request);
-        try
-        {
-            var plaintext = D2CCodec.Decode(body, key);
-            using var document = JsonDocument.Parse(plaintext);
-            var root = document.RootElement;
-            var battleId = TryGetString(root, "battleId", out var parsedId) ? parsedId : "";
-            var uploadFile = TryGetString(root, "uploadFile", out var parsedFile) ? parsedFile : "";
-            if (string.IsNullOrEmpty(uploadFile)) return StatusError(context, key);
-
-            // Reject on the base64 length before allocating the decoded buffer (base64 is 4/3 of the raw size).
-            if (uploadFile.Length > _replays.MaxUploadBytes / 3 * 4 + 8)
-            {
-                _logger.LogWarning("Rejected /battle/upload for {UserId}: base64 upload is over the {Cap}-byte cap",
-                    state.UserId, _replays.MaxUploadBytes);
-                return StatusError(context, key);
-            }
-
-            byte[] gzip;
-            try
-            {
-                gzip = Convert.FromBase64String(uploadFile);
-            }
-            catch (FormatException)
-            {
-                _logger.LogWarning("Rejected /battle/upload for {UserId}: uploadFile is not base64", state.UserId);
-                return StatusError(context, key);
-            }
-
-            var stored = _replays.StoreUpload(battleId, gzip, _timeProvider.GetUtcNow().UtcDateTime);
-            context.Response.Headers["x-app-status-code"] = "0";
-            context.Response.Headers["x-kickflight-fixture"] = "dynamic-battle-upload";
-            _logger.LogInformation("Handled /battle/upload for {UserId}: battle={BattleId} bytes={Bytes} stored={Stored}",
-                state.UserId, battleId, gzip.Length, stored);
-            return BinaryJson("{}", key);
-        }
-        catch (Exception ex) when (ex is CryptographicException or JsonException or ArgumentException or InvalidDataException or IOException)
-        {
-            _logger.LogWarning("Could not handle /battle/upload for {UserId}: {Error}", state.UserId, ex.Message);
-            return StatusError(context, key);
-        }
-    }
-
-    // /battleReplay/index: Featured is channel id 1 (the served type-3 master row); each kicker is 1000+kickerId
-    // (the type-2 rows). The client matches entries by battleReplayChannelId against BattleReplayChannelMaster.
-    private IResult HandleBattleReplayIndex(HttpContext context, SessionState state, byte[] key)
-    {
-        var kickerIds = _kickerList.Select(k => k.Id).OrderBy(id => id).ToArray();
-        var json = _replays.BuildIndexJson(kickerIds, DefaultCostumeRowId, _timeProvider.GetUtcNow().UtcDateTime);
-        context.Response.Headers["x-kickflight-fixture"] = "dynamic-battle-replay-index";
-        return OkJson(context, key, json);
-    }
-
-    private int DefaultCostumeRowId(int kickerId) =>
-        _costumesByKicker.TryGetValue(kickerId, out var rows) && rows.Count > 0 ? rows[0] : 1;
-
-    private async Task<IResult?> HandleBattleReplayPlayAsync(HttpContext context, SessionState state, byte[] key)
-    {
-        var replayId = "";
-        try
-        {
-            var body = await ReadBodyAsync(context.Request);
-            if (body.Length > D2CCodec.VectorSizeBytes)
-            {
-                using var document = JsonDocument.Parse(D2CCodec.Decode(body, key));
-                if (TryGetString(document.RootElement, "battleReplayId", out var parsed)) replayId = parsed;
-            }
-        }
-        catch (Exception ex) when (ex is CryptographicException or JsonException or ArgumentException)
-        {
-            _logger.LogWarning("Could not decode /battleReplay/play request: {Error}", ex.Message);
-            return StatusError(context, key);
-        }
-
-        var (keyId, encryptionKey) = _replays.CreatePlayKey(replayId, _timeProvider.GetUtcNow().UtcDateTime);
-        var url = string.IsNullOrEmpty(keyId)
-            ? ""
-            : $"{context.Request.Scheme}://{context.Request.Host}/battleReplay/blob/{keyId}";
-        _logger.LogInformation("Handled /battleReplay/play for {UserId}: replay={ReplayId} found={Found}",
-            state.UserId, replayId, !string.IsNullOrEmpty(keyId));
-        context.Response.Headers["x-kickflight-fixture"] = "dynamic-battle-replay-play";
-        return OkJson(context, key, JsonSerializer.Serialize(new { battleReplayUrl = url, encryptionKey }));
     }
 
     private static LocalFixtureResult BinaryJson(string json, byte[] key) =>

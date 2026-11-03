@@ -67,6 +67,13 @@ builder.Services.AddSingleton<IOtomoRank>(services => services.GetRequiredServic
 // Profile: a player's loadout (decks, gears, the active deck, a pending gear roll) is ext on their session card. Same
 // listener, key and failure model as the rank client above, so it is the same instance behind a second interface.
 builder.Services.AddSingleton<IOtomoProfile>(services => services.GetRequiredService<OtomoRank>());
+// Recordings: replays are otomo's patch service (BattleReplayService, DemoSessionApi.Replay.cs). One client, holding no
+// replay, index or rotation of its own: the Replays:* storage section is gone, and retention is patch's.
+builder.Services.Configure<OtomoRecordingsOptions>(builder.Configuration.GetSection(OtomoRecordingsOptions.SectionName));
+builder.Services.AddSingleton<IOtomoRecordings>(services => OtomoRecordings.Create(
+    services.GetRequiredService<IOptions<OtomoRecordingsOptions>>(),
+    services.GetRequiredService<IOptions<OtomoSocialOptions>>(),
+    services.GetRequiredService<ILogger<OtomoRecordings>>()));
 // Masters: otomo publishes them as a release and this adapter follows the channel (docs/OTOMO_MASTERS.md). The
 // tables named in Otomo:Masters:Tables are read from otomo and from nowhere else; every other table is still a
 // file under config/. The refresher is what turns a publish into a running server's new values.
