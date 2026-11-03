@@ -468,14 +468,22 @@ public sealed class FakeOtomoEconomy : IAsyncDisposable
     }
 
     // What the published classes pay, as far as this suite needs them (otomo/namespaces/economy, release 18).
+    //
+    // The starter bundle is three classes and a startup pays all three to an account still in onboarding. What
+    // `starter.discs` holds is economy's namespace data, not the adapter's: this fake records that the class was
+    // paid and moves no item, because nothing here asserts the deck's contents and inventing them would collide
+    // with the discs the tutorial lessons spend.
     private static readonly Dictionary<string, Grant[]> Classes = new(StringComparer.Ordinal)
     {
+        ["starter.discs"] = [],
+        ["starter.jetcoin"] = [new Grant("jetcoin", null, StarterJetCoins)],
         ["starter.disc_force"] = [new Grant("disc_force", null, StarterDiscForce)],
         ["tutorial.disc"] = [new Grant(null, "disc:3010013", 1)],
         ["tutorial.kicker"] = [new Grant(null, "skin:2010201", 1)]
     };
 
     public const long StarterDiscForce = 300;
+    public const long StarterJetCoins = 300;
 
     private readonly Dictionary<string, JsonElement> _internalReplies = new(StringComparer.Ordinal);
 

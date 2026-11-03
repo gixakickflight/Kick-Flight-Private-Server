@@ -108,10 +108,15 @@ at its rarity's start level (`economy-tuning.json` `startLevels`). Casual battle
 
 ## Onboarding
 
-- **Starter Disc Force.** The first `/startup/index` of an account that has no name yet pays class
-  `starter.disc_force` (economy release 18: 300) on the internal plane, keyed `starter.disc_force:<playerId>`, before
-  the wallet is read; `SessionState.StarterDiscForcePaid` saves the call afterwards. A failed grant is logged and
-  retried on the next startup; the startup still answers.
+- **The starter bundle.** The first `/startup/index` of an account that has no name yet pays `starter.discs`,
+  `starter.jetcoin` and `starter.disc_force` (economy release 18: 300) on the internal plane, each keyed
+  `<class>:<playerId>`, before the wallet is read; `SessionState.StarterDiscForcePaid` saves the call afterwards.
+- **An account named before that bundle existed** is still owed the one class onboarding's name step gates: a named
+  account whose wallet the same startup has just read holds no `disc_force` is paid `starter.disc_force` only, under
+  the same key, and nothing else - the discs and the coins belong to onboarding's own screens. Whether it holds any
+  is taken from that read, never from a second call, and a replayed key (a retry, a second device, two startups
+  racing on a zero balance) pays nothing again. A failed grant is logged and retried on the next startup; the startup
+  still answers.
 - **Short onboarding by default.** `Tutorial:Ladder` defaults to `false`: a nameless account is sent status 206 (the
   name window), the path known to work on devices.
 - **The ladder** (`Tutorial:Ladder=true`) is only offered to an account that can finish it. The tutorial's build-up

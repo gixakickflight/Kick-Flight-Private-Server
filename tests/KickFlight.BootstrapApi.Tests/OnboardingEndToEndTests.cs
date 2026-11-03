@@ -43,16 +43,20 @@ public sealed class OnboardingEndToEndTests : IDisposable
     }
 
     [Fact]
-    public async Task An_account_that_already_has_a_name_is_not_paid_the_starter()
+    public async Task An_account_that_already_has_a_name_is_paid_only_the_disc_force()
     {
         var host = Host_(ladder: false);
         var session = await CreateSessionAsync(host);
-        await PostAsync(session, "/tutorial/end", new { name = "Veteran" });
+        await PostAsync(session, "/tutorial/end", new { name = "Vet" + Guid.NewGuid().ToString("N")[..6] });
 
         var startup = await PostAsync(session, "/startup/index", null);
 
-        Assert.Equal(0, ItemAmount(startup, EconomyCatalog.DiscForceItemId));
-        Assert.Empty(StarterGrantsFor(session.Account));
+        // Named before the starter bundle existed, so onboarding is over and its screens' discs and coins are not
+        // owed: the force its build-up lesson needs is, and it is what this startup answers with.
+        Assert.Equal(FakeOtomoEconomy.StarterDiscForce, ItemAmount(startup, EconomyCatalog.DiscForceItemId));
+        Assert.Equal(0, _economy.BalanceOf(session.Account, "jetcoin"));
+        Assert.Equal(0, _economy.ItemsOf(session.Account, "disc:3010001"));
+        Assert.Single(StarterGrantsFor(session.Account));
     }
 
     [Fact]

@@ -1251,12 +1251,29 @@ public sealed partial class DemoSessionApi
         if (path == "/startup/index")
         {
             // Paid before the read, so the counters this startup sends already hold it: the client prices the
-            // tutorial's build-up button from them, and nothing later in onboarding repeats the item list.
-            await PayStarterDiscForceAsync(ticket, state, path, context.RequestAborted);
+            // tutorial's build-up button from them, and nothing later in onboarding repeats the item list. This is
+            // the bundle, and only an account still in onboarding is owed it.
+            if (!state.HasName)
+            {
+                await PayStarterAsync(ticket, state, discForce: null, path, context.RequestAborted);
+            }
+
             var economy = await ReadPlayerEconomyAsync(ticket,
                 EconomyRead.Balances | EconomyRead.Inventory | EconomyRead.Tasks, path, context.RequestAborted);
             if (economy.Snapshot is null) return EconomyUnavailable(context, path, economy.Error);
             var snapshot = economy.Snapshot!;
+
+            // An account named before this grant existed never saw the bundle: onboarding is over for it, so the
+            // one class it can still be owed is the starter Disc Force, and whether it holds any is in the wallet
+            // this startup has just read - that read is the input, never a second call. Two startups racing on a
+            // zero balance both grant here, and the class's key is the player id: the later call is economy's
+            // replay and pays nothing again.
+            if (state.HasName)
+            {
+                var granted = await PayStarterAsync(ticket, state, DiscForceBalanceOf(snapshot), path,
+                    context.RequestAborted);
+                snapshot = WithGrantedBalances(snapshot, granted);
+            }
 
             context.Response.Headers["x-app-status-code"] = "0";
             context.Response.Headers["x-kickflight-fixture"] = "dynamic-demo-session";

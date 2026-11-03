@@ -192,38 +192,50 @@ public sealed partial class DemoSessionApi
         return result;
     }
 
-    // Paid once per account, before the name step. Order matters only for the log.
+    // The whole bundle, once per account, before the name step. Order matters only for the log.
     private static readonly string[] StarterClasses =
         ["starter.discs", "starter.jetcoin", StarterDiscForceClass];
 
     private const string StarterDiscForceClass = "starter.disc_force";
 
-    // The starter Disc Force, once per account, for an account still in onboarding (no name yet): what a new player
-    // walks the tutorial's build-up lesson with. The key is the player, so a retry, a lost save flag or a second
-    // device is economy's replay and pays nothing more. A grant that cannot be made is logged and tried again on the
-    // next startup; the startup itself still answers, because the wallet read after this is what it shows.
-    private async Task PayStarterDiscForceAsync(KfIdentityTicket ticket, SessionState state, string path,
-        CancellationToken cancellationToken)
+    // What a startup still owes this account, decided from the save and from the Disc Force balance the startup has
+    // read. Onboarding pays the whole bundle to an account with no name yet: a client with no discs dereferences an
+    // empty deck the moment the tutorial battle starts, and the coins and the force are what its first screens
+    // spend. A name ends onboarding, so a named account is owed one class at most - the starter Disc Force its
+    // build-up lesson needs - and only while its wallet holds none of it. `discForce` is null when the balance is
+    // not known yet (the call made before the read, which pays the bundle or nothing), and an unknown balance never
+    // pays the lone class: reading the wallet is what keeps a second startup from paying twice.
+    private static IReadOnlyList<string> StarterClassesOwed(SessionState state, long? discForce) =>
+        state.StarterDiscForcePaid ? []
+            : !state.HasName ? StarterClasses
+            : discForce is null or > 0 ? []
+            : [StarterDiscForceClass];
+
+    // Pays what StarterClassesOwed names, each class under <class>:<player>, so a retry, a lost save flag or a
+    // second device is economy's replay and pays nothing more. A grant that cannot be made is logged and tried
+    // again on the next startup; the startup itself still answers, because the wallet read is what it shows.
+    // Returns the last grant made, for a caller that has already read the wallet and answers from it.
+    private async Task<EconomyGrantResult?> PayStarterAsync(KfIdentityTicket ticket, SessionState state,
+        long? discForce, string path, CancellationToken cancellationToken)
     {
-        if (state.HasName || state.StarterDiscForcePaid) return;
+        var owed = StarterClassesOwed(state, discForce);
+        if (owed.Count == 0) return null;
+
+        EconomyGrantResult? paid = null;
         try
         {
-            // Everything a brand-new player must hold before the tutorial's first screen: the whole
-            // starting deck, the coin the tutorial spends, and the force its level-up lesson needs. A
-            // client with no discs dereferences an empty deck the moment the tutorial battle starts, so
-            // this is paid before the name step rather than alongside the tutorial rewards.
-            foreach (var starterClass in StarterClasses)
+            foreach (var starterClass in owed)
             {
-                var grant = await GrantClassAsync(ticket, starterClass,
+                paid = await GrantClassAsync(ticket, starterClass,
                     $"{starterClass}:{ticket.OtomoPlayerId}", "starter", path, cancellationToken);
-                if (grant is null) return;
+                if (paid is null) return null;
             }
         }
         catch (OtomoEconomyException ex)
         {
             _logger.LogWarning("{Path}: {Class} for user {UserId} not paid ({Failure} {Status} {Code}); retried on " +
                 "the next startup", path, StarterDiscForceClass, state.UserId, ex.Failure, ex.StatusCode, ex.Code);
-            return;
+            return null;
         }
 
         lock (state)
@@ -231,6 +243,30 @@ public sealed partial class DemoSessionApi
             state.StarterDiscForcePaid = true;
             SaveUserState(state);
         }
+        return paid;
+    }
+
+    // The Disc Force in a wallet that has just been read. A wallet with no disc_force row has never held any - which
+    // is exactly the account this pays - so the missing row reads as zero rather than as an error.
+    private static long DiscForceBalanceOf(EconomySnapshot snapshot) =>
+        snapshot.Balances.FirstOrDefault(balance =>
+            string.Equals(balance.Currency, EconomyCatalog.DiscForceCurrency, StringComparison.Ordinal))?.Balance ?? 0;
+
+    // The wallet a grant has just moved, folded into the snapshot the startup read a moment earlier: the counters
+    // this payload sends are what the client prices its screens from, so they must already hold what was paid. A
+    // replay answers the *first* call's balances, which may be stale by now, so only a fresh grant is folded in and
+    // a replayed one leaves the wallet as this startup read it.
+    private static EconomySnapshot WithGrantedBalances(EconomySnapshot snapshot, EconomyGrantResult? granted)
+    {
+        if (granted is not { Replayed: false, Balances: { Count: > 0 } balances }) return snapshot;
+
+        var merged = new Dictionary<string, long>(StringComparer.Ordinal);
+        foreach (var balance in snapshot.Balances) merged[balance.Currency] = balance.Balance;
+        foreach (var balance in balances) merged[balance.Currency] = balance.Balance;
+        return snapshot with
+        {
+            Balances = merged.Select(pair => new EconomyBalance(pair.Key, pair.Value)).ToList()
+        };
     }
 
     // The player's own access token, for a player-plane call outside ReadPlayerEconomyAsync (a roll, a claim).
