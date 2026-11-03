@@ -1,5 +1,7 @@
 # Local APK Signing & Keystore Recommendation for Native Targeting Worker
 
+> NOTE: `4B:07:93:DE...` below is a LOCAL TEST certificate (kickflight-test-signing.jks), NOT the official release certificate. The official release cert SHA-256 is `81ca6334fd069edbc8756a49fc135c91141eba8265cb64d0510ed9b231b21537`; never treat the 4b0793de... cert as release-signing.
+
 ## 1. Active Installed Package Signature
 - **Installed Package:** `jp.grenge.kickflight`
 - **Installed Certificate SHA-256:** `4B:07:93:DE:89:74:C2:EB:38:D1:98:41:9C:DA:2B:7A:26:93:FC:C6:0E:A0:09:FC:DA:B4:EE:8F:27:C8:DC:EB`
