@@ -473,6 +473,10 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
                     { DataStream = new MemoryStream(Encoding.UTF8.GetBytes(text)) });
                 Add("manifest.json", "{\"release\":\"test-release\"}");
                 Add("config/session.rank.json", LadderDocument);
+                // The tenant's staging release carries every master table as kf.masters.<table> = {"rows": [...]}. The
+                // fake serves the repository's own config/masters_*.json files in that envelope, so a host that follows
+                // it serves what the files hold unless a test changes a table here (ReplaceMasterRows).
+                foreach (var (ns, rows) in MasterDocuments()) Add($"config/{ns}.json", rows);
             }
             var bytes = buffer.ToArray();
             context.Response.Headers["Digest"] = "sha-256=" + Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
@@ -481,6 +485,29 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
             return Results.Bytes(bytes, "application/gzip");
         });
     }
+
+    // namespace -> the {"rows": [...]} document, for every table masters/otomo/namespaces.json lists.
+    private static readonly Lazy<IReadOnlyDictionary<string, string>> RepositoryMasterDocuments = new(() =>
+    {
+        var root = KickFlight.BootstrapApi.RepositoryPaths.FindRoot(AppContext.BaseDirectory);
+        using var catalogue = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "masters", "otomo", "namespaces.json")));
+        var documents = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var entry in catalogue.RootElement.GetProperty("namespaces").EnumerateArray())
+        {
+            var file = Path.Combine(root, entry.GetProperty("source").GetString()!);
+            documents[entry.GetProperty("namespace").GetString()!] = "{\"rows\": " + File.ReadAllText(file) + "}";
+        }
+        return documents;
+    });
+
+    private readonly ConcurrentDictionary<string, string> _replacedMasters = new(StringComparer.Ordinal);
+
+    // Makes the release carry other rows for a table (by namespace, e.g. "kf.masters.stamp") than the file holds.
+    public void ReplaceMasterRows(string ns, string rowsJson) => _replacedMasters[ns] = "{\"rows\": " + rowsJson + "}";
+
+    private IEnumerable<KeyValuePair<string, string>> MasterDocuments() =>
+        RepositoryMasterDocuments.Value.Select(pair =>
+            new KeyValuePair<string, string>(pair.Key, _replacedMasters.GetValueOrDefault(pair.Key, pair.Value)));
 
     private bool Service(HttpContext context, out IResult? failure)
     {

@@ -91,8 +91,9 @@ public sealed class OtomoMasters : IDisposable
         }), options, time, logger);
 
     // Whether this table comes from otomo. The table's file read is skipped when this is true, which is what
-    // makes the port a replacement rather than a second source.
-    public bool Owns(string table) => _bindings.Any(binding => string.Equals(binding.Table, table, StringComparison.Ordinal));
+    // makes the port a replacement rather than a second source. Only an enabled client owns anything: appsettings.json
+    // lists every table the adapter serves, and a server with Otomo:Masters:Enabled off must keep reading its files.
+    public bool Owns(string table) => Enabled && _bindings.Any(binding => string.Equals(binding.Table, table, StringComparison.Ordinal));
 
     public bool TryGetTable(string table, out string json) => _tables.TryGetValue(table, out json!);
 

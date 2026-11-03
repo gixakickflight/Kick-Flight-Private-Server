@@ -70,23 +70,23 @@
       "motivations": {
         "attack": 90,
         "defense": 20,
-        "score": 40
+        "score": 20
       },
-      "scoreToDeposit": 10,
+      "scoreToDeposit": 8,
       "lowHpDepositThreshold": 0.35,
       "dashIntervals": {
-        "attack": 0.8,
+        "attack": 0.6,
         "defense": 1.2,
         "score": 1.2
       },
       "skillIntervals": {
         "attack": 2.5,
-        "heal": 5.0,
-        "buff": 5.0,
-        "trap": 4.0,
-        "warp": 4.0
+        "heal": 4.5,
+        "buff": 4.0,
+        "trap": 5.0,
+        "warp": 5.0
       },
-      "healDamageRate": 0.5,
+      "healDamageRate": 0.6,
       "canLockon": true
     },
     {
@@ -184,23 +184,23 @@
       "kickerCostumeId": 2070101,
       "rank": 13,
       "motivations": {
-        "attack": 65,
-        "defense": 35,
-        "score": 60
+        "attack": 86,
+        "defense": 33,
+        "score": 50
       },
-      "scoreToDeposit": 10,
+      "scoreToDeposit": 5,
       "lowHpDepositThreshold": 0.35,
       "dashIntervals": {
-        "attack": 0.7,
-        "defense": 0.8,
-        "score": 0.7
+        "attack": 0.9,
+        "defense": 0.9,
+        "score": 0.9
       },
       "skillIntervals": {
-        "attack": 2.8,
-        "heal": 4.0,
-        "buff": 2.5,
+        "attack": 4.0,
+        "heal": 3.5,
+        "buff": 4.0,
         "trap": 5.0,
-        "warp": 4.0
+        "warp": 4.5
       },
       "healDamageRate": 0.5,
       "canLockon": true
@@ -242,23 +242,23 @@
       "kickerCostumeId": 2010101,
       "rank": 13,
       "motivations": {
-        "attack": 30,
-        "defense": 30,
-        "score": 90
+        "attack": 50,
+        "defense": 50,
+        "score": 50
       },
       "scoreToDeposit": 5,
       "lowHpDepositThreshold": 0.35,
       "dashIntervals": {
-        "attack": 1.0,
-        "defense": 0.8,
-        "score": 0.8
+        "attack": 0.9,
+        "defense": 0.9,
+        "score": 0.9
       },
       "skillIntervals": {
         "attack": 4.0,
-        "heal": 3.0,
+        "heal": 3.5,
         "buff": 4.0,
         "trap": 5.0,
-        "warp": 4.0
+        "warp": 4.5
       },
       "healDamageRate": 0.5,
       "canLockon": true
@@ -648,16 +648,16 @@
       "kickerCostumeId": 2010101,
       "rank": 13,
       "motivations": {
-        "attack": 25,
-        "defense": 20,
-        "score": 95
+        "attack": 0,
+        "defense": 0,
+        "score": 100
       },
       "scoreToDeposit": 1,
       "lowHpDepositThreshold": 0.35,
       "dashIntervals": {
-        "attack": 1.0,
+        "attack": 0.4,
         "defense": 0.8,
-        "score": 0.7
+        "score": 0.4
       },
       "skillIntervals": {
         "attack": 4.0,
@@ -667,7 +667,7 @@
         "warp": 4.0
       },
       "healDamageRate": 0.5,
-      "canLockon": true
+      "canLockon": false
     },
     {
       "profile": "Pitophy",
@@ -706,16 +706,16 @@
       "kickerCostumeId": 2090101,
       "rank": 13,
       "motivations": {
-        "attack": 25,
-        "defense": 20,
-        "score": 95
+        "attack": 0,
+        "defense": 0,
+        "score": 100
       },
       "scoreToDeposit": 1,
       "lowHpDepositThreshold": 0.35,
       "dashIntervals": {
         "attack": 1.0,
-        "defense": 0.8,
-        "score": 0.7
+        "defense": 0.3,
+        "score": 0.4
       },
       "skillIntervals": {
         "attack": 4.0,
@@ -725,7 +725,7 @@
         "warp": 4.0
       },
       "healDamageRate": 0.5,
-      "canLockon": true
+      "canLockon": false
     },
     {
       "profile": "Diatrius",

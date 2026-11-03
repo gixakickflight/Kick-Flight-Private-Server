@@ -224,12 +224,12 @@ public sealed partial class DemoSessionApi : IDisposable
 
     private void InitializeMasters(string contentRoot)
     {
-        var kickerJson = LoadJson(contentRoot, "config/masters_kicker.json", """[{"id":1,"name":"Tsubame","shortName":"Tsubame","nameSpelling":"Tsubame","voiceActorName":"CV: Yuma Uchida"}]""");
-        var costumeJson = LoadJson(contentRoot, "config/masters_kicker_costume.json", """[{"id":1,"kickerId":1,"costumeId":1,"costumeName":"Tsubame - Standard Color","sortOrder":1,"battleResultPositionSortOrder":1,"battleResultModelScale":1.0,"exclusiveFlag":false,"releaseDatetime":"2019-01-01 00:00:00"}]""");
-        var detailJson = LoadJson(contentRoot, "config/masters_kicker_detail.json", """[{"id":1,"kickerId":1,"kickerIntroductionText":"Fast as the wind","kickerSkillName":"Sonic Rush","kickerSkillShortText":"Quick attack","kickerSkillLongText":"Dashes forward","specialSkillName":"Burst Glide","specialSkillShortText":"Massive tornado","specialSkillLongText":"Creates a powerful tornado","kickerAbilityName":"Accel Charge","kickerAbilityShortText":"Speed","kickerAbilityLongText":"Faster with crystals","kickerDiscDistinctionText":"Aerial combat","kickerGraphHpRate":0.8,"kickerGraphAttackRate":0.9,"kickerGraphSpeedRate":1.0,"age":18,"birthday":"1/1","height":"165cm","profileText":"Fast as the wind"}]""");
-        var parameterJson = LoadJson(contentRoot, "config/masters_kicker_parameter.json", "[]");
-        var abilityJson = LoadJson(contentRoot, "config/masters_kicker_ability.json", "[]");
-        var abilityConditionJson = LoadJson(contentRoot, "config/masters_kicker_ability_condition.json", "[]");
+        var kickerJson = MasterJson("Kicker", contentRoot, "config/masters_kicker.json", """[{"id":1,"name":"Tsubame","shortName":"Tsubame","nameSpelling":"Tsubame","voiceActorName":"CV: Yuma Uchida"}]""");
+        var costumeJson = MasterJson("KickerCostume", contentRoot, "config/masters_kicker_costume.json", """[{"id":1,"kickerId":1,"costumeId":1,"costumeName":"Tsubame - Standard Color","sortOrder":1,"battleResultPositionSortOrder":1,"battleResultModelScale":1.0,"exclusiveFlag":false,"releaseDatetime":"2019-01-01 00:00:00"}]""");
+        var detailJson = MasterJson("KickerDetail", contentRoot, "config/masters_kicker_detail.json", """[{"id":1,"kickerId":1,"kickerIntroductionText":"Fast as the wind","kickerSkillName":"Sonic Rush","kickerSkillShortText":"Quick attack","kickerSkillLongText":"Dashes forward","specialSkillName":"Burst Glide","specialSkillShortText":"Massive tornado","specialSkillLongText":"Creates a powerful tornado","kickerAbilityName":"Accel Charge","kickerAbilityShortText":"Speed","kickerAbilityLongText":"Faster with crystals","kickerDiscDistinctionText":"Aerial combat","kickerGraphHpRate":0.8,"kickerGraphAttackRate":0.9,"kickerGraphSpeedRate":1.0,"age":18,"birthday":"1/1","height":"165cm","profileText":"Fast as the wind"}]""");
+        var parameterJson = MasterJson("KickerParameter", contentRoot, "config/masters_kicker_parameter.json", "[]");
+        var abilityJson = MasterJson("KickerAbility", contentRoot, "config/masters_kicker_ability.json", "[]");
+        var abilityConditionJson = MasterJson("KickerAbilityCondition", contentRoot, "config/masters_kicker_ability_condition.json", "[]");
         var translationJson = MasterJson("Translation", contentRoot, "config/masters_translation.json", "[]");
 
         try
@@ -292,13 +292,13 @@ public sealed partial class DemoSessionApi : IDisposable
         // scaling (150 came out as ~50 on a ~40k HP kicker; 6000 = ~2000 per shot). Row 2 is the ball-rule goal
         // guardian: NPCRevivalableGuardian.SetMaxHP is MAX_HP_STEP_AMOUNT (6) x hp, so 6 x 3000 = 18000 = ~7 hits.
         // The file is the source; the literal is only the fallback for a checkout without config/.
-        var guardianParameterJson = LoadJson(contentRoot, "config/masters_guardian_parameter.json", """[{"id":1,"matchType":1,"rank":1,"hp":8000,"attack":6000}]""");
+        var guardianParameterJson = MasterJson("GuardianParameter", contentRoot, "config/masters_guardian_parameter.json", """[{"id":1,"matchType":1,"rank":1,"hp":8000,"attack":6000}]""");
         _encryptedMasters["GuardianParameter"] = EncryptMaster(guardianParameterJson);
         // guardianAmount is per team: GameManager.CreateGuardian spawns it for both teams and indexes
         // FieldManager.GetGuardianInitialPosition, and FLD00101_1 (the crystal-rule variant) has exactly two
         // guardian points; the ball variants (rules 3/4) also spawn one guard per goal, which must be destroyed
         // before the team can score. The file is the source; the literal is only the fallback.
-        var battleRuleJson = LoadJson(contentRoot, "config/masters_battle_rule.json", BattleRuleFallbackJson);
+        var battleRuleJson = MasterJson("BattleRule", contentRoot, "config/masters_battle_rule.json", BattleRuleFallbackJson);
         _encryptedMasters["BattleRule"] = EncryptMaster(battleRuleJson);
         // id -> mode and rule type. Entries snapshot both values at matchmaking time, so results never infer mode
         // from a result request or from a master that may have changed while the battle was running.
@@ -333,7 +333,7 @@ public sealed partial class DemoSessionApi : IDisposable
         _encryptedMasters["BattleRuleField"] = EncryptMaster(JsonSerializer.Serialize(battleRuleFieldRows));
         // Custom battle uses its own stage lookup. Only expose fields whose base scene and three rule variants
         // are present in the catalog; Trial field 801 has a single flat _100 variant and is not a custom stage.
-        var customBattleRuleFieldJson = LoadJson(contentRoot, "config/masters_custom_battle_rule_field.json", """
+        var customBattleRuleFieldJson = MasterJson("CustomBattleRuleField", contentRoot, "config/masters_custom_battle_rule_field.json", """
             [
               {"id":1,"battleRuleType":1,"fieldId":101,"sortOrder":1},
               {"id":2,"battleRuleType":1,"fieldId":301,"sortOrder":2},
@@ -359,7 +359,7 @@ public sealed partial class DemoSessionApi : IDisposable
 
         // These are the retail-supported AI kicker/AI deck pairs. The client uses this custom-only master when an
         // owner chooses Add AI; humans do not depend on it.
-        var customBattleKickerAiJson = LoadJson(contentRoot, "config/masters_custom_battle_kicker_ai.json", """
+        var customBattleKickerAiJson = MasterJson("CustomBattleKickerAi", contentRoot, "config/masters_custom_battle_kicker_ai.json", """
             [
               {"id":1,"kickerAiParameterId":1,"kickerAiDiscDeckId":1},
               {"id":2,"kickerAiParameterId":2,"kickerAiDiscDeckId":1},
@@ -379,7 +379,7 @@ public sealed partial class DemoSessionApi : IDisposable
             """);
         _encryptedMasters["CustomBattleKickerAi"] = EncryptMaster(customBattleKickerAiJson);
         // The file is the source; the literal is only the fallback.
-        var regularMatchScheduleJson = LoadJson(contentRoot, "config/masters_regular_match_battle_schedule.json", """
+        var regularMatchScheduleJson = MasterJson("RegularMatchBattleSchedule", contentRoot, "config/masters_regular_match_battle_schedule.json", """
             [
               {"id":1,"seasonMatchBattleRuleType":3,"groupId":1,"startTime":"00:00:00","endTime":"23:59:59","battleRuleId":1,"sortOrder":1},
               {"id":2,"seasonMatchBattleRuleType":3,"groupId":1,"startTime":"00:00:00","endTime":"23:59:59","battleRuleId":2,"sortOrder":2},
@@ -623,14 +623,14 @@ public sealed partial class DemoSessionApi : IDisposable
         // item icon renders as a white quad. The counts the client shows come from userItemList, not from here.
         _ = itemJson;
 
-        var discJson = LoadJson(contentRoot, "config/masters_disc.json", "[]");
-        var skillJson = LoadJson(contentRoot, "config/masters_skill.json", "[]");
-        var discGrowJson = LoadJson(contentRoot, "config/masters_disc_grow.json", "[]");
-        var discBuildupJson = LoadJson(contentRoot, "config/masters_disc_buildup.json", "[]");
-        var initialDiscDeckJson = LoadJson(contentRoot, "config/masters_initial_disc_deck.json", "[]");
-        var gearJson = LoadJson(contentRoot, "config/masters_gear.json", "[]");
-        var gearSkillJson = LoadJson(contentRoot, "config/masters_gear_skill.json", "[]");
-        var gearSameColorBonusJson = LoadJson(contentRoot, "config/masters_gear_same_color_bonus.json", "[]");
+        var discJson = MasterJson("Disc", contentRoot, "config/masters_disc.json", "[]");
+        var skillJson = MasterJson("Skill", contentRoot, "config/masters_skill.json", "[]");
+        var discGrowJson = MasterJson("DiscGrow", contentRoot, "config/masters_disc_grow.json", "[]");
+        var discBuildupJson = MasterJson("DiscBuildup", contentRoot, "config/masters_disc_buildup.json", "[]");
+        var initialDiscDeckJson = MasterJson("InitialDiscDeck", contentRoot, "config/masters_initial_disc_deck.json", "[]");
+        var gearJson = MasterJson("Gear", contentRoot, "config/masters_gear.json", "[]");
+        var gearSkillJson = MasterJson("GearSkill", contentRoot, "config/masters_gear_skill.json", "[]");
+        var gearSameColorBonusJson = MasterJson("GearSameColorBonus", contentRoot, "config/masters_gear_same_color_bonus.json", "[]");
 
         try
         {
@@ -690,10 +690,10 @@ public sealed partial class DemoSessionApi : IDisposable
         _encryptedMasters["GearSkill"] = EncryptMaster(gearSkillJson);
         _encryptedMasters["GearSameColorBonus"] = EncryptMaster(gearSameColorBonusJson);
 
-        var aiParamJson = LoadJson(contentRoot, "config/masters_kicker_ai_parameter.json", "[]");
-        var aiDiscJson = LoadJson(contentRoot, "config/masters_kicker_ai_disc.json", "[]");
-        var aiDeckJson = LoadJson(contentRoot, "config/masters_kicker_ai_disc_deck.json", "[]");
-        var pingThresholdJson = LoadJson(contentRoot, "config/masters_matchmaking_ping_threshold.json", "[]");
+        var aiParamJson = MasterJson("KickerAiParameter", contentRoot, "config/masters_kicker_ai_parameter.json", "[]");
+        var aiDiscJson = MasterJson("KickerAiDisc", contentRoot, "config/masters_kicker_ai_disc.json", "[]");
+        var aiDeckJson = MasterJson("KickerAiDiscDeck", contentRoot, "config/masters_kicker_ai_disc_deck.json", "[]");
+        var pingThresholdJson = MasterJson("MatchmakingPingThreshold", contentRoot, "config/masters_matchmaking_ping_threshold.json", "[]");
 
         var aiParamRows = AppendGymAiRows(aiParamJson);
         _baseAiParamRows = aiParamRows;
@@ -743,7 +743,7 @@ public sealed partial class DemoSessionApi : IDisposable
             ("ChatRoom", "masters_chat_room.json"),
         })
         {
-            var json = LoadJson(contentRoot, "config/" + fileName, "[]");
+            var json = MasterJson(masterName, contentRoot, "config/" + fileName, "[]");
             if (json.Trim() == "[]" && masterName is "WeaponAttack" or "WeaponAttackHit" or "WeaponAttackCollision" or "Summon" or "SpecialSkill" or "SpecialSkillHit" or "SpecialSkillCollision")
                 _logger.LogWarning("Combat master {Master} is empty ({File} missing?) - attacks/skills will throw in the client", masterName, fileName);
             _encryptedMasters[masterName] = EncryptMaster(ApplyObscuredOffsets(masterName, json));
@@ -810,8 +810,8 @@ public sealed partial class DemoSessionApi : IDisposable
         // (RuleControllerBase.CalcScore); a missing row NREs and the client never leaves "Cargando". The lookup is
         // TMasterBase.get_Item(battleRuleId) - by row *id*, with a hard-coded fallback to id 3 - so each row's id must
         // equal its battleRuleId (verified 2026-09-19: ids 1/2 kept the NRE, ids 3/4 fixed it).
-        _encryptedMasters["BattleRuleRapidBallScore"] = EncryptMaster(LoadJson(contentRoot, "config/masters_battle_rule_rapid_ball_score.json", "[]"));
-        _encryptedMasters["BattleRuleFlagFlightScore"] = EncryptMaster(LoadJson(contentRoot, "config/masters_battle_rule_flag_flight_score.json", BattleRuleFlagFlightScoreFallbackJson));
+        _encryptedMasters["BattleRuleRapidBallScore"] = EncryptMaster(MasterJson("BattleRuleRapidBallScore", contentRoot, "config/masters_battle_rule_rapid_ball_score.json", "[]"));
+        _encryptedMasters["BattleRuleFlagFlightScore"] = EncryptMaster(MasterJson("BattleRuleFlagFlightScore", contentRoot, "config/masters_battle_rule_flag_flight_score.json", BattleRuleFlagFlightScoreFallbackJson));
 
         _encryptedMasters["Guardian"] = EncryptMaster("""
             [
@@ -865,9 +865,9 @@ public sealed partial class DemoSessionApi : IDisposable
         // MovieCategoryMaster (the Pickup tab's categories; empty keeps it empty). The served key is the client's
         // master class name without the "Master" suffix - the same convention as every other table here (see
         // docs/REPLAYS.md for the disassembly evidence: MasterBase.get_ClassName, RVA 0x1798DF4).
-        var battleReplayChannelJson = LoadJson(contentRoot, "config/masters_battle_replay_channel.json",
+        var battleReplayChannelJson = MasterJson("BattleReplayChannel", contentRoot, "config/masters_battle_replay_channel.json",
             BuildBattleReplayChannelFallbackJson());
-        var movieCategoryJson = LoadJson(contentRoot, "config/masters_movie_category.json", "[]");
+        var movieCategoryJson = MasterJson("MovieCategory", contentRoot, "config/masters_movie_category.json", "[]");
         _encryptedMasters["BattleReplayChannel"] = EncryptMaster(battleReplayChannelJson);
         _encryptedMasters["MovieCategory"] = EncryptMaster(movieCategoryJson);
 
@@ -2781,7 +2781,7 @@ public sealed partial class DemoSessionApi : IDisposable
 
             // CustomBattleRuleField is the client's source of legal rule/map pairs. Enforce that same pair at
             // start so the saved map and the selected mode cannot drift after the lobby has been created.
-            using var customFields = JsonDocument.Parse(LoadJson(
+            using var customFields = JsonDocument.Parse(MasterJson("CustomBattleRuleField",
                 _contentRoot, "config/masters_custom_battle_rule_field.json", "[]"));
             var fieldIsAllowed = customFields.RootElement.EnumerateArray().Any(row =>
                 row.TryGetProperty("battleRuleType", out var type) && type.GetInt32() == battleRuleType

@@ -70,7 +70,11 @@ public sealed class MasterOverridesTests : IDisposable
 }
 
 // The same override layer through the running API: with Masters:OverrideDir pointing at a directory that
-// holds a masters_kicker.json, /demo-master/Kicker has to serve that file, not the checked-in config one.
+// holds a masters_kicker.json, /demo-master/Kicker has to serve that file, not the checked-in config one - for a table
+// the adapter reads from files. Every table the adapter serves is bound to a namespace of otomo's release now
+// (appsettings.json, Otomo:Masters:Tables), so the release is the source whenever Otomo:Masters is enabled and the
+// override directory is inert for those tables; the host below turns otomo masters off to exercise the file layer, and
+// the last test pins that a bound table ignores the directory.
 public sealed class MasterOverrideHostTests : IDisposable
 {
     private const string CommonCode = "1a837b9ee2ae11a07a0f529a4cd4b61c";
@@ -87,14 +91,22 @@ public sealed class MasterOverrideHostTests : IDisposable
         File.WriteAllText(Path.Combine(_root, "masters_kicker.json"), OverriddenKickerJson);
         Factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
             .UseContentRoot(AppContext.BaseDirectory)
+            .UseSetting("Otomo:Masters:Enabled", "false")
+            .UseSetting(MasterOverrides.ConfigurationKey, _root));
+        BoundFactory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
+            .UseContentRoot(AppContext.BaseDirectory)
             .UseSetting(MasterOverrides.ConfigurationKey, _root));
     }
 
     public WebApplicationFactory<Program> Factory { get; }
 
+    // Otomo masters on, as the deployment runs: Kicker is a bound table.
+    public WebApplicationFactory<Program> BoundFactory { get; }
+
     public void Dispose()
     {
         Factory.Dispose();
+        BoundFactory.Dispose();
         try { Directory.Delete(_root, recursive: true); }
         catch (IOException) { }
     }
@@ -114,5 +126,21 @@ public sealed class MasterOverrideHostTests : IDisposable
         var first = document.RootElement.EnumerateArray().First();
 
         Assert.Equal("Overridden Tsubame", first.GetProperty("name").GetString());
+    }
+
+    [Fact]
+    public async Task A_table_bound_to_otomo_ignores_the_override_directory()
+    {
+        using var client = BoundFactory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/demo-master/Kicker");
+        request.Headers.Host = Host;
+        using var response = await client.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+
+        var plaintext = D2CCodec.Decode(
+            await response.Content.ReadAsByteArrayAsync(), Encoding.ASCII.GetBytes(CommonCode));
+        using var document = JsonDocument.Parse(plaintext);
+
+        Assert.Equal("Tsubame", document.RootElement.EnumerateArray().First().GetProperty("name").GetString());
     }
 }

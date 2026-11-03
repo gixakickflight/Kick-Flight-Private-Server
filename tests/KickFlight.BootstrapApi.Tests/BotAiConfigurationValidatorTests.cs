@@ -337,6 +337,76 @@ public class BotAiConfigurationValidatorTests
         }
     }
 
+
+    // config/bot_ai_profiles.json carries live's balance tuning (the owner's decision: live's tuned copy replaces the
+    // repository's), which differs from BotAiDefaults - the values the code falls back to - in exactly these 39 values.
+    // (parameterId, policy field) -> the tuned value. Every other value must still equal the default, and each of these
+    // must really differ from it, so the test fails on drift in either direction.
+    private static readonly Dictionary<(int ParameterId, string Field), object> LiveTuning = new()
+    {
+        [(17, "ScoreMotivation")] = 20.0, // Kite CrystalScramble
+        [(17, "ScoreToDeposit")] = 8.0, // Kite CrystalScramble
+        [(17, "AttackDashInterval")] = 0.6, // Kite CrystalScramble
+        [(17, "HealSkillInterval")] = 4.5, // Kite CrystalScramble
+        [(17, "BuffSkillInterval")] = 4.0, // Kite CrystalScramble
+        [(17, "TrapSkillInterval")] = 5.0, // Kite CrystalScramble
+        [(17, "WarpSkillInterval")] = 5.0, // Kite CrystalScramble
+        [(17, "HealDamageRate")] = 0.6, // Kite CrystalScramble
+        [(26, "AttackMotivation")] = 86.0, // Grenhawk CrystalScramble
+        [(26, "DefenseMotivation")] = 33.0, // Grenhawk CrystalScramble
+        [(26, "ScoreMotivation")] = 50.0, // Grenhawk CrystalScramble
+        [(26, "ScoreToDeposit")] = 5.0, // Grenhawk CrystalScramble
+        [(26, "AttackDashInterval")] = 0.9, // Grenhawk CrystalScramble
+        [(26, "DefenseDashInterval")] = 0.9, // Grenhawk CrystalScramble
+        [(26, "ScoreDashInterval")] = 0.9, // Grenhawk CrystalScramble
+        [(26, "AttackSkillInterval")] = 4.0, // Grenhawk CrystalScramble
+        [(26, "HealSkillInterval")] = 3.5, // Grenhawk CrystalScramble
+        [(26, "BuffSkillInterval")] = 4.0, // Grenhawk CrystalScramble
+        [(26, "WarpSkillInterval")] = 4.5, // Grenhawk CrystalScramble
+        [(54, "AttackMotivation")] = 50.0, // Tsubame CrystalScramble
+        [(54, "DefenseMotivation")] = 50.0, // Tsubame CrystalScramble
+        [(54, "ScoreMotivation")] = 50.0, // Tsubame CrystalScramble
+        [(54, "AttackDashInterval")] = 0.9, // Tsubame CrystalScramble
+        [(54, "DefenseDashInterval")] = 0.9, // Tsubame CrystalScramble
+        [(54, "ScoreDashInterval")] = 0.9, // Tsubame CrystalScramble
+        [(54, "HealSkillInterval")] = 3.5, // Tsubame CrystalScramble
+        [(54, "WarpSkillInterval")] = 4.5, // Tsubame CrystalScramble
+        [(60, "AttackMotivation")] = 0.0, // Tsubame FlagFlight
+        [(60, "DefenseMotivation")] = 0.0, // Tsubame FlagFlight
+        [(60, "ScoreMotivation")] = 100.0, // Tsubame FlagFlight
+        [(60, "AttackDashInterval")] = 0.4, // Tsubame FlagFlight
+        [(60, "ScoreDashInterval")] = 0.4, // Tsubame FlagFlight
+        [(60, "CanLockon")] = false, // Tsubame FlagFlight
+        [(62, "AttackMotivation")] = 0.0, // Jay FlagFlight
+        [(62, "DefenseMotivation")] = 0.0, // Jay FlagFlight
+        [(62, "ScoreMotivation")] = 100.0, // Jay FlagFlight
+        [(62, "DefenseDashInterval")] = 0.3, // Jay FlagFlight
+        [(62, "ScoreDashInterval")] = 0.4, // Jay FlagFlight
+        [(62, "CanLockon")] = false, // Jay FlagFlight
+    };
+
+    private static object Comparable(object value) =>
+        value is bool ? value : Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture);
+
+    private static void AssertDefaultOrTuned(int parameterId, string field, object defaultValue, object configValue)
+    {
+        if (LiveTuning.TryGetValue((parameterId, field), out var tuned))
+        {
+            Assert.Equal(Comparable(tuned), Comparable(configValue));
+            Assert.NotEqual(Comparable(defaultValue), Comparable(configValue));
+        }
+        else
+        {
+            Assert.Equal(Comparable(defaultValue), Comparable(configValue));
+        }
+    }
+
+    [Fact]
+    public void Live_tuning_is_exactly_39_values()
+    {
+        Assert.Equal(39, LiveTuning.Count);
+    }
+
     [Fact]
     public void Config_ExactlyPreservesExistingDefaults_IncludingCostumeAndHeuristicsForAll39()
     {
@@ -359,23 +429,23 @@ public class BotAiConfigurationValidatorTests
             Assert.Equal(def.KickerId, cfg.KickerId);
             Assert.Equal(def.KickerCostumeId, cfg.KickerCostumeId);
 
-            Assert.Equal(def.AttackMotivation, cfg.AttackMotivation);
-            Assert.Equal(def.DefenseMotivation, cfg.DefenseMotivation);
-            Assert.Equal(def.ScoreMotivation, cfg.ScoreMotivation);
-            Assert.Equal(def.ScoreToDeposit, cfg.ScoreToDeposit);
+            AssertDefaultOrTuned(def.ParameterId, "AttackMotivation", def.AttackMotivation, cfg.AttackMotivation);
+            AssertDefaultOrTuned(def.ParameterId, "DefenseMotivation", def.DefenseMotivation, cfg.DefenseMotivation);
+            AssertDefaultOrTuned(def.ParameterId, "ScoreMotivation", def.ScoreMotivation, cfg.ScoreMotivation);
+            AssertDefaultOrTuned(def.ParameterId, "ScoreToDeposit", def.ScoreToDeposit, cfg.ScoreToDeposit);
 
-            Assert.Equal(def.AttackDashInterval, cfg.AttackDashInterval);
-            Assert.Equal(def.DefenseDashInterval, cfg.DefenseDashInterval);
-            Assert.Equal(def.ScoreDashInterval, cfg.ScoreDashInterval);
+            AssertDefaultOrTuned(def.ParameterId, "AttackDashInterval", def.AttackDashInterval, cfg.AttackDashInterval);
+            AssertDefaultOrTuned(def.ParameterId, "DefenseDashInterval", def.DefenseDashInterval, cfg.DefenseDashInterval);
+            AssertDefaultOrTuned(def.ParameterId, "ScoreDashInterval", def.ScoreDashInterval, cfg.ScoreDashInterval);
 
-            Assert.Equal(def.AttackSkillInterval, cfg.AttackSkillInterval);
-            Assert.Equal(def.HealSkillInterval, cfg.HealSkillInterval);
-            Assert.Equal(def.BuffSkillInterval, cfg.BuffSkillInterval);
-            Assert.Equal(def.TrapSkillInterval, cfg.TrapSkillInterval);
-            Assert.Equal(def.WarpSkillInterval, cfg.WarpSkillInterval);
+            AssertDefaultOrTuned(def.ParameterId, "AttackSkillInterval", def.AttackSkillInterval, cfg.AttackSkillInterval);
+            AssertDefaultOrTuned(def.ParameterId, "HealSkillInterval", def.HealSkillInterval, cfg.HealSkillInterval);
+            AssertDefaultOrTuned(def.ParameterId, "BuffSkillInterval", def.BuffSkillInterval, cfg.BuffSkillInterval);
+            AssertDefaultOrTuned(def.ParameterId, "TrapSkillInterval", def.TrapSkillInterval, cfg.TrapSkillInterval);
+            AssertDefaultOrTuned(def.ParameterId, "WarpSkillInterval", def.WarpSkillInterval, cfg.WarpSkillInterval);
 
-            Assert.Equal(def.HealDamageRate, cfg.HealDamageRate);
-            Assert.Equal(def.CanLockon, cfg.CanLockon);
+            AssertDefaultOrTuned(def.ParameterId, "HealDamageRate", def.HealDamageRate, cfg.HealDamageRate);
+            AssertDefaultOrTuned(def.ParameterId, "CanLockon", def.CanLockon, cfg.CanLockon);
             Assert.Equal(def.LowHpDepositThreshold, cfg.LowHpDepositThreshold);
 
             Assert.Equal(def.ScramblePolicy, cfg.ScramblePolicy);
