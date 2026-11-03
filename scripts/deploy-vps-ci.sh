@@ -568,7 +568,7 @@ if [[ "$sync_site" == true && -f "$app_dir/docs/updates-page.html" && -f "$relea
   python3 "$release_dir/scripts/update-latest-information.py" \
     --state-file "$app_dir/.local/maintenance/latest-information.json" \
     --source-docs "$app_dir/docs/updates-page.html" \
-    --article-id "v2-11-6" \
+    --article-id "v2-11-7" \
     --backup-dir "$app_dir/.local/updates-backups" \
     --record-backup-path "$ci_info_backup"
 fi
@@ -756,12 +756,12 @@ if [[ "$sync_site" == true ]]; then
     [[ "$actual_updates" == "$expected_updates" ]] || { echo "served standalone updates checksum does not match deploy/site/updates-2.11.4.html" >&2; exit 1; }
   fi
 
-  if [[ -f "$app_dir/deploy/site/updates-2.11.6.html" ]]; then
-    expected_updates=$(sha256sum "$app_dir/deploy/site/updates-2.11.6.html" | cut -d ' ' -f 1)
-    curl --fail --silent --show-error --max-time 30 "http://127.0.0.1:$http_port/updates-2.11.6.html" -o "$smoke_file"
+  if [[ -f "$app_dir/deploy/site/updates-2.11.7.html" ]]; then
+    expected_updates=$(sha256sum "$app_dir/deploy/site/updates-2.11.7.html" | cut -d ' ' -f 1)
+    curl --fail --silent --show-error --max-time 30 "http://127.0.0.1:$http_port/updates-2.11.7.html" -o "$smoke_file"
     actual_updates=$(sha256sum "$smoke_file" | cut -d ' ' -f 1)
     rm -f -- "$smoke_file"
-    [[ "$actual_updates" == "$expected_updates" ]] || { echo "served standalone updates checksum does not match deploy/site/updates-2.11.6.html" >&2; exit 1; }
+    [[ "$actual_updates" == "$expected_updates" ]] || { echo "served standalone updates checksum does not match deploy/site/updates-2.11.7.html" >&2; exit 1; }
   fi
 
   # Announcement content is variable by design; only require the pages to be served.

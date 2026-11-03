@@ -124,16 +124,16 @@
       "bytes": 149884376
     },
     {
-      "id": "apk-remote-2116",
+      "id": "apk-remote-2117",
       "enabled": true,
       "host": "10.0.2.2",
-      "requestPath": "/apk/KickFlight-2.11.6-remote.apk",
-      "logicalName": "Remote-play APK download (2.11.6)",
-      "description": "Android 2.11.6: global chat restored and up to 120 FPS; exact signed APK gate-verified on an AVD against the live VPS.",
-      "sourcePath": ".local/KickFlight-2.11.6-remote.apk",
+      "requestPath": "/apk/KickFlight-2.11.7-remote.apk",
+      "logicalName": "Remote-play APK download (2.11.7)",
+      "description": "Android 2.11.7: ranked-search push notifications, debuff and team-rejoin fixes, Google Play sign-in disabled, improved crash reports; release-key APK connectivity-verified against the live VPS during maintenance (battle check pending).",
+      "sourcePath": ".local/KickFlight-2.11.7-remote.apk",
       "contentType": "application/vnd.android.package-archive",
-      "sha256": "9b87b6ebb21046b0c2fb1cca503181a6f99664a1896ffb5aef546d85cf0f4ab1",
-      "bytes": 149876184
+      "sha256": "f7b91e49fbe399854b6160be206f23bf4c4e17dc1476e17c5ca42109c3f3cdf0",
+      "bytes": 149876242
     },
     {
       "id": "kicker-skin-thumb-001-022-direct",

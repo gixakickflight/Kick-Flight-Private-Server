@@ -20,8 +20,8 @@ class EndpointPreflightTests(unittest.TestCase):
         config = json.loads(config_path.read_text(encoding="utf-8"))
         self.assertEqual(config["serverBaseUrl"], "http://159.54.134.159:18080")
         self.assertEqual(config["photonHost"], "159.54.134.159")
-        self.assertEqual(config["versionName"], "2.11.6")
-        self.assertEqual(config["versionCode"], 61)
+        self.assertEqual(config["versionName"], "2.11.7")
+        self.assertEqual(config["versionCode"], 62)
         self.assertEqual(
             config["patchFlags"],
             {
@@ -33,6 +33,7 @@ class EndpointPreflightTests(unittest.TestCase):
                 "KF_DAMAGE_DIAG": "0",
                 "KF_RESULT_DIAG": "0",
                 "KF_TARGET_FPS": "120",
+                "KF_PUSH": "1",
                 "CHAT_BASE_URL": "http://159.54.134.159:18080?ns={0}",
             },
         )
