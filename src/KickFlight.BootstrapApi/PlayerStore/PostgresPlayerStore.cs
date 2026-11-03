@@ -6,9 +6,9 @@ namespace KickFlight.BootstrapApi.PlayerStore;
 
 // Player state in PostgreSQL, which is what the deployment uses.
 //
-// Shape, and why it is not fully normalised: the four things a service actually queries - identity, the
-// display name, the currencies and the battle rank - are real columns, and the rest of the state is one
-// `state jsonb` document. Decks, owned discs, costume gears and the pending gear roll are only ever read and
+// Shape, and why it is not fully normalised: the two things a service actually queries - identity and the
+// display name - are real columns, and the rest of the state is one `state jsonb` document. Currencies moved to
+// otomo's economy (migration 5) and battle points to otomo's session (migration 7). Decks, owned discs, costume gears and the pending gear roll are only ever read and
 // written as a whole (the API loads a player, mutates, saves), so normalising them would buy nothing and cost
 // a mapping layer plus the chance of a half-applied save. See deploy/README.md.
 //
@@ -20,7 +20,7 @@ namespace KickFlight.BootstrapApi.PlayerStore;
 // the API once. `schema_meta` records which have been applied, so applying is idempotent and additive.
 public sealed class PostgresPlayerStore : IPlayerStore
 {
-    private const int SchemaVersion = 6;
+    private const int SchemaVersion = 7;
 
     private static readonly (int Version, string Sql)[] Migrations =
     [
@@ -177,6 +177,15 @@ public sealed class PostgresPlayerStore : IPlayerStore
             drop table if exists player_follows;
             drop table if exists real_friend_tokens;
             drop table if exists player_real_friends;
+            """),
+        (7, """
+            -- Battle points moved to otomo's session service: a player's points, tier and the ladder they sit on are
+            -- session's, and the adapter translates units and keeps nothing. The table is dropped rather than left to
+            -- drift, because every read and write of it is gone.
+            --
+            -- Nothing is copied: no live player data migrates, every player starts fresh on otomo, so there is no
+            -- backfill of points and no compatibility path for an old save's rank.
+            drop table if exists player_ranks;
             """)
     ];
 
@@ -746,36 +755,6 @@ public sealed class PostgresPlayerStore : IPlayerStore
         command.ExecuteNonQuery();
     }
 
-    public RankState LoadRank(long playerId, int battleRuleType)
-    {
-        using var connection = _dataSource.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = "select battle_point, rank from player_ranks where player_id = $1 and battle_rule_type = $2";
-        command.Parameters.AddWithValue(playerId);
-        command.Parameters.AddWithValue(battleRuleType);
-        using var reader = command.ExecuteReader();
-        return reader.Read() ? new RankState(reader.GetInt32(0), reader.GetInt32(1)) : RankProgression.Starting;
-    }
-
-    public void SaveRank(long playerId, int battleRuleType, RankState rank)
-    {
-        using var connection = _dataSource.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = """
-            insert into player_ranks (player_id, battle_rule_type, battle_point, rank)
-            values ($1, $2, $3, $4)
-            on conflict (player_id, battle_rule_type) do update set
-                battle_point = excluded.battle_point,
-                rank         = excluded.rank,
-                updated_at   = now()
-            """;
-        command.Parameters.AddWithValue(playerId);
-        command.Parameters.AddWithValue(battleRuleType);
-        command.Parameters.AddWithValue(rank.BattlePoint);
-        command.Parameters.AddWithValue(rank.Rank);
-        command.ExecuteNonQuery();
-    }
-
     public bool IsNameTaken(string name, long exceptPlayerId)
     {
         using var connection = _dataSource.OpenConnection();
@@ -855,67 +834,6 @@ public sealed class PostgresPlayerStore : IPlayerStore
         return reader.Read() ? ReadOtomoPlayer(reader) : null;
     }
 
-    public IReadOnlyList<RankedPlayer> ListRanks(
-        int battleRuleType,
-        IReadOnlyCollection<long>? playerIds,
-        int offset,
-        int limit)
-    {
-        ValidatePage(offset, limit);
-        if (playerIds is { Count: 0 }) return Array.Empty<RankedPlayer>();
-
-        using var connection = _dataSource.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = playerIds is null
-            ? RankingQuery(includePlayerFilter: false)
-            : RankingQuery(includePlayerFilter: true);
-        command.Parameters.AddWithValue(battleRuleType);
-        command.Parameters.AddWithValue(RankProgression.StartBattlePoint);
-        command.Parameters.AddWithValue(RankProgression.StartRank);
-        if (playerIds is not null)
-        {
-            command.Parameters.Add(new NpgsqlParameter
-            {
-                NpgsqlDbType = NpgsqlDbType.Array | NpgsqlDbType.Bigint,
-                Value = playerIds.Distinct().ToArray()
-            });
-        }
-        command.Parameters.AddWithValue(offset);
-        command.Parameters.AddWithValue(limit);
-
-        var result = new List<RankedPlayer>();
-        using var reader = command.ExecuteReader();
-        while (reader.Read())
-        {
-            var profile = ReadProfile(reader, 0);
-            result.Add(new RankedPlayer(profile, reader.GetInt32(4), reader.GetInt32(5), reader.GetInt64(6)));
-        }
-        return result;
-    }
-
-    private static string RankingQuery(bool includePlayerFilter)
-    {
-        var filter = includePlayerFilter ? "where id = any($4)" : "";
-        var offsetParameter = includePlayerFilter ? "$5" : "$4";
-        var limitParameter = includePlayerFilter ? "$6" : "$5";
-        return $"""
-            with scored as (
-                select p.id, coalesce(p.display_name, '') as display_name, p.kicker_id, p.kicker_costume_id,
-                       coalesce(r.battle_point, $2) as battle_point,
-                       coalesce(r.rank, $3) as rank,
-                       row_number() over (order by coalesce(r.battle_point, $2) desc, p.id asc) as position
-                from players p
-                left join player_ranks r on r.player_id = p.id and r.battle_rule_type = $1
-                where nullif(p.display_name, '') is not null
-            )
-            select id, display_name, kicker_id, kicker_costume_id, battle_point, rank, position
-            from scored
-            {filter}
-            order by position
-            offset {offsetParameter} limit {limitParameter}
-            """;
-    }
-
     private static PlayerProfile ReadProfile(NpgsqlDataReader reader, int firstColumn) =>
         new(reader.GetInt64(firstColumn), reader.GetString(firstColumn + 1),
             reader.GetInt32(firstColumn + 2), reader.GetInt32(firstColumn + 3));
@@ -927,11 +845,4 @@ public sealed class PostgresPlayerStore : IPlayerStore
 
     private static OtomoPlayer ReadOtomoPlayer(NpgsqlDataReader reader) =>
         new(reader.GetInt64(0), reader.GetString(1));
-
-    private static void ValidatePage(int offset, int limit)
-    {
-        if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
-        if (limit < 0) throw new ArgumentOutOfRangeException(nameof(limit));
-    }
-
 }

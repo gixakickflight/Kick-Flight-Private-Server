@@ -238,5 +238,19 @@ public static class OtomoTestEnvironment
         Environment.SetEnvironmentVariable("Otomo__Social__Enabled", "true");
         Environment.SetEnvironmentVariable("Otomo__Social__BaseUrl", Social.BaseUrl);
         Environment.SetEnvironmentVariable("Otomo__Social__Timeout", "00:00:10");
+        // Rank: the same fake session serves the player plane, the internal plane (service key) and the release bundle
+        // that carries the published session.rank ladder, which the adapter reads through OtomoMasters.
+        Environment.SetEnvironmentVariable("Otomo__Rank__Enabled", "true");
+        Environment.SetEnvironmentVariable("Otomo__Rank__BaseUrl", Social.BaseUrl);
+        Environment.SetEnvironmentVariable("Otomo__Rank__InternalBaseUrl", Social.BaseUrl);
+        Environment.SetEnvironmentVariable("Otomo__Rank__ServiceKey", FakeOtomoSocial.ServiceKey);
+        Environment.SetEnvironmentVariable("Otomo__Rank__Timeout", "00:00:10");
+        Environment.SetEnvironmentVariable("Otomo__Masters__Enabled", "true");
+        Environment.SetEnvironmentVariable("Otomo__Masters__BaseUrl", Social.BaseUrl);
+        Environment.SetEnvironmentVariable("Otomo__Masters__Key", FakeOtomoSocial.ServiceKey);
+        Environment.SetEnvironmentVariable("Otomo__Masters__Refresh", "00:00:00");
+        Environment.SetEnvironmentVariable("Otomo__Masters__Documents__0", "session.rank");
+        Environment.SetEnvironmentVariable("Otomo__Masters__CacheDir",
+            Path.Combine(Path.GetTempPath(), "kf-test-masters-" + Guid.NewGuid().ToString("N")));
     }
 }

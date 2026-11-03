@@ -105,13 +105,15 @@ public sealed partial class DemoSessionApi
         return players;
     }
 
-    // A read that needs the relation and cannot get one: the game's error contract, 503, never an empty list.
+    // A read that needs the relation (or a standing, or the ladder) and cannot get one: the game's error contract, 503,
+    // never an empty list and never zero points. The battle result answers its unrankable award the same way.
     private IResult SocialUnavailable(HttpContext context, string path, Exception? failure)
     {
         var reason = failure switch
         {
             OtomoIdentityException identity => identity.Failure.ToString(),
             OtomoSocialException social => social.Failure.ToString(),
+            OtomoRankException rank => rank.Failure.ToString(),
             _ => OtomoSocialFailure.Disabled.ToString()
         };
         _logger.LogError("Refusing {Path}: session {Reason} ({Detail})", path, reason,
@@ -133,11 +135,13 @@ public sealed partial class DemoSessionApi
         var loaded = await ReadFollowRelationAsync(ticket, path, context.RequestAborted);
         if (loaded.Relation is null) return SocialUnavailable(context, path, loaded.Error);
 
-        var profiles = loaded.Relation.Following
-            .Skip(page * SocialPageSize)
-            .Take(SocialPageSize)
+        var pageRows = loaded.Relation.Following.Skip(page * SocialPageSize).Take(SocialPageSize).ToArray();
+        var (cardRanks, cardError) = await TryReadCardRanksAsync(ticket, state, pageRows.Select(row => row.PlayerId),
+            context.RequestAborted);
+        if (cardRanks is null) return SocialUnavailable(context, path, cardError);
+        var profiles = pageRows
             .Select(link => JsonSerializer.Deserialize<JsonElement>(
-                SocialProfileJson(state, ProfileOf(link), 1, false)));
+                SocialProfileJson(state, ProfileOf(link), 1, false, cardRanks[link.PlayerId])));
         return OkJson(context, key, JsonSerializer.Serialize(new
         {
             userProfileList = profiles,
@@ -177,11 +181,14 @@ public sealed partial class DemoSessionApi
 
         var translated = Translate(followers);
         var followedIds = translated.Select(link => link.PlayerId).ToHashSet();
-        var profiles = translated
-            .Skip(page * SocialPageSize)
-            .Take(SocialPageSize)
+        var pageRows = translated.Skip(page * SocialPageSize).Take(SocialPageSize).ToArray();
+        var (cardRanks, cardError) = await TryReadCardRanksAsync(ticket, state, pageRows.Select(row => row.PlayerId),
+            context.RequestAborted);
+        if (cardRanks is null) return SocialUnavailable(context, path, cardError);
+        var profiles = pageRows
             .Select(link => JsonSerializer.Deserialize<JsonElement>(
-                SocialProfileJson(state, ProfileOf(link), FollowStatus(followedIds, state.PlayerId, link.PlayerId), false)));
+                SocialProfileJson(state, ProfileOf(link), FollowStatus(followedIds, state.PlayerId, link.PlayerId), false,
+                    cardRanks[link.PlayerId])));
         return OkJson(context, key, JsonSerializer.Serialize(new
         {
             userProfileList = profiles,
@@ -280,10 +287,13 @@ public sealed partial class DemoSessionApi
         var loaded = await ReadFollowRelationAsync(ticket, path, context.RequestAborted);
         if (loaded.Relation is null) return SocialUnavailable(context, path, loaded.Error);
 
-        var profiles = loaded.Relation.Following
-            .Where(link => IsRecentlyActive(link.PlayerId))
+        var online = loaded.Relation.Following.Where(link => IsRecentlyActive(link.PlayerId)).ToArray();
+        var (cardRanks, cardError) = await TryReadCardRanksAsync(ticket, state, online.Select(row => row.PlayerId),
+            context.RequestAborted);
+        if (cardRanks is null) return SocialUnavailable(context, path, cardError);
+        var profiles = online
             .Select(link => JsonSerializer.Deserialize<JsonElement>(
-                SocialProfileJson(state, ProfileOf(link), 1, false)));
+                SocialProfileJson(state, ProfileOf(link), 1, false, cardRanks[link.PlayerId])));
         return OkJson(context, key, JsonSerializer.Serialize(new { userProfileList = profiles }));
     }
 
@@ -335,6 +345,13 @@ public sealed partial class DemoSessionApi
                 $"no session rule type is configured for battle rule type {battleRuleType}"));
         }
 
+        var ladder = CurrentLadder();
+        if (ladder is null)
+        {
+            return SocialUnavailable(context, path, new OtomoRankException(OtomoRankFailure.Unavailable,
+                $"the published {RankLadderNamespace} ladder is not available, and this server holds no ladder of its own"));
+        }
+
         BoardRead board;
         FollowRelation relation;
         try
@@ -365,11 +382,10 @@ public sealed partial class DemoSessionApi
         }
 
         var followedIds = relation.Following.Select(link => link.PlayerId).ToHashSet();
-        var resultRows = BuildRankingRows(board.Rows, state.PlayerId, followedIds);
-        var self = BuildOwnRankingRow(state, board.You);
-        var ownPoints = RankTranslation.ClientPoints(board.You?.Points ?? 0);
-        var nextReward = Math.Max(0, RankProgression.TotalBattlePointByRank
-            .Where(points => points > ownPoints).DefaultIfEmpty(ownPoints).Min() - ownPoints);
+        var resultRows = BuildRankingRows(board.Rows, state.PlayerId, followedIds, ladder);
+        var self = BuildOwnRankingRow(state, board.You, ladder);
+        // Client points still to go to the next published tier (0 at the top, and for a caller not on the board).
+        var nextReward = ladder.RemainingToNextTier(RankTranslation.ClientPoints(board.You?.Points ?? 0));
 
         if (path == "/ranking/region")
         {
@@ -408,7 +424,8 @@ public sealed partial class DemoSessionApi
         return new BoardRead(window.Rows, own.You ?? window.You);
     }
 
-    private object[] BuildRankingRows(IReadOnlyList<SessionBoardRow> rows, long callerId, HashSet<long> followedIds)
+    private object[] BuildRankingRows(IReadOnlyList<SessionBoardRow> rows, long callerId, HashSet<long> followedIds,
+        RankLadder ladder)
     {
         if (rows.Count == 0) return [];
 
@@ -438,7 +455,7 @@ public sealed partial class DemoSessionApi
                 kickerCostumeId = profile?.KickerCostumeId ?? DefaultKickerCostumeId,
                 languageCode = "",
                 followStatus = FollowStatus(followedIds, callerId, link.PlayerId),
-                rank = RankOfTier(row.Tier),
+                rank = RankOfTier(row.Tier, row.Points, ladder),
                 battlePoint = RankTranslation.ClientPoints(row.Points),
                 number = row.Position,
                 percentile = 0.0
@@ -449,7 +466,7 @@ public sealed partial class DemoSessionApi
 
     // The caller's own line. Their name, kicker and costume are this adapter's record of what they chose - the board's
     // `you` carries position, points and tier and nothing else.
-    private string BuildOwnRankingRow(SessionState state, SessionBoardStanding? you) =>
+    private string BuildOwnRankingRow(SessionState state, SessionBoardStanding? you, RankLadder ladder) =>
         you is null
             ? NeutralBattleRanking
             : JsonSerializer.Serialize(new
@@ -463,21 +480,24 @@ public sealed partial class DemoSessionApi
                 kickerCostumeId = state.KickerCostumeId,
                 languageCode = "",
                 followStatus = 0,
-                rank = RankOfTier(you.Tier),
+                rank = RankOfTier(you.Tier, you.Points, ladder),
                 battlePoint = RankTranslation.ClientPoints(you.Points),
                 number = (int)Math.Clamp(you.Position, 0, int.MaxValue),
                 percentile = 0.0
             });
 
     // The client's `rank` is a league number, and session's `tier` is the ladder's key for the same thing: always
-    // rank_<N>, where N is that number. A key of any other shape is a published ladder this code does not know; the row
-    // is still drawn (rank 0 is the blank plate) and the disagreement is said out loud, never papered over.
-    private int RankOfTier(string? tier)
+    // rank_<N>, where N is that number. The published tier thresholds are the check on it: a key the ladder does not
+    // name is a disagreement between session and the release, said out loud, and the rank is then the one the
+    // thresholds give the row's points rather than a guess.
+    private int RankOfTier(string? tier, int sessionPoints, RankLadder ladder)
     {
         var rank = RankTranslation.RankNumber(tier);
-        if (rank is not null) return rank.Value;
-        _logger.LogError("Ranking tier '{Tier}' is not rank_<N>; the row is drawn with rank 0", tier);
-        return 0;
+        if (rank is { } named && ladder.HasRank(named)) return named;
+        var fromPoints = ladder.RankFor(sessionPoints);
+        _logger.LogError("Ranking tier '{Tier}' is not a tier of the published ladder; {Points} points place it at rank {Rank}",
+            tier, sessionPoints, fromPoints);
+        return fromPoints;
     }
 
     // The card for a player on a follow screen. The name is session's answer for that row. The kicker and costume - and
@@ -502,7 +522,8 @@ public sealed partial class DemoSessionApi
             ? state.HonorId
             : BadgeAwardRules.DefaultHonorId;
 
-    private string SocialProfileJson(SessionState caller, PlayerProfile profile, int followStatus, bool isNew)
+    private string SocialProfileJson(SessionState caller, PlayerProfile profile, int followStatus, bool isNew,
+        IReadOnlyList<BattleRankLine> ranks)
     {
         var targetState = _playerStore.TryLoad(profile.PlayerId) ?? caller;
         return JsonSerializer.Serialize(new
@@ -525,7 +546,7 @@ public sealed partial class DemoSessionApi
             languageCode = "",
             followStatus,
             newFlag = isNew,
-            userBattleRankList = BuildBattleRankList(targetState),
+            userBattleRankList = BuildBattleRankList(ranks),
             snsUserName = "",
             snsScreenName = "",
             snsUserImageUrl = ""

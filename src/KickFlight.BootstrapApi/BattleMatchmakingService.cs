@@ -104,7 +104,7 @@ public sealed class BattleMatchmakingService
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         /// <summary>Set when the entry's room closed its window with this entry in the final roster (badge stat context).</summary>
         public string? AssignedBattleId { get; set; }
-        internal object BattleResultLock { get; } = new();
+        internal SemaphoreSlim BattleResultGate { get; } = new(1, 1);
         internal RankedResultSnapshot? AppliedRankedResult { get; set; }
     }
 
@@ -126,7 +126,7 @@ public sealed class BattleMatchmakingService
     public sealed record TeamLobbySnapshot(
         string MatchmakingTeamId, string Code, int BattleRuleId, IReadOnlyList<int> KickerCostumeIdList);
     public sealed record BattleResultEntry(string UserId, int BattleRuleId, int? MatchType, int? BattleRuleType);
-    public sealed record RankedResultSnapshot(int BattleRuleType, RankState Before, RankState After);
+    public sealed record RankedResultSnapshot(int BattleRuleType, BattleRankStanding Before, BattleRankStanding After);
     public sealed record BattleResultProcessing(BattleResultEntry Entry, RankedResultSnapshot? RankedResult, bool IsReplay);
 
     public TeamMemberEntry CreateTeam(
@@ -459,16 +459,22 @@ public sealed class BattleMatchmakingService
 
     /// <summary>
     /// Applies and caches one ranked result for an owned, server-issued entry. The per-entry gate keeps concurrent
-    /// retries from incrementing twice; the cache is assigned only after the caller's persistence callback succeeds
-    /// (a callback returning null applies nothing and caches nothing).
+    /// retries from awarding twice; the cache is assigned only after the caller's callback succeeds (a callback
+    /// returning null applies nothing and caches nothing, and one that throws releases the gate and caches nothing).
     /// </summary>
-    public BattleResultProcessing? ProcessRankedResultOnce(
-        string battleEntryId, string userId, Func<int, RankedResultSnapshot?> persistRankedResult)
+    /// <remarks>
+    /// Session applies an award once per key, so the gate and cache are no longer what makes a retry safe. They are
+    /// what makes a retry's answer the same: session's reply to a repeated key is the standing as it is now, which no
+    /// longer says what the battle changed. The cache lives in memory and is only ever a replay of an answer.
+    /// </remarks>
+    public async Task<BattleResultProcessing?> ProcessRankedResultOnceAsync(
+        string battleEntryId, string userId, Func<int, Task<RankedResultSnapshot?>> persistRankedResult)
     {
         if (!_entriesByBattleEntryId.TryGetValue(battleEntryId, out var entry) || entry.UserId != userId)
             return null;
 
-        lock (entry.BattleResultLock)
+        await entry.BattleResultGate.WaitAsync().ConfigureAwait(false);
+        try
         {
             var resultEntry = new BattleResultEntry(entry.UserId, entry.BattleRuleId,
                 entry.BattleMatchType, entry.BattleRuleType);
@@ -480,10 +486,14 @@ public sealed class BattleMatchmakingService
 
             // A null snapshot means "no rank change for this attempt" (undetermined/tied result): nothing is cached,
             // so a later retry carrying a decidable result can still be applied once.
-            var applied = persistRankedResult(entry.BattleRuleType.Value);
+            var applied = await persistRankedResult(entry.BattleRuleType.Value).ConfigureAwait(false);
             if (applied is null) return new BattleResultProcessing(resultEntry, null, false);
             entry.AppliedRankedResult = applied;
             return new BattleResultProcessing(resultEntry, applied, false);
+        }
+        finally
+        {
+            entry.BattleResultGate.Release();
         }
     }
 

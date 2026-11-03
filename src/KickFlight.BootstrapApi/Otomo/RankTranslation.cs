@@ -15,6 +15,10 @@ public static class RankTranslation
 {
     public const int ClientPointsOffset = 200;
 
+    // Per-battle deltas in session units. A tie, or a battle with no decision, awards nothing.
+    public const int WinDelta = 50;
+    public const int LossDelta = -20;
+
     public static int ClientPoints(int sessionPoints) => sessionPoints + ClientPointsOffset;
 
     // The N of a tier key "rank_<N>", which is the client's rank number. Null for a key of any other shape: the
@@ -29,3 +33,6 @@ public static class RankTranslation
             : null;
     }
 }
+
+// A player's standing on one rule type as the client reads it: battle points in the client's units and its rank number.
+public sealed record BattleRankStanding(int BattlePoint, int Rank);

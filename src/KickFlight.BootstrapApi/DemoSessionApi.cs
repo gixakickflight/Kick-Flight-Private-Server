@@ -33,8 +33,8 @@ public sealed partial class DemoSessionApi : IDisposable
     private readonly IBotAiProfileProvider _botAiProfiles;
     private const string AccessToken = "demo-access-token-0000000000000000000000000000";
 
-    // Rank is per player and persisted now (player_ranks, via IPlayerStore); the table it indexes into, the
-    // range that renders, and the per-battle delta live in RankProgression.
+    // Rank is session's (DemoSessionApi.Rank.cs): points, tiers and the ladder are read from otomo, and the adapter only
+    // translates units (Otomo/RankTranslation.cs).
 
     // Onboarding status: TutorialUtil.IsTutorial is literally "tutorialProgressStatus != 207".
     //
@@ -93,13 +93,6 @@ public sealed partial class DemoSessionApi : IDisposable
     public const int RegularBattleRuleType = 1;
     private static readonly int[] RankedBattleRuleTypes = [1, 2, 3];
 
-    private object[] BuildBattleRankList(SessionState state) =>
-        RankedBattleRuleTypes.Select(ruleType =>
-        {
-            var rank = _playerStore.LoadRank(state.PlayerId, ruleType);
-            return (object)new { battleRuleType = ruleType, battlePoint = rank.BattlePoint, rank = rank.Rank };
-        }).ToArray();
-
     private readonly string _contentRoot;
     private readonly int _grpcPort;
     private readonly MasterOverrides _mastersOverrides;
@@ -112,6 +105,8 @@ public sealed partial class DemoSessionApi : IDisposable
     // The only source of the social relation and the ranking board (see DemoSessionApi.SocialRanking.cs).
     private readonly IOtomoSocial _social;
     private readonly OtomoSocialOptions _socialOptions;
+    // The only source of battle points (see DemoSessionApi.Rank.cs).
+    private readonly IOtomoRank _rank;
     private readonly KfAccessTokenCodec _accessTokens;
     private readonly IPlayerStore _playerStore;
     private readonly OtomoMasters _otomoMasters;
@@ -154,7 +149,7 @@ public sealed partial class DemoSessionApi : IDisposable
 
     public DemoSessionApi(ILogger<DemoSessionApi> logger, IWebHostEnvironment environment,
         BattleMatchmakingService matchmaking, BattleReplayService replays, IPlayerStore playerStore,
-        IOtomoIdentity identity, IOtomoEconomy economy, IOtomoSocial social, KfAccessTokenCodec accessTokens,
+        IOtomoIdentity identity, IOtomoEconomy economy, IOtomoSocial social, IOtomoRank rank, KfAccessTokenCodec accessTokens,
         IConfiguration configuration, MaintenanceState maintenance, ClientUpdateState clientUpdate,
         TimeProvider timeProvider, OpsTelemetryService ops, IOptions<HarnessOptions> harnessOptions,
         IOptions<OtomoSocialOptions> socialOptions, OtomoMasters otomoMasters,
@@ -172,6 +167,7 @@ public sealed partial class DemoSessionApi : IDisposable
         _identity = identity;
         _economy = economy;
         _social = social;
+        _rank = rank;
         _socialOptions = socialOptions.Value;
         _accessTokens = accessTokens;
         _otomoMasters = otomoMasters;
@@ -400,27 +396,9 @@ public sealed partial class DemoSessionApi : IDisposable
         // With the old 12-row table RegularEndRank was rank 4 and an S-rank player asked for thumbnail_league_4_1 /
         // _11_1, neither of which exists — the Image kept a null sprite, which is the empty rectangle in the
         // mode-selection banner and the black rectangle beside the lobby portrait.
-        _encryptedMasters["BattleRank"] = EncryptMaster("""
-            [
-              {"id":1,"name":"D","rank":0,"regularMatchFlag":true,"totalBattlePoint":0,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":2,"name":"C","rank":1,"regularMatchFlag":true,"totalBattlePoint":200,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":3,"name":"C⁺","rank":2,"regularMatchFlag":true,"totalBattlePoint":500,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":4,"name":"B","rank":3,"regularMatchFlag":true,"totalBattlePoint":900,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":5,"name":"B⁺","rank":4,"regularMatchFlag":true,"totalBattlePoint":1400,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":6,"name":"A","rank":5,"regularMatchFlag":true,"totalBattlePoint":1900,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":7,"name":"A⁺","rank":6,"regularMatchFlag":true,"totalBattlePoint":2400,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":8,"name":"S","rank":7,"regularMatchFlag":false,"totalBattlePoint":2900,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":9,"name":"S⁺1","rank":8,"regularMatchFlag":false,"totalBattlePoint":3400,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":10,"name":"S⁺2","rank":9,"regularMatchFlag":false,"totalBattlePoint":3900,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":11,"name":"S⁺3","rank":10,"regularMatchFlag":false,"totalBattlePoint":4400,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":12,"name":"S⁺4","rank":11,"regularMatchFlag":false,"totalBattlePoint":4900,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":13,"name":"S⁺5","rank":12,"regularMatchFlag":false,"totalBattlePoint":5400,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":14,"name":"S⁺6","rank":13,"regularMatchFlag":false,"totalBattlePoint":5900,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":15,"name":"S⁺7","rank":14,"regularMatchFlag":false,"totalBattlePoint":6400,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":16,"name":"S⁺8","rank":15,"regularMatchFlag":false,"totalBattlePoint":6900,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":17,"name":"S⁺9","rank":16,"regularMatchFlag":false,"totalBattlePoint":7500,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false}
-            ]
-            """);
+        // Its totalBattlePoint column is the published ladder's (min_points + 200); the letter names are presentation
+        // kept in DemoSessionApi.Rank.cs. With no ladder the master is not served, and nothing stands in for it.
+        ApplyBattleRankMaster();
         _encryptedMasters["CapsuleCampaign"] = EncryptMaster("""[{"id":1,"startDatetime":"2019-01-01 00:00:00","endDatetime":"2030-01-01 23:59:59","coefficient":0.5}]""");
         _encryptedMasters["CapsuleDropCampaign"] = EncryptMaster("""[{"id":1,"startDatetime":"2019-01-01 00:00:00","endDatetime":"2030-01-01 23:59:59"}]""");
         _encryptedMasters["BattleRankingClass"] = EncryptMaster("""[{"id":1,"battleRuleId":1,"name":"Class 1","minBattlePoint":0},{"id":2,"battleRuleId":2,"name":"Class 1","minBattlePoint":0},{"id":3,"battleRuleId":3,"name":"Class 1","minBattlePoint":0},{"id":4,"battleRuleId":4,"name":"Div.1","minBattlePoint":0},{"id":5,"battleRuleId":5,"name":"Div.1","minBattlePoint":0},{"id":6,"battleRuleId":6,"name":"Class 1","minBattlePoint":0},{"id":7,"battleRuleId":7,"name":"Div.1","minBattlePoint":0},{"id":8,"battleRuleId":8,"name":"Div.1","minBattlePoint":0}]""");
@@ -922,6 +900,9 @@ public sealed partial class DemoSessionApi : IDisposable
                 _encryptedMasters[masterName] = EncryptMaster(ApplyObscuredOffsets(masterName, json));
                 applied.Add(masterName);
             }
+            // The ladder is a document of the same release, not a table, so a publish that moves a tier moves the
+            // BattleRank master with it.
+            ApplyBattleRankMaster();
             PublishMasterState();
             _logger.LogInformation(
                 "Master version {MasterVersion}: {Count} table(s) reloaded from {Source} ({Tables})",
@@ -1342,7 +1323,16 @@ public sealed partial class DemoSessionApi : IDisposable
 
             context.Response.Headers["x-app-status-code"] = "0";
             context.Response.Headers["x-kickflight-fixture"] = "dynamic-demo-session";
-            var json = BuildHomeJson(state, snapshot);
+            IReadOnlyList<BattleRankLine> ranks;
+            try
+            {
+                ranks = await ReadOwnBattleRanksAsync(ticket, context.RequestAborted);
+            }
+            catch (Exception exception) when (exception is OtomoRankException or OtomoIdentityException)
+            {
+                return SocialUnavailable(context, path, exception);
+            }
+            var json = BuildHomeJson(state, snapshot, ranks);
             _logger.LogInformation("Serving dynamic home index (active kickerId={KickerId}, costumeId={CostumeId}, activeDeck={Deck}, offers={Offers}, pools={Pools})",
                 state.KickerId, state.KickerCostumeId, state.ActiveDeckNumber, snapshot.Offers.Count, snapshot.Pools.Count);
             return BinaryJson(json, key);
@@ -2081,7 +2071,7 @@ public sealed partial class DemoSessionApi : IDisposable
 
     // KF_CHAT_EXP=1: serve a non-empty chat connection id so the client attempts Firebase chat setup (experiment only).
 
-    private string BuildHomeJson(SessionState state, EconomySnapshot economy)
+    private string BuildHomeJson(SessionState state, EconomySnapshot economy, IReadOnlyList<BattleRankLine> ranks)
     {
         NormalizeCostume(state);
 
@@ -2126,7 +2116,7 @@ public sealed partial class DemoSessionApi : IDisposable
             // threw ArgumentOutOfRangeException (List<T>.get_Item).
             discGachaGroupList = BuildHomeDiscGachaGroupList(economy),
             kickerGachaGroupList = BuildHomeKickerGachaGroupList(economy),
-            userBattleRankList = BuildBattleRankList(state),
+            userBattleRankList = BuildBattleRankList(ranks),
             userMissionProgressList = MissionRows(state, economy.Tracks),
             // shopProductList is the real-money IAP list, which this server does not sell; the goods shop is the
             // JetCoin one and is served in full.
@@ -2907,25 +2897,31 @@ public sealed partial class DemoSessionApi : IDisposable
         // win -> win points, loss -> loss points; tie, undetermined and breakaway/badConnection callers leave the
         // rank untouched (no relief rule exists in the masters, so a flagged caller is not punished either).
         // The persistence callback runs at most once per entry; a null return applies and caches nothing.
-        var processedRankedResult = applyProgression
-            ? _matchmaking.ProcessRankedResultOnce(battleEntryId, state.UserId, ruleType =>
+        BattleMatchmakingService.BattleResultProcessing? processedRankedResult = null;
+        BattleRankStanding before;
+        BattleRankStanding after;
+        try
+        {
+            if (applyProgression)
             {
-                var rankWon = RankWinFor(statReport, out var skipReason);
-                if (rankWon is null)
-                {
-                    _logger.LogInformation("Ranked result for {UserId} entry {BattleEntryId}: rank unchanged ({Reason})",
-                        state.UserId, battleEntryId, skipReason);
-                    return null;
-                }
-                var beforeRank = _playerStore.LoadRank(state.PlayerId, ruleType);
-                var afterRank = RankProgression.Apply(beforeRank, won: rankWon.Value);
-                _playerStore.SaveRank(state.PlayerId, ruleType, afterRank);
-                return new BattleMatchmakingService.RankedResultSnapshot(ruleType, beforeRank, afterRank);
-            })
-            : null;
-        var rankSnapshot = processedRankedResult?.RankedResult;
-        var before = rankSnapshot?.Before ?? _playerStore.LoadRank(state.PlayerId, battleRuleType);
-        var after = rankSnapshot?.After ?? before;
+                processedRankedResult = await _matchmaking.ProcessRankedResultOnceAsync(battleEntryId, state.UserId,
+                    ruleType => AwardRankedResultAsync(ticket, state, battleEntryId, ruleType, statReport,
+                        context.RequestAborted));
+            }
+            var rankSnapshot = processedRankedResult?.RankedResult;
+            before = rankSnapshot?.Before ?? await ReadOwnStandingAsync(ticket, battleRuleType, context.RequestAborted);
+            after = rankSnapshot?.After ?? before;
+        }
+        catch (Exception exception) when (exception is OtomoRankException or OtomoIdentityException)
+        {
+            // The award (or the standing the screen must show) could not be had from session. It is not dropped and not
+            // guessed: the result is answered 503, nothing was cached, and the client's retry carries the same award
+            // key, which session applies once.
+            _logger.LogError(exception,
+                "Battle result for {UserId} entry {BattleEntryId} could not be ranked by session; answering 503",
+                state.UserId, battleEntryId);
+            return SocialUnavailable(context, "/battle/result", exception);
+        }
         var receivedHonors = ownedEntry is null
             ? Array.Empty<int>()
             : _badgeAwardRules.RecordVerifiedBattle(
@@ -2999,7 +2995,7 @@ public sealed partial class DemoSessionApi : IDisposable
             // ArchiveData.set_IsUploadReplayData). Everything else is unchanged.
             replayUploadFlag = true,
             // The same delta /battle/result persisted, so the reward screen and the stored rank agree.
-            battlePoint = RankProgression.WinBattlePoint,
+            battlePoint = RankTranslation.WinDelta,
             exp = 800,
             kickPoint = 200,
             jetCoin = 1000

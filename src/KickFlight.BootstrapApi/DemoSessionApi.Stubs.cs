@@ -146,7 +146,10 @@ public sealed partial class DemoSessionApi
         var record = FindProfileByDisplayOrStoredId(displayUserId);
         if (record is null) return StatusError(context, key);
         var followed = await ReadFollowedIdsAsync(ticket, "/user/search", context.RequestAborted);
-        var profile = SocialProfileJson(state, record, FollowStatus(followed, state.PlayerId, record.PlayerId), false);
+        var (cardRanks, cardError) = await TryReadCardRanksAsync(ticket, state, [record.PlayerId], context.RequestAborted);
+        if (cardRanks is null) return SocialUnavailable(context, "/user/search", cardError);
+        var profile = SocialProfileJson(state, record, FollowStatus(followed, state.PlayerId, record.PlayerId), false,
+            cardRanks[record.PlayerId]);
 
         return OkJson(context, key, $$"""{"userProfile":{{profile}}}""");
     }
@@ -187,7 +190,10 @@ public sealed partial class DemoSessionApi
             KickerCostumeId = targetState.KickerCostumeId
         };
         var followed = await ReadFollowedIdsAsync(ticket, "/user/detail", context.RequestAborted);
-        var profile = SocialProfileJson(state, targetProfile, FollowStatus(followed, state.PlayerId, record.PlayerId), false);
+        var (cardRanks, cardError) = await TryReadCardRanksAsync(ticket, state, [record.PlayerId], context.RequestAborted);
+        if (cardRanks is null) return SocialUnavailable(context, "/user/detail", cardError);
+        var profile = SocialProfileJson(state, targetProfile, FollowStatus(followed, state.PlayerId, record.PlayerId), false,
+            cardRanks[record.PlayerId]);
         return OkJson(context, key,
             $$"""{"userProfile":{{profile}},"userBattleParameter":{{battleParameter}},"snsScreenName":""}""");
     }
@@ -251,37 +257,6 @@ public sealed partial class DemoSessionApi
     // TODO(otomo-profile): that name is a local copy of what session holds; remove it with the profile/loadout move.
     private PlayerProfile? FindProfileByDisplayOrStoredId(long id) =>
         PlayerDisplayIdCodec.Find(id, _playerStore.FindProfile);
-
-    // ResponseUserProfile, field for field. Frames and battle ranks mirror what BuildHomeJson already serves for the
-    // same user (an empty userFrameList leaves the profile card without a frame to draw).
-    private string BuildUserProfileJson(SessionState state, string userId, long displayUserId, string name) =>
-        JsonSerializer.Serialize(new
-        {
-            userId,
-            displayUserId = PlayerDisplayIdCodec.ToPublic(displayUserId),
-            name,
-            honorId = BadgeAwardRules.GetOwnedHonorIds(state).Contains(state.HonorId)
-                ? state.HonorId
-                : BadgeAwardRules.DefaultHonorId,
-            userFrameList = new[]
-            {
-                new { battleRuleType = 1, frameId = 1 },
-                new { battleRuleType = 2, frameId = 1 },
-                new { battleRuleType = 3, frameId = 1 }
-            },
-            kickerId = state.KickerId,
-            kickerCostumeId = state.KickerCostumeId,
-            onlineFlag = true,
-            battleFlag = false,
-            officialFlag = false,
-            languageCode = "es",
-            followStatus = 0,
-            newFlag = false,
-            userBattleRankList = BuildBattleRankList(state),
-            snsUserName = "",
-            snsScreenName = "",
-            snsUserImageUrl = ""
-        });
 
     // The client resolves every disc id through DiscMasterData while building a friend card. Keep the detail
     // payload tied to the target's persisted active deck, with the same initial deck as SessionState when a slot

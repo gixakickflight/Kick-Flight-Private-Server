@@ -3,16 +3,9 @@ namespace KickFlight.BootstrapApi.PlayerStore;
 // A resolved session token: which player it belongs to, and the key their bodies are encrypted with.
 public sealed record SessionRecord(long PlayerId, byte[] Key);
 
-// A player's standing in one battle rule. Rank is what the client renders as a league badge.
-public sealed record RankState(int BattlePoint, int Rank);
-
 // Public data used by profile cards and social/ranking lists. An unset display name stays empty; callers must
 // not invent a player identity for an ID that has no persisted profile.
 public sealed record PlayerProfile(long PlayerId, string DisplayName, int KickerId, int KickerCostumeId);
-
-// Position is one-based in the complete named-player ranking for this battle rule, including when the query is
-// filtered to a set of followed players.
-public sealed record RankedPlayer(PlayerProfile Profile, int BattlePoint, int Rank, long Position);
 
 // One game row and the otomo account behind it: the numeric id the client speaks and the account id otomo speaks.
 // That mapping is the only thing this adapter keeps about the account. Names, tags and discriminators are session's,
@@ -66,11 +59,6 @@ public interface IPlayerStore
     // device's refresh family lives in otomo, so there is nothing to persist and migration 4 drops the sessions
     // table. JsonPlayerStore still has its file-backed map for local runs, but no caller reaches it.
 
-    // Rank per battle rule type. Absent rows read as the starting rank, so a new player needs no seeding.
-    RankState LoadRank(long playerId, int battleRuleType);
-
-    void SaveRank(long playerId, int battleRuleType, RankState rank);
-
     // Whether another player already goes by this name. Case-insensitive, because a name is how a player is
     // identified on the ranking and profile screens, where "Tanuki" and "tanuki" reading as two people is a bug
     // rather than a feature. `exceptPlayerId` is the caller, so re-submitting one's own name is not a clash.
@@ -89,11 +77,4 @@ public interface IPlayerStore
 
     // The same for one game row, or null when that row has no otomo account behind it.
     OtomoPlayer? FindOtomoPlayer(long playerId);
-
-    // A null playerIds selects the complete named-player ranking. Filtered results retain their global position.
-    IReadOnlyList<RankedPlayer> ListRanks(
-        int battleRuleType,
-        IReadOnlyCollection<long>? playerIds,
-        int offset,
-        int limit);
 }

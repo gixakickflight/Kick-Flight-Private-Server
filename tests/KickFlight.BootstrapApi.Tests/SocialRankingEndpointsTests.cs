@@ -180,6 +180,8 @@ public sealed class SocialRankingEndpointsTests
         Assert.StartsWith("Rank Bob ", world.GetProperty("battleRankingList")[0].GetProperty("name").GetString());
         Assert.Equal(3, world.GetProperty("battleRanking").GetProperty("rank").GetInt32());
         Assert.Equal(1100, world.GetProperty("battleRanking").GetProperty("battlePoint").GetInt32());
+        // 1100 client points is rank 3; the next published tier (rank_4 at 1200 session points) starts at 1400.
+        Assert.Equal(300, world.GetProperty("nextRewardRemainingBattlePoint").GetInt32());
         var ownPosition = world.GetProperty("battleRanking").GetProperty("number").GetInt32();
         Assert.Equal(3, ownPosition);
 
@@ -225,6 +227,18 @@ public sealed class SocialRankingEndpointsTests
         var boardCall = Assert.Single(_social.BoardRequests);
         Assert.Contains("scope=following", boardCall.FullPath, StringComparison.Ordinal);
         Assert.Contains("limit=100", boardCall.FullPath, StringComparison.Ordinal);
+
+        // A card shows the followed player's own standing, read from session's internal plane by otomo id with the
+        // service key - not from anything this adapter stored.
+        _social.ClearRequests();
+        var cards = await PostAsync(alice, "/follow/index", new { page = 0 });
+        var carolRank = cards.GetProperty("userProfileList")[0].GetProperty("userBattleRankList")[0];
+        Assert.Equal(1, carolRank.GetProperty("battleRuleType").GetInt32());
+        Assert.Equal(2500, carolRank.GetProperty("battlePoint").GetInt32());
+        Assert.Equal(6, carolRank.GetProperty("rank").GetInt32());
+        var internalRead = Assert.Single(_social.Requests, request =>
+            request.Path == $"/internal/session/rank/players/{carol.Account}");
+        Assert.Equal("Bearer " + FakeOtomoSocial.ServiceKey, internalRead.Authorization);
 
         var local = await PostAsync(alice, "/ranking/region", new { battleRuleId = 1 });
         Assert.Equal(world.GetProperty("battleRankingList")[0].GetProperty("userId").GetString(),

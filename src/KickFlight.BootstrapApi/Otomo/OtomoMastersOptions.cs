@@ -43,6 +43,12 @@ public sealed class OtomoMastersOptions
     // it, the adapter fails at startup rather than silently serving the file it was meant to replace.
     public string[] Tables { get; set; } = Array.Empty<string>();
 
+    // Namespaces of documents this adapter reads whole, not as a master table: the release carries them as
+    // config/<namespace>.json and they are not the {"rows": [...]} shape a master has. `session.rank` (the published
+    // ladder) is the one today. Like a table binding, a document named here must be in the release: if it is not,
+    // startup fails rather than serving without it.
+    public string[] Documents { get; set; } = Array.Empty<string>();
+
     // Bound on one fetch. The bundle is small (all master tables together are under a megabyte) but a stalled
     // connection must not hold the refresh loop forever.
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(15);

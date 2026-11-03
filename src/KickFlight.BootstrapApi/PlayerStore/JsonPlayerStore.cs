@@ -307,16 +307,6 @@ public sealed class JsonPlayerStore : IPlayerStore
             ? new SessionRecord(playerId, key)
             : null;
 
-    // Rank is not persisted in this store: it belongs to the deployment, and the fallback keeps it in memory
-    // so local runs and tests see a stable value instead of the starting rank on every read.
-    private readonly ConcurrentDictionary<(long PlayerId, int BattleRuleType), RankState> _ranks = new();
-
-    public RankState LoadRank(long playerId, int battleRuleType) =>
-        _ranks.TryGetValue((playerId, battleRuleType), out var rank) ? rank : RankProgression.Starting;
-
-    public void SaveRank(long playerId, int battleRuleType, RankState rank) =>
-        _ranks[(playerId, battleRuleType)] = rank;
-
     public PlayerProfile? FindProfile(long playerId)
     {
         if (playerId <= 0) return null;
@@ -366,44 +356,8 @@ public sealed class JsonPlayerStore : IPlayerStore
         }
     }
 
-    public IReadOnlyList<RankedPlayer> ListRanks(
-        int battleRuleType,
-        IReadOnlyCollection<long>? playerIds,
-        int offset,
-        int limit)
-    {
-        ValidatePage(offset, limit);
-        if (playerIds is { Count: 0 }) return Array.Empty<RankedPlayer>();
-
-        var selectedIds = playerIds?.ToHashSet();
-        var all = Directory.EnumerateFiles(_usersDirectory, "*.json")
-            .Select(path => Path.GetFileNameWithoutExtension(path))
-            .Where(name => long.TryParse(name, out _))
-            .Select(name => long.Parse(name!))
-            .Select(id => FindProfile(id))
-            .Where(profile => profile is not null && !string.IsNullOrEmpty(profile.DisplayName))
-            .Select(profile => profile!)
-            .Select(profile =>
-            {
-                var standing = LoadRank(profile.PlayerId, battleRuleType);
-                return (Profile: profile, Standing: standing);
-            })
-            .OrderByDescending(row => row.Standing.BattlePoint)
-            .ThenBy(row => row.Profile.PlayerId)
-            .Select((row, index) => new RankedPlayer(row.Profile, row.Standing.BattlePoint, row.Standing.Rank, index + 1L));
-
-        if (selectedIds is not null) all = all.Where(row => selectedIds.Contains(row.Profile.PlayerId));
-        return all.Skip(offset).Take(limit).ToArray();
-    }
-
     private static PlayerProfile ProfileFromState(long playerId, SessionState state) =>
         new(playerId, state.UserName, state.KickerId, state.KickerCostumeId);
-
-    private static void ValidatePage(int offset, int limit)
-    {
-        if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
-        if (limit < 0) throw new ArgumentOutOfRangeException(nameof(limit));
-    }
 
     // A directory scan, which is the honest way to answer this against files: the deployment, where the answer
     // has to be fast and exact, uses the unique index the Postgres store queries instead.

@@ -8,7 +8,7 @@ namespace KickFlight.BootstrapApi.Tests;
 
 // The player store's identity surface, now that the social relation is otomo's: what is left of the old social tests
 // is the link between a game row and the account behind it - the numeric-id <-> otomo-account-id mapping and nothing
-// more - and the rank projection the adapter still owns until the rank commit.
+// more - and the profile presentation (name, kicker, costume) a card still reads.
 public sealed class PlayerStoreSocialTests : IDisposable
 {
     private readonly string _directory =
@@ -66,25 +66,25 @@ public sealed class PlayerStoreSocialTests : IDisposable
     }
 
     [Fact]
-    public void Profiles_are_real_and_rank_positions_are_deterministic_and_global_when_filtered()
+    public void Profiles_are_real_and_unknown_ids_have_none()
     {
         var store = NewStore();
-        var alice = CreatePlayer(store, "rank-alice-device", "Alice");
-        var bob = CreatePlayer(store, "rank-bob-device", "Bob");
-        var carol = CreatePlayer(store, "rank-carol-device", "Carol");
-
-        store.SaveRank(alice, 4, new RankState(3000, 7));
-        store.SaveRank(bob, 4, new RankState(3100, 7));
-        store.SaveRank(carol, 4, new RankState(3000, 7));
+        var alice = CreatePlayer(store, "profile-alice-device", "Alice");
+        var carol = CreatePlayer(store, "profile-carol-device", "Carol");
 
         Assert.Null(store.FindProfile(long.MaxValue));
         Assert.Equal(new[] { alice, carol }, store.FindProfiles(new[] { carol, long.MaxValue, alice }).Select(p => p.PlayerId));
+        Assert.Equal("Alice", store.FindProfile(alice)?.DisplayName);
+    }
 
-        var rankings = store.ListRanks(4, null, 0, 10);
-        Assert.Equal(new[] { bob, alice, carol }, rankings.Select(row => row.Profile.PlayerId));
-        Assert.Equal(new long[] { 1, 2, 3 }, rankings.Select(row => row.Position));
-        var filtered = Assert.Single(store.ListRanks(4, new[] { carol }, 0, 10));
-        Assert.Equal(3, filtered.Position);
+    [Fact]
+    public void The_store_keeps_no_battle_points()
+    {
+        // Battle points are session's (migration 7 dropped player_ranks): the store has no rank to load, save or list.
+        var members = typeof(IPlayerStore).GetMethods().Select(method => method.Name).ToArray();
+        Assert.DoesNotContain("LoadRank", members);
+        Assert.DoesNotContain("SaveRank", members);
+        Assert.DoesNotContain("ListRanks", members);
     }
 
     [Fact]

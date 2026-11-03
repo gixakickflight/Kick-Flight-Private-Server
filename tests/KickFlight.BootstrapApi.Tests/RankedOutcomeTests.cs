@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Grpc.Core;
 using KickFlight.BootstrapApi;
+using KickFlight.BootstrapApi.Otomo;
 using KickFlight.BootstrapApi.PlayerStore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -16,7 +17,11 @@ using Xunit;
 
 namespace KickFlight.BootstrapApi.Tests;
 
-/// <summary>Ranked progression follows the validated team outcome; solo/team follows PartyId at entry.</summary>
+/// <summary>
+/// Ranked progression follows the validated team outcome; solo/team follows PartyId at entry. The points are session's:
+/// a result is an award posted to the (fake) session service, and the response is the standing read before it and the
+/// answer to it, in the client's units (session points + 200).
+/// </summary>
 [Collection("Matchmaking static state")]
 public sealed class RankedOutcomeTests
 {
@@ -25,6 +30,14 @@ public sealed class RankedOutcomeTests
     private const string CommonCode = "1a837b9ee2ae11a07a0f529a4cd4b61c";
 
     private sealed record Session(string Token, byte[] Key, long PlayerId);
+
+    // A new player: 0 session points is 200 client points at rank 1 (the lowest published tier).
+    private const int StartBattlePoint = 200;
+    private const int StartRank = 1;
+    private const int WinBattlePoint = RankTranslation.WinDelta;
+    private const int LoseBattlePoint = -RankTranslation.LossDelta;
+
+    private static readonly string[] SessionRuleTypes = ["crystal_scramble", "flag_flight", "rapid_ball"];
 
     private sealed class FixedClock(DateTimeOffset now) : TimeProvider
     {
@@ -71,6 +84,17 @@ public sealed class RankedOutcomeTests
         return JsonDocument.Parse(D2CCodec.Decode(await response.Content.ReadAsByteArrayAsync(), session.Key));
     }
 
+    private static async Task<HttpResponseMessage> PostRawAsync(HttpClient client, Session session, string path, string json)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, path)
+        {
+            Content = new ByteArrayContent(D2CCodec.Encode(Encoding.UTF8.GetBytes(json), session.Key, new byte[16]))
+        };
+        request.Headers.Host = Host;
+        request.Headers.Add("x-app-access-token", session.Token);
+        return await client.SendAsync(request);
+    }
+
     private sealed class Fixture : IAsyncDisposable
     {
         public WebApplicationFactory<Program> Factory = null!;
@@ -78,6 +102,14 @@ public sealed class RankedOutcomeTests
         public BattleMatchmakingService Matchmaking = null!;
         public IPlayerStore Store = null!;
         public int RuleId;
+
+        /// <summary>The otomo account behind a player's game row.</summary>
+        public string AccountOf(Session player) => Store.FindOtomoPlayer(player.PlayerId)!.OtomoPlayerId;
+
+        /// <summary>The player's battle points as session holds them, shown in the client's units.</summary>
+        public int ClientPoints(Session player, int battleRuleType) =>
+            RankTranslation.ClientPoints(OtomoTestEnvironment.Social.PointsOf(AccountOf(player), SessionRuleTypes[battleRuleType - 1]));
+
         private readonly List<(Task Task, CancellationTokenSource Cancel)> _streams = [];
 
         public static Fixture Create()
@@ -156,7 +188,7 @@ public sealed class RankedOutcomeTests
     {
         await using var f = Fixture.Create();
         var player = await AuthAsync(f.Client);
-        var start = RankProgression.StartBattlePoint;
+        var start = StartBattlePoint;
 
         async Task<JsonDocument> Post(string entryId, string body)
         {
@@ -170,29 +202,29 @@ public sealed class RankedOutcomeTests
         var ruleType = winCtx.BattleRuleType!.Value;
         using (var response = await Post(win, Result(win, player.PlayerId, team, 9, 1)))
         {
-            Assert.Equal((start, RankProgression.StartRank), Rank(response.RootElement, "beforeUserBattleRank"));
-            Assert.Equal((start + RankProgression.WinBattlePoint, RankProgression.StartRank), Rank(response.RootElement, "userBattleRank"));
+            Assert.Equal((start, StartRank), Rank(response.RootElement, "beforeUserBattleRank"));
+            Assert.Equal((start + WinBattlePoint, StartRank), Rank(response.RootElement, "userBattleRank"));
         }
-        Assert.Equal(start + RankProgression.WinBattlePoint, f.Store.LoadRank(player.PlayerId, ruleType).BattlePoint);
+        Assert.Equal(start + WinBattlePoint, f.ClientPoints(player, ruleType));
 
         // Retry of the same entry (even with a body claiming a loss) replays the first snapshot and applies nothing.
         using (var retry = await Post(win, Result(win, player.PlayerId, team, 0, 50)))
         {
-            Assert.Equal((start, RankProgression.StartRank), Rank(retry.RootElement, "beforeUserBattleRank"));
-            Assert.Equal((start + RankProgression.WinBattlePoint, RankProgression.StartRank), Rank(retry.RootElement, "userBattleRank"));
+            Assert.Equal((start, StartRank), Rank(retry.RootElement, "beforeUserBattleRank"));
+            Assert.Equal((start + WinBattlePoint, StartRank), Rank(retry.RootElement, "userBattleRank"));
         }
-        Assert.Equal(start + RankProgression.WinBattlePoint, f.Store.LoadRank(player.PlayerId, ruleType).BattlePoint);
-        var afterWin = start + RankProgression.WinBattlePoint;
+        Assert.Equal(start + WinBattlePoint, f.ClientPoints(player, ruleType));
+        var afterWin = start + WinBattlePoint;
 
         // Loss: -20, and the response reflects the real before/after.
         var (loss, lossCtx) = await f.EnterAsync(player);
         using (var response = await Post(loss, Result(loss, player.PlayerId, lossCtx.OwnTeamType!.Value, 1, 9)))
         {
-            Assert.Equal((afterWin, RankProgression.StartRank), Rank(response.RootElement, "beforeUserBattleRank"));
-            Assert.Equal((afterWin - RankProgression.LoseBattlePoint, RankProgression.StartRank), Rank(response.RootElement, "userBattleRank"));
+            Assert.Equal((afterWin, StartRank), Rank(response.RootElement, "beforeUserBattleRank"));
+            Assert.Equal((afterWin - LoseBattlePoint, StartRank), Rank(response.RootElement, "userBattleRank"));
         }
-        var afterLoss = afterWin - RankProgression.LoseBattlePoint;
-        Assert.Equal(afterLoss, f.Store.LoadRank(player.PlayerId, ruleType).BattlePoint);
+        var afterLoss = afterWin - LoseBattlePoint;
+        Assert.Equal(afterLoss, f.ClientPoints(player, ruleType));
 
         // Tie, flagged caller, no scores, caller missing and malformed scores: unchanged.
         var (open, openCtx) = await f.EnterAsync(player);
@@ -208,15 +240,109 @@ public sealed class RankedOutcomeTests
         foreach (var body in unchangedBodies)
         {
             using var response = await Post(open, body);
-            Assert.Equal((afterLoss, RankProgression.StartRank), Rank(response.RootElement, "beforeUserBattleRank"));
-            Assert.Equal((afterLoss, RankProgression.StartRank), Rank(response.RootElement, "userBattleRank"));
-            Assert.Equal(afterLoss, f.Store.LoadRank(player.PlayerId, ruleType).BattlePoint);
+            Assert.Equal((afterLoss, StartRank), Rank(response.RootElement, "beforeUserBattleRank"));
+            Assert.Equal((afterLoss, StartRank), Rank(response.RootElement, "userBattleRank"));
+            Assert.Equal(afterLoss, f.ClientPoints(player, ruleType));
         }
 
         // Undecidable attempts cached nothing, so the same entry can still be decided once by a valid result.
         using (var decided = await Post(open, Result(open, player.PlayerId, openTeam, 9, 1)))
-            Assert.Equal((afterLoss + RankProgression.WinBattlePoint, RankProgression.StartRank), Rank(decided.RootElement, "userBattleRank"));
-        Assert.Equal(afterLoss + RankProgression.WinBattlePoint, f.Store.LoadRank(player.PlayerId, ruleType).BattlePoint);
+            Assert.Equal((afterLoss + WinBattlePoint, StartRank), Rank(decided.RootElement, "userBattleRank"));
+        Assert.Equal(afterLoss + WinBattlePoint, f.ClientPoints(player, ruleType));
+    }
+
+    [Fact]
+    public async Task A_ranked_result_is_one_award_with_a_stable_key_and_the_retry_posts_nothing_more()
+    {
+        await using var f = Fixture.Create();
+        var player = await AuthAsync(f.Client);
+        var account = f.AccountOf(player);
+        var (win, winCtx) = await f.EnterAsync(player);
+        var team = winCtx.OwnTeamType!.Value;
+        var ruleName = SessionRuleTypes[winCtx.BattleRuleType!.Value - 1];
+
+        using (await PostAsync(f.Client, player, "/battle/result", Result(win, player.PlayerId, team, 9, 1))) { }
+        var award = Assert.Single(OtomoTestEnvironment.Social.Awards, call => call.PlayerId == account);
+        Assert.Equal($"battle:{win}:{account}", award.Key);
+        Assert.Equal(ruleName, award.RuleType);
+        Assert.Equal(RankTranslation.WinDelta, award.Delta);
+
+        // The same battle again: answered from the entry's cache, so nothing more is posted (and were it posted, the
+        // key is the same, which session applies once).
+        using (await PostAsync(f.Client, player, "/battle/result", Result(win, player.PlayerId, team, 9, 1))) { }
+        Assert.Single(OtomoTestEnvironment.Social.Awards, call => call.PlayerId == account);
+
+        // A loss is -20 under its own entry's key.
+        var (loss, lossCtx) = await f.EnterAsync(player);
+        using (await PostAsync(f.Client, player, "/battle/result", Result(loss, player.PlayerId, lossCtx.OwnTeamType!.Value, 1, 9))) { }
+        var lossAward = OtomoTestEnvironment.Social.Awards.Single(call => call.PlayerId == account && call.Key == $"battle:{loss}:{account}");
+        Assert.Equal(RankTranslation.LossDelta, lossAward.Delta);
+    }
+
+    [Fact]
+    public async Task A_loss_at_zero_session_points_stays_at_the_floor()
+    {
+        await using var f = Fixture.Create();
+        var player = await AuthAsync(f.Client);
+        var (loss, ctx) = await f.EnterAsync(player);
+        using var response = await PostAsync(f.Client, player, "/battle/result",
+            Result(loss, player.PlayerId, ctx.OwnTeamType!.Value, 1, 9));
+        // Session floors points at 0, which is the client's 200: KF's old floor, preserved by the offset.
+        Assert.Equal((StartBattlePoint, StartRank), Rank(response.RootElement, "beforeUserBattleRank"));
+        Assert.Equal((StartBattlePoint, StartRank), Rank(response.RootElement, "userBattleRank"));
+        Assert.Equal(StartBattlePoint, f.ClientPoints(player, ctx.BattleRuleType!.Value));
+    }
+
+    [Fact]
+    public async Task A_result_session_cannot_award_is_answered_503_with_the_same_key_and_the_retry_awards_it_once()
+    {
+        await using var f = Fixture.Create();
+        var player = await AuthAsync(f.Client);
+        var account = f.AccountOf(player);
+        var (entry, ctx) = await f.EnterAsync(player);
+        var body = Result(entry, player.PlayerId, ctx.OwnTeamType!.Value, 9, 1);
+
+        OtomoTestEnvironment.Social.SetAwardsUnavailable(account, true);
+        using (var refused = await PostRawAsync(f.Client, player, "/battle/result", body))
+        {
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, refused.StatusCode);
+            Assert.Equal("1", refused.Headers.GetValues("x-app-status-code").Single());
+            using var error = JsonDocument.Parse(await refused.Content.ReadAsStringAsync());
+            Assert.Equal("social-unavailable", error.RootElement.GetProperty("error").GetString());
+        }
+        // Nothing was applied, and nothing was guessed: session still holds 0 points. The attempt was posted (twice:
+        // the client retries a 5xx once) under the one key.
+        Assert.Equal(StartBattlePoint, f.ClientPoints(player, ctx.BattleRuleType!.Value));
+        var attempts = OtomoTestEnvironment.Social.Awards.Where(call => call.PlayerId == account).ToArray();
+        Assert.Equal(2, attempts.Length);
+        Assert.Single(attempts.Select(call => call.Key).Distinct());
+
+        // Session comes back; the client retries the same result. It is awarded exactly once, under the same key.
+        OtomoTestEnvironment.Social.SetAwardsUnavailable(account, false);
+        using (var retry = await PostAsync(f.Client, player, "/battle/result", body))
+        {
+            Assert.Equal((StartBattlePoint, StartRank), Rank(retry.RootElement, "beforeUserBattleRank"));
+            Assert.Equal((StartBattlePoint + WinBattlePoint, StartRank), Rank(retry.RootElement, "userBattleRank"));
+        }
+        Assert.Equal(StartBattlePoint + WinBattlePoint, f.ClientPoints(player, ctx.BattleRuleType!.Value));
+        var all = OtomoTestEnvironment.Social.Awards.Where(call => call.PlayerId == account).ToArray();
+        Assert.Single(all.Select(call => call.Key).Distinct());
+    }
+
+    [Fact]
+    public async Task A_result_is_answered_503_when_the_standing_cannot_be_read()
+    {
+        await using var f = Fixture.Create();
+        var player = await AuthAsync(f.Client);
+        var account = f.AccountOf(player);
+        var (entry, ctx) = await f.EnterAsync(player);
+
+        OtomoTestEnvironment.Social.SetRankReadsUnavailable(account, true);
+        using var refused = await PostRawAsync(f.Client, player, "/battle/result",
+            Result(entry, player.PlayerId, ctx.OwnTeamType!.Value, 9, 1));
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, refused.StatusCode);
+        // No award was posted for a result whose before-standing could not be read.
+        Assert.DoesNotContain(OtomoTestEnvironment.Social.Awards, call => call.PlayerId == account);
     }
 
     [Fact]
@@ -227,7 +353,7 @@ public sealed class RankedOutcomeTests
         var (entry, ctx) = await f.EnterAsync(player);
         using var response = await PostAsync(f.Client, player, "/battle/result",
             Result(entry, player.PlayerId, ctx.OwnTeamType!.Value, 9, 1, killCount: 100_000));
-        Assert.Equal((RankProgression.StartBattlePoint + RankProgression.WinBattlePoint, RankProgression.StartRank), Rank(response.RootElement, "userBattleRank"));
+        Assert.Equal((StartBattlePoint + WinBattlePoint, StartRank), Rank(response.RootElement, "userBattleRank"));
         Assert.Equal(0, f.Store.TryLoad(player.PlayerId)!.BadgeStats.Total("kills")); // stat set voided
     }
 
@@ -269,7 +395,7 @@ public sealed class RankedOutcomeTests
 
         using var response = await PostAsync(f.Client, player, "/battle/result",
             Result(entry, player.PlayerId, ctx.OwnTeamType!.Value, 9, 1));
-        Assert.Equal(RankProgression.StartBattlePoint + RankProgression.WinBattlePoint,
+        Assert.Equal(StartBattlePoint + WinBattlePoint,
             response.RootElement.GetProperty("userBattleRank").GetProperty("battlePoint").GetInt32());
         var stats = f.Store.TryLoad(player.PlayerId)!.BadgeStats;
         Assert.Equal(1, stats.QueueWins.GetValueOrDefault("solo"));

@@ -1,4 +1,7 @@
 using System.Collections.Concurrent;
+using System.Formats.Tar;
+using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
@@ -17,14 +20,22 @@ namespace KickFlight.BootstrapApi.Tests;
 // does too (POST /me/init assigns "Player####").
 //
 // The ladder is the published session.rank one (session units): rule types crystal_scramble / flag_flight /
-// rapid_ball, and tiers rank_1@0 ... rank_16@7300.
+// rapid_ball, and tiers rank_1@0 ... rank_16@7300. Besides the player plane this fake serves
+//
+//   * the internal plane (service key): POST /internal/session/rank/awards, idempotent by key per player and rule
+//     type with points floored at 0, and GET /internal/session/rank/players/{id} with every rule type present;
+//   * the release bundle (GET /internal/config/channels/{channel}/bundle) carrying config/session.rank.json, which is
+//     how the adapter reads the tier thresholds.
+//
+// Account existence is lenient: any account id the auth fake minted is "a player session knows" and is created on its
+// first use here. An id starting with "ghost-" is the one session has never heard of (404 player_not_found).
 public sealed class FakeOtomoSocial : IAsyncDisposable
 {
     private readonly WebApplication _app;
     private readonly ConcurrentDictionary<string, Account> _accounts = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, HashSet<string>> _following = new(StringComparer.Ordinal);
     private readonly HashSet<(string Blocker, string Blocked)> _blocks = [];
-    private readonly ConcurrentDictionary<string, List<BoardRow>> _boards = new(StringComparer.Ordinal);
+    private readonly Dictionary<(string PlayerId, string RuleType, string Key), SessionAward> _awards = [];
 
     // session.rank, as published (session units).
     public static readonly string[] RuleTypes = ["crystal_scramble", "flag_flight", "rapid_ball"];
@@ -41,6 +52,28 @@ public sealed class FakeOtomoSocial : IAsyncDisposable
     }
     private readonly ConcurrentQueue<RecordedRequest> _requests = new();
     private readonly object _lock = new();
+
+    // The game-server service key (session_matchmaker) the internal plane expects as a bearer.
+    public const string ServiceKey = "test-session-matchmaker-key";
+
+    // The document the bundle carries. A test can replace it to prove the adapter reads thresholds from the release.
+    public string LadderDocument { get; set; } = DefaultLadderDocument();
+
+    // Per account, so a test that breaks one player's rank service does not break the tests running beside it: the
+    // award for this player answers 503 and applies nothing (the call is still logged), and the rank reads for this
+    // player (player plane and internal) answer 503.
+    private readonly ConcurrentDictionary<string, bool> _awardsDown = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, bool> _readsDown = new(StringComparer.Ordinal);
+
+    public void SetAwardsUnavailable(string accountId, bool down) => _awardsDown[accountId] = down;
+
+    public void SetRankReadsUnavailable(string accountId, bool down) => _readsDown[accountId] = down;
+
+    public static string DefaultLadderDocument() => JsonSerializer.Serialize(new
+    {
+        rule_types = RuleTypes,
+        tiers = TierMinPoints.Select((min, index) => new { key = "rank_" + (index + 1), min_points = min }).ToArray()
+    });
 
     private FakeOtomoSocial(WebApplication app, string baseUrl)
     {
@@ -64,6 +97,7 @@ public sealed class FakeOtomoSocial : IAsyncDisposable
         var app = builder.Build();
         var server = new FakeOtomoSocial(app, "");
         server.Map();
+        server.MapRank();
         app.StartAsync().GetAwaiter().GetResult();
 
         var address = app.Urls.FirstOrDefault(url => !url.EndsWith(":0", StringComparison.Ordinal))
@@ -97,14 +131,20 @@ public sealed class FakeOtomoSocial : IAsyncDisposable
     public void SeedRank(string accountId, string ruleType, int points)
     {
         var account = Ensure(accountId);
-        lock (_lock)
-        {
-            var rows = _boards.GetOrAdd(ruleType, _ => []);
-            rows.RemoveAll(row => row.PlayerId == accountId);
-            rows.Add(new BoardRow(accountId, points));
-            account.Points[ruleType] = points;
-        }
+        lock (_lock) account.Points[ruleType] = points;
     }
+
+    // The points session holds for an account on a ladder (0 when it has none).
+    public int PointsOf(string accountId, string ruleType)
+    {
+        var account = Ensure(accountId);
+        lock (_lock) return account.Points.GetValueOrDefault(ruleType);
+    }
+
+    // The awards session accepted a request for (whether or not the key was new), in arrival order.
+    public IReadOnlyList<AwardCall> Awards => _awardLog.ToArray();
+
+    private readonly ConcurrentQueue<AwardCall> _awardLog = new();
 
     // Empties every ladder. The fake is shared by the whole suite, so a test that asserts an exact board order seeds
     // after calling this - otherwise the previous test's points are still on the ladder.
@@ -112,8 +152,8 @@ public sealed class FakeOtomoSocial : IAsyncDisposable
     {
         lock (_lock)
         {
-            _boards.Clear();
             foreach (var account in _accounts.Values) account.Points.Clear();
+            _awards.Clear();
         }
     }
 
@@ -297,8 +337,9 @@ public sealed class FakeOtomoSocial : IAsyncDisposable
 
             lock (_lock)
             {
-                var ordered = (_boards.TryGetValue(ruleType, out var rows) ? rows : [])
-                    .Where(row => !string.IsNullOrEmpty(Ensure(row.PlayerId).DisplayName))
+                var ordered = _accounts.Values
+                    .Where(candidate => candidate.Points.ContainsKey(ruleType) && !string.IsNullOrEmpty(candidate.DisplayName))
+                    .Select(candidate => new BoardRow(candidate.PlayerId, candidate.Points[ruleType]))
                     .OrderByDescending(row => row.Points)
                     .ThenBy(row => row.PlayerId, StringComparer.Ordinal)
                     .Select((row, index) => (Row: row, Position: index + 1))
@@ -337,6 +378,121 @@ public sealed class FakeOtomoSocial : IAsyncDisposable
                 });
             }
         });
+    }
+
+    // The player plane's own standing, the internal plane's award and read, and the release bundle.
+    private void MapRank()
+    {
+        // GET /api/player/session/rank: the caller's own standing, only for the rule types they have played.
+        _app.MapGet("/api/player/session/rank", (HttpContext context) =>
+        {
+            var account = Identify(context, out var failure);
+            if (account is null) return failure!;
+            if (_readsDown.GetValueOrDefault(account.PlayerId)) return Error(context, StatusCodes.Status503ServiceUnavailable, "unavailable", "rank is down");
+            lock (_lock)
+            {
+                var ranks = RuleTypes.Where(account.Points.ContainsKey)
+                    .Select(rule => new { rule_type = rule, points = account.Points[rule], tier = TierFor(account.Points[rule]),
+                        updated_at = "2026-10-01T12:00:00Z" }).ToArray();
+                return Results.Json(new { ranks });
+            }
+        });
+
+        // GET /internal/session/rank/players/{id}: every rule type present, 0 points at the lowest tier when none.
+        _app.MapGet("/internal/session/rank/players/{playerId}", (HttpContext context, string playerId) =>
+        {
+            if (!Service(context, out var failure)) return failure!;
+            if (_readsDown.GetValueOrDefault(playerId)) return Error(context, StatusCodes.Status503ServiceUnavailable, "unavailable", "rank is down");
+            if (playerId.StartsWith("ghost-", StringComparison.Ordinal))
+                return Error(context, StatusCodes.Status404NotFound, "player_not_found", "no such player");
+            var account = Ensure(playerId);
+            lock (_lock)
+            {
+                var ranks = RuleTypes.Select(rule =>
+                {
+                    var points = account.Points.GetValueOrDefault(rule);
+                    return new { rule_type = rule, points, tier = TierFor(points) };
+                }).ToArray();
+                return Results.Json(new { player_id = account.PlayerId, ranks });
+            }
+        });
+
+        // POST /internal/session/rank/awards {player_id, rule_type, delta, key}: idempotent by key per player and rule
+        // type; points floor at 0; the answer carries the standing after the (first) application.
+        _app.MapPost("/internal/session/rank/awards", async (HttpContext context) =>
+        {
+            if (!Service(context, out var failure)) return failure!;
+            using var body = await JsonDocument.ParseAsync(context.Request.Body);
+
+            var root = body.RootElement;
+            var playerId = root.TryGetProperty("player_id", out var playerProp) ? playerProp.GetString() ?? "" : "";
+            var ruleType = root.TryGetProperty("rule_type", out var ruleProp) ? ruleProp.GetString() ?? "" : "";
+            var key = root.TryGetProperty("key", out var keyProp) ? keyProp.GetString() ?? "" : "";
+            if (playerId.Length == 0 || key.Length == 0 || !root.TryGetProperty("delta", out var deltaProp) ||
+                !deltaProp.TryGetInt32(out var delta))
+                return Error(context, StatusCodes.Status400BadRequest, "validation_failed", "player_id, delta and key are required");
+            if (!RuleTypes.Contains(ruleType))
+                return Error(context, StatusCodes.Status400BadRequest, "unknown_rule_type", "no rank is kept for that rule type");
+            if (playerId.StartsWith("ghost-", StringComparison.Ordinal))
+                return Error(context, StatusCodes.Status404NotFound, "player_not_found", "no such player");
+
+            var account = Ensure(playerId);
+            lock (_lock)
+            {
+                _awardLog.Enqueue(new AwardCall(playerId, ruleType, delta, key));
+                if (_awardsDown.GetValueOrDefault(playerId))
+                    return Error(context, StatusCodes.Status503ServiceUnavailable, "unavailable", "awards are down");
+                if (_awards.TryGetValue((playerId, ruleType, key), out _))
+                {
+                    var current = account.Points.GetValueOrDefault(ruleType);
+                    return Results.Json(new { player_id = playerId, rule_type = ruleType, points = current,
+                        tier = TierFor(current), applied = false });
+                }
+                var points = Math.Max(0, account.Points.GetValueOrDefault(ruleType) + delta);
+                account.Points[ruleType] = points;
+                _awards[(playerId, ruleType, key)] = new SessionAward(delta, points);
+                return Results.Json(new { player_id = playerId, rule_type = ruleType, points, tier = TierFor(points), applied = true });
+            }
+        });
+
+        // GET /internal/config/channels/{channel}/bundle: the release as one gzipped tar, verified by a Digest header,
+        // exactly the shape OtomoMasters reads. It carries session.rank and nothing else.
+        _app.MapGet("/internal/config/channels/{channel}/bundle", (HttpContext context, string channel) =>
+        {
+            _requests.Enqueue(new RecordedRequest("GET", context.Request.Path.Value ?? "", "",
+                context.Request.Headers.Authorization.ToString()));
+            if (context.Request.Headers.Authorization.ToString() != "Bearer " + ServiceKey)
+                return Error(context, StatusCodes.Status401Unauthorized, "invalid_key", "the service key is not usable");
+
+            var buffer = new MemoryStream();
+            using (var gzip = new GZipStream(buffer, CompressionLevel.Fastest, leaveOpen: true))
+            using (var tar = new TarWriter(gzip, leaveOpen: true))
+            {
+                void Add(string name, string text) => tar.WriteEntry(new PaxTarEntry(TarEntryType.RegularFile, name)
+                    { DataStream = new MemoryStream(Encoding.UTF8.GetBytes(text)) });
+                Add("manifest.json", "{\"release\":\"test-release\"}");
+                Add("config/session.rank.json", LadderDocument);
+            }
+            var bytes = buffer.ToArray();
+            context.Response.Headers["Digest"] = "sha-256=" + Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+            context.Response.Headers["X-Otomo-Release"] = "test-release";
+            context.Response.Headers["X-Otomo-Channel"] = channel;
+            return Results.Bytes(bytes, "application/gzip");
+        });
+    }
+
+    private bool Service(HttpContext context, out IResult? failure)
+    {
+        var authorization = context.Request.Headers.Authorization.ToString();
+        _requests.Enqueue(new RecordedRequest(context.Request.Method, context.Request.Path.Value ?? "",
+            context.Request.QueryString.Value ?? "", authorization));
+        if (authorization != "Bearer " + ServiceKey)
+        {
+            failure = Error(context, StatusCodes.Status401Unauthorized, "invalid_key", "the service key is not usable");
+            return false;
+        }
+        failure = null;
+        return true;
     }
 
     private object FollowRow(string accountId)
@@ -397,4 +553,8 @@ public sealed class FakeOtomoSocial : IAsyncDisposable
     }
 
     private sealed record BoardRow(string PlayerId, int Points);
+
+    public sealed record AwardCall(string PlayerId, string RuleType, int Delta, string Key);
+
+    private sealed record SessionAward(int Delta, int PointsAfter);
 }
