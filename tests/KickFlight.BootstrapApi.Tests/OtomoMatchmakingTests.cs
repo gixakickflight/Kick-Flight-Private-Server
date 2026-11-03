@@ -470,7 +470,7 @@ public sealed class OtomoMatchmakingTests
         {
             Content = new ByteArrayContent(D2CCodec.Encode(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(body)), Key,
                 new byte[16])),
-            Headers = { Host }
+            Headers = { Host = Host }
         };
         request.Headers.Add("x-app-access-token", token);
         request.Headers.Add("x-app-application-version", ClientVersion);
