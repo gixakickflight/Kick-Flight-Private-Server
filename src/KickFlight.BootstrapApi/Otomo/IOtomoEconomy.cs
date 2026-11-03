@@ -53,14 +53,26 @@ public sealed record EconomyWallet(
     [property: JsonPropertyName("player_id")] string PlayerId,
     [property: JsonPropertyName("balances")] IReadOnlyList<EconomyBalance>? Balances);
 
+// The state a game hangs on the item rather than on the player (economy's internal/attrs, a jsonb column on the
+// possession row). The schema is closed - level, counter, available_at - and 0 means "the game has set nothing",
+// which is what every row that predates it reads as.
+//
+// A disc's level lives here: it is this record's Level, not a field of the adapter's save.
+public sealed record EconomyItemAttrs(
+    [property: JsonPropertyName("level")] long Level,
+    [property: JsonPropertyName("counter")] long Counter,
+    [property: JsonPropertyName("available_at")] DateTimeOffset? AvailableAt);
+
 // One row of GET /api/player/economy/inventory. `stackable` comes from the rules as they are now, `qty` is what
-// the player actually holds.
+// the player actually holds, and `attrs` is the item's own state (defaulted so a response from a service that
+// predates the column still deserializes).
 public sealed record EconomyItem(
     [property: JsonPropertyName("item")] string Item,
     [property: JsonPropertyName("qty")] long Qty,
     [property: JsonPropertyName("stackable")] bool Stackable,
     [property: JsonPropertyName("acquired_at")] DateTimeOffset? AcquiredAt,
-    [property: JsonPropertyName("updated_at")] DateTimeOffset? UpdatedAt);
+    [property: JsonPropertyName("updated_at")] DateTimeOffset? UpdatedAt,
+    [property: JsonPropertyName("attrs")] EconomyItemAttrs? Attrs = null);
 
 public sealed record EconomyInventory(
     [property: JsonPropertyName("player_id")] string PlayerId,
@@ -238,6 +250,21 @@ public sealed record EconomyConsumeRequest(string PlayerId, string Key, string R
     IReadOnlyList<EconomyItemCost> Items, IReadOnlyList<EconomyCurrencyCost> Currencies);
 
 // One track's counter value after a progress report.
+// POST /internal/economy/items/advance: one value of one possession moved by a positive amount, up to a ceiling.
+// The answer is the item's state afterwards, which is what a caller that has already taken payment reports as the
+// fact it bought.
+public sealed record EconomyAdvanceResult(
+    [property: JsonPropertyName("player_id")] string PlayerId,
+    [property: JsonPropertyName("item")] string Item,
+    [property: JsonPropertyName("attrs")] EconomyItemAttrs? Attrs,
+    [property: JsonPropertyName("value")] long Value,
+    [property: JsonPropertyName("replayed")] bool Replayed);
+
+// One advance to make. `Max` 0 means no ceiling; a disc passes its rarity's top level so the advance cannot run
+// past the build-up table even if a caller asked for more.
+public sealed record EconomyAdvanceRequest(string PlayerId, string ItemId, string Key, string Reason,
+    string Reference, string Field, long By, long Max);
+
 public sealed record EconomyTrackProgress(
     [property: JsonPropertyName("track_id")] string TrackId,
     [property: JsonPropertyName("period")] string? Period,
@@ -323,4 +350,9 @@ public interface IOtomoEconomy
     // duplicates and its Disc Force. Same switch and key as the grant. Refused (409 insufficient_items or
     // insufficient_funds) when the player does not hold enough, and then nothing has moved.
     Task<EconomyConsumeResult> ConsumeAsync(EconomyConsumeRequest consume, CancellationToken cancellationToken);
+
+    // Moves one attrs value of one possession: a disc's level, once the consume above has taken payment for it. Same
+    // switch, key and plane as the consume. The answer carries the item's state afterwards, which is the fact a badge
+    // is recorded from - the level moved, and economy is the only thing that knows it did.
+    Task<EconomyAdvanceResult> AdvanceAsync(EconomyAdvanceRequest advance, CancellationToken cancellationToken);
 }

@@ -48,6 +48,13 @@ builder.Services.Configure<OtomoEconomyOptions>(builder.Configuration.GetSection
 builder.Services.AddSingleton<IOtomoEconomy>(services => OtomoEconomy.Create(
     services.GetRequiredService<IOptions<OtomoEconomyOptions>>(),
     services.GetRequiredService<ILogger<OtomoEconomy>>()));
+// Social: who follows whom, and the ranking board built on those points, are otomo's session service
+// (DemoSessionApi.SocialRanking.cs). One client, holding no edge of its own: migration 6 dropped the three tables this
+// adapter used to keep, and nothing here writes a follow anywhere but otomo.
+builder.Services.Configure<OtomoSocialOptions>(builder.Configuration.GetSection(OtomoSocialOptions.SectionName));
+builder.Services.AddSingleton<IOtomoSocial>(services => OtomoSocial.Create(
+    services.GetRequiredService<IOptions<OtomoSocialOptions>>(),
+    services.GetRequiredService<ILogger<OtomoSocial>>()));
 // Masters: otomo publishes them as a release and this adapter follows the channel (docs/OTOMO_MASTERS.md). The
 // tables named in Otomo:Masters:Tables are read from otomo and from nowhere else; every other table is still a
 // file under config/. The refresher is what turns a publish into a running server's new values.
