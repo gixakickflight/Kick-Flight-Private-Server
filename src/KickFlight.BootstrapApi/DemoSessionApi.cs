@@ -1,8 +1,10 @@
 using System.Collections.Concurrent;
+using System.Collections.Frozen;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using KickFlight.BootstrapApi.Ops;
 using KickFlight.BootstrapApi.Otomo;
 using KickFlight.BootstrapApi.PlayerStore;
@@ -11,25 +13,25 @@ using Microsoft.Extensions.Options;
 
 namespace KickFlight.BootstrapApi;
 
-public sealed partial class DemoSessionApi
+public sealed partial class DemoSessionApi : IDisposable
 {
     private sealed record ApplicationAssetRevision(int platform, int revision);
+    private sealed record MasterCatalogState(FrozenDictionary<string, byte[]> Masters, string MasterVersion);
 
     private const string CommonCode = "1a837b9ee2ae11a07a0f529a4cd4b61c";
     // The client keeps its downloaded masters until this header changes, so it must follow the content:
-    // a SHA-256 over every served table (see RecomputeMasterVersion). Editing any config/masters_*.json
-    // and restarting the server therefore makes the client re-download on its next launch - and so does a
-    // published otomo release, without a restart, because ApplyOtomoTables recomputes it in place.
-    private string _masterVersion = "demo-master-v27";
-
-    /// <summary>
-    /// The master version the client compares before re-downloading. Read under the master lock because a
-    /// publish can replace a table at any moment: a reader must see one release's version, not half of two.
-    /// </summary>
-    public string MasterVersion
-    {
-        get { lock (_mastersLock) { return _masterVersion; } }
-    }
+    // a SHA-256 over every served table (see PublishMasterState). Editing any config/masters_*.json and
+    // restarting the server therefore makes the client re-download on its next launch - and so does a published
+    // otomo release or a bot AI profile reload, without a restart, because both republish the catalogue in place.
+    //
+    // The catalogue is one immutable snapshot swapped under the lock: a publish can replace a table at any
+    // moment, so a reader must see one release's version, never half of two.
+    public string MasterVersion => Volatile.Read(ref _masterState).MasterVersion;
+    private MasterCatalogState _masterState = new(FrozenDictionary<string, byte[]>.Empty, "demo-master-initial");
+    private readonly object _masterLock = new();
+    private string? _baseAiParamRows;
+    private readonly IBotAiProfileProvider _botAiProfiles;
+    private const string AccessToken = "demo-access-token-0000000000000000000000000000";
 
     // Rank is per player and persisted now (player_ranks, via IPlayerStore); the table it indexes into, the
     // range that renders, and the per-battle delta live in RankProgression.
@@ -110,11 +112,10 @@ public sealed partial class DemoSessionApi
     private readonly KfAccessTokenCodec _accessTokens;
     private readonly IPlayerStore _playerStore;
     private readonly OtomoMasters _otomoMasters;
+    private readonly BadgeAwardRules _badgeAwardRules;
+    // The served tables as loaded, which is what PublishMasterState hashes and ApplyOtomoTables replaces entries
+    // in. Mutated only under _masterLock; readers take the immutable snapshot in _masterState instead.
     private readonly Dictionary<string, byte[]> _encryptedMasters = new(StringComparer.Ordinal);
-    // Guards _encryptedMasters and _masterVersion. A published release replaces table bytes while requests are
-    // reading them, so every read and every replacement takes this lock; the work inside it is a dictionary
-    // lookup or a SHA-256 over ~1 MB, which is cheap enough not to need a copy-on-write scheme.
-    private readonly object _mastersLock = new();
     private readonly Dictionary<int, int> _battleRuleTypeById = [];
     private readonly Dictionary<int, int> _battleMatchTypeById = [];
     private readonly Dictionary<int, int> _battleTimeSecondsById = [];
@@ -146,13 +147,16 @@ public sealed partial class DemoSessionApi
     // not price it, which keeps every account off the ladder rather than guessing.
     private long _tutorialLessonCost = int.MaxValue;
 
+    private readonly ChatService _chat;
+
     public DemoSessionApi(ILogger<DemoSessionApi> logger, IWebHostEnvironment environment,
         BattleMatchmakingService matchmaking, BattleReplayService replays, IPlayerStore playerStore,
         IOtomoIdentity identity, IOtomoEconomy economy, KfAccessTokenCodec accessTokens,
         IConfiguration configuration, MaintenanceState maintenance, ClientUpdateState clientUpdate,
         TimeProvider timeProvider, OpsTelemetryService ops, IOptions<HarnessOptions> harnessOptions,
-        OtomoMasters otomoMasters)
+        OtomoMasters otomoMasters, IBotAiProfileProvider? botAiProfiles = null, ChatService? chat = null)
     {
+        _chat = chat ?? new ChatService(environment, configuration, timeProvider, Microsoft.Extensions.Logging.Abstractions.NullLogger<ChatService>.Instance);
         _logger = logger;
         _ops = ops;
         _matchmaking = matchmaking;
@@ -165,7 +169,9 @@ public sealed partial class DemoSessionApi
         _economy = economy;
         _accessTokens = accessTokens;
         _otomoMasters = otomoMasters;
+        _badgeAwardRules = BadgeAwardRules.Load(environment.ContentRootPath, logger);
         _harnessOptions = harnessOptions.Value;
+        _botAiProfiles = botAiProfiles ?? ExperimentalAiRoleService.CurrentProvider;
         _contentRoot = environment.ContentRootPath;
         _grpcPort = configuration.GetValue("GrpcPort", 18081);
         _tuning = EconomyTuning.Load(configuration[$"{OtomoEconomyOptions.SectionName}:TuningFile"],
@@ -177,6 +183,7 @@ public sealed partial class DemoSessionApi
         // A publish replaces a table under the running process: re-encrypt it and recompute the version the client
         // compares, so the next /download/master advertises the new content and /demo-master serves it.
         _otomoMasters.Updated += ApplyOtomoTables;
+        _botAiProfiles.ProfilesReloaded += OnBotAiProfilesReloaded;
 
         var overridden = _mastersOverrides.Applied;
         _logger.LogInformation("Master overrides in {OverrideDir}: {Count} ({Names})",
@@ -264,6 +271,7 @@ public sealed partial class DemoSessionApi
         _encryptedMasters["KickerAbility"] = EncryptMaster(ApplyObscuredOffsets("KickerAbility", abilityJson));
         _encryptedMasters["KickerAbilityCondition"] = EncryptMaster(abilityConditionJson);
         _encryptedMasters["Translation"] = EncryptMaster(translationJson);
+        _encryptedMasters["Honor"] = EncryptMaster(BadgeAwardRules.BuildHonorMasterJson(LoadJson(contentRoot, BadgeAwardRules.CatalogPath, "")));
 
         // FieldManager.InitializeAsync does FieldMaster[fieldId] and silently gives up (FieldInfo stays null, every
         // PlayerCharacter.Initialize then NREs and the loading screen never ends) when the row is missing. 801 is the
@@ -699,9 +707,11 @@ public sealed partial class DemoSessionApi
         var pingThresholdJson = LoadJson(contentRoot, "config/masters_matchmaking_ping_threshold.json", "[]");
 
         var aiParamRows = AppendGymAiRows(aiParamJson);
+        _baseAiParamRows = aiParamRows;
         if (ExperimentalAiRoleService.IsEnabled)
         {
-            aiParamRows = ExperimentalAiRoleService.AppendExperimentalRoleAiRows(aiParamRows);
+            var snapshot = _botAiProfiles.CurrentSnapshot;
+            aiParamRows = ExperimentalAiRoleService.AppendExperimentalRoleAiRows(aiParamRows, snapshot);
         }
         _encryptedMasters["KickerAiParameter"] = EncryptMaster(aiParamRows);
         _encryptedMasters["KickerAiDisc"] = EncryptMaster(aiDiscJson);
@@ -740,6 +750,8 @@ public sealed partial class DemoSessionApi
             // List.get_Item(0) threw ArgumentOutOfRangeException on every result screen.
             ("Stamp", "masters_stamp.json"),
             ("StampSituation", "masters_stamp_situation.json"),
+            // Chat tabs (ChatView.Initialize iterates MasterManager.ChatRoomMaster); experimental, see docs/re-notes/chat.md.
+            ("ChatRoom", "masters_chat_room.json"),
         })
         {
             var json = LoadJson(contentRoot, "config/" + fileName, "[]");
@@ -870,7 +882,7 @@ public sealed partial class DemoSessionApi
         _encryptedMasters["BattleReplayChannel"] = EncryptMaster(battleReplayChannelJson);
         _encryptedMasters["MovieCategory"] = EncryptMaster(movieCategoryJson);
 
-        RecomputeMasterVersion();
+        PublishMasterState();
         _logger.LogInformation("Master version {MasterVersion} ({Count} tables, {Otomo} from otomo)",
             MasterVersion, _encryptedMasters.Count,
             _otomoMasters.Enabled ? _otomoMasters.Source : "none");
@@ -891,10 +903,11 @@ public sealed partial class DemoSessionApi
     }
 
     // A published release that changes a table this server serves. Runs on the refresher's thread, so it takes the
-    // master lock: a request must never read a version hash computed over half a release.
+    // master lock: the entries and the version the client compares are replaced together, and no request sees a
+    // catalogue half from the old release and half from the new one.
     private void ApplyOtomoTables()
     {
-        lock (_mastersLock)
+        lock (_masterLock)
         {
             var applied = new List<string>();
             foreach (var masterName in _encryptedMasters.Keys.ToList())
@@ -903,15 +916,16 @@ public sealed partial class DemoSessionApi
                 _encryptedMasters[masterName] = EncryptMaster(ApplyObscuredOffsets(masterName, json));
                 applied.Add(masterName);
             }
-            RecomputeMasterVersion();
+            PublishMasterState();
             _logger.LogInformation(
                 "Master version {MasterVersion}: {Count} table(s) reloaded from {Source} ({Tables})",
-                _masterVersion, applied.Count, _otomoMasters.Source, string.Join(", ", applied.OrderBy(n => n, StringComparer.Ordinal)));
+                MasterVersion, applied.Count, _otomoMasters.Source, string.Join(", ", applied.OrderBy(n => n, StringComparer.Ordinal)));
         }
     }
 
-    // The client's cache key: a SHA-256 over every served table, name and bytes. Called with the master lock held.
-    private void RecomputeMasterVersion()
+    // The client's cache key: a SHA-256 over every served table, name and bytes, published as one immutable
+    // catalogue. Called with the master lock held.
+    private void PublishMasterState()
     {
         using var sha = SHA256.Create();
         foreach (var kvp in _encryptedMasters.OrderBy(k => k.Key, StringComparer.Ordinal))
@@ -921,7 +935,51 @@ public sealed partial class DemoSessionApi
             sha.TransformBlock(kvp.Value, 0, kvp.Value.Length, null, 0);
         }
         sha.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
-        _masterVersion = "demo-master-" + Convert.ToHexString(sha.Hash!)[..16].ToLowerInvariant();
+        var masterVersion = "demo-master-" + Convert.ToHexString(sha.Hash!)[..16].ToLowerInvariant();
+        Volatile.Write(ref _masterState,
+            new MasterCatalogState(_encryptedMasters.ToFrozenDictionary(StringComparer.Ordinal), masterVersion));
+        _logger.LogInformation("Master version {MasterVersion} ({Count} tables)", masterVersion, _masterState.Masters.Count);
+    }
+
+    public void OnBotAiProfilesReloaded(BotAiProfileSnapshot snapshot)
+    {
+        if (!ExperimentalAiRoleService.IsEnabled) return;
+
+        lock (_masterLock)
+        {
+            if (string.IsNullOrEmpty(_baseAiParamRows)) return;
+
+            var updatedAiRows = ExperimentalAiRoleService.AppendExperimentalRoleAiRows(_baseAiParamRows, snapshot);
+            var newEncrypted = EncryptMaster(updatedAiRows);
+
+            var current = Volatile.Read(ref _masterState);
+            var dict = new Dictionary<string, byte[]>(current.Masters, StringComparer.Ordinal)
+            {
+                ["KickerAiParameter"] = newEncrypted
+            };
+
+            string newMasterVersion;
+            using (var sha = SHA256.Create())
+            {
+                foreach (var kvp in dict.OrderBy(k => k.Key, StringComparer.Ordinal))
+                {
+                    var nameBytes = Encoding.UTF8.GetBytes(kvp.Key);
+                    sha.TransformBlock(nameBytes, 0, nameBytes.Length, null, 0);
+                    sha.TransformBlock(kvp.Value, 0, kvp.Value.Length, null, 0);
+                }
+                sha.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+                newMasterVersion = "demo-master-" + Convert.ToHexString(sha.Hash!)[..16].ToLowerInvariant();
+            }
+
+            Volatile.Write(ref _masterState, new MasterCatalogState(dict.ToFrozenDictionary(StringComparer.Ordinal), newMasterVersion));
+            _logger.LogInformation("Master version {MasterVersion} updated atomically after bot AI profile reload (version {ProfileVersion})",
+                newMasterVersion, snapshot.Version);
+        }
+    }
+
+    public void Dispose()
+    {
+        _botAiProfiles.ProfilesReloaded -= OnBotAiProfilesReloaded;
     }
 
     // Fallback for a checkout without config/masters_battle_replay_channel.json: the same table the config file
@@ -984,7 +1042,8 @@ public sealed partial class DemoSessionApi
     // owns nothing until a grant has run.
     private static SessionState NewUserState(long playerId) => new() { UserId = playerId.ToString() };
 
-    private void SaveUserState(SessionState state) => _playerStore.Save(state);
+    private void SaveUserState(SessionState state, string? uuid = null, bool allowEquippedHonorChange = false) =>
+        _badgeAwardRules.SavePlayerState(state, _playerStore, uuid, allowEquippedHonorChange);
 
     // Gym-mode bots use KickerAiParameter row id 100 + kickerId (BattleMatchmakingService.GymAiParameterBase): a copy
     // of the kicker's real row with every motivation at 0, no lock-on and very long skill/dash intervals, so even a
@@ -1081,25 +1140,23 @@ public sealed partial class DemoSessionApi
     private static byte[] EncryptMaster(string json) =>
         D2CCodec.Encode(Encoding.UTF8.GetBytes(json), Encoding.ASCII.GetBytes(CommonCode), new byte[16]);
 
-    internal byte[]? GetEncryptedMaster(string masterName)
-    {
-        lock (_mastersLock)
-        {
-            return _encryptedMasters.TryGetValue(masterName, out var bytes) ? bytes : null;
-        }
-    }
+    internal byte[]? GetEncryptedMaster(string masterName) =>
+        Volatile.Read(ref _masterState).Masters.TryGetValue(masterName, out var bytes) ? bytes : null;
 
     public async Task<IResult?> TryHandleAsync(HttpContext context)
     {
+        var masterState = Volatile.Read(ref _masterState);
         context.Response.Headers["x-app-datetime"] = DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
-        context.Response.Headers["x-app-master-hash"] = MasterVersion;
+        context.Response.Headers["x-app-master-hash"] = masterState.MasterVersion;
         var path = context.Request.Path.Value ?? "/";
 
         if (HttpMethods.IsGet(context.Request.Method) && path.StartsWith("/demo-master/", StringComparison.Ordinal))
         {
             var masterName = path["/demo-master/".Length..];
-            if (GetEncryptedMaster(masterName) is { } masterBytes)
+            if (masterState.Masters.TryGetValue(masterName, out var masterBytes))
             {
+                context.Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+                context.Response.Headers["ETag"] = $"\"{Convert.ToHexString(SHA256.HashData(masterBytes)).ToLowerInvariant()}\"";
                 return new LocalFixtureResult(masterBytes, "application/octet-stream", StatusCodes.Status200OK);
             }
             return Results.NotFound();
@@ -1239,9 +1296,9 @@ public sealed partial class DemoSessionApi
         {
             context.Response.Headers["x-app-status-code"] = "0";
             context.Response.Headers["x-kickflight-fixture"] = "dynamic-demo-session";
-            context.Response.Headers["x-app-master-hash"] = MasterVersion;
-            var json = BuildDownloadMasterJson(context.Request);
-            _logger.LogInformation("Serving dynamic master list ({Count} masters)", SnapshotMasters().Length);
+            context.Response.Headers["x-app-master-hash"] = masterState.MasterVersion;
+            var json = BuildDownloadMasterJson(context.Request, masterState);
+            _logger.LogInformation("Serving dynamic master list ({Count} masters)", masterState.Masters.Count);
             return BinaryJson(json, key);
         }
 
@@ -1253,6 +1310,8 @@ public sealed partial class DemoSessionApi
             // Paid before the read, so the counters this startup sends already hold it: the client prices the
             // tutorial's build-up button from them, and nothing later in onboarding repeats the item list.
             await PayStarterDiscForceAsync(ticket, state, path, context.RequestAborted);
+            // Badges first, so a login honor is part of the list this answer carries.
+            var newLoginHonors = _badgeAwardRules.RecordVerifiedLoginDay(state, _playerStore, _timeProvider.GetUtcNow());
             var economy = await ReadPlayerEconomyAsync(ticket,
                 EconomyRead.Balances | EconomyRead.Inventory | EconomyRead.Tasks, path, context.RequestAborted);
             if (economy.Snapshot is null) return EconomyUnavailable(context, path, economy.Error);
@@ -1260,7 +1319,7 @@ public sealed partial class DemoSessionApi
 
             context.Response.Headers["x-app-status-code"] = "0";
             context.Response.Headers["x-kickflight-fixture"] = "dynamic-demo-session";
-            var json = BuildStartupJson(state, snapshot, context.Request);
+            var json = BuildStartupJson(state, snapshot, context.Request, newLoginHonors);
             _logger.LogInformation("Serving dynamic startup index ({ItemRows} item rows, {DiscCount} discs owned, {KickerCount} kickers owned)",
                 EconomyCatalog.ItemMasterIds.Length,
                 snapshot.Items.Count(item => EconomyCatalog.TryDiscId(item.Item, out _)),
@@ -1389,8 +1448,7 @@ public sealed partial class DemoSessionApi
 
         if (path == "/battle/good")
         {
-            context.Response.Headers["x-app-status-code"] = "0";
-            return BinaryJson("{}", key);
+            return await HandleBattleGoodAsync(context, state, key);
         }
 
         // Real client calls that used to vanish into the catch-all below: still answered {} with status 0, but
@@ -1531,11 +1589,17 @@ public sealed partial class DemoSessionApi
         const string path = "/disc/buildup";
         var body = await ReadBodyAsync(context.Request);
         int discId;
+        int targetLevel;
         try
         {
             var plaintext = D2CCodec.Decode(body, key);
             using var document = JsonDocument.Parse(plaintext);
             discId = document.RootElement.GetProperty("discId").GetInt32();
+            // The level the client expects back, when it names one. 0 = it named none.
+            targetLevel = document.RootElement.TryGetProperty("level", out var levelProp) &&
+                          levelProp.ValueKind == JsonValueKind.Number
+                ? levelProp.GetInt32()
+                : 0;
         }
         catch (Exception ex)
         {
@@ -1560,14 +1624,15 @@ public sealed partial class DemoSessionApi
 
         // DiscBuildupResponseData. The stats are not in it: the client recomputes attack, HP and cool time from
         // the DiscGrow master at the level it is handed (DiscParameterUtil.CalcGrowParameter).
-        IResult Answer(long heldNow, long discForceNow) => OkJson(context, key, JsonSerializer.Serialize(new
+        IResult Answer(long heldNow, long discForceNow, IReadOnlyList<int> honors) => OkJson(context, key, JsonSerializer.Serialize(new
         {
             userDisc = EconomyPayloads.BuildUserDisc(discId, heldNow, DiscStandingOf(state, discId), owned?.AcquiredAt),
             userItem = new
             {
                 itemId = EconomyCatalog.DiscForceItemId, amount = (int)Math.Clamp(discForceNow, 0, int.MaxValue)
             },
-            userMissionProgressList = MissionRows(state, snapshot.Tracks)
+            userMissionProgressList = MissionRows(state, snapshot.Tracks),
+            receivedUserHonorList = honors.Select(honorId => new { honorId, newFlag = true }).ToArray()
         }));
 
         var cacheId = context.Request.Headers["x-app-response-cache-id"].ToString();
@@ -1577,10 +1642,22 @@ public sealed partial class DemoSessionApi
             _logger.LogInformation("{Path}: user {UserId} resent the level-up of disc {DiscId} (cache id {CacheId}); " +
                 "answering level {Level} without a second spend", path, state.UserId, discId, cacheId,
                 StoredDiscLevel(state, discId));
-            return Answer(held, DiscForceOf(snapshot));
+            return Answer(held, DiscForceOf(snapshot), []);
         }
 
         var level = StoredDiscLevel(state, discId);
+
+        // A level the disc already has is a retry of an answer the client lost: answered from the current
+        // standing, with nothing spent and nothing counted. A level beyond the next step is a client that
+        // disagrees with the DiscBuildup master; it is left where it is rather than granted a jump for the price
+        // of one step.
+        if (targetLevel > 0 && targetLevel <= level)
+        {
+            _logger.LogInformation("{Path}: user {UserId} asked for disc {DiscId} at level {Target}, which it " +
+                "already has (cache id {CacheId}); answering without a second spend", path, state.UserId, discId,
+                targetLevel, cacheId);
+            return Answer(held, DiscForceOf(snapshot), []);
+        }
         var step = _discLevels.Next(rarity, level);
         if (step is null)
         {
@@ -1597,6 +1674,16 @@ public sealed partial class DemoSessionApi
             return BuildupRefused(context, held < 1
                 ? "You do not own this disc."
                 : "You do not have enough copies of this disc to level it up.");
+        }
+
+        // A level well past the next step is a client that disagrees with the DiscBuildup master. It is told the
+        // disc's current standing rather than granted the jump for the price of one step.
+        if (targetLevel > level + 1)
+        {
+            _logger.LogWarning("{Path} for user {UserId}: disc {DiscId} is at level {Level} and the request " +
+                "names {Target}, more than one step; leaving it where it is", path, state.UserId, discId, level,
+                targetLevel);
+            return Answer(held, DiscForceOf(snapshot), []);
         }
 
         var consumeKey = EconomyDiscLevels.Key(ticket.OtomoPlayerId, discId, step.TargetLevel);
@@ -1634,6 +1721,14 @@ public sealed partial class DemoSessionApi
         }
 
         // The answer's own totals; a consume that answered without them is what was read before, less the price.
+        // A single verified step on a disc the masters carry is what a badge records: a replayed key or a jump of
+        // more than one level is not, which is the same rule main applies to its own level mutation.
+        var countsAsUpgrade = _discIdList.Contains(discId) && level < 50 && step.TargetLevel == level + 1;
+        var receivedHonors = countsAsUpgrade
+            ? _badgeAwardRules.RecordVerifiedDiscUpgrade(state, _playerStore).ToArray()
+            : Array.Empty<int>();
+
+        // The answer's own totals; a consume that answered without them is what was read before, less the price.
         var heldAfter = spent.Items?.FirstOrDefault(move => move.Item == discItem)?.Total ?? held - step.Copies;
         var discForce = spent.Balances?.FirstOrDefault(balance => balance.Currency == EconomyCatalog.DiscForceCurrency)?.Balance
                         ?? Math.Max(0, DiscForceOf(snapshot) - step.DiscForce);
@@ -1641,7 +1736,7 @@ public sealed partial class DemoSessionApi
             "{Copies} copies and {Force} disc_force under {Key}{Replayed}; holds {Held} copies and {DiscForce} disc_force",
             path, state.UserId, discId, level, step.TargetLevel, step.Copies, step.DiscForce, consumeKey,
             spent.Replayed ? " (replayed)" : "", heldAfter, discForce);
-        return Answer(heldAfter, discForce);
+        return Answer(heldAfter, discForce, receivedHonors);
     }
 
     // The client has no ErrorType for "cannot afford": its build-up button is greyed out by its own check
@@ -1796,7 +1891,8 @@ public sealed partial class DemoSessionApi
         return Task.FromResult<IResult?>(BinaryJson("{}", key));
     }
 
-    private string BuildStartupJson(SessionState state, EconomySnapshot economy, HttpRequest request)
+    private string BuildStartupJson(SessionState state, EconomySnapshot economy, HttpRequest request,
+        IReadOnlyCollection<int>? newHonorIds = null)
     {
         NormalizeCostume(state);
         // The status decides which masters the client downloads next, and with them whether it can take mission rows.
@@ -1821,7 +1917,8 @@ public sealed partial class DemoSessionApi
         {
             userKickerList,
             userDiscList,
-            userHonorList = new[] { new { honorId = 6010000, newFlag = false } },
+            userHonorList = BadgeAwardRules.GetOwnedHonorIds(state)
+                .Select(honorId => new { honorId, registerDatetime = "2026-09-01 00:00:00", newFlag = newHonorIds?.Contains(honorId) == true }).ToArray(),
             // All 8 Item master rows: 1-4 the legacy counters, 5-8 the round C stocks (gear stamps, disc fragments
             // and the two gacha tickets) that the gear screen and the shop read their counters from.
             userItemList = Payloads(state).BuildUserItemList(economy),
@@ -1859,8 +1956,8 @@ public sealed partial class DemoSessionApi
             interruptNotificationList = Array.Empty<object>(),
             teamBattleInvitationCustomToken = "",
             teamBattleInvitationId = "",
-            chatRoomConnectionCustomToken = "",
-            chatRoomConnectionId = "",
+            chatRoomConnectionCustomToken = _chat.Enabled ? "kfchat-dummy-token" : "",
+            chatRoomConnectionId = _chat.Enabled ? "kfchat" : "",
             officialUrl = ""
         };
 
@@ -1935,6 +2032,8 @@ public sealed partial class DemoSessionApi
     private bool IsDiagClient(HttpContext context) =>
         _maintenance.IsBypassClient(context.Request.Headers["x-app-application-version"].ToString());
 
+    // KF_CHAT_EXP=1: serve a non-empty chat connection id so the client attempts Firebase chat setup (experiment only).
+
     private string BuildHomeJson(SessionState state, EconomySnapshot economy)
     {
         NormalizeCostume(state);
@@ -1945,7 +2044,9 @@ public sealed partial class DemoSessionApi
             displayUserId = PlayerDisplayIdCodec.ToPublic(int.TryParse(state.UserId, out var uid) ? uid : 1000001),
             name = CurrentUserName(state),
             exp = 38500,
-            honorId = 6010000,
+            honorId = BadgeAwardRules.GetOwnedHonorIds(state).Contains(state.HonorId)
+                ? state.HonorId
+                : BadgeAwardRules.DefaultHonorId,
             userFrameList = new[]
             {
                 new { battleRuleType = 1, frameId = 1 },
@@ -2026,7 +2127,7 @@ public sealed partial class DemoSessionApi
         return JsonSerializer.Serialize(data);
     }
 
-    private string BuildDownloadMasterJson(HttpRequest request)
+    private string BuildDownloadMasterJson(HttpRequest request, MasterCatalogState state)
     {
         var configuredOrigin = _harnessOptions.MasterDownloadOriginsByHost.FirstOrDefault(pair =>
             string.Equals(pair.Key, request.Host.Host, StringComparison.OrdinalIgnoreCase)).Value;
@@ -2035,9 +2136,7 @@ public sealed partial class DemoSessionApi
             : configuredOrigin.TrimEnd('/');
         return JsonSerializer.Serialize(new
         {
-            // Under the master lock so the list and the version header in the caller agree: a publish landing
-            // between the header and this snapshot would otherwise advertise one release and list another.
-            masterDownloadList = SnapshotMasters().Select(kvp => new
+            masterDownloadList = state.Masters.Select(kvp => new
             {
                 name = kvp.Key,
                 hash = Convert.ToHexString(SHA256.HashData(kvp.Value)).ToLowerInvariant(),
@@ -2045,16 +2144,6 @@ public sealed partial class DemoSessionApi
                 size = kvp.Value.Length
             }).ToArray()
         });
-    }
-
-    // A consistent copy of the served tables. A publish replaces entries in place, so a plain enumeration can
-    // throw "collection was modified" mid-response; this is the one snapshot every reader takes.
-    private KeyValuePair<string, byte[]>[] SnapshotMasters()
-    {
-        lock (_mastersLock)
-        {
-            return _encryptedMasters.ToArray();
-        }
     }
 
     private async Task<IResult?> HandleAuthAsync(HttpContext context)
@@ -2179,6 +2268,7 @@ public sealed partial class DemoSessionApi
 
         state.UserName = name;
         state.TutorialProgress = TutorialStatusComplete;
+        _badgeAwardRules.RecordRegistrationComplete(state, _playerStore);
         SaveUserState(state);
         _logger.LogInformation("Player {PlayerId} chose the name {UserName:l}", state.PlayerId, name);
         return OkJson(context, key, "{}");
@@ -2661,10 +2751,31 @@ public sealed partial class DemoSessionApi
     //
     // Rank progress applies only to ranked matches. The entry stores a server-derived snapshot of matchType and
     // battleRuleType; neither a result body nor a later master/schedule change can reclassify the match.
+    /// <summary>
+    /// True/false when the validated report decides a rank win/loss; null (with a reason) when rank must not move:
+    /// no report, undetermined outcome, tie, or a breakaway/badConnection caller.
+    /// </summary>
+    internal static bool? RankWinFor(BadgeBattleStatReport? report, out string reason)
+    {
+        reason = "";
+        if (report is null) { reason = "no_report"; return null; }
+        if (report.CallerFlagged) { reason = "caller_flagged"; return null; }
+        switch (report.Outcome)
+        {
+            case BadgeBattleOutcome.Win: return true;
+            case BadgeBattleOutcome.Loss: return false;
+            case BadgeBattleOutcome.Tie: reason = "tie"; return null;
+            default:
+                reason = string.IsNullOrEmpty(report.OutcomeReason) ? report.Reason : report.OutcomeReason;
+                return null;
+        }
+    }
+
     private async Task<IResult?> HandleBattleResultAsync(HttpContext context, KfIdentityTicket ticket,
         SessionState state, byte[] key)
     {
         var battleEntryId = "";
+        string? resultBodyJson = null;
         // The two counters the client reports that economy keeps: kills and the MVP flag. Both are the client's
         // word, which is the same trust level as the ranked result this handler already applies.
         var killCount = 0;
@@ -2674,7 +2785,8 @@ public sealed partial class DemoSessionApi
             var body = await ReadBodyAsync(context.Request);
             if (body.Length > 16)
             {
-                using var document = JsonDocument.Parse(D2CCodec.Decode(body, key));
+                resultBodyJson = Encoding.UTF8.GetString(D2CCodec.Decode(body, key));
+                using var document = JsonDocument.Parse(resultBodyJson);
                 if (document.RootElement.TryGetProperty("battleEntryId", out var entryProp)
                     && entryProp.ValueKind == JsonValueKind.String)
                     battleEntryId = entryProp.GetString() ?? "";
@@ -2713,11 +2825,42 @@ public sealed partial class DemoSessionApi
                 state.UserId, battleEntryId);
         }
 
+        // The client's own stats are credited only after BadgeBattleStatEvaluator bound them against what this
+        // server holds for the entry (owner, room roster/team, mode, timing). A rejected set still counts the
+        // battle as played; custom battles never reach this handler (see /customBattle/result).
+        BadgeBattleStatReport? statReport = null;
+        if (ownedEntry is not null)
+        {
+            statReport = BadgeBattleStatEvaluator.Evaluate(
+                resultBodyJson, _matchmaking.GetBadgeBattleContext(battleEntryId), _timeProvider.GetUtcNow());
+            if (!statReport.CreditStats)
+                _logger.LogInformation("Battle result stats for {UserId} entry {BattleEntryId} not credited: {Reason}",
+                    state.UserId, battleEntryId, statReport.Reason);
+        }
+
+        // Non-sensitive numeric summary of the client's report, kept permanently to validate field units live
+        // (movingDistance raw value + JSON type). The user is identified by a short hash only.
+        _logger.LogInformation("Battle result parsed: user={UserHash} {Summary} outcome={Outcome} credited={Credited} capReason={CapReason}",
+            BattleResultLogSummary.ShortHash(state.UserId), BattleResultLogSummary.Describe(resultBodyJson, battleRuleType),
+            statReport?.Outcome.ToString() ?? "n/a", statReport?.CreditStats ?? false,
+            statReport is { CreditStats: false } ? statReport.Reason : "none");
+
+        // Rank follows the validated team outcome (own team from the server-held room roster, own score > other).
+        // win -> win points, loss -> loss points; tie, undetermined and breakaway/badConnection callers leave the
+        // rank untouched (no relief rule exists in the masters, so a flagged caller is not punished either).
+        // The persistence callback runs at most once per entry; a null return applies and caches nothing.
         var processedRankedResult = applyProgression
             ? _matchmaking.ProcessRankedResultOnce(battleEntryId, state.UserId, ruleType =>
             {
+                var rankWon = RankWinFor(statReport, out var skipReason);
+                if (rankWon is null)
+                {
+                    _logger.LogInformation("Ranked result for {UserId} entry {BattleEntryId}: rank unchanged ({Reason})",
+                        state.UserId, battleEntryId, skipReason);
+                    return null;
+                }
                 var beforeRank = _playerStore.LoadRank(state.PlayerId, ruleType);
-                var afterRank = RankProgression.Apply(beforeRank, won: true);
+                var afterRank = RankProgression.Apply(beforeRank, won: rankWon.Value);
                 _playerStore.SaveRank(state.PlayerId, ruleType, afterRank);
                 return new BattleMatchmakingService.RankedResultSnapshot(ruleType, beforeRank, afterRank);
             })
@@ -2725,6 +2868,16 @@ public sealed partial class DemoSessionApi
         var rankSnapshot = processedRankedResult?.RankedResult;
         var before = rankSnapshot?.Before ?? _playerStore.LoadRank(state.PlayerId, battleRuleType);
         var after = rankSnapshot?.After ?? before;
+        var receivedHonors = ownedEntry is null
+            ? Array.Empty<int>()
+            : _badgeAwardRules.RecordVerifiedBattle(
+                state,
+                _playerStore,
+                battleEntryId,
+                applyProgression ? battleRuleType : null,
+                applyProgression ? after.Rank : null,
+                statReport,
+                _timeProvider.GetUtcNow()).ToArray();
 
         // The battle's counters go to economy as facts, before the client is told the battle is over: what they
         // are worth is a track's step, claimed later on the player's own plane.
@@ -2750,6 +2903,7 @@ public sealed partial class DemoSessionApi
             receivedUserPresentList = Array.Empty<object>(),
             userMissionProgressList = missionProgress,
             userDailyRandomMissionTaskList = Array.Empty<object>(),
+            receivedUserHonorList = receivedHonors.Select(honorId => new { honorId, newFlag = true }).ToArray(),
             receivedRewardList = Array.Empty<object>(),
             badConnectionReliefFlag = false,
             battleCount = 1,

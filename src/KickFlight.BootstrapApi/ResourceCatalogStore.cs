@@ -105,6 +105,23 @@ public sealed class ResourceCatalogStore
         return matches.Length == 1 ? matches[0] : null;
     }
 
+    internal ResolvedResource ResolveProfileResource(ResourceDefinition definition, string profileRoot)
+    {
+        if (string.IsNullOrWhiteSpace(definition.Id) || string.IsNullOrWhiteSpace(definition.Host) ||
+            string.IsNullOrWhiteSpace(definition.RequestPath) || !definition.RequestPath.StartsWith('/') ||
+            string.IsNullOrWhiteSpace(definition.LogicalName) || string.IsNullOrWhiteSpace(definition.ContentType) ||
+            string.IsNullOrWhiteSpace(definition.Sha256) || definition.Sha256.Length != 64 || !definition.Sha256.All(Uri.IsHexDigit))
+            throw new InvalidDataException("R52 resource metadata is invalid.");
+
+        var sourceFile = ResolveProfilePath(profileRoot, definition.SourcePath);
+        if (!File.Exists(sourceFile)) throw new FileNotFoundException("R52 payload was not found.");
+        using var stream = File.OpenRead(sourceFile);
+        var actualHash = Convert.ToHexString(SHA256.HashData(stream));
+        if (!string.Equals(actualHash, definition.Sha256, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("R52 payload SHA-256 does not match its catalog entry.");
+        return new ResolvedResource(definition, sourceFile);
+    }
+
     public bool IsIosCatalogReady
     {
         get
@@ -302,5 +319,33 @@ public sealed class ResourceCatalogStore
                 throw new InvalidDataException("Original Octo MD5 or CRC32 metadata does not match the payload.");
         }
         return new ResolvedResource(definition, sourceFile);
+    }
+
+    private static string ResolveProfilePath(string profileRoot, string relativePath)
+    {
+        if (Path.IsPathRooted(relativePath) || relativePath.Contains('\\'))
+            throw new InvalidDataException("R52 sourcePath must be a relative slash-separated path.");
+        var segments = relativePath.Split('/');
+        if (segments.Any(segment => string.IsNullOrWhiteSpace(segment) || segment is "." or ".."))
+            throw new InvalidDataException("R52 sourcePath contains an invalid path segment.");
+
+        var root = Path.GetFullPath(profileRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (!Directory.Exists(root) || (File.GetAttributes(root) & FileAttributes.ReparsePoint) != 0)
+            throw new InvalidDataException("R52 profile root is missing or is a symbolic link.");
+        var sourceFile = Path.GetFullPath(Path.Combine(root, Path.Combine(segments)));
+        var relative = Path.GetRelativePath(root, sourceFile);
+        if (Path.IsPathRooted(relative) || relative == ".." ||
+            relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            throw new InvalidDataException("R52 sourcePath escapes the profile root.");
+
+        var current = root;
+        foreach (var segment in segments)
+        {
+            current = Path.Combine(current, segment);
+            if ((File.Exists(current) || Directory.Exists(current)) &&
+                (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
+                throw new InvalidDataException("R52 sourcePath traverses a symbolic link.");
+        }
+        return sourceFile;
     }
 }

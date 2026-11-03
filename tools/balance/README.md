@@ -73,6 +73,8 @@ runs `docker restart deploy-api-1` and polls `/health/ready`). There is no hot r
 | `KF_BALANCE_OPS_INTERNAL_URL` | loopback base URL used inside that container (default `http://127.0.0.1:8080/admin/ops`) |
 | `KF_BALANCE_OPS_CMD` | escape hatch: a shell command template with `{url}` replaced by the shell-quoted ops URL; stdout is JSON |
 | `KF_BALANCE_ALLOWED_HOSTS` | extra comma-separated `Host` values accepted alongside `127.0.0.1:<port>`, `localhost:<port>` and `[::1]:<port>` (needed when binding to a LAN address or sitting behind a proxy) |
+| `KF_BOT_AI_PROFILES_PATH` | path to the durable bot AI profiles JSON (default: `.local/masters-overrides/bot_ai_profiles.json`) |
+| `KF_BOT_AI_SEED_PATH` | path to the seed bot AI profiles JSON fallback (default: `config/bot_ai_profiles.json`) |
 
 In the systemd deployment, configure `KF_BALANCE_AUTH_DB` and any override for
 `KF_BALANCE_JWT_SECRET_FILE` as absolute paths; the deploy-time provisioner requires this so it
@@ -127,8 +129,24 @@ rebinding.
 
 ## What it edits
 
-Left sidebar: **Kickers** (14), **Discs**, **Text**, **Latest information**, **Health** and **Maintenance**. A text filter and, for discs,
+Left sidebar: **Kickers** (14), **Discs**, **Text**, **Bot AI**, **Latest information**, **Health** and **Maintenance**. A text filter and, for discs,
 rarity/type dropdowns. Every entry shows its icon from `tools/balance/icons/`.
+
+**Bot AI** edits the native bot AI behavioral profiles across all three battle modes (Crystal Scramble,
+Flag Flight, Rapid Ball) and 13 profile roles (39 total profiles):
+
+- **Durable Persistence:** Saves are written atomically to `.local/masters-overrides/bot_ai_profiles.json`
+  (or `KF_BOT_AI_PROFILES_PATH`), which survives CI rsync deployments because `.local` is excluded from
+  rsync and mounted into the API container at `../.local:/srv/repo/.local:ro`.
+- **Seed Fallback:** Baseline defaults reside in tracked `config/bot_ai_profiles.json` (or `KF_BOT_AI_SEED_PATH`).
+  The panel reads from the seed when no override exists and **never** mutates the seed file on save.
+- **Generic Master Isolation:** `bot_ai_profiles.json` does not start with `masters_`, ensuring generic
+  master table loaders (`MasterOverrides.cs`) and zip exports safely ignore it.
+- **Validation & Safe Concurrency:** Every save validates all 39 profiles against `config/bot_ai_profiles.schema.json`,
+  stores a timestamped backup in `.local/balance-backups/`, and enforces optimistic concurrency control
+  via SHA-256 base revision verification (returning HTTP 409 Conflict if modified concurrently).
+- **Client Cave Note:** `lowHpDepositThreshold` is fixed to 35% in native ARM64 machine code (`0x159D854`),
+  so it is displayed read-only with a notice. Experimental kicker profile roles require `KF_EXPERIMENTAL_AI_ROLES=1`.
 
 **Latest information** edits the page opened by the game at Notices → Latest information. Choose one of three modes;
 the saved mode and content live in `data/latest-information.json`, and no API restart is needed:
@@ -296,6 +314,8 @@ and JSON body are passed through to the browser.
 | `GET /api/table/<name>` | full effective array: override file if present, else `config/masters_<name>.json` |
 | `POST /api/table/<name>` | body `{"rows": [...]}`; validates, backs up, writes the **override** file, returns `{ok, written, override}` |
 | `POST /api/table/<name>/revert` | deletes the override (backup first), returns `{ok, reverted, source}` |
+| `GET /api/bot-ai/profiles` | `{ok, source: "seed"|"override", path, revision, schemaRevision, profiles: {...}}` |
+| `POST /api/bot-ai/profiles` | body `{"profiles": {...}, "baseRevision": "..."}`; validates, backs up, writes durable override, returns `{ok, written, revision}` |
 | `GET /api/overrides/export` | zip download of every override file |
 | `GET /api/apply` | `{pending, overrides, apiStartedAt, apiStartedAtIso, container, applyCmd, health}` |
 | `POST /api/apply` | runs the restart command, polls health, returns `{ok, command, output, health, elapsedSeconds, pending}` |

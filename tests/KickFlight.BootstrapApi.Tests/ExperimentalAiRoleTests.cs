@@ -76,28 +76,30 @@ public class ExperimentalAiRoleTests
     public void DeterministicSharedContract_ThirtyNineBoundedUniqueIds()
     {
         var policies = ExperimentalAiRoleService.GetAllPolicies();
-        Assert.Equal(39, policies.Count);
+        Assert.Equal(42, policies.Count);
 
         var seenIds = new HashSet<int>();
 
         for (int modeIndex = 0; modeIndex <= 2; modeIndex++)
         {
-            for (int profIndex = 0; profIndex <= 12; profIndex++)
+            for (int kid = 1; kid <= 14; kid++)
             {
-                var expectedId = 15 + (13 * modeIndex) + profIndex;
-                Assert.True(expectedId >= 15 && expectedId <= 53, $"ID {expectedId} out of range [15..53]");
+                var expectedId = BotAiDefaults.GetStableParameterId(modeIndex, kid);
+                Assert.True(expectedId >= 15 && expectedId <= 71, $"ID {expectedId} out of range [15..71]");
                 Assert.True(expectedId < 100, "ID must be < 100 to avoid mannequin cave hook");
+                Assert.False(expectedId >= 1 && expectedId <= 14, "ID must not overlap with pristine kicker IDs [1..14]");
 
                 var policy = policies.FirstOrDefault(p => p.ParameterId == expectedId);
                 Assert.NotNull(policy);
                 Assert.Equal(modeIndex, policy.ModeIndex);
+                Assert.Equal(kid, policy.KickerId);
                 Assert.True(seenIds.Add(expectedId), $"Duplicate ID {expectedId}");
             }
         }
 
-        Assert.Equal(39, seenIds.Count);
+        Assert.Equal(42, seenIds.Count);
         Assert.Equal(15, seenIds.Min());
-        Assert.Equal(53, seenIds.Max());
+        Assert.Equal(71, seenIds.Max());
     }
 
     [Fact]
@@ -153,7 +155,7 @@ public class ExperimentalAiRoleTests
 
         // 1. Verify Flag Flight (modeIndex 1) has no guardian behavior mentioned
         var flagPolicies = policies.Where(p => p.ModeIndex == 1).ToList();
-        Assert.Equal(13, flagPolicies.Count);
+        Assert.Equal(14, flagPolicies.Count);
         foreach (var policy in flagPolicies)
         {
             Assert.DoesNotContain("guardian", policy.FlagFlightPolicy, StringComparison.OrdinalIgnoreCase);
@@ -211,7 +213,7 @@ public class ExperimentalAiRoleTests
         Assert.NotNull(rows);
 
         var policies = ExperimentalAiRoleService.GetAllPolicies();
-        Assert.Equal(39, policies.Count);
+        Assert.Equal(42, policies.Count);
 
         foreach (var policy in policies)
         {
@@ -229,10 +231,10 @@ public class ExperimentalAiRoleTests
     }
 
     [Theory]
-    [InlineData(1, 15, 27)] // Crystal Scramble
-    [InlineData(2, 28, 40)] // Flag Flight
-    [InlineData(3, 41, 53)] // Rapid Ball
-    public async Task SerializedRoster_WhenEnabled_WiresActualProfileAndModeId_And_OffUnchanged(int ruleId, int minId, int maxId)
+    [InlineData(1, 15, 27, 54, 59)] // Crystal Scramble
+    [InlineData(2, 28, 40, 60, 65)] // Flag Flight
+    [InlineData(3, 41, 53, 66, 71)] // Rapid Ball
+    public async Task SerializedRoster_WhenEnabled_WiresActualProfileAndModeId_And_OffUnchanged(int ruleId, int minId, int maxId, int extraMin, int extraMax)
     {
         var root = RepositoryPaths.FindRoot(AppContext.BaseDirectory);
         var photon = new PhotonServerManager(
@@ -280,7 +282,8 @@ public class ExperimentalAiRoleTests
             foreach (var bot in botsOn)
             {
                 var paramId = bot.GetProperty("kickerAiParameterId").GetInt32();
-                Assert.InRange(paramId, minId, maxId);
+                Assert.True((paramId >= minId && paramId <= maxId) || (paramId >= extraMin && paramId <= extraMax),
+                    $"Param ID {paramId} outside expected ranges [{minId}..{maxId}] and [{extraMin}..{extraMax}]");
             }
         }
         finally
@@ -483,7 +486,7 @@ public class ExperimentalAiRoleTests
 
             foreach (var bot in bots)
             {
-                Assert.InRange(bot.kickerAiParameterId, 15, 53);
+                Assert.InRange(bot.kickerAiParameterId, 15, 71);
                 Assert.NotEqual(bot.kickerId, bot.kickerAiParameterId);
             }
         }

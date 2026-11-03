@@ -58,12 +58,13 @@ public sealed class PostgresSocialMigrationTests
         Assert.Equal(3, Assert.Single(store.ListRanks(4, new[] { carol }, 0, 10)).Position);
 
         var restarted = NewStore(connectionString);
-        Assert.Equal(4, ReadSchemaVersion(connectionString));
+        Assert.Equal(5, ReadSchemaVersion(connectionString));
         Assert.Equal(token, restarted.GetOrCreateRealFriendToken(alice));
         Assert.True(restarted.AreRealFriends(alice, carol));
         Assert.Equal(1, restarted.CountFollowing(alice));
 
-        // Migration 3 is the identity move: the sessions table is gone and a player row carries otomo's account id.
+        // Migration 4 is the identity move (3 is main's badge tables): the sessions table is gone and a player
+        // row carries otomo's account id.
         using (var connection = new NpgsqlConnection(connectionString))
         {
             connection.Open();
@@ -78,14 +79,14 @@ public sealed class PostgresSocialMigrationTests
         using (var connection = new NpgsqlConnection(connectionString))
         {
             connection.Open();
-            using var insertFutureVersion = new NpgsqlCommand("insert into schema_meta(version) values (5)", connection);
+            using var insertFutureVersion = new NpgsqlCommand("insert into schema_meta(version) values (6)", connection);
             insertFutureVersion.ExecuteNonQuery();
         }
         Assert.Throws<InvalidOperationException>(() => NewStore(connectionString));
         using (var connection = new NpgsqlConnection(connectionString))
         {
             connection.Open();
-            using var removeFutureVersion = new NpgsqlCommand("delete from schema_meta where version = 5", connection);
+            using var removeFutureVersion = new NpgsqlCommand("delete from schema_meta where version = 6", connection);
             removeFutureVersion.ExecuteNonQuery();
         }
     }

@@ -5,6 +5,12 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      activate_ios_r52_profile:
+        description: "One-way activation: serve the incomplete, test-only R52 iOS profile on Fenix"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -14,10 +20,340 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: Deploy main to VPS
+  stage_r52_asset:
+    name: Stage private R52 draft asset
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.activate_ios_r52_profile == true && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-24.04
     environment: production
+    permissions:
+      contents: write
+    outputs:
+      enabled: ${{ steps.transfer.outputs.enabled }}
+      sha256: ${{ steps.transfer.outputs.sha256 }}
+      remote_archive: ${{ steps.transfer.outputs.remote_archive }}
+    steps:
+      - name: Check out the requested main commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Require the requested commit to still be main
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]] || { echo "Checkout does not match event SHA" >&2; exit 1; }
+          git fetch --quiet origin main
+          [[ "$(git rev-parse origin/main)" == "$GITHUB_SHA" ]] || {
+            echo "Refusing to stage R52 from a stale main commit" >&2
+            exit 1
+          }
+
+      - name: Download the private R52 draft asset
+        id: r52_profile
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 - config/ios-r52-profile-release.json "$GITHUB_OUTPUT" <<'PY'
+          import json
+          import pathlib
+          import re
+          import sys
+
+          config = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+          expected = {
+              "schemaVersion": 1, "assetVersion": 12346, "revisionFloor": 52,
+              "testOnly": True, "complete": False,
+              "runtimeContract": "kickflight.ios-r52-test-profile.v1",
+          }
+          if any(config.get(key) != value for key, value in expected.items()):
+              raise SystemExit("R52 release pin does not describe the reviewed test-only profile")
+          tag, asset, digest = (config.get("releaseTag"), config.get("assetName"), config.get("archiveSha256"))
+          if not isinstance(tag, str) or not re.fullmatch(r"[A-Za-z0-9._-]+", tag):
+              raise SystemExit("R52 release tag is invalid")
+          if asset != "ios-r52-profile.tar.gz" or not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+              raise SystemExit("R52 release asset pin is invalid")
+          with open(sys.argv[2], "a", encoding="utf-8") as output:
+              output.write(f"tag={tag}\nasset={asset}\nsha256={digest}\n")
+          PY
+          pin_tag="$(sed -n 's/^tag=//p' "$GITHUB_OUTPUT" | tail -n 1)"
+          pin_asset="$(sed -n 's/^asset=//p' "$GITHUB_OUTPUT" | tail -n 1)"
+          pin_sha="$(sed -n 's/^sha256=//p' "$GITHUB_OUTPUT" | tail -n 1)"
+          gh release download "$pin_tag" --repo "$GITHUB_REPOSITORY" \
+            --pattern "$pin_asset" --dir "$RUNNER_TEMP" >/dev/null
+          archive="$RUNNER_TEMP/$pin_asset"
+          chmod 600 "$archive"
+          {
+            echo "archive=$archive"
+            echo "sha256=$pin_sha"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Validate the pinned private R52 archive
+        shell: bash
+        env:
+          R52_ARCHIVE: ${{ steps.r52_profile.outputs.archive }}
+          R52_ARCHIVE_SHA256: ${{ steps.r52_profile.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          python3 scripts/stage-ios-r52-profile.py validate \
+            --archive "$R52_ARCHIVE" --archive-sha256 "$R52_ARCHIVE_SHA256" >/dev/null
+
+      - name: Set up .NET 8 for opt-in R52 runtime validation
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Stage the exact R52 package for routing tests
+        id: r52_test_profile
+        shell: bash
+        env:
+          R52_ARCHIVE: ${{ steps.r52_profile.outputs.archive }}
+          R52_ARCHIVE_SHA256: ${{ steps.r52_profile.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          stage_root="$RUNNER_TEMP/ios-r52-test-stage"
+          python3 scripts/stage-ios-r52-profile.py stage \
+            --archive "$R52_ARCHIVE" --archive-sha256 "$R52_ARCHIVE_SHA256" \
+            --stage-root "$stage_root" >/dev/null
+          echo "profile=$stage_root/12346-r52/profile" >> "$GITHUB_OUTPUT"
+
+      - name: Run R52 API routing test against all staged payloads
+        shell: bash
+        env:
+          KF_R52_REVIEW_PROFILE: ${{ steps.r52_test_profile.outputs.profile }}
+        run: |
+          set -euo pipefail
+          dotnet test tests/KickFlight.BootstrapApi.Tests/KickFlight.BootstrapApi.Tests.csproj \
+            --filter FullyQualifiedName~R52_review_package_is_accepted_when_profile_path_is_set \
+            --verbosity minimal
+
+      - name: Configure pinned SSH host verification for private transfer
+        shell: bash
+        env:
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          VPS_HOST: ${{ vars.VPS_HOST }}
+          VPS_SSH_PORT: ${{ vars.VPS_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          [[ -n "$VPS_SSH_PRIVATE_KEY" ]] || { echo "Missing secret VPS_SSH_PRIVATE_KEY" >&2; exit 1; }
+          [[ -n "$VPS_KNOWN_HOSTS" ]] || { echo "Missing secret VPS_KNOWN_HOSTS" >&2; exit 1; }
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > "$RUNNER_TEMP/kf-vps-deploy-key"
+          chmod 600 "$RUNNER_TEMP/kf-vps-deploy-key"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$RUNNER_TEMP/kf-vps-known-hosts"
+          chmod 600 "$RUNNER_TEMP/kf-vps-known-hosts"
+          known_host="$VPS_HOST"
+          if [[ -n "$VPS_SSH_PORT" && "$VPS_SSH_PORT" != 22 ]]; then
+            known_host="[$VPS_HOST]:$VPS_SSH_PORT"
+          fi
+          ssh-keygen -F "$known_host" -f "$RUNNER_TEMP/kf-vps-known-hosts" >/dev/null || {
+            echo "VPS_KNOWN_HOSTS does not contain the configured VPS_HOST" >&2
+            exit 1
+          }
+
+      - name: Transfer the validated profile privately to the VPS
+        id: transfer
+        shell: bash
+        env:
+          R52_ARCHIVE: ${{ steps.r52_profile.outputs.archive }}
+          R52_ARCHIVE_SHA256: ${{ steps.r52_profile.outputs.sha256 }}
+          R52_PROFILE_PATH: ${{ steps.r52_test_profile.outputs.profile }}
+          VPS_HOST: ${{ vars.VPS_HOST }}
+          VPS_USER: ${{ vars.VPS_USER }}
+          VPS_SSH_PORT: ${{ vars.VPS_SSH_PORT }}
+          VPS_APP_DIR: ${{ vars.VPS_APP_DIR }}
+        run: |
+          set -euo pipefail
+          [[ -n "$VPS_HOST" && -n "$VPS_USER" ]] || { echo "Set repository variables VPS_HOST and VPS_USER" >&2; exit 1; }
+          [[ "$VPS_HOST" =~ ^[A-Za-z0-9.-]+$ ]] || { echo "VPS_HOST contains unsupported characters" >&2; exit 1; }
+          [[ "$VPS_USER" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "VPS_USER contains unsupported characters" >&2; exit 1; }
+          [[ "$VPS_APP_DIR" == /* && "$VPS_APP_DIR" != "/" ]] || { echo "VPS_APP_DIR must be an absolute application directory" >&2; exit 1; }
+          [[ "${#GITHUB_SHA}" -eq 40 && "$GITHUB_SHA" != *[!0-9a-f]* ]] || { echo "Invalid workflow commit SHA" >&2; exit 1; }
+          [[ "${#R52_ARCHIVE_SHA256}" -eq 64 && "$R52_ARCHIVE_SHA256" != *[!0-9a-f]* ]] || { echo "Invalid pinned R52 SHA-256" >&2; exit 1; }
+          [[ -f "$R52_ARCHIVE" && -d "$R52_PROFILE_PATH" ]] || { echo "Validated R52 archive or staged profile is missing" >&2; exit 1; }
+          port="${VPS_SSH_PORT:-22}"
+          [[ "$port" =~ ^[0-9]{1,5}$ ]] || { echo "VPS_SSH_PORT must be numeric" >&2; exit 1; }
+          remote="${VPS_USER}@${VPS_HOST}"
+          remote_archive="/tmp/kf-ios-r52-profile-${GITHUB_SHA}.tar.gz"
+          ssh_opts=(-i "$RUNNER_TEMP/kf-vps-deploy-key" -p "$port" -o BatchMode=yes -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/kf-vps-known-hosts")
+          scp_opts=(-q -i "$RUNNER_TEMP/kf-vps-deploy-key" -P "$port" -o BatchMode=yes -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/kf-vps-known-hosts")
+          archive_bytes=$(python3 - "$R52_ARCHIVE" <<'PY'
+          from pathlib import Path
+          import sys
+          print(Path(sys.argv[1]).stat().st_size)
+          PY
+          )
+          stage_tree_bytes=$(python3 - "$R52_PROFILE_PATH" <<'PY'
+          from pathlib import Path
+          import sys
+          profile = Path(sys.argv[1]).resolve(strict=True)
+          stage = profile.parent
+          paths = [stage, *stage.rglob("*")]
+          if any(path.is_symlink() for path in paths):
+              raise SystemExit("staged R52 tree contains a symbolic link")
+          print(sum(path.stat().st_size for path in paths if path.is_file()))
+          PY
+          )
+          [[ "$archive_bytes" =~ ^[0-9]+$ && "$stage_tree_bytes" =~ ^[0-9]+$ ]] || {
+            echo "R52 transfer: local archive/staged-size measurement failed" >&2; exit 1;
+          }
+          remote_stage_root="$VPS_APP_DIR/.local"
+          printf -v q_stage_root '%q' "$remote_stage_root"
+          remote_upload_started=false
+          scp_error_file="$RUNNER_TEMP/kf-r52-scp-error"
+          remove_partial_upload() {
+            local result=$?
+            trap - EXIT
+            if [[ "$result" -ne 0 && "$remote_upload_started" == true ]]; then
+              if ssh "${ssh_opts[@]}" "$remote" "rm -f -- '$remote_archive'" >/dev/null 2>&1; then
+                echo "R52 transfer cleanup: remote temporary file removed or absent" >&2
+              else
+                echo "R52 transfer cleanup: could not confirm remote temporary file removal" >&2
+              fi
+            fi
+            rm -f -- "$scp_error_file"
+            exit "$result"
+          }
+          trap remove_partial_upload EXIT
+          if space_result=$(ssh "${ssh_opts[@]}" "$remote" "bash -s -- $q_stage_root $archive_bytes $stage_tree_bytes" 2>/dev/null <<'REMOTE_SPACE_CHECK'
+          set -euo pipefail
+          stage_root=$1
+          archive_bytes=$2
+          stage_tree_bytes=$3
+          python3 - "$stage_root" "$archive_bytes" "$stage_tree_bytes" <<'PY'
+          from pathlib import Path
+          import shutil
+          import sys
+          stage_root = Path(sys.argv[1])
+          try:
+              archive_bytes, stage_tree_bytes = int(sys.argv[2]), int(sys.argv[3])
+              if archive_bytes <= 0 or stage_tree_bytes <= 0 or not stage_root.is_dir():
+                  print("R52_SPACE_INVALID_INPUT")
+                  raise SystemExit(20)
+              tmp_free = shutil.disk_usage("/tmp").free
+              stage_free = shutil.disk_usage(stage_root).free
+          except (OSError, ValueError):
+              print("R52_SPACE_CHECK_FAILED")
+              raise SystemExit(21)
+          reserve = 64 * 1024 * 1024
+          if tmp_free < archive_bytes + reserve:
+              print("R52_SPACE_TMP_LOW")
+              raise SystemExit(22)
+          if stage_free < stage_tree_bytes + reserve:
+              print("R52_SPACE_STAGE_LOW")
+              raise SystemExit(23)
+          print("R52_SPACE_OK")
+          PY
+          REMOTE_SPACE_CHECK
+          ); then
+            [[ "$space_result" == "R52_SPACE_OK" ]] || {
+              echo "R52 transfer: remote capacity check returned an unexpected result" >&2; exit 1;
+            }
+          else
+            status=$?
+            case "$space_result" in
+              R52_SPACE_INVALID_INPUT) reason="remote storage inputs invalid" ;;
+              R52_SPACE_CHECK_FAILED) reason="remote storage query failed" ;;
+              R52_SPACE_TMP_LOW) reason="insufficient free space in remote /tmp" ;;
+              R52_SPACE_STAGE_LOW) reason="insufficient free space for the staged profile" ;;
+              *) reason="SSH or remote capacity check failed" ;;
+            esac
+            echo "R52 transfer: $reason (exit $status)" >&2
+            exit "$status"
+          fi
+          remote_upload_started=true
+          if scp "${scp_opts[@]}" "$R52_ARCHIVE" "$remote:$remote_archive" 2>"$scp_error_file"; then
+            :
+          else
+            status=$?
+            if grep -qiE 'no space left|disk quota exceeded' "$scp_error_file"; then
+              reason="remote storage rejected the upload"
+            elif grep -qiE 'permission denied|authentication failed' "$scp_error_file"; then
+              reason="SSH authentication or write permission failed"
+            elif grep -qiE 'host key verification failed|remote host identification has changed' "$scp_error_file"; then
+              reason="SSH host verification failed"
+            elif grep -qiE 'timed out|connection reset|connection refused|broken pipe' "$scp_error_file"; then
+              reason="SSH/SCP connection failed"
+            else
+              reason="SCP failed with an unclassified error"
+            fi
+            echo "R52 transfer: $reason (exit $status)" >&2
+            exit "$status"
+          fi
+          if verify_result=$(ssh "${ssh_opts[@]}" "$remote" bash -s -- "$remote_archive" "$R52_ARCHIVE_SHA256" 2>/dev/null <<'REMOTE_VERIFY'
+          set -euo pipefail
+          archive_path=$1
+          expected_sha=$2
+          if [[ ! "$archive_path" =~ ^/tmp/kf-ios-r52-profile-[0-9a-f]{40}\.tar\.gz$ ]]; then
+            echo R52_REMOTE_PATH_INVALID
+            exit 30
+          fi
+          if [[ "${#expected_sha}" -ne 64 || "$expected_sha" == *[!0-9a-f]* ]]; then
+            echo R52_REMOTE_SHA_INVALID
+            exit 31
+          fi
+          if ! chmod 600 "$archive_path"; then
+            echo R52_REMOTE_CHMOD_FAILED
+            exit 32
+          fi
+          if python3 - "$archive_path" "$expected_sha" <<'PY'
+          from pathlib import Path
+          import hashlib
+          import sys
+          digest = hashlib.sha256()
+          try:
+              with Path(sys.argv[1]).open("rb") as stream:
+                  for block in iter(lambda: stream.read(1024 * 1024), b""):
+                      digest.update(block)
+          except OSError:
+              raise SystemExit(1)
+          raise SystemExit(0 if digest.hexdigest() == sys.argv[2] else 1)
+          PY
+          then
+            echo R52_REMOTE_VERIFY_OK
+          else
+            echo R52_REMOTE_SHA256_FAILED
+            exit 33
+          fi
+          REMOTE_VERIFY
+          ); then
+            [[ "$verify_result" == "R52_REMOTE_VERIFY_OK" ]] || {
+              echo "R52 transfer: remote verification returned an unexpected result" >&2; exit 1;
+            }
+          else
+            status=$?
+            case "$verify_result" in
+              R52_REMOTE_PATH_INVALID) reason="remote archive path guard rejected the upload" ;;
+              R52_REMOTE_SHA_INVALID) reason="remote checksum input guard rejected the upload" ;;
+              R52_REMOTE_CHMOD_FAILED) reason="remote archive could not be secured" ;;
+              R52_REMOTE_SHA256_FAILED) reason="remote checksum did not match or archive was unreadable" ;;
+              *) reason="SSH or remote verification failed" ;;
+            esac
+            echo "R52 transfer: $reason (exit $status)" >&2
+            exit "$status"
+          fi
+          rm -f -- "$scp_error_file"
+          {
+            echo "enabled=true"
+            echo "sha256=$R52_ARCHIVE_SHA256"
+            echo "remote_archive=$remote_archive"
+          } >> "$GITHUB_OUTPUT"
+          trap - EXIT
+
+  deploy:
+    name: Deploy main to VPS
+    needs: stage_r52_asset
+    if: ${{ always() && (needs.stage_r52_asset.result == 'success' || needs.stage_r52_asset.result == 'skipped') }}
+    runs-on: ubuntu-24.04
+    environment: production
+    permissions:
+      contents: read
     steps:
       - name: Check out main and recursive submodules
         uses: actions/checkout@v4
@@ -48,10 +384,17 @@ jobs:
         shell: bash
         env:
           BEFORE_SHA: ${{ github.event.before }}
+          WORKFLOW_EVENT_NAME: ${{ github.event_name }}
+          ACTIVATE_IOS_R52_PROFILE: ${{ inputs.activate_ios_r52_profile }}
         run: |
           set -euo pipefail
+          if [[ "$WORKFLOW_EVENT_NAME" == workflow_dispatch && "$ACTIVATE_IOS_R52_PROFILE" == true ]]; then
+            printf '%s\n' 'deploy=true' 'api=true' 'photon=false' 'cdn=false' 'farm=false' \
+              'site=false' 'caddy=false' 'balance=false' 'full=false' 'r52_api_only=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [[ ! "$BEFORE_SHA" =~ ^[0-9a-f]{40}$ ]] || ! git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
-            printf '%s\n' 'deploy=true' 'api=true' 'photon=true' 'cdn=true' 'farm=true' 'site=true' 'caddy=true' 'balance=true' 'full=true' >> "$GITHUB_OUTPUT"
+            printf '%s\n' 'deploy=true' 'api=true' 'photon=true' 'cdn=true' 'farm=true' 'site=true' 'caddy=true' 'balance=true' 'full=true' 'r52_api_only=false' >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -62,9 +405,39 @@ jobs:
           before, after = sys.argv[1:]
           changed = subprocess.check_output(["git", "diff", "--name-only", "-z", before, after]).decode().split("\0")
           changed = [path for path in changed if path]
+          r52_api_only_paths = {
+              ".github/workflows/deploy-vps-main.yml",
+              "config/ios-r52-profile-release.json",
+              "deploy/docker-compose.vps.yml",
+              "docs/IOS_R52_PROFILE_RELEASE.md",
+              "scripts/convert-android-model-to-ios.py",
+              "scripts/deploy-vps-ci.sh",
+              "scripts/ios-wire-floor.py",
+              "scripts/run-model-batch.py",
+              "scripts/stage-ios-r52-profile.py",
+              "src/KickFlight.BootstrapApi/HarnessOptions.cs",
+              "src/KickFlight.BootstrapApi/IosR52TestProfileStore.cs",
+              "src/KickFlight.BootstrapApi/Program.cs",
+              "src/KickFlight.BootstrapApi/ResourceCatalogStore.cs",
+              "src/KickFlight.BootstrapApi/appsettings.json",
+              "tests/KickFlight.BootstrapApi.Tests/IosR52ProfileRoutingTests.cs",
+              "tests/test_convert_android_model_to_ios.py",
+              "tests/test_ios_wire_floor.py",
+              "tests/test_stage_ios_r52_profile.py",
+          }
+          if changed and set(changed).issubset(r52_api_only_paths) and any(
+              path.startswith("src/KickFlight.BootstrapApi/") for path in changed
+          ):
+              print("deploy=true")
+              print("api=true")
+              for component in ("photon", "cdn", "farm", "site", "caddy", "balance", "full"):
+                  print(f"{component}=false")
+              print("r52_api_only=true")
+              sys.exit(0)
+
           flags = {"deploy": False, "api": False, "photon": False, "cdn": False,
                    "farm": False, "site": False, "caddy": False, "balance": False,
-                   "full": False}
+                   "full": False, "r52_api_only": False}
           generators = {
               "scripts/build-cdn-tree.py", "scripts/build-title-resource-catalog.py",
               "scripts/build-title-resource-catalog.ps1", "scripts/build_kicker_catalog.py",
@@ -105,7 +478,7 @@ jobs:
                   "deploy/docker-compose.vps.yml", "deploy/docker-compose.vps.external-db.yml",
                   "deploy/nginx.grpc.vps.conf", "deploy/geoip/Dockerfile",
                   "scripts/deploy-vps-ci.sh",
-              } or path.startswith("deploy/geoip/"):
+              } or path.startswith("deploy/geoip/") or path.startswith("deploy/badges/") or path.startswith("tools/badges/"):
                   flags["full"] = True
               if path in generators:
                   flags["farm"] = True
@@ -114,7 +487,7 @@ jobs:
               if path in artifact_flows:
                   flags["farm"] = True
                   flags["api"] = True
-              if path in {"scripts/update-latest-information.py", "docs/updates-page.html"} or path.startswith("docs/updates"):
+              if path in {"scripts/update-latest-information.py", "docs/updates-page.html", "tools/badges/prepare_announcement.py"} or path.startswith("docs/updates"):
                   flags["api"] = True
                   flags["site"] = True
               if path == "scripts/build-cdn-tree.py":
@@ -153,7 +526,7 @@ jobs:
 
       - name: Download and verify the optional iOS snapshot release asset
         id: ios_snapshot
-        if: steps.main_tip.outputs.deployable == 'true' && steps.changes.outputs.deploy == 'true'
+        if: ${{ steps.main_tip.outputs.deployable == 'true' && steps.changes.outputs.deploy == 'true' && steps.changes.outputs.r52_api_only != 'true' && !(github.event_name == 'workflow_dispatch' && inputs.activate_ios_r52_profile) }}
         shell: bash
         env:
           IOS_SNAPSHOT_RELEASE_TAG: ${{ vars.IOS_SNAPSHOT_RELEASE_TAG }}
@@ -225,12 +598,12 @@ jobs:
           }
 
       # Stage the immutable APK before the deployment can activate catalog links or the Android minimum.
-      - name: Stage Android 2.11.5 release APK if configured in catalog
+      - name: Stage Android 2.11.6 release APK if configured in catalog
         id: android_apk
-        if: steps.main_tip.outputs.deployable == 'true' && steps.changes.outputs.deploy == 'true'
+        if: ${{ steps.main_tip.outputs.deployable == 'true' && steps.changes.outputs.deploy == 'true' && steps.changes.outputs.r52_api_only != 'true' && !(github.event_name == 'workflow_dispatch' && inputs.activate_ios_r52_profile) }}
         shell: bash
         env:
-          ANDROID_RELEASE_TAG: android-2.11.5
+          ANDROID_RELEASE_TAG: android-2.11.6
           GH_TOKEN: ${{ github.token }}
           GITHUB_TOKEN: ${{ github.token }}
           VPS_HOST: ${{ vars.VPS_HOST }}
@@ -246,7 +619,7 @@ jobs:
 
           catalog = json.load(open("config/resources/catalog.json", encoding="utf-8"))
           rows = [r for r in catalog.get("resources", [])
-                  if isinstance(r, dict) and r.get("id") == "apk-remote-2115" and r.get("enabled", True)]
+                  if isinstance(r, dict) and r.get("id") == "apk-remote-2116" and r.get("enabled", True)]
           if not rows:
               print("APK_CONFIGURED=false")
               sys.exit(0)
@@ -254,11 +627,11 @@ jobs:
           row = rows[0]
           sha = str(row.get("sha256", "")).strip().lower()
           if not re.fullmatch(r"[0-9a-f]{64}", sha) or set(sha) == {"0"}:
-              sys.exit("apk-remote-2115 sha256 is invalid or placeholder")
+              sys.exit("apk-remote-2116 sha256 is invalid or placeholder")
 
           source_path = row.get("sourcePath", "")
-          if source_path != ".local/KickFlight-2.11.5-remote.apk":
-              sys.exit(f"apk-remote-2115 unexpected sourcePath: {source_path}")
+          if source_path != ".local/KickFlight-2.11.6-remote.apk":
+              sys.exit(f"apk-remote-2116 unexpected sourcePath: {source_path}")
 
           filename = source_path.split("/")[-1]
           print("APK_CONFIGURED=true")
@@ -269,7 +642,7 @@ jobs:
 
           source "$RUNNER_TEMP/android_apk_info.env"
           if [[ "$APK_CONFIGURED" != "true" ]]; then
-            echo "apk-remote-2115 is not configured or enabled in catalog.json; skipping Android artifact staging."
+            echo "apk-remote-2116 is not configured or enabled in catalog.json; skipping Android artifact staging."
             exit 0
           fi
 
@@ -321,7 +694,7 @@ jobs:
 
           echo "Verifying SHA-256 of downloaded APK..."
           echo "$APK_SHA256  $local_apk" | sha256sum --check --status || {
-            echo "Downloaded APK SHA-256 does not match catalog row apk-remote-2115" >&2
+            echo "Downloaded APK SHA-256 does not match catalog row apk-remote-2116" >&2
             rm -f -- "$local_apk"
             exit 1
           }
@@ -383,6 +756,9 @@ jobs:
           IOS_SNAPSHOT_ENABLED: ${{ steps.ios_snapshot.outputs.enabled }}
           IOS_SNAPSHOT_ARCHIVE: ${{ steps.ios_snapshot.outputs.archive }}
           IOS_SNAPSHOT_ARCHIVE_SHA256: ${{ vars.IOS_SNAPSHOT_ARCHIVE_SHA256 }}
+          IOS_R52_PROFILE_REQUESTED: ${{ needs.stage_r52_asset.outputs.enabled || 'false' }}
+          IOS_R52_PROFILE_REMOTE_ARCHIVE: ${{ needs.stage_r52_asset.outputs.remote_archive }}
+          IOS_R52_PROFILE_ARCHIVE_SHA256: ${{ needs.stage_r52_asset.outputs.sha256 }}
         run: |
           set -euo pipefail
           [[ -n "$VPS_HOST" && -n "$VPS_USER" && -n "$VPS_APP_DIR" ]] || {
@@ -402,13 +778,25 @@ jobs:
             -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/kf-vps-known-hosts")
           scp "${scp_opts[@]}" "$RUNNER_TEMP/kf-vps-release.tar.gz" "$remote:$remote_archive"
           remote_ios_archive=""
-          ios_archive_arg=""
-          ios_sha_arg=""
+          ios_archive_arg="-"
+          ios_sha_arg="-"
           if [[ "$IOS_SNAPSHOT_ENABLED" == true ]]; then
             remote_ios_archive="/tmp/kf-ios-snapshot-${GITHUB_SHA}.tar.gz"
             scp "${scp_opts[@]}" "$IOS_SNAPSHOT_ARCHIVE" "$remote:$remote_ios_archive"
             printf -v ios_archive_arg '%q' "$remote_ios_archive"
             printf -v ios_sha_arg '%q' "$IOS_SNAPSHOT_ARCHIVE_SHA256"
+          fi
+          remote_ios_r52_archive=""
+          r52_archive_arg="-"
+          r52_sha_arg="-"
+          if [[ "$IOS_R52_PROFILE_REQUESTED" == true ]]; then
+            [[ "$IOS_R52_PROFILE_REMOTE_ARCHIVE" == "/tmp/kf-ios-r52-profile-${GITHUB_SHA}.tar.gz" && \
+               "$IOS_R52_PROFILE_ARCHIVE_SHA256" =~ ^[0-9a-f]{64}$ ]] || {
+              echo "R52 profile remote path or pinned SHA-256 is missing" >&2; exit 1;
+            }
+            remote_ios_r52_archive="$IOS_R52_PROFILE_REMOTE_ARCHIVE"
+            printf -v r52_archive_arg '%q' "$remote_ios_r52_archive"
+            printf -v r52_sha_arg '%q' "$IOS_R52_PROFILE_ARCHIVE_SHA256"
           fi
           printf -v q_app '%q' "$VPS_APP_DIR"
           printf -v q_archive '%q' "$remote_archive"
@@ -416,9 +804,42 @@ jobs:
           # compose environment, and the API records it in the ops telemetry's server_runs on every start.
           printf -v q_sha '%q' "$GITHUB_SHA"
           ssh "${ssh_opts[@]}" "$remote" \
-            "bash -s -- $q_app $q_sha $q_archive '$DEPLOY_API' '$DEPLOY_PHOTON' '$DEPLOY_CDN' '$REBUILD_FARM' '$SYNC_SITE' '$DEPLOY_CADDY' '$FULL_DEPLOY' '$DEPLOY_BALANCE' $ios_archive_arg $ios_sha_arg" \
+            "bash -s -- $q_app $q_sha $q_archive '$DEPLOY_API' '$DEPLOY_PHOTON' '$DEPLOY_CDN' '$REBUILD_FARM' '$SYNC_SITE' '$DEPLOY_CADDY' '$FULL_DEPLOY' '$DEPLOY_BALANCE' $ios_archive_arg $ios_sha_arg $r52_archive_arg $r52_sha_arg '$IOS_R52_PROFILE_REQUESTED'" \
             < scripts/deploy-vps-ci.sh
           ssh "${ssh_opts[@]}" "$remote" "rm -f -- '$remote_archive'"
           if [[ -n "$remote_ios_archive" ]]; then
             ssh "${ssh_opts[@]}" "$remote" "rm -f -- '$remote_ios_archive'"
           fi
+          if [[ -n "$remote_ios_r52_archive" ]]; then
+            ssh "${ssh_opts[@]}" "$remote" "rm -f -- '$remote_ios_r52_archive'"
+          fi
+
+      - name: Remove any unconsumed private R52 staging file
+        if: ${{ always() && needs.stage_r52_asset.outputs.enabled == 'true' }}
+        shell: bash
+        env:
+          VPS_HOST: ${{ vars.VPS_HOST }}
+          VPS_USER: ${{ vars.VPS_USER }}
+          VPS_SSH_PORT: ${{ vars.VPS_SSH_PORT }}
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          [[ -n "$VPS_HOST" && -n "$VPS_USER" && -n "$VPS_SSH_PRIVATE_KEY" && -n "$VPS_KNOWN_HOSTS" ]] || exit 0
+          [[ "$VPS_HOST" =~ ^[A-Za-z0-9.-]+$ && "$VPS_USER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          port="${VPS_SSH_PORT:-22}"
+          [[ "$port" =~ ^[0-9]{1,5}$ ]] || exit 1
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > "$RUNNER_TEMP/kf-vps-cleanup-key"
+          chmod 600 "$RUNNER_TEMP/kf-vps-cleanup-key"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$RUNNER_TEMP/kf-vps-cleanup-known-hosts"
+          chmod 600 "$RUNNER_TEMP/kf-vps-cleanup-known-hosts"
+          known_host="$VPS_HOST"
+          if [[ -n "$VPS_SSH_PORT" && "$VPS_SSH_PORT" != 22 ]]; then
+            known_host="[$VPS_HOST]:$VPS_SSH_PORT"
+          fi
+          ssh-keygen -F "$known_host" -f "$RUNNER_TEMP/kf-vps-cleanup-known-hosts" >/dev/null || exit 1
+          remote="${VPS_USER}@${VPS_HOST}"
+          remote_archive="/tmp/kf-ios-r52-profile-${GITHUB_SHA}.tar.gz"
+          ssh -i "$RUNNER_TEMP/kf-vps-cleanup-key" -p "$port" -o BatchMode=yes -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/kf-vps-cleanup-known-hosts" \
+            "$remote" "rm -f -- '$remote_archive'"

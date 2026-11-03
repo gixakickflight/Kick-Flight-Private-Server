@@ -20,7 +20,7 @@ submodules/luxonserver/vcpkg/downloads/**
 **/.git
 **/.git/**
 
-# Photon, the Nginx GeoIP module image, and the DB-IP updater need only their own deploy subtrees.
+# Photon, the Nginx GeoIP module image, the DB-IP updater, and badges need their deploy subtrees.
 !deploy/
 !deploy/photon/
 !deploy/photon/**
@@ -28,6 +28,20 @@ submodules/luxonserver/vcpkg/downloads/**
 !deploy/nginx/**
 !deploy/geoip/
 !deploy/geoip/**
+!deploy/badges/
+!deploy/badges/**
+
+# Collaborative badge catalog service and masters config
+!tools/
+!tools/badges/
+!tools/badges/**
+tools/badges/__pycache__/
+tools/badges/__pycache__/**
+tools/badges/*.pyc
+!config/
+!config/**
+config/fixtures.local/
+config/fixtures.local/**
 
 # Player saves: mounted at runtime, never baked in.
 src/KickFlight.BootstrapApi/data/

@@ -413,7 +413,6 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
     [InlineData("/battleSummary/index", "userBattleSummaryList")]
     [InlineData("/battleSummary/season", "userBattleSummarySeasonList")]
     [InlineData("/battleSummary/festival", "festivalMatchResultList")]
-    [InlineData("/chatRoomComment/write", null)]
     public async Task Stub_endpoints_answer_status_zero_with_a_schema_complete_object(string path, string? expectedMember)
     {
         var session = await CreateSessionAsync();
@@ -504,6 +503,94 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
         Assert.Equal("Tanuki", home.GetProperty("userPlayer").GetProperty("name").GetString());
     }
 
+    [Fact]
+    public async Task Served_honor_master_contains_every_catalog_id_in_client_shape()
+    {
+        using var client = _factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/demo-master/Honor");
+        request.Headers.Host = Host;
+        using var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var decrypted = D2CCodec.Decode(await response.Content.ReadAsByteArrayAsync(), Encoding.ASCII.GetBytes(CommonCode));
+        using var served = JsonDocument.Parse(decrypted);
+        var rows = served.RootElement.EnumerateArray().ToArray();
+
+        var catalogPath = Path.Combine(AppContext.BaseDirectory, "config", "badge_rule_catalog.json");
+        using var catalog = JsonDocument.Parse(File.ReadAllText(catalogPath));
+        var ids = catalog.RootElement.GetProperty("entries").EnumerateArray().Select(e => e.GetProperty("id").GetInt32()).ToArray();
+        Assert.Equal(211, ids.Length);
+        Assert.Equal(ids.Order(), rows.Select(r => r.GetProperty("id").GetInt32()).Order());
+        Assert.All(rows, row =>
+        {
+            Assert.Equal(JsonValueKind.Number, row.GetProperty("honorType").ValueKind);
+            Assert.Equal(JsonValueKind.String, row.GetProperty("name").ValueKind);
+            Assert.Equal(JsonValueKind.String, row.GetProperty("title").ValueKind);
+            Assert.Equal(JsonValueKind.Number, row.GetProperty("sortOrder").ValueKind);
+        });
+        Assert.Contains(rows, r => r.GetProperty("id").GetInt32() == BadgeAwardRules.DefaultHonorId);
+    }
+
+    [Fact]
+    public async Task New_player_owns_default_honor_with_register_datetime()
+    {
+        var session = await CreateSessionAsync();
+        var startup = await PostAsync(session, "/startup/index", null);
+        var row = Assert.Single(startup.GetProperty("userHonorList").EnumerateArray());
+        Assert.Equal(6010000, row.GetProperty("honorId").GetInt32());
+        Assert.Equal(JsonValueKind.String, row.GetProperty("registerDatetime").ValueKind);
+        Assert.True(row.TryGetProperty("newFlag", out _));
+    }
+
+    [Fact]
+    public async Task Startup_lists_owned_honors_and_user_change_rejects_an_unowned_honor()
+    {
+        var session = await CreateSessionAsync();
+        var startup = await PostAsync(session, "/startup/index", null);
+        var owned = startup.GetProperty("userHonorList").EnumerateArray()
+            .Select(row => row.GetProperty("honorId").GetInt32()).ToArray();
+
+        Assert.Equal([BadgeAwardRules.DefaultHonorId], owned);
+        Assert.Single(ReadUserState(session).GetProperty("VerifiedLoginDays").EnumerateArray());
+        await PostAsync(session, "/startup/index", null);
+        Assert.Single(ReadUserState(session).GetProperty("VerifiedLoginDays").EnumerateArray());
+        await PostAsync(session, "/user/change", new { honorId = 6010101 }, expectStatusZero: false);
+
+        var home = await PostAsync(session, "/home/index", null);
+        Assert.Equal(BadgeAwardRules.DefaultHonorId, home.GetProperty("userPlayer").GetProperty("honorId").GetInt32());
+    }
+
+    // A disc level-up is paid for by economy here, so it needs a disc the player owns and a price economy can
+    // charge: an account that owns nothing is refused in the error contract and no badge counter moves. The
+    // counted, paid path (level, spend, counters) is walked in OnboardingEndToEndTests.
+    [Fact]
+    public async Task Disc_buildup_for_a_disc_the_player_does_not_own_is_refused_and_not_counted()
+    {
+        var session = await CreateSessionAsync();
+
+        // A refusal here is the game's error contract - HTTP 200, x-app-status-code 2502, a plaintext error body -
+        // because the client has no ErrorType for "cannot pay". None of these may move the badge counter: a disc
+        // the player does not own, a level that would jump the ladder for the price of one step, and an id the
+        // masters do not carry.
+        foreach (var body in new object[]
+                 {
+                     new { discId = 3010001 },
+                     new { discId = 3010001, level = 50 },
+                     new { discId = 9999999 }
+                 })
+        {
+            var json = JsonSerializer.Serialize(body);
+            using var request = new HttpRequestMessage(HttpMethod.Post, "/disc/buildup")
+            {
+                Content = new ByteArrayContent(D2CCodec.Encode(Encoding.UTF8.GetBytes(json), session.Key, new byte[16]))
+            };
+            request.Headers.Host = Host;
+            using var response = await session.Client.SendAsync(request);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal("2502", response.Headers.GetValues("x-app-status-code").Single());
+            Assert.Equal(0, ReadUserState(session).GetProperty("DiscUpgradeCount").GetInt32());
+        }
+    }
+
     // A capsule is only opened from a slot a battle result filled, and a mission is only claimed when economy says
     // it is claimable: anything else is refused in the error contract rather than answered as a free stub.
     [Theory]
@@ -583,7 +670,13 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
         await PostAsync(session, "/tutorial/end", new { name });
 
         // The client re-issues /startup/index the moment the name is accepted, so that reply is what has to agree.
-        Assert.Equal(207, (await PostAsync(session, "/startup/index", null)).GetProperty("tutorialProgressStatus").GetInt32());
+        var startup = await PostAsync(session, "/startup/index", null);
+        Assert.Equal(207, startup.GetProperty("tutorialProgressStatus").GetInt32());
+        Assert.Contains(6010001, startup.GetProperty("userHonorList").EnumerateArray()
+            .Select(row => row.GetProperty("honorId").GetInt32()));
+        await PostAsync(session, "/user/change", new { honorId = 6010001 });
+        Assert.Equal(6010001, (await PostAsync(session, "/home/index", null))
+            .GetProperty("userPlayer").GetProperty("honorId").GetInt32());
         Assert.Equal(name, (await PostAsync(session, "/home/index", null)).GetProperty("userPlayer").GetProperty("name").GetString());
         Assert.Equal(name, ReadUserState(session).GetProperty("UserName").GetString());
     }

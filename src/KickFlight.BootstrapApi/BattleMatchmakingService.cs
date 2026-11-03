@@ -31,12 +31,16 @@ public sealed class BattleMatchmakingService
     // gym switches, because the roster builders that read it are.
     public static int UnchosenDeckDiscLevel { get; set; } = EconomyTuning.Defaults.CasualDiscLevel;
 
+    private readonly IBotAiProfileProvider? _botAiProfiles;
+
     public BattleMatchmakingService(ILogger<BattleMatchmakingService> logger, IPhotonServerManager photonManager,
-        MaintenanceState? maintenance = null, IWebHostEnvironment? environment = null)
+        MaintenanceState? maintenance = null, IWebHostEnvironment? environment = null,
+        IBotAiProfileProvider? botAiProfiles = null)
     {
         _logger = logger;
         _photonManager = photonManager;
         _maintenance = maintenance;
+        _botAiProfiles = botAiProfiles;
         _scrambleBotDecks = ScrambleBotDeckCatalog.Load(
             environment?.ContentRootPath ?? Directory.GetCurrentDirectory(), logger);
         if (ExperimentalAiRoleService.IsEnabled && _scrambleBotDecks.Count == 0)
@@ -98,6 +102,8 @@ public sealed class BattleMatchmakingService
         /// </summary>
         public bool IsDiag { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        /// <summary>Set when the entry's room closed its window with this entry in the final roster (badge stat context).</summary>
+        public string? AssignedBattleId { get; set; }
         internal object BattleResultLock { get; } = new();
         internal RankedResultSnapshot? AppliedRankedResult { get; set; }
     }
@@ -237,6 +243,9 @@ public sealed class BattleMatchmakingService
 
         /// <summary>The window closed and the final bot-filled roster was built; no further human can join.</summary>
         public bool IsFinalized { get; set; }
+
+        /// <summary>UTC instant the window closed and the final roster was built; null while the window is open.</summary>
+        public DateTime? FinalizedAtUtc { get; set; }
 
         /// <summary>Completes with the final roster; every waiting GetAssignments stream is parked on it.</summary>
         public TaskCompletionSource<MatchingBattleInfo> Finalized { get; } =
@@ -392,6 +401,57 @@ public sealed class BattleMatchmakingService
     public int? GetBattleRuleIdForEntry(string battleEntryId) =>
         _entriesByBattleEntryId.TryGetValue(battleEntryId, out var entry) ? entry.BattleRuleId : null;
 
+    /// <summary>One human or bot of a finalized room, as the server assigned it.</summary>
+    public sealed record BadgeRosterPlayer(string UserId, string BattleEntryId, int TeamType, bool IsAi);
+
+    /// <summary>The finalized roster of a room still in memory, used to confirm co-participation (likes).</summary>
+    public sealed record BadgeRoomSnapshot(
+        string BattleId, int BattleRuleId, DateTime FinalizedAtUtc, IReadOnlyList<BadgeRosterPlayer> Players);
+
+    /// <summary>
+    /// Everything the server itself holds about one issued entry: owner, kicker, mode snapshot, queue kind and the
+    /// team the server assigned. Client-reported battle results are validated against this, never the reverse.
+    /// </summary>
+    public sealed record BadgeBattleEntryContext(
+        string UserId, string BattleEntryId, int KickerId, int BattleRuleId, int? MatchType, int? BattleRuleType,
+        bool QueuedAsParty, DateTime EntryCreatedUtc, string? BattleId, int? RoomBattleRuleId,
+        DateTime? RoomFinalizedUtc, int? OwnTeamType);
+
+    public BadgeBattleEntryContext? GetBadgeBattleContext(string battleEntryId)
+    {
+        if (string.IsNullOrEmpty(battleEntryId) || !_entriesByBattleEntryId.TryGetValue(battleEntryId, out var entry))
+            return null;
+
+        int? roomRule = null;
+        DateTime? finalized = null;
+        int? ownTeam = null;
+        var battleId = entry.AssignedBattleId;
+        if (battleId is not null && _roomsByBattleId.TryGetValue(battleId, out var room) && room.IsFinalized)
+        {
+            roomRule = room.BattleRuleId;
+            finalized = room.FinalizedAtUtc;
+            var self = room.MatchingInfo.battlePlayerList.FirstOrDefault(player =>
+                player.battleEntryId == battleEntryId && player.userId == entry.UserId && player.kickerAiParameterId == 0);
+            ownTeam = self?.teamType;
+        }
+
+        return new BadgeBattleEntryContext(entry.UserId, entry.BattleEntryId, entry.KickerId, entry.BattleRuleId,
+            entry.BattleMatchType, entry.BattleRuleType, !string.IsNullOrEmpty(entry.PartyId), entry.CreatedAt,
+            battleId, roomRule, finalized, ownTeam);
+    }
+
+    public BadgeRoomSnapshot? GetBadgeRoomSnapshot(string battleId)
+    {
+        if (string.IsNullOrEmpty(battleId) || !_roomsByBattleId.TryGetValue(battleId, out var room)
+            || !room.IsFinalized || room.FinalizedAtUtc is not { } finalized)
+            return null;
+        return new BadgeRoomSnapshot(room.BattleId, room.BattleRuleId, finalized,
+            room.MatchingInfo.battlePlayerList
+                .Select(player => new BadgeRosterPlayer(
+                    player.userId, player.battleEntryId, player.teamType, player.kickerAiParameterId > 0))
+                .ToArray());
+    }
+
     public BattleResultEntry? GetBattleResultEntry(string battleEntryId) =>
         _entriesByBattleEntryId.TryGetValue(battleEntryId, out var entry)
             ? new BattleResultEntry(entry.UserId, entry.BattleRuleId, entry.BattleMatchType, entry.BattleRuleType)
@@ -399,10 +459,11 @@ public sealed class BattleMatchmakingService
 
     /// <summary>
     /// Applies and caches one ranked result for an owned, server-issued entry. The per-entry gate keeps concurrent
-    /// retries from incrementing twice; the cache is assigned only after the caller's persistence callback succeeds.
+    /// retries from incrementing twice; the cache is assigned only after the caller's persistence callback succeeds
+    /// (a callback returning null applies nothing and caches nothing).
     /// </summary>
     public BattleResultProcessing? ProcessRankedResultOnce(
-        string battleEntryId, string userId, Func<int, RankedResultSnapshot> persistRankedResult)
+        string battleEntryId, string userId, Func<int, RankedResultSnapshot?> persistRankedResult)
     {
         if (!_entriesByBattleEntryId.TryGetValue(battleEntryId, out var entry) || entry.UserId != userId)
             return null;
@@ -417,7 +478,10 @@ public sealed class BattleMatchmakingService
             if (entry.AppliedRankedResult is { } cached)
                 return new BattleResultProcessing(resultEntry, cached, true);
 
+            // A null snapshot means "no rank change for this attempt" (undetermined/tied result): nothing is cached,
+            // so a later retry carrying a decidable result can still be applied once.
             var applied = persistRankedResult(entry.BattleRuleType.Value);
+            if (applied is null) return new BattleResultProcessing(resultEntry, null, false);
             entry.AppliedRankedResult = applied;
             return new BattleResultProcessing(resultEntry, applied, false);
         }
@@ -503,7 +567,12 @@ public sealed class BattleMatchmakingService
             var allocation = SelectBattleParties(room.HumanPlayers, room.BattleId);
             if (allocation.Assignments.Count == 0) return;
             room.IsFinalized = true;
-            foreach (var player in allocation.Assignments.Keys) room.AssignedTicketIds.Add(player.TicketId);
+            room.FinalizedAtUtc = DateTime.UtcNow;
+            foreach (var player in allocation.Assignments.Keys)
+            {
+                room.AssignedTicketIds.Add(player.TicketId);
+                player.AssignedBattleId = room.BattleId;
+            }
             roster = BuildRoster(room, allocation.Assignments);
             room.MatchingInfo = roster;
             if (ReferenceEquals(_pendingRoom, room)) _pendingRoom = null;
@@ -1349,7 +1418,7 @@ public sealed class BattleMatchmakingService
                         kickerCostumeId = bot.CostumeRowId,
                         honorId = 6010000,
                         teamType = assignment.TeamType,
-                        kickerAiParameterId = ExperimentalAiRoleService.ResolveParameterId(
+                        kickerAiParameterId = (_botAiProfiles ?? ExperimentalAiRoleService.CurrentProvider).ResolveParameterId(
                             assignment.Profile,
                             bot.KickerId,
                             mode,

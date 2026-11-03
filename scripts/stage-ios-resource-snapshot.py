@@ -281,6 +281,37 @@ def _existing_matches(target: Path, manifest_bytes: bytes, doc: dict[str, Any]) 
     return actual == expected_files
 
 
+def _freeze_tree(root: Path) -> None:
+    for path in sorted(root.rglob("*"), key=lambda item: len(item.parts), reverse=True):
+        if path.is_symlink():
+            raise SnapshotError("target tree contains a symlink")
+        path.chmod(0o555 if path.is_dir() else 0o444)
+    root.chmod(0o555)
+
+
+def _tree_is_readonly(root: Path) -> bool:
+    return all(not path.is_symlink() and not (path.stat().st_mode & 0o222)
+               for path in (root, *root.rglob("*")))
+
+
+def verify_staged_snapshot(manifest: Path, stage_root: Path, snapshot: str) -> Path:
+    manifest_bytes, doc, _ = _load_manifest(manifest, snapshot)
+    if stage_root.is_symlink() or not stage_root.is_dir():
+        raise SnapshotError("stage root must be an existing real directory")
+    root = stage_root.resolve(strict=True)
+    target = root / snapshot
+    if target.is_symlink() or not target.is_dir():
+        raise SnapshotError("staged snapshot is missing or is not a real directory")
+    # Older snapshots may predate immutable staging. Freeze permissions before hashing, then
+    # accept them only if every byte and the exact file set match the release manifest.
+    _freeze_tree(target)
+    if not _existing_matches(target, manifest_bytes, doc):
+        raise SnapshotError("staged snapshot does not match the release manifest")
+    if not _tree_is_readonly(target):
+        raise SnapshotError("staged snapshot remains writable")
+    return target
+
+
 def stage_archive(archive: Path, expected_sha: str, manifest: Path, stage_root: Path, snapshot: str) -> Path:
     # Authenticate the compressed artifact first; decompress it once while validating and writing.
     manifest_bytes, doc, expected = _trusted_inputs(archive, expected_sha, manifest, snapshot)
@@ -292,13 +323,17 @@ def stage_archive(archive: Path, expected_sha: str, manifest: Path, stage_root: 
     target = root / snapshot
     if target.exists() or target.is_symlink():
         _scan_archive(archive, manifest_bytes, doc, expected)
+        _freeze_tree(target)
         if _existing_matches(target, manifest_bytes, doc):
+            if not _tree_is_readonly(target):
+                raise SnapshotError("staged snapshot remains writable")
             return target
         raise SnapshotError("target snapshot already exists with different or incomplete contents")
     temporary = Path(tempfile.mkdtemp(prefix=f".{snapshot}.tmp-", dir=root))
     try:
         (temporary / "payload").mkdir()
         _scan_archive(archive, manifest_bytes, doc, expected, temporary)
+        _freeze_tree(temporary)
         # Flush file data before publishing the directory entry.
         for base, _, files in os.walk(temporary):
             for filename in files:
@@ -325,22 +360,31 @@ def stage_archive(archive: Path, expected_sha: str, manifest: Path, stage_root: 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("validate", "stage"):
-        command = sub.add_parser(name)
-        command.add_argument("--archive", required=True, type=Path)
-        command.add_argument("--archive-sha256", required=True)
-        command.add_argument("--manifest", required=True, type=Path)
-        command.add_argument("--snapshot", required=True)
-        if name == "stage":
-            command.add_argument("--stage-root", required=True, type=Path)
+    validate = sub.add_parser("validate")
+    validate.add_argument("--archive", required=True, type=Path)
+    validate.add_argument("--archive-sha256", required=True)
+    validate.add_argument("--manifest", required=True, type=Path)
+    validate.add_argument("--snapshot", required=True)
+    stage = sub.add_parser("stage")
+    stage.add_argument("--archive", required=True, type=Path)
+    stage.add_argument("--archive-sha256", required=True)
+    stage.add_argument("--manifest", required=True, type=Path)
+    stage.add_argument("--snapshot", required=True)
+    stage.add_argument("--stage-root", required=True, type=Path)
+    verify = sub.add_parser("verify-stage")
+    verify.add_argument("--manifest", required=True, type=Path)
+    verify.add_argument("--snapshot", required=True)
+    verify.add_argument("--stage-root", required=True, type=Path)
     args = parser.parse_args()
     try:
         if args.command == "validate":
             validate_archive(args.archive, args.archive_sha256, args.manifest, args.snapshot)
             print("validated")
-        else:
+        elif args.command == "stage":
             path = stage_archive(args.archive, args.archive_sha256, args.manifest, args.stage_root, args.snapshot)
             print(path)
+        else:
+            print(verify_staged_snapshot(args.manifest, args.stage_root, args.snapshot))
         return 0
     except (SnapshotError, OSError, tarfile.TarError) as exc:
         print(f"snapshot validation failed: {exc}", file=sys.stderr)

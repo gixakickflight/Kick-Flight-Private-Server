@@ -13,6 +13,13 @@ public sealed class HarnessOptions
     /// <summary>Tracked, versioned manifest whose bytes must match the staged immutable iOS catalog.</summary>
     public string IosResourceManifestPath { get; set; } = Path.Combine(AppContext.BaseDirectory, "catalog-ios-12346.json");
     public string IosBootFixturePath { get; set; } = Path.Combine(AppContext.BaseDirectory, "boot-index-ios-platform-2.json");
+    /// <summary>
+    /// Explicitly opts into the offline, test-only R52 iOS profile. The profile is incomplete and has unverified
+    /// reconstructed wire rows; keep this disabled unless an operator explicitly activates it.
+    /// </summary>
+    public bool EnableIosR52TestProfile { get; set; }
+    /// <summary>Read-only staging root containing the R52 catalog, fixtures, and payload-r7 directory.</summary>
+    public string IosR52TestProfilePath { get; set; } = ".local/ios-resources/12346-r52/profile";
     public string CaptureDirectory { get; set; } = "captures";
     public bool PersistCaptures { get; set; }
     public int MaxCapturedBodyBytes { get; set; } = 65_536;

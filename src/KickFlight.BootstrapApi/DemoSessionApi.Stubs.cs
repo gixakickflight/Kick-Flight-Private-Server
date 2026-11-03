@@ -105,7 +105,7 @@ public sealed partial class DemoSessionApi
                 return OkJson(context, key, """{"festivalMatchResultList":[]}""");
 
             case "/chatRoomComment/write":
-                return OkJson(context, key, "{}");
+                return await HandleChatWriteAsync(context, state, key);
 
             default:
                 return null;
@@ -190,6 +190,12 @@ public sealed partial class DemoSessionApi
             var plaintext = D2CCodec.Decode(body, key);
             using var document = JsonDocument.Parse(plaintext);
             var root = document.RootElement;
+            if (root.TryGetProperty("honorId", out var honorProp))
+            {
+                if (!honorProp.TryGetInt32(out var honorId) || !BadgeAwardRules.EquipHonor(state, honorId))
+                    return StatusError(context, key);
+                SaveUserState(state, allowEquippedHonorChange: true);
+            }
             // The DTO names the field "name"; older captures renamed it, so both spellings are accepted.
             if (TryGetString(root, "userName", out var newName) || TryGetString(root, "name", out newName))
             {
@@ -239,7 +245,9 @@ public sealed partial class DemoSessionApi
             userId,
             displayUserId = PlayerDisplayIdCodec.ToPublic(displayUserId),
             name,
-            honorId = 6010000,
+            honorId = BadgeAwardRules.GetOwnedHonorIds(state).Contains(state.HonorId)
+                ? state.HonorId
+                : BadgeAwardRules.DefaultHonorId,
             userFrameList = new[]
             {
                 new { battleRuleType = 1, frameId = 1 },

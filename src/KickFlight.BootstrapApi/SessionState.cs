@@ -20,6 +20,20 @@ public sealed class SessionState
     // (see the tutorialProgressStatus handling in BuildStartupJson) - so it must not be defaulted here.
     public string UserName { get; set; } = "";
     public int KickerId { get; set; } = 1;
+    // The honor (badge) the player currently displays. The default honor is also owned by every new account.
+    public int HonorId { get; set; } = BadgeAwardRules.DefaultHonorId;
+    // Persisted ownership and lifetime facts used by the badge rules the server can verify.
+    public List<int> UserHonorIds { get; set; } = [BadgeAwardRules.DefaultHonorId];
+    public int VerifiedBattleCount { get; set; }
+    // A battle result is retried by clients. Keep the opaque issued entry IDs so a retry cannot award twice.
+    public HashSet<string> ProcessedBadgeBattleEntryIds { get; set; } = new(StringComparer.Ordinal);
+    public Dictionary<string, List<int>> ProcessedBadgeBattleAwards { get; set; } = new(StringComparer.Ordinal);
+    // Distinct server UTC calendar dates on which this account reached authenticated startup.
+    public List<string> VerifiedLoginDays { get; set; } = [];
+    // Count of successful server-side disc level increases, not attempted/capped requests.
+    public int DiscUpgradeCount { get; set; }
+    // Client-reported-but-bounded battle counters (wins, kills, MVPs, ...) for the stat badges. See BadgeStatState.
+    public BadgeStatState BadgeStats { get; set; } = new();
     // Kicker 1's first costume. Costume ids are the KickerCostume master's composite row ids (2|kicker|
     // costume|variant), not a sequential index: kicker 1 / costume 1 is 2010101, which is also the id the
     // client hardcodes for the tutorial's placeholder player (TutorialUtil.KICKER_COSTUME_ID). A fresh
@@ -34,6 +48,19 @@ public sealed class SessionState
         [4] = [3010013, 3010014, 3010020, 3010022],
         [5] = [3010023, 3010024, 3010029, 3010030]
     };
+    // The discs this player owns, as main's model holds them (discId -> level/amount). Our economy owns
+    // possession, so nothing on this side reads it any more: it stays in the document because main's store and
+    // gacha code load and save it, and a merge must not delete a model member its code still touches.
+    public Dictionary<int, UserDiscState> Discs { get; set; } = new();
+    // The four legacy item counters, likewise main's: the columns are dropped by migration 5 and economy serves
+    // what the client renders, so these are only the document's mirror of a save written before that move.
+    public int ItemJetCoins { get; set; } = 208754;
+    public int ItemPaidJetCoins { get; set; } = 10000;
+    public int ItemDiscForce { get; set; } = 999999;
+    public int ItemKickPoints { get; set; } = 50000;
+    // Item master ids 5-8: gear stamps (202), disc fragments (303) and the two gacha tickets (401/402). An
+    // absent entry reads as DefaultStockAmount, so a session saved before round C starts with a full stock.
+    public Dictionary<int, int> ItemAmounts { get; set; } = new();
     // costume row id -> three gear slots (0 = empty), the shape the client reads back as gearId1..3.
     public Dictionary<int, int[]> CostumeGears { get; set; } = new();
     // The gear rolled by gear/create and not yet equipped or discarded. gearId 0 = nothing pending.
@@ -67,6 +94,13 @@ public sealed class SessionState
 
     // The primary key as a number. 0 means UserId was not numeric, which no store should ever see.
     public long PlayerId => long.TryParse(UserId, out var id) ? id : 0;
+}
+
+public sealed class UserDiscState
+{
+    public int DiscId { get; set; }
+    public int Level { get; set; } = 10;
+    public int Amount { get; set; } = 99;
 }
 
 public sealed class PendingGearState

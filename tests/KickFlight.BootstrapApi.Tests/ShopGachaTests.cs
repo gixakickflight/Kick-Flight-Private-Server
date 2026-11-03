@@ -30,15 +30,16 @@ public sealed class ShopGachaTests : IClassFixture<ServerTestHostFixture>
     }
 
     [Fact]
-    public async Task Startup_carries_the_eight_item_rows_with_no_stock_of_its_own()
+    public async Task Startup_carries_the_item_rows_with_no_stock_of_its_own()
     {
         // A player who owns nothing: the adapter has no demo stock to fall back on, so every counter is economy's
-        // answer, and economy says zero.
+        // answer, and economy says zero. Row 6, the Disc Fragment counter, is left out while it is zero: the Discs
+        // tab draws its fragment-exchange cell from it and nothing here converts fragments.
         var session = await CreateSessionAsync();
         var items = (await PostAsync(session, "/startup/index", null)).GetProperty("userItemList").EnumerateArray().ToList();
 
-        Assert.Equal(8, items.Count);
-        Assert.Equal(new[] { 1, 2, 3, 4, 5, 6, 7, 8 }, items.Select(item => item.GetProperty("itemId").GetInt32()).ToArray());
+        Assert.Equal(7, items.Count);
+        Assert.Equal(new[] { 1, 2, 3, 4, 5, 7, 8 }, items.Select(item => item.GetProperty("itemId").GetInt32()).ToArray());
         Assert.All(items, item => Assert.Equal(0, item.GetProperty("amount").GetInt32()));
     }
 
@@ -204,13 +205,17 @@ public sealed class ShopGachaTests : IClassFixture<ServerTestHostFixture>
             dropKicker.Select(r => r.GetProperty("kickerCostumeId").GetInt32()).OrderBy(id => id).ToArray());
     }
 
+    // The Item master is deliberately not served: our rows carry invented names, and the client looks an item's
+    // sprite up by the row it holds, so serving them shadows the baked table's real sprite keys and every icon
+    // renders as a white quad. The counts the client shows come from userItemList, not from this master.
     [Fact]
-    public async Task Served_item_master_has_the_eight_rows_of_the_round()
+    public async Task Item_master_is_not_served_so_the_baked_sprite_keys_stand()
     {
-        var items = await ReadMasterAsync("Item");
-        Assert.Equal(8, items.Count);
-        Assert.Equal([101, 102, 302, 701, 202, 303, 401, 402], items.Select(r => r.GetProperty("goodsType").GetInt32()).ToArray());
-        Assert.All(items, row => Assert.True(row.GetProperty("maxAmount").GetInt32() > 0));
+        using var client = _factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/demo-master/Item");
+        request.Headers.Host = Host;
+        using var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     // GoodsType.JetCoinFree: the currency every goods shop product is priced in.

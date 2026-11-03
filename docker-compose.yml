@@ -61,6 +61,25 @@ services:
     networks:
       - kickflight-net
 
+  badges:
+    build:
+      context: .
+      dockerfile: deploy/badges/Dockerfile
+    environment:
+      - KF_BADGES_PORT=8766
+      - KF_BADGES_HOST=0.0.0.0
+      - KF_BADGES_DB_PATH=/data/badges.sqlite3
+    volumes:
+      - badges-data:/data
+    ports:
+      - "8766:8766"
+    restart: unless-stopped
+    networks:
+      - kickflight-net
+
 networks:
   kickflight-net:
     driver: bridge
+
+volumes:
+  badges-data:

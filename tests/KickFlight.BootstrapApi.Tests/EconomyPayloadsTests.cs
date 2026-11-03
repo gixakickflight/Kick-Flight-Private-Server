@@ -73,7 +73,9 @@ public sealed class EconomyPayloadsTests
 
         var rows = Payload(Build().BuildUserItemList(snapshot)).EnumerateArray().ToList();
 
-        Assert.Equal(8, rows.Count);
+        // Seven, not eight: the zero Disc Fragment counter is left out (BuildUserItemList).
+        Assert.Equal(7, rows.Count);
+        Assert.Equal([1, 2, 3, 4, 5, 7, 8], rows.Select(row => row.GetProperty("itemId").GetInt32()));
         Assert.Equal(1, Amount(rows, 1));
         Assert.Equal(0, rows.Skip(1).Sum(row => row.GetProperty("amount").GetInt32()));
     }

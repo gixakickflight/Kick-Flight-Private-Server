@@ -183,8 +183,9 @@ public sealed class RankedModeRotationTests
         var beforeRank = resultBody.RootElement.GetProperty("beforeUserBattleRank");
         var afterRank = resultBody.RootElement.GetProperty("userBattleRank");
         Assert.Equal(3, afterRank.GetProperty("battleRuleType").GetInt32());
-        Assert.Equal(beforeRank.GetProperty("battlePoint").GetInt32() + RankProgression.WinBattlePoint,
-            afterRank.GetProperty("battlePoint").GetInt32());
+        // The body carries no team scores, so the outcome is undetermined and rank must not move (outcome-driven
+        // progression is covered in RankedOutcomeTests).
+        Assert.Equal(beforeRank.GetProperty("battlePoint").GetInt32(), afterRank.GetProperty("battlePoint").GetInt32());
         assignmentCancellation.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => assignmentTask);
     }
@@ -298,8 +299,8 @@ public sealed class RankedModeRotationTests
         var beforeRank = ranked.RootElement.GetProperty("beforeUserBattleRank");
         var afterRank = ranked.RootElement.GetProperty("userBattleRank");
         Assert.Equal(1, afterRank.GetProperty("battleRuleType").GetInt32());
-        Assert.Equal(beforeRank.GetProperty("battlePoint").GetInt32() + RankProgression.WinBattlePoint,
-            afterRank.GetProperty("battlePoint").GetInt32());
+        // No team scores in the body: undetermined outcome, rank unchanged (the rule/mode snapshot is still the entry's).
+        Assert.Equal(beforeRank.GetProperty("battlePoint").GetInt32(), afterRank.GetProperty("battlePoint").GetInt32());
         using (var replay = await PostJsonAsync(client, player, "/battle/result", new { battleEntryId = rankedEntryId }))
         {
             Assert.Equal(ranked.RootElement.GetRawText(), replay.RootElement.GetRawText());
@@ -319,8 +320,7 @@ public sealed class RankedModeRotationTests
         var beforeFlagRank = flagRanked.RootElement.GetProperty("beforeUserBattleRank");
         var afterFlagRank = flagRanked.RootElement.GetProperty("userBattleRank");
         Assert.Equal(2, afterFlagRank.GetProperty("battleRuleType").GetInt32());
-        Assert.Equal(beforeFlagRank.GetProperty("battlePoint").GetInt32() + RankProgression.WinBattlePoint,
-            afterFlagRank.GetProperty("battlePoint").GetInt32());
+        Assert.Equal(beforeFlagRank.GetProperty("battlePoint").GetInt32(), afterFlagRank.GetProperty("battlePoint").GetInt32());
     }
 
     [Fact]

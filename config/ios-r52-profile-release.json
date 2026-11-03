@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "releaseTag": "ios-resource-profile-r52",
+  "assetName": "ios-r52-profile.tar.gz",
+  "archiveSha256": "d26cb924a2976a8a85d746fb4f6535a02f876feb74f9404e0869ef2d7fa22196",
+  "assetVersion": 12346,
+  "revisionFloor": 52,
+  "testOnly": true,
+  "complete": false,
+  "runtimeContract": "kickflight.ios-r52-test-profile.v1"
+}
