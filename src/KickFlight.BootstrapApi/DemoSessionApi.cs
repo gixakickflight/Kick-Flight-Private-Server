@@ -33,8 +33,8 @@ public sealed partial class DemoSessionApi : IDisposable
     private readonly IBotAiProfileProvider _botAiProfiles;
     private const string AccessToken = "demo-access-token-0000000000000000000000000000";
 
-    // Rank is per player and persisted now (player_ranks, via IPlayerStore); the table it indexes into, the
-    // range that renders, and the per-battle delta live in RankProgression.
+    // Rank is session's (DemoSessionApi.Rank.cs): points, tiers and the ladder are read from otomo, and the adapter only
+    // translates units (Otomo/RankTranslation.cs).
 
     // Onboarding status: TutorialUtil.IsTutorial is literally "tutorialProgressStatus != 207".
     //
@@ -93,13 +93,6 @@ public sealed partial class DemoSessionApi : IDisposable
     public const int RegularBattleRuleType = 1;
     private static readonly int[] RankedBattleRuleTypes = [1, 2, 3];
 
-    private object[] BuildBattleRankList(SessionState state) =>
-        RankedBattleRuleTypes.Select(ruleType =>
-        {
-            var rank = _playerStore.LoadRank(state.PlayerId, ruleType);
-            return (object)new { battleRuleType = ruleType, battlePoint = rank.BattlePoint, rank = rank.Rank };
-        }).ToArray();
-
     private readonly string _contentRoot;
     private readonly int _grpcPort;
     private readonly MasterOverrides _mastersOverrides;
@@ -109,6 +102,11 @@ public sealed partial class DemoSessionApi : IDisposable
     private readonly IOtomoIdentity _identity;
     // The only source of value: this process holds no balance, no ticket and no disc (see DemoSessionApi.Economy.cs).
     private readonly IOtomoEconomy _economy;
+    // The only source of the social relation and the ranking board (see DemoSessionApi.SocialRanking.cs).
+    private readonly IOtomoSocial _social;
+    private readonly OtomoSocialOptions _socialOptions;
+    // The only source of battle points (see DemoSessionApi.Rank.cs).
+    private readonly IOtomoRank _rank;
     private readonly KfAccessTokenCodec _accessTokens;
     private readonly IPlayerStore _playerStore;
     private readonly OtomoMasters _otomoMasters;
@@ -151,10 +149,11 @@ public sealed partial class DemoSessionApi : IDisposable
 
     public DemoSessionApi(ILogger<DemoSessionApi> logger, IWebHostEnvironment environment,
         BattleMatchmakingService matchmaking, BattleReplayService replays, IPlayerStore playerStore,
-        IOtomoIdentity identity, IOtomoEconomy economy, KfAccessTokenCodec accessTokens,
+        IOtomoIdentity identity, IOtomoEconomy economy, IOtomoSocial social, IOtomoRank rank, KfAccessTokenCodec accessTokens,
         IConfiguration configuration, MaintenanceState maintenance, ClientUpdateState clientUpdate,
         TimeProvider timeProvider, OpsTelemetryService ops, IOptions<HarnessOptions> harnessOptions,
-        OtomoMasters otomoMasters, IBotAiProfileProvider? botAiProfiles = null, ChatService? chat = null)
+        IOptions<OtomoSocialOptions> socialOptions, OtomoMasters otomoMasters,
+        IBotAiProfileProvider? botAiProfiles = null, ChatService? chat = null)
     {
         _chat = chat ?? new ChatService(environment, configuration, timeProvider, Microsoft.Extensions.Logging.Abstractions.NullLogger<ChatService>.Instance);
         _logger = logger;
@@ -167,6 +166,9 @@ public sealed partial class DemoSessionApi : IDisposable
         _playerStore = playerStore;
         _identity = identity;
         _economy = economy;
+        _social = social;
+        _rank = rank;
+        _socialOptions = socialOptions.Value;
         _accessTokens = accessTokens;
         _otomoMasters = otomoMasters;
         _badgeAwardRules = BadgeAwardRules.Load(environment.ContentRootPath, logger);
@@ -394,27 +396,9 @@ public sealed partial class DemoSessionApi : IDisposable
         // With the old 12-row table RegularEndRank was rank 4 and an S-rank player asked for thumbnail_league_4_1 /
         // _11_1, neither of which exists — the Image kept a null sprite, which is the empty rectangle in the
         // mode-selection banner and the black rectangle beside the lobby portrait.
-        _encryptedMasters["BattleRank"] = EncryptMaster("""
-            [
-              {"id":1,"name":"D","rank":0,"regularMatchFlag":true,"totalBattlePoint":0,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":2,"name":"C","rank":1,"regularMatchFlag":true,"totalBattlePoint":200,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":3,"name":"C⁺","rank":2,"regularMatchFlag":true,"totalBattlePoint":500,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":4,"name":"B","rank":3,"regularMatchFlag":true,"totalBattlePoint":900,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":5,"name":"B⁺","rank":4,"regularMatchFlag":true,"totalBattlePoint":1400,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":6,"name":"A","rank":5,"regularMatchFlag":true,"totalBattlePoint":1900,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":7,"name":"A⁺","rank":6,"regularMatchFlag":true,"totalBattlePoint":2400,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":8,"name":"S","rank":7,"regularMatchFlag":false,"totalBattlePoint":2900,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":9,"name":"S⁺1","rank":8,"regularMatchFlag":false,"totalBattlePoint":3400,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":10,"name":"S⁺2","rank":9,"regularMatchFlag":false,"totalBattlePoint":3900,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":11,"name":"S⁺3","rank":10,"regularMatchFlag":false,"totalBattlePoint":4400,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":12,"name":"S⁺4","rank":11,"regularMatchFlag":false,"totalBattlePoint":4900,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":13,"name":"S⁺5","rank":12,"regularMatchFlag":false,"totalBattlePoint":5400,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":14,"name":"S⁺6","rank":13,"regularMatchFlag":false,"totalBattlePoint":5900,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":15,"name":"S⁺7","rank":14,"regularMatchFlag":false,"totalBattlePoint":6400,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":16,"name":"S⁺8","rank":15,"regularMatchFlag":false,"totalBattlePoint":6900,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false},
-              {"id":17,"name":"S⁺9","rank":16,"regularMatchFlag":false,"totalBattlePoint":7500,"winBattlePointCoefficient":1.0,"loseBattlePointCoefficient":1.0,"demontioableFlag":false}
-            ]
-            """);
+        // Its totalBattlePoint column is the published ladder's (min_points + 200); the letter names are presentation
+        // kept in DemoSessionApi.Rank.cs. With no ladder the master is not served, and nothing stands in for it.
+        ApplyBattleRankMaster();
         _encryptedMasters["CapsuleCampaign"] = EncryptMaster("""[{"id":1,"startDatetime":"2019-01-01 00:00:00","endDatetime":"2030-01-01 23:59:59","coefficient":0.5}]""");
         _encryptedMasters["CapsuleDropCampaign"] = EncryptMaster("""[{"id":1,"startDatetime":"2019-01-01 00:00:00","endDatetime":"2030-01-01 23:59:59"}]""");
         _encryptedMasters["BattleRankingClass"] = EncryptMaster("""[{"id":1,"battleRuleId":1,"name":"Class 1","minBattlePoint":0},{"id":2,"battleRuleId":2,"name":"Class 1","minBattlePoint":0},{"id":3,"battleRuleId":3,"name":"Class 1","minBattlePoint":0},{"id":4,"battleRuleId":4,"name":"Div.1","minBattlePoint":0},{"id":5,"battleRuleId":5,"name":"Div.1","minBattlePoint":0},{"id":6,"battleRuleId":6,"name":"Class 1","minBattlePoint":0},{"id":7,"battleRuleId":7,"name":"Div.1","minBattlePoint":0},{"id":8,"battleRuleId":8,"name":"Div.1","minBattlePoint":0}]""");
@@ -916,6 +900,9 @@ public sealed partial class DemoSessionApi : IDisposable
                 _encryptedMasters[masterName] = EncryptMaster(ApplyObscuredOffsets(masterName, json));
                 applied.Add(masterName);
             }
+            // The ladder is a document of the same release, not a table, so a publish that moves a tier moves the
+            // BattleRank master with it.
+            ApplyBattleRankMaster();
             PublishMasterState();
             _logger.LogInformation(
                 "Master version {MasterVersion}: {Count} table(s) reloaded from {Source} ({Tables})",
@@ -1268,7 +1255,7 @@ public sealed partial class DemoSessionApi : IDisposable
         // has to carry both the name and tutorialProgressStatus = 207 or the home is left inconsistent.
         if (path == "/tutorial/end")
         {
-            return await HandleTutorialEndAsync(context, state, key);
+            return await HandleTutorialEndAsync(context, ticket, state, key);
         }
 
         // The rest of the tutorial ladder (DemoSessionApi.Tutorial.cs): every step advances the stored progress,
@@ -1336,7 +1323,16 @@ public sealed partial class DemoSessionApi : IDisposable
 
             context.Response.Headers["x-app-status-code"] = "0";
             context.Response.Headers["x-kickflight-fixture"] = "dynamic-demo-session";
-            var json = BuildHomeJson(state, snapshot);
+            IReadOnlyList<BattleRankLine> ranks;
+            try
+            {
+                ranks = await ReadOwnBattleRanksAsync(ticket, context.RequestAborted);
+            }
+            catch (Exception exception) when (exception is OtomoRankException or OtomoIdentityException)
+            {
+                return SocialUnavailable(context, path, exception);
+            }
+            var json = BuildHomeJson(state, snapshot, ranks);
             _logger.LogInformation("Serving dynamic home index (active kickerId={KickerId}, costumeId={CostumeId}, activeDeck={Deck}, offers={Offers}, pools={Pools})",
                 state.KickerId, state.KickerCostumeId, state.ActiveDeckNumber, snapshot.Offers.Count, snapshot.Pools.Count);
             return BinaryJson(json, key);
@@ -1344,12 +1340,12 @@ public sealed partial class DemoSessionApi : IDisposable
 
         if (path == "/battle/teamCreate")
         {
-            return await HandleTeamCreateAsync(context, state, key);
+            return await HandleTeamCreateAsync(context, ticket, state, key);
         }
 
         if (path == "/battle/teamJoin")
         {
-            return await HandleTeamJoinAsync(context, state, key);
+            return await HandleTeamJoinAsync(context, ticket, state, key);
         }
 
         if (path == "/battle/teamEntry")
@@ -1364,7 +1360,7 @@ public sealed partial class DemoSessionApi : IDisposable
 
         if (path == "/battle/entry")
         {
-            return await HandleBattleEntryAsync(context, state, key);
+            return await HandleBattleEntryAsync(context, ticket, state, key);
         }
 
         if (path == "/customBattle/prepare")
@@ -1472,12 +1468,12 @@ public sealed partial class DemoSessionApi : IDisposable
 
         if (path == "/follow/index")
         {
-            return await HandleFollowIndexAsync(context, state, key);
+            return await HandleFollowIndexAsync(context, ticket, state, key);
         }
 
         if (path == "/follow/online")
         {
-            return await HandleFollowOnlineAsync(context, state, key);
+            return await HandleFollowOnlineAsync(context, ticket, state, key);
         }
 
         if (path == "/user/online")
@@ -1580,6 +1576,11 @@ public sealed partial class DemoSessionApi : IDisposable
     // and the save keeps the id of the request that raised each disc last. A match is answered with the disc as it
     // now stands and spends nothing. A new tap carries a new id and is a new level-up at its own price.
     //
+    // Two economy calls, one fact. The consume is the charge; the advance (POST /internal/economy/items/advance) is
+    // the level it bought, because the level is attrs.level on the disc's own possession and economy is where that
+    // lives now. They carry different keys on purpose: economy keys idempotency per player across every operation, so
+    // a key shared with the consume would be answered as that consume's replay instead of moving anything.
+    //
     // Economy checks that the player holds enough; the one thing it cannot check is that the disc itself survives
     // (it deletes an item at zero), so the base copy is checked here against a fresh read before anything is sent.
     // Every refusal is the game's error dialog, and only an unreachable economy is a 503.
@@ -1624,9 +1625,9 @@ public sealed partial class DemoSessionApi : IDisposable
 
         // DiscBuildupResponseData. The stats are not in it: the client recomputes attack, HP and cool time from
         // the DiscGrow master at the level it is handed (DiscParameterUtil.CalcGrowParameter).
-        IResult Answer(long heldNow, long discForceNow, IReadOnlyList<int> honors) => OkJson(context, key, JsonSerializer.Serialize(new
+        IResult Answer(long heldNow, long discForceNow, int levelNow, IReadOnlyList<int> honors) => OkJson(context, key, JsonSerializer.Serialize(new
         {
-            userDisc = EconomyPayloads.BuildUserDisc(discId, heldNow, DiscStandingOf(state, discId), owned?.AcquiredAt),
+            userDisc = EconomyPayloads.BuildUserDisc(discId, heldNow, StandingAt(rarity, levelNow), owned?.AcquiredAt),
             userItem = new
             {
                 itemId = EconomyCatalog.DiscForceItemId, amount = (int)Math.Clamp(discForceNow, 0, int.MaxValue)
@@ -1635,17 +1636,23 @@ public sealed partial class DemoSessionApi : IDisposable
             receivedUserHonorList = honors.Select(honorId => new { honorId, newFlag = true }).ToArray()
         }));
 
+        // The level the disc stands at now, from its possession's attrs: economy's answer, not a saved one.
+        //
+        // `stored` is the raw attrs value, where 0 means economy holds no level for this disc - a disc nobody has ever
+        // raised, which reads as its rarity's start level. That is why the advance below moves by the distance to the
+        // target rather than by one: at 0, economy has to be told the level the disc reaches (3, say), not the one step
+        // the client thinks it took, or the two would disagree for the rest of the disc's life.
+        var stored = (int)Math.Clamp(owned?.Attrs?.Level ?? 0, 0, int.MaxValue);
+        var level = stored > 0 ? stored : _tuning.StartLevel(rarity);
+
         var cacheId = context.Request.Headers["x-app-response-cache-id"].ToString();
         if (cacheId.Length > 0 && state.DiscBuildupRequests.TryGetValue(discId, out var lastCacheId) &&
             lastCacheId == cacheId)
         {
             _logger.LogInformation("{Path}: user {UserId} resent the level-up of disc {DiscId} (cache id {CacheId}); " +
-                "answering level {Level} without a second spend", path, state.UserId, discId, cacheId,
-                StoredDiscLevel(state, discId));
-            return Answer(held, DiscForceOf(snapshot), []);
+                "answering level {Level} without a second spend", path, state.UserId, discId, cacheId, level);
+            return Answer(held, DiscForceOf(snapshot), level, []);
         }
-
-        var level = StoredDiscLevel(state, discId);
 
         // A level the disc already has is a retry of an answer the client lost: answered from the current
         // standing, with nothing spent and nothing counted. A level beyond the next step is a client that
@@ -1656,7 +1663,7 @@ public sealed partial class DemoSessionApi : IDisposable
             _logger.LogInformation("{Path}: user {UserId} asked for disc {DiscId} at level {Target}, which it " +
                 "already has (cache id {CacheId}); answering without a second spend", path, state.UserId, discId,
                 targetLevel, cacheId);
-            return Answer(held, DiscForceOf(snapshot), []);
+            return Answer(held, DiscForceOf(snapshot), level, []);
         }
         var step = _discLevels.Next(rarity, level);
         if (step is null)
@@ -1683,7 +1690,7 @@ public sealed partial class DemoSessionApi : IDisposable
             _logger.LogWarning("{Path} for user {UserId}: disc {DiscId} is at level {Level} and the request " +
                 "names {Target}, more than one step; leaving it where it is", path, state.UserId, discId, level,
                 targetLevel);
-            return Answer(held, DiscForceOf(snapshot), []);
+            return Answer(held, DiscForceOf(snapshot), level, []);
         }
 
         var consumeKey = EconomyDiscLevels.Key(ticket.OtomoPlayerId, discId, step.TargetLevel);
@@ -1711,19 +1718,37 @@ public sealed partial class DemoSessionApi : IDisposable
             return EconomyUnavailable(context, path, ex);
         }
 
-        // The spend is done, so the level is stored whatever else happens. It only ever moves up: a replayed key
-        // answered for a tap that raced this one names the same target, and must not lower a level already stored.
+        // The charge has happened; this is the level it bought. A failure here is reported as an outage rather than
+        // swallowed: the consume above already spent, and a retry of it is a replay that spends nothing, so the
+        // client's next attempt reaches this call again and converges on the same level.
+        EconomyAdvanceResult advanced;
+        try
+        {
+            advanced = await _economy.AdvanceAsync(new EconomyAdvanceRequest(
+                    ticket.OtomoPlayerId, discItem, EconomyDiscLevels.AdvanceKey(ticket.OtomoPlayerId, discId, step.TargetLevel),
+                    "disc level-up", ProgressKeyPart($"disc-buildup:{discId}"), EconomyDiscLevels.LevelField,
+                    Math.Max(1, step.TargetLevel - stored), _discLevels.MaxLevel(rarity)),
+                context.RequestAborted);
+        }
+        catch (OtomoEconomyException ex)
+        {
+            _logger.LogError("{Path} for user {UserId}: disc {DiscId} was charged for level {Target} but the advance " +
+                "was refused or unreachable ({Failure} {Status} {Code}); a retry spends nothing and moves it",
+                path, state.UserId, discId, step.TargetLevel, ex.Failure, ex.StatusCode, ex.Code);
+            return EconomyUnavailable(context, path, ex);
+        }
+
+        // The retry ledger only: what the disc's level is, economy has just been told.
         lock (state)
         {
-            if (StoredDiscLevel(state, discId) < step.TargetLevel) state.DiscLevels[discId] = step.TargetLevel;
             if (cacheId.Length > 0) state.DiscBuildupRequests[discId] = cacheId;
             SaveUserState(state);
         }
 
-        // The answer's own totals; a consume that answered without them is what was read before, less the price.
-        // A single verified step on a disc the masters carry is what a badge records: a replayed key or a jump of
-        // more than one level is not, which is the same rule main applies to its own level mutation.
-        var countsAsUpgrade = _discIdList.Contains(discId) && level < 50 && step.TargetLevel == level + 1;
+        // The badge fact comes from the advance's own answer, which is the only thing that knows the level moved:
+        // a single verified step on a disc the masters carry is what a badge records, and a jump of more than one
+        // level is not, which is the same rule main applies to its own level mutation.
+        var countsAsUpgrade = _discIdList.Contains(discId) && level < 50 && advanced.Value == level + 1;
         var receivedHonors = countsAsUpgrade
             ? _badgeAwardRules.RecordVerifiedDiscUpgrade(state, _playerStore).ToArray()
             : Array.Empty<int>();
@@ -1736,7 +1761,7 @@ public sealed partial class DemoSessionApi : IDisposable
             "{Copies} copies and {Force} disc_force under {Key}{Replayed}; holds {Held} copies and {DiscForce} disc_force",
             path, state.UserId, discId, level, step.TargetLevel, step.Copies, step.DiscForce, consumeKey,
             spent.Replayed ? " (replayed)" : "", heldAfter, discForce);
-        return Answer(heldAfter, discForce, receivedHonors);
+        return Answer(heldAfter, discForce, (int)advanced.Value, receivedHonors);
     }
 
     // The client has no ErrorType for "cannot afford": its build-up button is greyed out by its own check
@@ -1754,26 +1779,38 @@ public sealed partial class DemoSessionApi : IDisposable
         return Results.Text(body, "application/json", Encoding.UTF8, StatusCodes.Status200OK);
     }
 
-    // A disc as the client is to be shown it: the save's level, and the copies that level has already spent.
-    private DiscStanding DiscStandingOf(SessionState state, int discId)
+    // A disc as the client is to be shown it: the level economy holds for it, and the copies that level has already
+    // spent.
+    private DiscStanding DiscStandingOf(EconomySnapshot snapshot, int discId) =>
+        StandingAt(_discRarity.GetValueOrDefault(discId), DiscLevelOf(snapshot, discId));
+
+    private DiscStanding StandingAt(int rarity, int level) =>
+        new(level, _discLevels.CopiesSpent(rarity, level, _tuning.StartLevel(rarity)));
+
+    // The level of a disc, from the attrs on its own possession (economy's closed schema: level, counter,
+    // available_at). 0 is "economy has been told nothing", which is a disc nobody has raised, and it reads as the
+    // rarity's start level - the same answer the save gave for a disc it had no entry for.
+    private int DiscLevelOf(EconomySnapshot snapshot, int discId)
     {
-        var rarity = _discRarity.GetValueOrDefault(discId);
-        var level = StoredDiscLevel(state, discId);
-        return new DiscStanding(level, _discLevels.CopiesSpent(rarity, level, _tuning.StartLevel(rarity)));
+        var item = $"disc:{discId}";
+        var level = (int)Math.Clamp(
+            snapshot.Items.FirstOrDefault(row => row.Item == item)?.Attrs?.Level ?? 0, 0, int.MaxValue);
+        return level > 0 ? level : _tuning.StartLevel(_discRarity.GetValueOrDefault(discId));
     }
 
-    // The level the save holds for a disc, or its rarity's start level when the player has never raised it.
-    private int StoredDiscLevel(SessionState state, int discId) =>
-        state.DiscLevels.TryGetValue(discId, out var level) && level > 0
-            ? level
-            : _tuning.StartLevel(_discRarity.GetValueOrDefault(discId));
+    // The disc levels an entry is issued with, read from economy's inventory. A level is a possession's attr now, so
+    // a ranked entry needs that read; with levels ranked-only off nothing reads them, and no call is made.
+    private async Task<EconomyLoad> ReadDeckLevelEconomyAsync(KfIdentityTicket ticket, string path, HttpContext context) =>
+        _tuning.LevelsRankedOnly
+            ? await ReadPlayerEconomyAsync(ticket, EconomyRead.Inventory, path, context.RequestAborted)
+            : new EconomyLoad(EconomySnapshot.None, null);
 
     // What each disc of a deck fights at in a battle of this match type. Casual (anything but matchType 2) fights
     // at the tuning's flat level so a fresh account and a veteran meet on equal discs; ranked fights at the levels
     // the player has actually raised. The levels are fixed when the entry is issued, like the rest of the entry.
-    private List<int> DeckLevelsFor(SessionState state, IReadOnlyList<int> deck, int? matchType) =>
+    private List<int> DeckLevelsFor(EconomySnapshot snapshot, IReadOnlyList<int> deck, int? matchType) =>
         deck.Select(discId => matchType == 2 || !_tuning.LevelsRankedOnly
-            ? StoredDiscLevel(state, discId)
+            ? DiscLevelOf(snapshot, discId)
             : _tuning.CasualDiscLevel).ToList();
 
     // Slot array of a costume: always three entries, padded from whatever the save file holds (a file from before
@@ -1910,8 +1947,8 @@ public sealed partial class DemoSessionApi : IDisposable
             clearTrainingMissionTaskCount = 0
         }).ToArray();
 
-        // The discs the player owns, from the inventory's disc:<discId> items, at the level the save holds for each.
-        var userDiscList = Payloads(state).BuildUserDiscList(economy, discId => DiscStandingOf(state, discId));
+        // The discs the player owns, from the inventory's disc:<discId> items, at the level economy holds on each.
+        var userDiscList = Payloads(state).BuildUserDiscList(economy, discId => DiscStandingOf(economy, discId));
 
         var data = new
         {
@@ -2034,7 +2071,7 @@ public sealed partial class DemoSessionApi : IDisposable
 
     // KF_CHAT_EXP=1: serve a non-empty chat connection id so the client attempts Firebase chat setup (experiment only).
 
-    private string BuildHomeJson(SessionState state, EconomySnapshot economy)
+    private string BuildHomeJson(SessionState state, EconomySnapshot economy, IReadOnlyList<BattleRankLine> ranks)
     {
         NormalizeCostume(state);
 
@@ -2079,7 +2116,7 @@ public sealed partial class DemoSessionApi : IDisposable
             // threw ArgumentOutOfRangeException (List<T>.get_Item).
             discGachaGroupList = BuildHomeDiscGachaGroupList(economy),
             kickerGachaGroupList = BuildHomeKickerGachaGroupList(economy),
-            userBattleRankList = BuildBattleRankList(state),
+            userBattleRankList = BuildBattleRankList(ranks),
             userMissionProgressList = MissionRows(state, economy.Tracks),
             // shopProductList is the real-money IAP list, which this server does not sell; the goods shop is the
             // JetCoin one and is served in full.
@@ -2240,7 +2277,8 @@ public sealed partial class DemoSessionApi : IDisposable
     //
     // TutorialEndRequestData carries the name in a field spelled "name"; "userName" is accepted too, for the same
     // reason /user/change accepts both.
-    private async Task<IResult?> HandleTutorialEndAsync(HttpContext context, SessionState state, byte[] key)
+    private async Task<IResult?> HandleTutorialEndAsync(HttpContext context, KfIdentityTicket ticket,
+        SessionState state, byte[] key)
     {
         var body = await ReadBodyAsync(context.Request);
         string name;
@@ -2270,6 +2308,7 @@ public sealed partial class DemoSessionApi : IDisposable
         state.TutorialProgress = TutorialStatusComplete;
         _badgeAwardRules.RecordRegistrationComplete(state, _playerStore);
         SaveUserState(state);
+        await PublishNameAsync(ticket, state, "/tutorial/end", context.RequestAborted);
         _logger.LogInformation("Player {PlayerId} chose the name {UserName:l}", state.PlayerId, name);
         return OkJson(context, key, "{}");
     }
@@ -2319,7 +2358,8 @@ public sealed partial class DemoSessionApi : IDisposable
         return Results.Text(body, "application/json", Encoding.UTF8, StatusCodes.Status200OK);
     }
 
-    private async Task<IResult?> HandleTeamCreateAsync(HttpContext context, SessionState state, byte[] key)
+    private async Task<IResult?> HandleTeamCreateAsync(HttpContext context, KfIdentityTicket ticket,
+        SessionState state, byte[] key)
     {
         using var request = await ReadTeamRequestAsync(context, state, key);
         if (request is null
@@ -2333,11 +2373,13 @@ public sealed partial class DemoSessionApi : IDisposable
         NormalizeCostume(state);
         var deck = state.Decks.GetValueOrDefault(state.ActiveDeckNumber) ?? [3010001, 3010002, 3010003, 3010004];
         var ruleMetadata = BattleRuleMetadata(battleRuleId);
+        var levels = await ReadDeckLevelEconomyAsync(ticket, "/battle/teamCreate", context);
+        if (levels.Snapshot is null) return EconomyUnavailable(context, "/battle/teamCreate", levels.Error);
         var entry = _matchmaking.CreateTeam(
             state.UserId, state.UserName, state.KickerId, state.KickerCostumeId, battleRuleId, deck, code,
             isDiag: IsDiagClient(context), matchType: ruleMetadata.MatchType,
             battleRuleType: ruleMetadata.BattleRuleType,
-            deckLevels: DeckLevelsFor(state, deck, ruleMetadata.MatchType));
+            deckLevels: DeckLevelsFor(levels.Snapshot, deck, ruleMetadata.MatchType));
         // TeamCreate is called before Photon joins the recruiting room. Echo the app-asset revision the client
         // already has; an empty list is interpreted as missing application data and sends it to the update/restart
         // flow before it reaches Photon.
@@ -2360,7 +2402,8 @@ public sealed partial class DemoSessionApi : IDisposable
         return BinaryJson(JsonSerializer.Serialize(response), key);
     }
 
-    private async Task<IResult?> HandleTeamJoinAsync(HttpContext context, SessionState state, byte[] key)
+    private async Task<IResult?> HandleTeamJoinAsync(HttpContext context, KfIdentityTicket ticket,
+        SessionState state, byte[] key)
     {
         using var request = await ReadTeamRequestAsync(context, state, key);
         if (request is null
@@ -2373,10 +2416,12 @@ public sealed partial class DemoSessionApi : IDisposable
         NormalizeCostume(state);
         var deck = state.Decks.GetValueOrDefault(state.ActiveDeckNumber) ?? [3010001, 3010002, 3010003, 3010004];
         // The joiner does not choose the rule - the team does - so the levels are chosen for whatever the team
-        // turns out to be playing.
+        // turns out to be playing. The read is taken before the join because the lambda below is evaluated inside it.
+        var levels = await ReadDeckLevelEconomyAsync(ticket, "/battle/teamJoin", context);
+        if (levels.Snapshot is null) return EconomyUnavailable(context, "/battle/teamJoin", levels.Error);
         var entry = _matchmaking.JoinTeam(
             teamId, state.UserId, state.UserName, state.KickerId, state.KickerCostumeId, deck,
-            isDiag: IsDiagClient(context), deckLevels: matchType => DeckLevelsFor(state, deck, matchType));
+            isDiag: IsDiagClient(context), deckLevels: matchType => DeckLevelsFor(levels.Snapshot, deck, matchType));
         if (entry is null) return StatusError(context, key);
 
         var response = new
@@ -2533,7 +2578,8 @@ public sealed partial class DemoSessionApi : IDisposable
         return [new ApplicationAssetRevision(platform, revision)];
     }
 
-    private async Task<IResult?> HandleBattleEntryAsync(HttpContext context, SessionState state, byte[] key)
+    private async Task<IResult?> HandleBattleEntryAsync(HttpContext context, KfIdentityTicket ticket,
+        SessionState state, byte[] key)
     {
         var body = await ReadBodyAsync(context.Request);
         int battleRuleId = 1;
@@ -2569,11 +2615,13 @@ public sealed partial class DemoSessionApi : IDisposable
         var deck = state.Decks.GetValueOrDefault(state.ActiveDeckNumber) ?? [3010001, 3010002, 3010003, 3010004];
         NormalizeCostume(state);
         var ruleMetadata = BattleRuleMetadata(battleRuleId);
+        var levels = await ReadDeckLevelEconomyAsync(ticket, "/battle/entry", context);
+        if (levels.Snapshot is null) return EconomyUnavailable(context, "/battle/entry", levels.Error);
         var (battleEntryId, ticketId) = _matchmaking.RegisterEntry(
             state.UserId, state.UserName, state.KickerId, state.KickerCostumeId, battleRuleId, deck,
             isDiag: IsDiagClient(context), matchType: ruleMetadata.MatchType,
             battleRuleType: ruleMetadata.BattleRuleType,
-            deckLevels: DeckLevelsFor(state, deck, ruleMetadata.MatchType));
+            deckLevels: DeckLevelsFor(levels.Snapshot, deck, ruleMetadata.MatchType));
 
         var resp = new
         {
@@ -2849,25 +2897,31 @@ public sealed partial class DemoSessionApi : IDisposable
         // win -> win points, loss -> loss points; tie, undetermined and breakaway/badConnection callers leave the
         // rank untouched (no relief rule exists in the masters, so a flagged caller is not punished either).
         // The persistence callback runs at most once per entry; a null return applies and caches nothing.
-        var processedRankedResult = applyProgression
-            ? _matchmaking.ProcessRankedResultOnce(battleEntryId, state.UserId, ruleType =>
+        BattleMatchmakingService.BattleResultProcessing? processedRankedResult = null;
+        BattleRankStanding before;
+        BattleRankStanding after;
+        try
+        {
+            if (applyProgression)
             {
-                var rankWon = RankWinFor(statReport, out var skipReason);
-                if (rankWon is null)
-                {
-                    _logger.LogInformation("Ranked result for {UserId} entry {BattleEntryId}: rank unchanged ({Reason})",
-                        state.UserId, battleEntryId, skipReason);
-                    return null;
-                }
-                var beforeRank = _playerStore.LoadRank(state.PlayerId, ruleType);
-                var afterRank = RankProgression.Apply(beforeRank, won: rankWon.Value);
-                _playerStore.SaveRank(state.PlayerId, ruleType, afterRank);
-                return new BattleMatchmakingService.RankedResultSnapshot(ruleType, beforeRank, afterRank);
-            })
-            : null;
-        var rankSnapshot = processedRankedResult?.RankedResult;
-        var before = rankSnapshot?.Before ?? _playerStore.LoadRank(state.PlayerId, battleRuleType);
-        var after = rankSnapshot?.After ?? before;
+                processedRankedResult = await _matchmaking.ProcessRankedResultOnceAsync(battleEntryId, state.UserId,
+                    ruleType => AwardRankedResultAsync(ticket, state, battleEntryId, ruleType, statReport,
+                        context.RequestAborted));
+            }
+            var rankSnapshot = processedRankedResult?.RankedResult;
+            before = rankSnapshot?.Before ?? await ReadOwnStandingAsync(ticket, battleRuleType, context.RequestAborted);
+            after = rankSnapshot?.After ?? before;
+        }
+        catch (Exception exception) when (exception is OtomoRankException or OtomoIdentityException)
+        {
+            // The award (or the standing the screen must show) could not be had from session. It is not dropped and not
+            // guessed: the result is answered 503, nothing was cached, and the client's retry carries the same award
+            // key, which session applies once.
+            _logger.LogError(exception,
+                "Battle result for {UserId} entry {BattleEntryId} could not be ranked by session; answering 503",
+                state.UserId, battleEntryId);
+            return SocialUnavailable(context, "/battle/result", exception);
+        }
         var receivedHonors = ownedEntry is null
             ? Array.Empty<int>()
             : _badgeAwardRules.RecordVerifiedBattle(
@@ -2941,7 +2995,7 @@ public sealed partial class DemoSessionApi : IDisposable
             // ArchiveData.set_IsUploadReplayData). Everything else is unchanged.
             replayUploadFlag = true,
             // The same delta /battle/result persisted, so the reward screen and the stored rank agree.
-            battlePoint = RankProgression.WinBattlePoint,
+            battlePoint = RankTranslation.WinDelta,
             exp = 800,
             kickPoint = 200,
             jetCoin = 1000

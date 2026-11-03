@@ -205,6 +205,37 @@ public sealed class OtomoEconomy : IOtomoEconomy, IDisposable
                    "economy answered the consume with an empty body");
     }
 
+    // POST /internal/economy/items/advance. The same plane, key and switch as the consume: what it moves is the
+    // level that consume was the price of, so it is the same trust decision stated once.
+    public async Task<EconomyAdvanceResult> AdvanceAsync(EconomyAdvanceRequest advance,
+        CancellationToken cancellationToken)
+    {
+        if (!Enabled) throw Disabled();
+        var key = ReadServiceKey();
+        if (!_options.ProgressEnabled || string.IsNullOrEmpty(key) || _internalBase is null)
+        {
+            throw new OtomoEconomyException(OtomoEconomyFailure.Disabled,
+                "internal advances are off: set Otomo:Economy:ProgressEnabled and a gameserver service key");
+        }
+
+        var url = new Uri(_internalBase, "internal/economy/items/advance");
+        var payload = new Dictionary<string, object?>
+        {
+            ["player_id"] = advance.PlayerId,
+            ["key"] = advance.Key,
+            ["reason"] = advance.Reason,
+            ["ref"] = advance.Reference,
+            ["item_id"] = advance.ItemId,
+            ["advance"] = new { field = advance.Field, by = advance.By, max = advance.Max }
+        };
+
+        var element = await SendAsync(url, HttpMethod.Post, payload, bearer: null, serviceKey: key,
+            operation: "advance", cancellationToken).ConfigureAwait(false);
+        return element.Deserialize<EconomyAdvanceResult>(JsonOptions)
+               ?? throw new OtomoEconomyException(OtomoEconomyFailure.Unavailable,
+                   "economy answered the advance with an empty body");
+    }
+
     private Uri Player(string relative) =>
         _playerBase is null
             ? throw new OtomoEconomyException(OtomoEconomyFailure.Unavailable,

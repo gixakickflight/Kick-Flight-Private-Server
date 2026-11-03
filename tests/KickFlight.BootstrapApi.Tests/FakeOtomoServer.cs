@@ -214,12 +214,17 @@ public static class OtomoTestEnvironment
 {
     private static readonly Lazy<FakeOtomoServer> LazyServer = new(FakeOtomoServer.Start);
     private static readonly Lazy<FakeOtomoEconomy> LazyEconomy = new(FakeOtomoEconomy.Start);
+    private static readonly Lazy<FakeOtomoSocial> LazySocial = new(FakeOtomoSocial.Start);
 
     public static FakeOtomoServer Server => LazyServer.Value;
 
     // The economy every host in this suite reads its values from: the adapter holds none of its own, so a test host
     // without one could not serve a startup payload at all.
     public static FakeOtomoEconomy Economy => LazyEconomy.Value;
+
+    // The session service the follow screens and the ranking board read: the relation and the points are its, and
+    // migration 6 dropped the tables this adapter used to keep them in.
+    public static FakeOtomoSocial Social => LazySocial.Value;
 
     [ModuleInitializer]
     internal static void Initialize()
@@ -230,5 +235,22 @@ public static class OtomoTestEnvironment
         Environment.SetEnvironmentVariable("Otomo__Economy__Enabled", "true");
         Environment.SetEnvironmentVariable("Otomo__Economy__BaseUrl", Economy.BaseUrl);
         Environment.SetEnvironmentVariable("Otomo__Economy__Timeout", "00:00:10");
+        Environment.SetEnvironmentVariable("Otomo__Social__Enabled", "true");
+        Environment.SetEnvironmentVariable("Otomo__Social__BaseUrl", Social.BaseUrl);
+        Environment.SetEnvironmentVariable("Otomo__Social__Timeout", "00:00:10");
+        // Rank: the same fake session serves the player plane, the internal plane (service key) and the release bundle
+        // that carries the published session.rank ladder, which the adapter reads through OtomoMasters.
+        Environment.SetEnvironmentVariable("Otomo__Rank__Enabled", "true");
+        Environment.SetEnvironmentVariable("Otomo__Rank__BaseUrl", Social.BaseUrl);
+        Environment.SetEnvironmentVariable("Otomo__Rank__InternalBaseUrl", Social.BaseUrl);
+        Environment.SetEnvironmentVariable("Otomo__Rank__ServiceKey", FakeOtomoSocial.ServiceKey);
+        Environment.SetEnvironmentVariable("Otomo__Rank__Timeout", "00:00:10");
+        Environment.SetEnvironmentVariable("Otomo__Masters__Enabled", "true");
+        Environment.SetEnvironmentVariable("Otomo__Masters__BaseUrl", Social.BaseUrl);
+        Environment.SetEnvironmentVariable("Otomo__Masters__Key", FakeOtomoSocial.ServiceKey);
+        Environment.SetEnvironmentVariable("Otomo__Masters__Refresh", "00:00:00");
+        Environment.SetEnvironmentVariable("Otomo__Masters__Documents__0", "session.rank");
+        Environment.SetEnvironmentVariable("Otomo__Masters__CacheDir",
+            Path.Combine(Path.GetTempPath(), "kf-test-masters-" + Guid.NewGuid().ToString("N")));
     }
 }

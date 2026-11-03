@@ -6,6 +6,9 @@ using Xunit;
 
 namespace KickFlight.BootstrapApi.Tests;
 
+// The player store's identity surface, now that the social relation is otomo's: what is left of the old social tests
+// is the link between a game row and the account behind it - the numeric-id <-> otomo-account-id mapping and nothing
+// more - and the profile presentation (name, kicker, costume) a card still reads.
 public sealed class PlayerStoreSocialTests : IDisposable
 {
     private readonly string _directory =
@@ -29,103 +32,73 @@ public sealed class PlayerStoreSocialTests : IDisposable
     }
 
     [Fact]
-    public void Follows_are_idempotent_durable_and_track_unread_followers()
+    public void An_accounts_row_is_found_by_account_or_by_numeric_id_and_survives_a_restart()
     {
         var store = NewStore();
-        var alice = CreatePlayer(store, "alice-device", "Alice");
-        var bob = CreatePlayer(store, "bob-device", "Bob");
+        var alice = CreatePlayer(store, "map-alice-device", "Alice");
+        var bob = CreatePlayer(store, "map-bob-device", "Bob");
 
-        store.AddFollow(alice, bob);
-        store.AddFollow(alice, bob);
+        var link = Assert.IsType<OtomoPlayer>(store.FindOtomoPlayer(alice));
+        Assert.Equal(new OtomoPlayer(alice, "otomo-map-alice-device"), link);
+        Assert.Null(store.FindOtomoPlayer(long.MaxValue));
 
-        Assert.Equal(1, store.CountFollowing(alice));
-        Assert.Equal(1, store.CountFollowers(bob));
-        Assert.Equal(1, store.CountNewFollowers(bob));
-        Assert.Equal(new[] { bob }, store.FindFollowedIds(alice, new[] { bob, alice }));
-        var follower = Assert.Single(store.ListFollowers(bob, 0, 10));
-        Assert.Equal("Alice", follower.Profile.DisplayName);
-        Assert.True(follower.IsNew);
-
-        store.MarkFollowersRead(bob, new[] { alice, alice });
-        Assert.Equal(0, store.CountNewFollowers(bob));
-        Assert.False(Assert.Single(store.ListFollowers(bob, 0, 10)).IsNew);
+        // Both in one read, in row order, and an account this store has never seen is absent rather than blank.
+        var both = store.FindOtomoPlayers(["otomo-map-bob-device", "otomo-unknown", "otomo-map-alice-device"]);
+        Assert.Equal(new[] { alice, bob }, both.Select(player => player.PlayerId));
+        Assert.Equal(new[] { "otomo-map-alice-device", "otomo-map-bob-device" }, both.Select(player => player.OtomoPlayerId));
 
         var restarted = NewStore();
-        Assert.Equal(1, restarted.CountFollowing(alice));
-        Assert.Equal(0, restarted.CountNewFollowers(bob));
-        Assert.Equal("Bob", Assert.Single(restarted.ListFollowing(alice, 0, 10)).Profile.DisplayName);
-
-        restarted.RemoveFollow(alice, bob);
-        restarted.RemoveFollow(alice, bob);
-        Assert.Equal(0, restarted.CountFollowing(alice));
-        Assert.Equal(0, restarted.CountFollowers(bob));
+        Assert.Equal(link, restarted.FindOtomoPlayer(alice));
+        Assert.Equal(bob, restarted.FindOtomoPlayers(["otomo-map-bob-device"]).Single().PlayerId);
+        Assert.Equal(17, restarted.FindProfile(alice)?.KickerId);
     }
 
     [Fact]
-    public void Real_friend_token_is_stable_reusable_and_separate_from_following()
+    public void The_mapping_is_the_only_thing_kept_about_an_account()
     {
+        // OtomoPlayer is (PlayerId, OtomoPlayerId): no name, no discriminator, and no index file for either.
+        Assert.Equal(["PlayerId", "OtomoPlayerId"], typeof(OtomoPlayer).GetProperties()
+            .Where(property => property.Name is not "EqualityContract").Select(property => property.Name));
         var store = NewStore();
-        var alice = CreatePlayer(store, "real-alice-device", "Alice");
-        var bob = CreatePlayer(store, "real-bob-device", "Bob");
-        var carol = CreatePlayer(store, "real-carol-device", "Carol");
-
-        var token = store.GetOrCreateRealFriendToken(alice);
-        Assert.Equal(token, NewStore().GetOrCreateRealFriendToken(alice));
-        Assert.Equal(alice, store.TryGetRealFriendTokenOwner(token));
-        Assert.Null(store.TryGetRealFriendTokenOwner("unknown-token"));
-
-        store.AddRealFriend(alice, bob);
-        store.AddRealFriend(bob, alice);
-        store.AddRealFriend(alice, carol);
-        Assert.True(store.AreRealFriends(alice, bob));
-        Assert.True(store.AreRealFriends(bob, alice));
-        Assert.True(store.AreRealFriends(alice, carol));
-        Assert.False(store.AreRealFriends(bob, carol));
-        Assert.Equal(0, store.CountFollowing(alice));
-        Assert.Equal(0, store.CountFollowers(alice));
-
-        Assert.Throws<ArgumentException>(() => store.AddRealFriend(alice, alice));
-        Assert.True(NewStore().AreRealFriends(alice, carol));
+        CreatePlayer(store, "files-alice-device", "Alice");
+        Assert.False(File.Exists(Path.Combine(_directory, "data", "users", "_otomo-tags.json")));
+        Assert.DoesNotContain(typeof(IPlayerStore).GetMethods(), method => method.Name == "SaveOtomoTag");
     }
 
     [Fact]
-    public void Profiles_are_real_and_rank_positions_are_deterministic_and_global_when_filtered()
+    public void Profiles_are_real_and_unknown_ids_have_none()
     {
         var store = NewStore();
-        var alice = CreatePlayer(store, "rank-alice-device", "Alice");
-        var bob = CreatePlayer(store, "rank-bob-device", "Bob");
-        var carol = CreatePlayer(store, "rank-carol-device", "Carol");
-
-        store.SaveRank(alice, 4, new RankState(3000, 7));
-        store.SaveRank(bob, 4, new RankState(3100, 7));
-        store.SaveRank(carol, 4, new RankState(3000, 7));
+        var alice = CreatePlayer(store, "profile-alice-device", "Alice");
+        var carol = CreatePlayer(store, "profile-carol-device", "Carol");
 
         Assert.Null(store.FindProfile(long.MaxValue));
         Assert.Equal(new[] { alice, carol }, store.FindProfiles(new[] { carol, long.MaxValue, alice }).Select(p => p.PlayerId));
-
-        var rankings = store.ListRanks(4, null, 0, 10);
-        Assert.Equal(new[] { bob, alice, carol }, rankings.Select(row => row.Profile.PlayerId));
-        Assert.Equal(new long[] { 1, 2, 3 }, rankings.Select(row => row.Position));
-        var filtered = Assert.Single(store.ListRanks(4, new[] { carol }, 0, 10));
-        Assert.Equal(3, filtered.Position);
+        Assert.Equal("Alice", store.FindProfile(alice)?.DisplayName);
     }
 
     [Fact]
-    public void Concurrent_stores_keep_one_follow_edge_and_one_reusable_token()
+    public void The_store_keeps_no_battle_points()
     {
-        var store = NewStore();
-        var alice = CreatePlayer(store, "parallel-alice-device", "Alice");
-        var bob = CreatePlayer(store, "parallel-bob-device", "Bob");
+        // Battle points are session's (migration 7 dropped player_ranks): the store has no rank to load, save or list.
+        var members = typeof(IPlayerStore).GetMethods().Select(method => method.Name).ToArray();
+        Assert.DoesNotContain("LoadRank", members);
+        Assert.DoesNotContain("SaveRank", members);
+        Assert.DoesNotContain("ListRanks", members);
+    }
+
+    [Fact]
+    public void Concurrent_stores_keep_one_row_per_account()
+    {
         var stores = Enumerable.Range(0, 12).Select(_ => NewStore()).ToArray();
 
-        Parallel.ForEach(stores, instance =>
-        {
-            instance.AddFollow(alice, bob);
-            instance.GetOrCreateRealFriendToken(alice);
-        });
+        var ids = new long[stores.Length];
+        Parallel.For(0, stores.Length, index =>
+            ids[index] = stores[index].ResolveGamePlayer("otomo-parallel-alice-device", "parallel-alice-device"));
 
-        Assert.Equal(1, NewStore().CountFollowing(alice));
-        Assert.All(stores, instance => Assert.Equal(stores[0].GetOrCreateRealFriendToken(alice), instance.GetOrCreateRealFriendToken(alice)));
+        Assert.Single(ids.Distinct());
+        Assert.Equal(ids[0], NewStore().FindOtomoPlayer(ids[0])?.PlayerId);
+        Assert.All(stores, instance => Assert.Equal("otomo-parallel-alice-device", instance.FindOtomoPlayer(ids[0])?.OtomoPlayerId));
     }
 
     public void Dispose()

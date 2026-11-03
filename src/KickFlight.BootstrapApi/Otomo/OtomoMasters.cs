@@ -33,6 +33,7 @@ public sealed class OtomoMasters : IDisposable
     private readonly object _applyLock = new();
 
     private IReadOnlyDictionary<string, string> _tables = new Dictionary<string, string>(StringComparer.Ordinal);
+    private IReadOnlyDictionary<string, string> _documents = new Dictionary<string, string>(StringComparer.Ordinal);
     private string? _etag;
 
     // Where the tables in _tables came from, for the log line and for /health/ready: "channel/release" from a
@@ -95,6 +96,9 @@ public sealed class OtomoMasters : IDisposable
 
     public bool TryGetTable(string table, out string json) => _tables.TryGetValue(table, out json!);
 
+    // A whole document named in Otomo:Masters:Documents (session.rank), as the release carried it.
+    public bool TryGetDocument(string ns, out string json) => _documents.TryGetValue(ns, out json!);
+
     // Raised after a refresh changed at least one table. The subscriber re-encrypts and recomputes the master
     // version, so the client's next /download/master sees the new hashes.
     public event Action? Updated;
@@ -124,7 +128,7 @@ public sealed class OtomoMasters : IDisposable
         }
 
         throw new InvalidOperationException(
-            $"masters {string.Join(", ", _bindings.Select(b => b.Table))} come from otomo " +
+            $"masters {string.Join(", ", _bindings.Select(b => b.Table).Concat(_options.Documents))} come from otomo " +
             $"({_http.BaseAddress} channel {_options.Channel}) but the fetch failed and {CacheDirectory} holds no " +
             "bundle to fall back on");
     }
@@ -147,6 +151,7 @@ public sealed class OtomoMasters : IDisposable
         lock (_applyLock)
         {
             _tables = bundle.Tables;
+            _documents = bundle.Documents;
             _etag = bundle.ETag;
             Source = $"{source}/{bundle.Channel}/{bundle.Release}";
         }
@@ -275,7 +280,22 @@ public sealed class OtomoMasters : IDisposable
             tables[binding.Table] = rows.GetRawText();
         }
 
-        return new FetchedBundle(tables, channel, release, etag);
+        // Whole documents: the same bundle, the same digest check, but no {"rows": [...]} envelope to require. Valid
+        // JSON is the only thing demanded here; what the document means is its reader's to check.
+        var wholeDocuments = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var ns in _options.Documents)
+        {
+            if (!documents.TryGetValue(ns, out var document))
+            {
+                throw new InvalidDataException(
+                    $"release {release} carries no document for namespace {ns} " +
+                    $"(it carries: {(documents.Count == 0 ? "none" : string.Join(", ", documents.Keys.OrderBy(n => n)))})");
+            }
+            using var parsed = JsonDocument.Parse(document);
+            wholeDocuments[ns] = document;
+        }
+
+        return new FetchedBundle(tables, wholeDocuments, channel, release, etag);
     }
 
     private static bool DigestMatches(string? header, byte[] bytes)
@@ -349,5 +369,6 @@ public sealed class OtomoMasters : IDisposable
 
     public void Dispose() => _http.Dispose();
 
-    private sealed record FetchedBundle(IReadOnlyDictionary<string, string> Tables, string Channel, string Release, string? ETag);
+    private sealed record FetchedBundle(IReadOnlyDictionary<string, string> Tables,
+        IReadOnlyDictionary<string, string> Documents, string Channel, string Release, string? ETag);
 }

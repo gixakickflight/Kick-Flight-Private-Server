@@ -142,7 +142,12 @@ public sealed partial class DemoSessionApi
                 EconomyCatalog.TryDiscId(move.Item, out var discId);
                 return (object)new { discId, amount = 1, discForceAmount = 0 };
             }).ToArray();
-        var receivedUserDiscList = payloads.BuildReceivedUserDiscList(moved, discId => DiscStandingOf(state, discId));
+        // The level a receipt row shows is attrs.level on the disc's possession. A tutorial disc is always new, so the
+        // start level is what this reads in practice; the read is taken because a duplicate of one the player already
+        // raised would otherwise be drawn at the wrong level, and a failed read falls back to exactly that.
+        var inventory = await ReadPlayerEconomyAsync(ticket, EconomyRead.Inventory, path, context.RequestAborted);
+        var receivedUserDiscList = payloads.BuildReceivedUserDiscList(moved,
+            discId => DiscStandingOf(inventory.Snapshot ?? EconomySnapshot.None, discId));
         var receivedRewardList = payloads.BuildReceivedRewards(grant.Entries, moved);
 
         if (!draw)
@@ -224,8 +229,8 @@ public sealed partial class DemoSessionApi
                 path, state.UserId, discId);
             var owned = economy.Snapshot.Items.FirstOrDefault(item =>
                 EconomyCatalog.TryDiscId(item.Item, out var ownedDiscId) && ownedDiscId == discId);
-            userDisc = EconomyPayloads.BuildUserDisc(discId, owned?.Qty ?? 0, DiscStandingOf(state, discId),
-                owned?.AcquiredAt);
+            userDisc = EconomyPayloads.BuildUserDisc(discId, owned?.Qty ?? 0,
+                DiscStandingOf(economy.Snapshot, discId), owned?.AcquiredAt);
         }
 
         return OkJson(context, key, JsonSerializer.Serialize(new

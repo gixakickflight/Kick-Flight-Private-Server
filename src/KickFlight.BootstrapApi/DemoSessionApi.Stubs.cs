@@ -37,30 +37,36 @@ public sealed partial class DemoSessionApi
                 return await HandleAnalysisIndexAsync(context, state, key);
 
             case "/follow/index":
-                return await HandleFollowIndexAsync(context, state, key);
+                return await HandleFollowIndexAsync(context, ticket, state, key);
             case "/follow/online":
-                return await HandleFollowOnlineAsync(context, state, key);
+                return await HandleFollowOnlineAsync(context, ticket, state, key);
             case "/follow/search":
-                return await HandleFollowSearchAsync(context, state, key);
+                return await HandleFollowSearchAsync(context, ticket, state, key);
             case "/follow/add":
-                return await HandleFollowMutationAsync(context, state, key, add: true);
+                return await HandleFollowMutationAsync(context, ticket, state, key, add: true);
             case "/follow/remove":
-                return await HandleFollowMutationAsync(context, state, key, add: false);
+                return await HandleFollowMutationAsync(context, ticket, state, key, add: false);
             case "/follower/index":
-                return await HandleFollowerIndexAsync(context, state, key);
+                return await HandleFollowerIndexAsync(context, ticket, state, key);
             case "/follower/read":
                 return await HandleFollowerReadAsync(context, state, key);
+            // The real-friend invitation was a token this adapter minted and kept in real_friend_tokens, which
+            // migration 6 dropped. It is not reconstructible: the token was opaque and nothing outside that table ever
+            // knew it, so there is no relation to rebuild from. Session's friend relation is addressed by tag, not by
+            // an invitation, so nothing here can stand in for it. The routes stay registered and answer the game's
+            // error envelope, which the client draws as a dialog instead of a missing screen.
             case "/realFriend/token":
-                return OkJson(context, key, JsonSerializer.Serialize(new { token = _playerStore.GetOrCreateRealFriendToken(state.PlayerId) }));
             case "/realFriend/apply":
-                return await HandleRealFriendApplyAsync(context, state, key);
+                _logger.LogInformation("{Path} for user {UserId}: the friend invitation is not served any more",
+                    path, state.UserId);
+                return StatusError(context, key);
 
             case "/user/search":
-                return await HandleUserSearchStubAsync(context, state, key);
+                return await HandleUserSearchStubAsync(context, ticket, state, key);
             case "/user/detail":
-                return await HandleUserDetailStubAsync(context, state, key);
+                return await HandleUserDetailStubAsync(context, ticket, state, key);
             case "/user/change":
-                return await HandleUserChangeStubAsync(context, state, key);
+                return await HandleUserChangeStubAsync(context, ticket, state, key);
             case "/user/birthday":
                 return OkJson(context, key, """{"dataUsageAgreementConfirmFlag":false}""");
             case "/user/displayUserId":
@@ -70,7 +76,7 @@ public sealed partial class DemoSessionApi
             case "/ranking/user":
             case "/ranking/follow":
             case "/ranking/region":
-                return await HandleRankingAsync(context, state, key, path);
+                return await HandleRankingAsync(context, ticket, state, key, path);
 
             case "/sns/index":
                 return OkJson(context, key, """{"userProfileList":[]}""");
@@ -114,7 +120,8 @@ public sealed partial class DemoSessionApi
 
     // user/search is a display-id lookup. Only return accounts with persisted profiles; unknown ids are a normal
     // lookup miss instead of fabricated Player NNNN identities.
-    private async Task<IResult?> HandleUserSearchStubAsync(HttpContext context, SessionState state, byte[] key)
+    private async Task<IResult?> HandleUserSearchStubAsync(HttpContext context, KfIdentityTicket ticket,
+        SessionState state, byte[] key)
     {
         var displayUserId = CurrentDisplayUserId(state);
         var body = await ReadBodyAsync(context.Request);
@@ -138,12 +145,17 @@ public sealed partial class DemoSessionApi
 
         var record = FindProfileByDisplayOrStoredId(displayUserId);
         if (record is null) return StatusError(context, key);
-        var profile = SocialProfileJson(state, record, FollowStatusFor(state.PlayerId, record.PlayerId), false);
+        var followed = await ReadFollowedIdsAsync(ticket, "/user/search", context.RequestAborted);
+        var (cardRanks, cardError) = await TryReadCardRanksAsync(ticket, state, [record.PlayerId], context.RequestAborted);
+        if (cardRanks is null) return SocialUnavailable(context, "/user/search", cardError);
+        var profile = SocialProfileJson(state, record, FollowStatus(followed, state.PlayerId, record.PlayerId), false,
+            cardRanks[record.PlayerId]);
 
         return OkJson(context, key, $$"""{"userProfile":{{profile}}}""");
     }
 
-    private async Task<IResult?> HandleUserDetailStubAsync(HttpContext context, SessionState state, byte[] key)
+    private async Task<IResult?> HandleUserDetailStubAsync(HttpContext context, KfIdentityTicket ticket,
+        SessionState state, byte[] key)
     {
         var searchUserId = state.PlayerId;
         var body = await ReadBodyAsync(context.Request);
@@ -177,12 +189,17 @@ public sealed partial class DemoSessionApi
             KickerId = targetState.KickerId,
             KickerCostumeId = targetState.KickerCostumeId
         };
-        var profile = SocialProfileJson(state, targetProfile, FollowStatusFor(state.PlayerId, record.PlayerId), false);
+        var followed = await ReadFollowedIdsAsync(ticket, "/user/detail", context.RequestAborted);
+        var (cardRanks, cardError) = await TryReadCardRanksAsync(ticket, state, [record.PlayerId], context.RequestAborted);
+        if (cardRanks is null) return SocialUnavailable(context, "/user/detail", cardError);
+        var profile = SocialProfileJson(state, targetProfile, FollowStatus(followed, state.PlayerId, record.PlayerId), false,
+            cardRanks[record.PlayerId]);
         return OkJson(context, key,
             $$"""{"userProfile":{{profile}},"userBattleParameter":{{battleParameter}},"snsScreenName":""}""");
     }
 
-    private async Task<IResult?> HandleUserChangeStubAsync(HttpContext context, SessionState state, byte[] key)
+    private async Task<IResult?> HandleUserChangeStubAsync(HttpContext context, KfIdentityTicket ticket,
+        SessionState state, byte[] key)
     {
         var body = await ReadBodyAsync(context.Request);
         try
@@ -201,6 +218,7 @@ public sealed partial class DemoSessionApi
             {
                 state.UserName = newName;
                 SaveUserState(state);
+                await PublishNameAsync(ticket, state, "/user/change", context.RequestAborted);
                 _logger.LogInformation("Renamed user {UserId} to {UserName}", state.UserId, newName);
             }
             return OkJson(context, key, "{}");
@@ -234,39 +252,11 @@ public sealed partial class DemoSessionApi
     private static long CurrentDisplayUserId(SessionState state) =>
         PlayerDisplayIdCodec.ToPublic(long.TryParse(state.UserId, out var parsed) ? parsed : 1000001);
 
+    // A card built from a numeric id with no session row in hand (a search box, a profile tap), so the name is the
+    // adapter's own FindProfile.
+    // TODO(otomo-profile): that name is a local copy of what session holds; remove it with the profile/loadout move.
     private PlayerProfile? FindProfileByDisplayOrStoredId(long id) =>
         PlayerDisplayIdCodec.Find(id, _playerStore.FindProfile);
-
-    // ResponseUserProfile, field for field. Frames and battle ranks mirror what BuildHomeJson already serves for the
-    // same user (an empty userFrameList leaves the profile card without a frame to draw).
-    private string BuildUserProfileJson(SessionState state, string userId, long displayUserId, string name) =>
-        JsonSerializer.Serialize(new
-        {
-            userId,
-            displayUserId = PlayerDisplayIdCodec.ToPublic(displayUserId),
-            name,
-            honorId = BadgeAwardRules.GetOwnedHonorIds(state).Contains(state.HonorId)
-                ? state.HonorId
-                : BadgeAwardRules.DefaultHonorId,
-            userFrameList = new[]
-            {
-                new { battleRuleType = 1, frameId = 1 },
-                new { battleRuleType = 2, frameId = 1 },
-                new { battleRuleType = 3, frameId = 1 }
-            },
-            kickerId = state.KickerId,
-            kickerCostumeId = state.KickerCostumeId,
-            onlineFlag = true,
-            battleFlag = false,
-            officialFlag = false,
-            languageCode = "es",
-            followStatus = 0,
-            newFlag = false,
-            userBattleRankList = BuildBattleRankList(state),
-            snsUserName = "",
-            snsScreenName = "",
-            snsUserImageUrl = ""
-        });
 
     // The client resolves every disc id through DiscMasterData while building a friend card. Keep the detail
     // payload tied to the target's persisted active deck, with the same initial deck as SessionState when a slot
@@ -289,9 +279,12 @@ public sealed partial class DemoSessionApi
         }
 
         var discIds = Enumerable.Range(0, 4).Select(DiscAt).ToArray();
-        // A disc's level is the save's (SessionState.DiscLevels), and this route has the target's save, so the card
-        // shows the levels that player has raised - the ones they fight at in ranked.
-        int LevelOf(int discId) => StoredDiscLevel(state, discId);
+        // A disc's level is attrs.level on that player's own possession, and economy's player plane is read on the
+        // caller's token: there is no cross-player inventory read, and the staff route needs a credential this adapter
+        // does not hold. So a friend card shows every disc at the level its rarity starts at, which is what a disc
+        // nobody has raised fights at. It is a deliberate loss, recorded in docs/OTOMO_SOCIAL_DISCS.md; the card's
+        // kicker, costume and deck are still that player's own.
+        int LevelOf(int discId) => _tuning.StartLevel(_discRarity.GetValueOrDefault(discId));
 
         json = JsonSerializer.Serialize(new
         {

@@ -1,3 +1,4 @@
+using KickFlight.BootstrapApi.Otomo;
 using System.Net;
 using System.Globalization;
 using System.Text;
@@ -196,16 +197,20 @@ public sealed class RankedModeRotationTests
         var service = new BattleMatchmakingService(NullLogger<BattleMatchmakingService>.Instance, null!);
         var (entryId, _) = service.RegisterEntry("player-1", "player", 1, 1,
             RankedModeRotation.CrystalRuleId, [], matchType: 2, battleRuleType: 1);
-        Assert.Throws<InvalidOperationException>(() =>
-            service.ProcessRankedResultOnce(entryId, "player-1", _ => throw new InvalidOperationException("store failed")));
+        // A callback that fails (session unreachable) releases the gate and caches nothing.
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.ProcessRankedResultOnceAsync(entryId, "player-1",
+                _ => Task.FromException<BattleMatchmakingService.RankedResultSnapshot?>(
+                    new InvalidOperationException("session unreachable"))));
         var appliedCount = 0;
-        var responses = await Task.WhenAll(Enumerable.Range(0, 12).Select(_ => Task.Run(() =>
-            service.ProcessRankedResultOnce(entryId, "player-1", ruleType =>
+        var responses = await Task.WhenAll(Enumerable.Range(0, 12).Select(_ => Task.Run(async () =>
+            (await service.ProcessRankedResultOnceAsync(entryId, "player-1", async ruleType =>
             {
                 Interlocked.Increment(ref appliedCount);
+                await Task.Delay(5);
                 return new BattleMatchmakingService.RankedResultSnapshot(ruleType,
-                    new RankState(2900, 7), new RankState(2950, 7));
-            })!)));
+                    new BattleRankStanding(2900, 7), new BattleRankStanding(2950, 7));
+            }))!)));
 
         Assert.Equal(1, appliedCount);
         Assert.Single(responses, response => !response.IsReplay);
@@ -275,10 +280,11 @@ public sealed class RankedModeRotationTests
         using (var missing = await PostJsonAsync(client, player, "/battle/result", new { }))
             AssertUnchanged(missing);
         var store = factory.Services.GetRequiredService<IPlayerStore>();
-        var rankBeforeCustom = store.LoadRank(player.PlayerId, 1);
+        var account = store.FindOtomoPlayer(player.PlayerId)!.OtomoPlayerId;
+        var rankBeforeCustom = OtomoTestEnvironment.Social.PointsOf(account, "crystal_scramble");
         using (var custom = await PostJsonAsync(client, player, "/customBattle/result", new { customBattleId = "custom-test" }))
             Assert.Empty(custom.RootElement.EnumerateObject());
-        Assert.Equal(rankBeforeCustom, store.LoadRank(player.PlayerId, 1));
+        Assert.Equal(rankBeforeCustom, OtomoTestEnvironment.Social.PointsOf(account, "crystal_scramble"));
         using (var unknown = await PostJsonAsync(client, player, "/battle/result", new { battleEntryId = "be-not-issued" }))
             AssertUnchanged(unknown);
 
@@ -305,7 +311,7 @@ public sealed class RankedModeRotationTests
         {
             Assert.Equal(ranked.RootElement.GetRawText(), replay.RootElement.GetRawText());
             Assert.Equal(afterRank.GetProperty("battlePoint").GetInt32(),
-                factory.Services.GetRequiredService<IPlayerStore>().LoadRank(player.PlayerId, 1).BattlePoint);
+                RankTranslation.ClientPoints(OtomoTestEnvironment.Social.PointsOf(account, "crystal_scramble")));
         }
 
         var flagRankedEntryId = await Enter(player, RankedModeRotation.FlagRuleId);

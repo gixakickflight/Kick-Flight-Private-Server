@@ -394,7 +394,7 @@ public sealed partial class DemoSessionApi
         var response = new
         {
             dropDiscList = payloads.BuildDropDiscList(roll.Draws),
-            receivedUserDiscList = payloads.BuildReceivedUserDiscList(roll.Items, discId => DiscStandingOf(state, discId)),
+            receivedUserDiscList = payloads.BuildReceivedUserDiscList(roll.Items, discId => DiscStandingOf(snapshot, discId)),
             receivedUserItemList = payloads.BuildReceivedCounters(roll.Balances, roll.Entries, roll.Items),
             userItemList = payloads.BuildUserItemList(snapshot),
             gachaDropCountRewardList = Array.Empty<object>(),

@@ -9,16 +9,16 @@ namespace KickFlight.BootstrapApi.Otomo;
 //
 // Two rules about what is *not* owned:
 //
-//   * A disc's level is not economy's. Economy models possession; the level is the player's own progress, kept in
-//     the save (SessionState.DiscLevels) and handed in here as a function, so this class never decides it. The
-//     same function says how many copies those levels spent, which the client counts back into the disc's amount
-//     (EconomyDiscLevels explains why).
+//   * A disc's level is economy's too, and it is read from the disc's own possession: attrs.level on the
+//     `disc:<id>` inventory row (POST /internal/economy/items/advance moves it). It is handed in here as a function
+//     so this class never decides it, and the same function says how many copies those levels spent, which the
+//     client counts back into the disc's amount (EconomyDiscLevels explains why).
 //   * A kicker is owned when a costume of it is. The active kicker and kicker 1's tutorial costume are always
 //     included: they are the player's own selection (SessionState keeps that, and it is not a value), and a client
 //     that is handed no kicker cannot render the player at all. Kicker 2's first costume is always included too:
 //     it stands in for the tutorial's kicker draw, which the name-entry step assumes has happened.
-// A disc as the save and the build-up table describe it: the level it is at, and how many duplicate copies its
-// levels have already spent (EconomyDiscLevels.CopiesSpent).
+// A disc as economy and the build-up table describe it: the level its possession is at, and how many duplicate
+// copies its levels have already spent (EconomyDiscLevels.CopiesSpent).
 public readonly record struct DiscStanding(int Level, int CopiesSpent);
 
 public sealed class EconomyPayloads

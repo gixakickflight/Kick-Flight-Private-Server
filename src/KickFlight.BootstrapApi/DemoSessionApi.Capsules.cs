@@ -216,9 +216,15 @@ public sealed partial class DemoSessionApi
             SaveUserState(state);
         }
 
+        // A receipt shows each disc at the level it stands at, which is attrs.level on the disc's own possession, so
+        // the inventory is read again after the roll. A read that fails falls back to the roll's own items, which
+        // carry no attrs: every disc a capsule hands over is one the player just received, so the start level is the
+        // right answer for a new one and the only one available for a duplicate.
+        var inventory = await ReadPlayerEconomyAsync(ticket, EconomyRead.Inventory, path, context.RequestAborted);
+        var snapshot = inventory.Snapshot ?? SnapshotFromRoll(roll);
         var payloads = Payloads(state);
         var dropDiscList = payloads.BuildDropDiscList(roll.Draws);
-        var receivedUserDiscList = payloads.BuildReceivedUserDiscList(roll.Items, discId => DiscStandingOf(state, discId));
+        var receivedUserDiscList = payloads.BuildReceivedUserDiscList(roll.Items, discId => DiscStandingOf(snapshot, discId));
         var receivedUserItemList = payloads.BuildReceivedCounters(roll.Balances, roll.Entries, roll.Items);
         var receivedRewardList = payloads.BuildReceivedRewards(roll.Entries, roll.Items);
         var effect = CapsuleEffectOf(roll.Draws);

@@ -6,9 +6,9 @@ namespace KickFlight.BootstrapApi.PlayerStore;
 
 // Player state in PostgreSQL, which is what the deployment uses.
 //
-// Shape, and why it is not fully normalised: the four things a service actually queries - identity, the
-// display name, the currencies and the battle rank - are real columns, and the rest of the state is one
-// `state jsonb` document. Decks, owned discs, costume gears and the pending gear roll are only ever read and
+// Shape, and why it is not fully normalised: the two things a service actually queries - identity and the
+// display name - are real columns, and the rest of the state is one `state jsonb` document. Currencies moved to
+// otomo's economy (migration 5) and battle points to otomo's session (migration 7). Decks, owned discs, costume gears and the pending gear roll are only ever read and
 // written as a whole (the API loads a player, mutates, saves), so normalising them would buy nothing and cost
 // a mapping layer plus the chance of a half-applied save. See deploy/README.md.
 //
@@ -20,7 +20,7 @@ namespace KickFlight.BootstrapApi.PlayerStore;
 // the API once. `schema_meta` records which have been applied, so applying is idempotent and additive.
 public sealed class PostgresPlayerStore : IPlayerStore
 {
-    private const int SchemaVersion = 5;
+    private const int SchemaVersion = 7;
 
     private static readonly (int Version, string Sql)[] Migrations =
     [
@@ -166,6 +166,26 @@ public sealed class PostgresPlayerStore : IPlayerStore
                 drop column if exists item_paid_jet_coins,
                 drop column if exists item_disc_force,
                 drop column if exists item_kick_points;
+            """),
+        (6, """
+            -- The social relation moved to otomo's session service: who follows whom, and the friend invitation that
+            -- used to be a token here. The three tables are dropped rather than left to drift, because every write to
+            -- them is gone and a table nothing writes is a table something reads by mistake.
+            --
+            -- Nothing is copied anywhere: no live player data migrates, every player starts fresh on otomo, so there
+            -- is no backfill and no compatibility path for an old follow or an old friend token.
+            drop table if exists player_follows;
+            drop table if exists real_friend_tokens;
+            drop table if exists player_real_friends;
+            """),
+        (7, """
+            -- Battle points moved to otomo's session service: a player's points, tier and the ladder they sit on are
+            -- session's, and the adapter translates units and keeps nothing. The table is dropped rather than left to
+            -- drift, because every read and write of it is gone.
+            --
+            -- Nothing is copied: no live player data migrates, every player starts fresh on otomo, so there is no
+            -- backfill of points and no compatibility path for an old save's rank.
+            drop table if exists player_ranks;
             """)
     ];
 
@@ -735,36 +755,6 @@ public sealed class PostgresPlayerStore : IPlayerStore
         command.ExecuteNonQuery();
     }
 
-    public RankState LoadRank(long playerId, int battleRuleType)
-    {
-        using var connection = _dataSource.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = "select battle_point, rank from player_ranks where player_id = $1 and battle_rule_type = $2";
-        command.Parameters.AddWithValue(playerId);
-        command.Parameters.AddWithValue(battleRuleType);
-        using var reader = command.ExecuteReader();
-        return reader.Read() ? new RankState(reader.GetInt32(0), reader.GetInt32(1)) : RankProgression.Starting;
-    }
-
-    public void SaveRank(long playerId, int battleRuleType, RankState rank)
-    {
-        using var connection = _dataSource.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = """
-            insert into player_ranks (player_id, battle_rule_type, battle_point, rank)
-            values ($1, $2, $3, $4)
-            on conflict (player_id, battle_rule_type) do update set
-                battle_point = excluded.battle_point,
-                rank         = excluded.rank,
-                updated_at   = now()
-            """;
-        command.Parameters.AddWithValue(playerId);
-        command.Parameters.AddWithValue(battleRuleType);
-        command.Parameters.AddWithValue(rank.BattlePoint);
-        command.Parameters.AddWithValue(rank.Rank);
-        command.ExecuteNonQuery();
-    }
-
     public bool IsNameTaken(string name, long exceptPlayerId)
     {
         using var connection = _dataSource.OpenConnection();
@@ -812,289 +802,47 @@ public sealed class PostgresPlayerStore : IPlayerStore
         return profiles;
     }
 
-    public IReadOnlyList<long> FindFollowedIds(long followerId, IReadOnlyCollection<long> candidateIds)
+    // The otomo account behind each of these accounts: the id mapping and nothing else.
+    public IReadOnlyList<OtomoPlayer> FindOtomoPlayers(IReadOnlyCollection<string> otomoPlayerIds)
     {
-        ArgumentNullException.ThrowIfNull(candidateIds);
-        if (candidateIds.Count == 0) return Array.Empty<long>();
+        ArgumentNullException.ThrowIfNull(otomoPlayerIds);
+        if (otomoPlayerIds.Count == 0) return Array.Empty<OtomoPlayer>();
 
         using var connection = _dataSource.OpenConnection();
         using var command = connection.CreateCommand();
-        command.CommandText = """
-            select followed_id from player_follows
-            where follower_id = $1 and followed_id = any($2)
-            order by followed_id
-            """;
-        command.Parameters.AddWithValue(followerId);
+        command.CommandText = OtomoPlayerQuery + " where otomo_player_id = any($1) order by id";
         command.Parameters.Add(new NpgsqlParameter
         {
-            NpgsqlDbType = NpgsqlDbType.Array | NpgsqlDbType.Bigint,
-            Value = candidateIds.Distinct().ToArray()
+            NpgsqlDbType = NpgsqlDbType.Array | NpgsqlDbType.Text,
+            Value = otomoPlayerIds.Where(id => !string.IsNullOrWhiteSpace(id)).Distinct().ToArray()
         });
 
-        var result = new List<long>();
+        var players = new List<OtomoPlayer>();
         using var reader = command.ExecuteReader();
-        while (reader.Read()) result.Add(reader.GetInt64(0));
-        return result;
+        while (reader.Read()) players.Add(ReadOtomoPlayer(reader));
+        return players;
     }
 
-    public void AddFollow(long followerId, long followedId)
+    public OtomoPlayer? FindOtomoPlayer(long playerId)
     {
-        ValidateFollowIds(followerId, followedId);
+        if (playerId <= 0) return null;
         using var connection = _dataSource.OpenConnection();
         using var command = connection.CreateCommand();
-        command.CommandText = """
-            insert into player_follows (follower_id, followed_id)
-            values ($1, $2)
-            on conflict (follower_id, followed_id) do nothing
-            """;
-        command.Parameters.AddWithValue(followerId);
-        command.Parameters.AddWithValue(followedId);
-        command.ExecuteNonQuery();
-    }
-
-    public void RemoveFollow(long followerId, long followedId)
-    {
-        ValidateFollowIds(followerId, followedId);
-        using var connection = _dataSource.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = "delete from player_follows where follower_id = $1 and followed_id = $2";
-        command.Parameters.AddWithValue(followerId);
-        command.Parameters.AddWithValue(followedId);
-        command.ExecuteNonQuery();
-    }
-
-    public int CountFollowing(long playerId) => CountFollowEdges("follower_id", playerId);
-
-    public int CountFollowers(long playerId) => CountFollowEdges("followed_id", playerId);
-
-    public IReadOnlyList<FollowedProfile> ListFollowing(long playerId, int offset, int limit)
-    {
-        ValidatePage(offset, limit);
-        using var connection = _dataSource.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = """
-            select p.id, coalesce(p.display_name, ''), p.kicker_id, p.kicker_costume_id,
-                   f.created_at, false
-            from player_follows f
-            join players p on p.id = f.followed_id
-            where f.follower_id = $1
-            order by f.created_at desc, p.id asc
-            offset $2 limit $3
-            """;
+        command.CommandText = OtomoPlayerQuery + " where id = $1";
         command.Parameters.AddWithValue(playerId);
-        command.Parameters.AddWithValue(offset);
-        command.Parameters.AddWithValue(limit);
-        return ReadFollowedProfiles(command);
-    }
-
-    public IReadOnlyList<FollowedProfile> ListFollowers(long playerId, int offset, int limit)
-    {
-        ValidatePage(offset, limit);
-        using var connection = _dataSource.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = """
-            select p.id, coalesce(p.display_name, ''), p.kicker_id, p.kicker_costume_id,
-                   f.created_at, f.read_at is null
-            from player_follows f
-            join players p on p.id = f.follower_id
-            where f.followed_id = $1
-            order by f.created_at desc, p.id asc
-            offset $2 limit $3
-            """;
-        command.Parameters.AddWithValue(playerId);
-        command.Parameters.AddWithValue(offset);
-        command.Parameters.AddWithValue(limit);
-        return ReadFollowedProfiles(command);
-    }
-
-    public int CountNewFollowers(long playerId)
-    {
-        using var connection = _dataSource.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = "select count(*) from player_follows where followed_id = $1 and read_at is null";
-        command.Parameters.AddWithValue(playerId);
-        return Convert.ToInt32(command.ExecuteScalar());
-    }
-
-    public void MarkFollowersRead(long playerId, IReadOnlyCollection<long> followerIds)
-    {
-        ArgumentNullException.ThrowIfNull(followerIds);
-        if (followerIds.Count == 0) return;
-
-        using var connection = _dataSource.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = """
-            update player_follows set read_at = coalesce(read_at, now())
-            where followed_id = $1 and follower_id = any($2)
-            """;
-        command.Parameters.AddWithValue(playerId);
-        command.Parameters.Add(new NpgsqlParameter
-        {
-            NpgsqlDbType = NpgsqlDbType.Array | NpgsqlDbType.Bigint,
-            Value = followerIds.Distinct().ToArray()
-        });
-        command.ExecuteNonQuery();
-    }
-
-    public string GetOrCreateRealFriendToken(long playerId)
-    {
-        if (playerId <= 0) throw new ArgumentOutOfRangeException(nameof(playerId));
-        using var connection = _dataSource.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = """
-            insert into real_friend_tokens (player_id, token) values ($1, $2)
-            on conflict (player_id) do update set player_id = excluded.player_id
-            returning token
-            """;
-        command.Parameters.AddWithValue(playerId);
-        command.Parameters.AddWithValue(CreateOpaqueToken());
-        return Convert.ToString(command.ExecuteScalar())!;
-    }
-
-    public long? TryGetRealFriendTokenOwner(string token)
-    {
-        if (string.IsNullOrWhiteSpace(token)) return null;
-        using var connection = _dataSource.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = "select player_id from real_friend_tokens where token = $1";
-        command.Parameters.AddWithValue(token);
-        var owner = command.ExecuteScalar();
-        return owner is null or DBNull ? null : Convert.ToInt64(owner);
-    }
-
-    public void AddRealFriend(long firstPlayerId, long secondPlayerId)
-    {
-        ValidateFollowIds(firstPlayerId, secondPlayerId);
-        using var connection = _dataSource.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = """
-            insert into player_real_friends (player_low_id, player_high_id)
-            values ($1, $2)
-            on conflict (player_low_id, player_high_id) do nothing
-            """;
-        command.Parameters.AddWithValue(Math.Min(firstPlayerId, secondPlayerId));
-        command.Parameters.AddWithValue(Math.Max(firstPlayerId, secondPlayerId));
-        command.ExecuteNonQuery();
-    }
-
-    public bool AreRealFriends(long firstPlayerId, long secondPlayerId)
-    {
-        ValidateFollowIds(firstPlayerId, secondPlayerId);
-        using var connection = _dataSource.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = """
-            select exists (
-                select 1 from player_real_friends
-                where player_low_id = $1 and player_high_id = $2
-            )
-            """;
-        command.Parameters.AddWithValue(Math.Min(firstPlayerId, secondPlayerId));
-        command.Parameters.AddWithValue(Math.Max(firstPlayerId, secondPlayerId));
-        return Convert.ToBoolean(command.ExecuteScalar());
-    }
-
-    public IReadOnlyList<RankedPlayer> ListRanks(
-        int battleRuleType,
-        IReadOnlyCollection<long>? playerIds,
-        int offset,
-        int limit)
-    {
-        ValidatePage(offset, limit);
-        if (playerIds is { Count: 0 }) return Array.Empty<RankedPlayer>();
-
-        using var connection = _dataSource.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = playerIds is null
-            ? RankingQuery(includePlayerFilter: false)
-            : RankingQuery(includePlayerFilter: true);
-        command.Parameters.AddWithValue(battleRuleType);
-        command.Parameters.AddWithValue(RankProgression.StartBattlePoint);
-        command.Parameters.AddWithValue(RankProgression.StartRank);
-        if (playerIds is not null)
-        {
-            command.Parameters.Add(new NpgsqlParameter
-            {
-                NpgsqlDbType = NpgsqlDbType.Array | NpgsqlDbType.Bigint,
-                Value = playerIds.Distinct().ToArray()
-            });
-        }
-        command.Parameters.AddWithValue(offset);
-        command.Parameters.AddWithValue(limit);
-
-        var result = new List<RankedPlayer>();
         using var reader = command.ExecuteReader();
-        while (reader.Read())
-        {
-            var profile = ReadProfile(reader, 0);
-            result.Add(new RankedPlayer(profile, reader.GetInt32(4), reader.GetInt32(5), reader.GetInt64(6)));
-        }
-        return result;
-    }
-
-    private static string RankingQuery(bool includePlayerFilter)
-    {
-        var filter = includePlayerFilter ? "where id = any($4)" : "";
-        var offsetParameter = includePlayerFilter ? "$5" : "$4";
-        var limitParameter = includePlayerFilter ? "$6" : "$5";
-        return $"""
-            with scored as (
-                select p.id, coalesce(p.display_name, '') as display_name, p.kicker_id, p.kicker_costume_id,
-                       coalesce(r.battle_point, $2) as battle_point,
-                       coalesce(r.rank, $3) as rank,
-                       row_number() over (order by coalesce(r.battle_point, $2) desc, p.id asc) as position
-                from players p
-                left join player_ranks r on r.player_id = p.id and r.battle_rule_type = $1
-                where nullif(p.display_name, '') is not null
-            )
-            select id, display_name, kicker_id, kicker_costume_id, battle_point, rank, position
-            from scored
-            {filter}
-            order by position
-            offset {offsetParameter} limit {limitParameter}
-            """;
+        return reader.Read() ? ReadOtomoPlayer(reader) : null;
     }
 
     private static PlayerProfile ReadProfile(NpgsqlDataReader reader, int firstColumn) =>
         new(reader.GetInt64(firstColumn), reader.GetString(firstColumn + 1),
             reader.GetInt32(firstColumn + 2), reader.GetInt32(firstColumn + 3));
 
-    private static IReadOnlyList<FollowedProfile> ReadFollowedProfiles(NpgsqlCommand command)
-    {
-        var result = new List<FollowedProfile>();
-        using var reader = command.ExecuteReader();
-        while (reader.Read())
-        {
-            var createdAt = DateTime.SpecifyKind(reader.GetDateTime(4), DateTimeKind.Utc);
-            result.Add(new FollowedProfile(ReadProfile(reader, 0), new DateTimeOffset(createdAt), reader.GetBoolean(5)));
-        }
-        return result;
-    }
+    private const string OtomoPlayerQuery = """
+        select id, otomo_player_id
+        from players
+        """;
 
-    private static void ValidateFollowIds(long followerId, long followedId)
-    {
-        if (followerId <= 0) throw new ArgumentOutOfRangeException(nameof(followerId));
-        if (followedId <= 0) throw new ArgumentOutOfRangeException(nameof(followedId));
-        if (followerId == followedId) throw new ArgumentException("A player cannot follow themselves.", nameof(followedId));
-    }
-
-    private static void ValidatePage(int offset, int limit)
-    {
-        if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
-        if (limit < 0) throw new ArgumentOutOfRangeException(nameof(limit));
-    }
-
-    private int CountFollowEdges(string playerColumn, long playerId)
-    {
-        using var connection = _dataSource.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = $"select count(*) from player_follows where {playerColumn} = $1";
-        command.Parameters.AddWithValue(playerId);
-        return Convert.ToInt32(command.ExecuteScalar());
-    }
-
-    private static string CreateOpaqueToken() =>
-        Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))
-            .TrimEnd('=')
-            .Replace('+', '-')
-            .Replace('/', '_');
+    private static OtomoPlayer ReadOtomoPlayer(NpgsqlDataReader reader) =>
+        new(reader.GetInt64(0), reader.GetString(1));
 }

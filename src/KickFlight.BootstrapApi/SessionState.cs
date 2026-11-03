@@ -70,10 +70,10 @@ public sealed class SessionState
     // a fresh account reads as Start (1); the name ends it at 207 regardless (see DemoSessionApi.TutorialStatus).
     public int TutorialProgress { get; set; }
 
-    // discId -> the level this player has raised it to. A disc with no entry is at its rarity's start level
-    // (EconomyTuning.StartLevel). It is a choice of the player's own, like a deck, and lives here rather than in
-    // economy because economy models possession, not levels; ranked battles send it, casual ones do not.
-    public Dictionary<int, int> DiscLevels { get; set; } = new();
+    // The disc levels used to live here, as `discId -> level`. They do not any more: a level is attrs.level on the
+    // disc's own possession in economy's inventory, raised by POST /internal/economy/items/advance, and every read of
+    // it - the disc list, a build-up, a ranked deck's fight levels - goes there. A save written before that move still
+    // carries the old key; it is ignored on read and gone on the next write.
 
     // discId -> the x-app-response-cache-id of the last /disc/buildup that raised it. The client sends the same id
     // again when it retries a request whose answer it lost, so a match is that retry and is answered without a

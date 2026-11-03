@@ -35,6 +35,10 @@ public sealed class PolishEndpointsFixture : IDisposable
 [Collection("Matchmaking static state")]
 public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
 {
+    // A player session has no points for: 0 session points is 200 client points, at the lowest published tier (rank 1).
+    private const int NewPlayerRank = 1;
+    private static readonly int NewPlayerBattlePoint = KickFlight.BootstrapApi.Otomo.RankTranslation.ClientPoints(0);
+
     private const string Host = "kickflight-api.grenge.jp";
     private const string CommonCode = "1a837b9ee2ae11a07a0f529a4cd4b61c";
 
@@ -317,20 +321,20 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
         Assert.Equal(3, ranks.Count);
         foreach (var rank in ranks)
         {
-            Assert.Equal(RankProgression.StartRank, rank.GetProperty("rank").GetInt32());
-            Assert.Equal(RankProgression.StartBattlePoint, rank.GetProperty("battlePoint").GetInt32());
+            Assert.Equal(NewPlayerRank, rank.GetProperty("rank").GetInt32());
+            Assert.Equal(NewPlayerBattlePoint, rank.GetProperty("battlePoint").GetInt32());
         }
 
         var result = await PostAsync(session, "/battle/result", null);
-        Assert.Equal(RankProgression.StartRank, result.GetProperty("userBattleRank").GetProperty("rank").GetInt32());
+        Assert.Equal(NewPlayerRank, result.GetProperty("userBattleRank").GetProperty("rank").GetInt32());
         // No issued ranked entry means there is no authoritative ranked mode to apply.
-        Assert.Equal(RankProgression.StartBattlePoint, result.GetProperty("userBattleRank").GetProperty("battlePoint").GetInt32());
-        Assert.Equal(RankProgression.StartRank, result.GetProperty("beforeUserBattleRank").GetProperty("rank").GetInt32());
-        Assert.Equal(RankProgression.StartBattlePoint, result.GetProperty("beforeUserBattleRank").GetProperty("battlePoint").GetInt32());
+        Assert.Equal(NewPlayerBattlePoint, result.GetProperty("userBattleRank").GetProperty("battlePoint").GetInt32());
+        Assert.Equal(NewPlayerRank, result.GetProperty("beforeUserBattleRank").GetProperty("rank").GetInt32());
+        Assert.Equal(NewPlayerBattlePoint, result.GetProperty("beforeUserBattleRank").GetProperty("battlePoint").GetInt32());
 
         // The home profile continues to serve the unchanged persisted standing.
         var after = await PostAsync(session, "/home/index", null);
-        Assert.Equal(RankProgression.StartBattlePoint, after.GetProperty("userBattleRankList")[0].GetProperty("battlePoint").GetInt32());
+        Assert.Equal(NewPlayerBattlePoint, after.GetProperty("userBattleRankList")[0].GetProperty("battlePoint").GetInt32());
     }
 
     [Fact]
@@ -351,6 +355,15 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
             Assert.Equal(i, rows[i].GetProperty("rank").GetInt32());
         }
         Assert.Equal("S⁺9", rows[^1].GetProperty("name").GetString());
+
+        // The values the retail-shaped table has always carried (the pre-otomo literal), now built from the published
+        // session.rank tiers as min_points + 200 with rank 0 at 0. Asserting them here is what proves the unit
+        // translation is lossless for the ladder rank_1@0 .. rank_16@7300.
+        int[] retailTotals = [0, 200, 500, 900, 1400, 1900, 2400, 2900, 3400, 3900, 4400, 4900, 5400, 5900, 6400, 6900, 7500];
+        Assert.Equal(retailTotals, rows.Select(row => row.GetProperty("totalBattlePoint").GetInt32()).ToArray());
+        string[] retailNames = ["D", "C", "C⁺", "B", "B⁺", "A", "A⁺", "S", "S⁺1", "S⁺2", "S⁺3", "S⁺4", "S⁺5", "S⁺6", "S⁺7", "S⁺8", "S⁺9"];
+        Assert.Equal(retailNames, rows.Select(row => row.GetProperty("name").GetString()).ToArray());
+        Assert.Equal(Enumerable.Range(1, 17), rows.Select(row => row.GetProperty("id").GetInt32()));
 
         // One row per league badge the client ships (ui/league/thumbnail_league_0 … _16). BattleRankMaster
         // .OnLoadComplete takes RegularEndRank as the first row with regularMatchFlag == 0 and BattleUtil
@@ -464,7 +477,7 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
         Assert.Equal(publicOwnId, own.GetProperty("displayUserId").GetInt64());
         Assert.Equal("", own.GetProperty("name").GetString());
         Assert.Equal(6010000, own.GetProperty("honorId").GetInt32());
-        Assert.Equal(RankProgression.StartRank, own.GetProperty("userBattleRankList")[0].GetProperty("rank").GetInt32());
+        Assert.Equal(NewPlayerRank, own.GetProperty("userBattleRankList")[0].GetProperty("rank").GetInt32());
 
         var ownByPublicId = (await PostAsync(session, "/user/search", new { displayUserId = publicOwnId })).GetProperty("userProfile");
         Assert.Equal(session.UserId, ownByPublicId.GetProperty("userId").GetString());
