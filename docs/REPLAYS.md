@@ -16,7 +16,7 @@ client (recording on by default)
    │  match ends
    ├─ POST /battle/end            -> server records rule/field/roster + human count, answers replayUploadFlag=true
    │  (custom: POST /customBattle/end -> same recording, response stays field-less; the cave sets the upload flag)
-   ├─ POST /battle/upload         -> base64(gzip(archive)) stored, metadata indexed, response {}
+   ├─ POST /battle/upload         -> base64(gzip(archive)) sent to otomo patch as one recording, response {}
    │
    ├─ POST /battleReplay/index    -> Featured (channel 1) + 14 kicker channels (1000+kickerId)
    └─ POST /battleReplay/play     -> { battleReplayUrl, encryptionKey } (32-char key, 10 min)
@@ -25,58 +25,59 @@ client (recording on by default)
 
 * Tab 1 ("Replay") is device-local and untouched by the server (owner decision 1).
 * Tab 2 (Kicker) is data-driven from `config/masters_battle_replay_channel.json` (type 2, one row per
-  kicker) and the index's per-channel replay list (latest `KickerChannelSize`, newest first).
+  kicker) and the index's per-channel replay list: patch's `?tag=kicker:<id>` listing, newest
+  `Otomo:Recordings:KickerChannelSize` first.
 * Tab 3 (Rank in the stock prefab) is repurposed as **Featured**: one type-3 row (id 1) whose list is the
-  rotation's top `FeaturedCount` replays by human player count, ties broken newest first. The set is frozen
-  per rotation and persisted in `featured.json`, so a restart serves the same set. The tab label is not
-  patched (owner decision).
+  curated list `Otomo:Recordings:FeaturedList` (`featured`) of the published `patch.curated` document, read
+  through patch (`?list=featured`) in the published order. Nothing is ranked or rotated here; an unpublished
+  or empty list is an empty row. The tab label is not patched (owner decision).
 * `appMovieList` stays `[]` (the Pickup tab is out of scope).
 * Custom-battle uploads require the Part B client cave (`scripts/re/replay_upload_cave.py`): the stock
   `GameManager.CallbackCustomBattleEndSuccess` never sets `ArchiveData.IsUploadReplayData`.
 
+## Ownership: patch holds the replays
+
+This server stores no replay. Recorded content is otomo's patch service (`services/patch`, "Recorded
+content"); `Otomo/OtomoRecordings.cs` is the client and `BattleReplayService` the translation.
+
+| Client need | Patch contract |
+| --- | --- |
+| `/battle/upload` | `PUT /internal/patch/recording/{battleId}` with the game-server key; multipart `kind`, `sha256`, `size`, `players` (otomo account ids: the uploader and every linked human), `tags`, `meta` (the index row as JSON), then the bytes in the final `file` part. An identical retry is 200, a different upload under that id is 409 `recording_conflict` (first upload wins). |
+| Tags | `kicker:<id>` per kicker that played, then `humans:<n>`, `rule:<id>`, `ver:<appVersion>` and `custom`. Patch allows 16 tags of `[A-Za-z0-9_.:-]`, 1-64 chars; kickers are written first. |
+| Kicker channel | `GET /patch/v1/recordings?tag=kicker:<id>&limit=20` with the player's token. |
+| Featured | `GET /patch/v1/recordings?list=featured`. A 404 (never published) is an empty row. |
+| `/battleReplay/play`, blob | the sealed URL id below; bytes from `GET /patch/v1/recordings/{id}/blob` with the player's token. |
+
+Retention is patch's: it has no scheduled sweep (a recording is deleted by its producer or an operator). The old
+30 day / 5 GiB policy no longer exists here.
+
+The play URL id (`/battleReplay/blob/{keyId}`) is the replay id, the player's otomo device id and an expiry,
+sealed with AES-GCM under `Otomo:Recordings:PlaySecret` (default `Otomo:TokenSecret`); the 32-char encryption key
+is an HMAC of that id. No key table exists, so a restart or a second replica serves an id the first minted. As
+before, an id is valid until it expires (`PlayLifetime`, 10 minutes), not for one use. Without any secret the key
+is generated at startup and ids stop working at a restart.
+
+The only state left in the process is the battle-end snapshot `/battle/end` leaves for the master client's upload
+(kicker costumes are not in the archive); losing it costs a default costume on a row.
+
 ## Config keys
 
-Section `Replays` (`Replays__X` environment / `Replays:X` config). Defaults are also in
-`src/KickFlight.BootstrapApi/appsettings.json`.
+Section `Otomo:Recordings` (`Otomo__Recordings__X` environment). Defaults are in
+`src/KickFlight.BootstrapApi/appsettings.json`. The old `Replays:*` section and its volume mounts are gone.
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `Replays:Directory` | `.local/replays` | Storage root, resolved with `RepositoryPaths` (repo-relative unless absolute). |
-| `Replays:MaxUploadBytes` | 67108864 (64 MiB) | Decoded gzip archive cap. Base64 is rejected above 4/3 of it. |
-| `Replays:MaxDecompressedBytes` | 268435456 (256 MiB) | Gunzip cap (zip-bomb guard; the client `frames` cap is 50 MiB). |
-| `Replays:KickerChannelSize` | 20 | Latest N replays per kicker channel. |
-| `Replays:FeaturedCount` | 20 | K in the Featured set. |
-| `Replays:RotationHours` | 3 | Featured recompute/freeze period. |
-| `Replays:FeaturedWindowHours` | 6 (2 × rotation) | Only replays received within this window are candidates. |
-| `Replays:RetentionDays` | 30 | Age after which a non-Featured replay is pruned (by server receipt time). |
-| `Replays:MaxTotalBytes` | 5368709120 (5 GiB) | Total size budget; oldest non-Featured replays are pruned first. |
-| `Replays:KeyLifetimeMinutes` | 10 | Lifetime of the per-download `/battleReplay/play` key. |
-
-## Storage layout
-
-```
-<Replays:Directory>/
-  blobs/<replayId>.bin    uploaded gzip archive, byte-for-byte (the plaintext D2CCodec wraps for playback)
-  meta/<replayId>.json    one index row per replay (also the restart-time index source)
-  featured.json           frozen Featured rotation { RotationStartUtc, ReplayIds[], ComputedUtc }
-```
-
-`replayId` is the battle id (`battle-N` / `custom-...`), or a SHA-256-derived id when it is not
-filename-safe. A replay is only indexed once a blob exists.
-
-### Where this lives on the VPS
-
-The deployed tree is replaced by every CI deploy and `.local/` is excluded from the rsync, but `.local` is
-mounted **read-only** inside the API container. Each compose file therefore gives the store a dedicated
-writable sub-mount, following the `Masters:OverrideDir` / `/opt/kickflight/.local` convention:
-
-| File | Mount | Setting |
-| --- | --- | --- |
-| `deploy/docker-compose.vps.yml` | `../.local/replays:/srv/replays` | `Replays__Directory=/srv/replays` (host `/opt/kickflight/.local/replays`) |
-| `deploy/docker-compose.nas.yml` | `/mnt/Tanuki_1/kickflight/app/.local/replays:/srv/replays` | `Replays__Directory=/srv/replays` |
-| `docker-compose.yml` (LAN) | `./.local/replays:/srv/replays` | `Replays__Directory=/srv/replays` |
-
-Running `dotnet run` outside Docker uses the default `.local/replays` directly.
+| `Enabled` | `false` | Off: upload, index and play answer 503 (`replay-unavailable`, reason `Disabled`). |
+| `BaseUrl` | (Otomo:Social:BaseUrl) | Patch's player listener through the gateway (list, blob). |
+| `InternalBaseUrl` | (BaseUrl) | Patch's internal listener, `PATCH_INTERNAL_ADDR` (upload). |
+| `ServiceKeyFile` / `ServiceKey` | empty | `patch_gameserver.key`. Without it uploads are `Disabled`. |
+| `FeaturedList` | `featured` | The `patch.curated` list the Featured row reads. |
+| `KickerChannelSize` | 20 | Replays per kicker channel (patch allows up to 200). |
+| `MaxUploadBytes` | 67108864 (64 MiB) | Decoded gzip archive cap; base64 is rejected above 4/3 of it. Patch caps at `PATCH_RECORDING_MAX_BYTES` (64 MiB default). |
+| `MaxDecompressedBytes` | 268435456 (256 MiB) | Gunzip cap (zip-bomb guard). |
+| `PlayLifetime` | 10 min | Lifetime of the `/battleReplay/play` URL and key. |
+| `PlaySecret` | empty | Seals the play URL; empty uses `Otomo:TokenSecret`. |
+| `Timeout`, `TransferTimeout`, `RetryDelay` | 5 s, 60 s, 100 ms | Bounds on a list call, an upload or blob transfer, and the one retry. |
 
 ## Masters
 
@@ -137,21 +138,21 @@ The stored blob is the uploaded gzip bytes unchanged; playback plaintext is that
 `NetworkManager.GetFromDataBinary(body, encryptionKey)` where `key = UTF8(encryptionKey)` and
 `body[0..16)` is the IV. `D2CCodec.Encode` is the same AES-256-CBC/PKCS7 `IV || ciphertext`, so
 `/battleReplay/blob/{keyId}` returns `D2CCodec.Encode(blob, UTF8(key), randomIV)`. The key must be exactly
-32 bytes; `CreatePlayKey` emits 32 ASCII hex chars.
+32 bytes; `CreatePlayKeyAsync` emits 32 ASCII hex chars.
 
 ## What is verified / unverified
 
-Verified by tests (`BattleReplayTests`, 9 tests):
+Verified by tests (`BattleReplayTests`, against `FakeOtomoRecordings`, which follows patch's own contract):
 
 * archive parser round-trip and rejection of a wrong type tag;
-* human counting from `_isAi` / `_aiFlag` and the battle-end fallback snapshot;
-* duplicate battleId keeps the first upload;
-* Featured top-K by human count, frozen within a rotation, recomputed after it, restart-persistent;
-* kicker channel filtering and newest-first order;
-* `/battle/end` returns `replayUploadFlag: true` and keeps the reward fields;
-* `/battleReplay/index` shape (15 channels, DTO field names, costume row ids) and
-  `/battleReplay/play` → blob decrypts with the returned key back to the uploaded bytes;
-* custom-battle end is recorded and `/battle/upload` fills rule/field from the archive.
+* the upload's tags, players, kind and meta, the battle-end fallback snapshot, and first-upload-wins;
+* kicker channel contents and newest-first order from the by-tag listing, and the channel size cap;
+* Featured is the published curated list in its order, drops deleted recordings, and is empty (not invented)
+  when nothing is published;
+* the sealed play URL: round trip to the uploaded bytes, refusal of unknown, foreign, forged and expired ids,
+  and service-restart safety;
+* `/battle/end`, `/battle/upload`, `/battleReplay/index` and `/battleReplay/play` end to end, and the 503
+  contract when patch is down or switched off.
 
 Unverified / to check on a device:
 
@@ -159,5 +160,5 @@ Unverified / to check on a device:
 * the Kicker/Featured tabs render and playback enters the replay scene (report §7 list);
 * whether `ReplayPlayFile.IsValid` accepts replays from another build (the index serves
   `applicationVersion` from the upload header verbatim);
-* whether the Featured set should include custom battles (it does now that Part B uploads them);
+* who publishes `patch.curated` (an owner decision; until then Featured is empty);
 * large-match upload timing / gzip ratio against the 64 MiB cap.

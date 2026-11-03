@@ -186,7 +186,7 @@ retention. The admin page lists them, can download them and links them to issues
 
 ## 4. KF features that stay in KF
 
-- **Replays:** their storage and featured rotation are game-specific.
+- **Replays:** their storage, index and curated Featured row moved to otomo's patch recordings (docs/REPLAYS.md); only the translation to the client's replay DTOs stays in KF.
 - **Battle and Photon semantics:** the outcome rules and match statuses in `OpsStatusRules.cs` are game-specific.
   The timeline mechanism goes to otomo (G4); KF's rules for what counts as abandoned or dropped stay in KF.
 - **The kicker and disc panel layouts, and the effect-table presets:** these become KF's own `ui.presentation`

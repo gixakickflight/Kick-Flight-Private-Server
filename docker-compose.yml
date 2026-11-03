@@ -42,15 +42,11 @@ services:
       - PhotonServer__MasterServerPort=5055
       - PhotonServer__GameServerPort=5056
       - PhotonServer__NameServerPort=5058
-      # Replay blobs/metadata persist outside the deployed tree (CI replaces the repo, never .local/). The
-      # .local root is mounted read-only above, so give the replay store its own writable sub-mount.
-      - Replays__Directory=/srv/replays
     volumes:
       - ./config:/srv/repo/config
       - ./content:/srv/repo/content
       - ./data:/srv/repo/data
       - ./.local:/srv/repo/.local:ro
-      - ./.local/replays:/srv/replays
       - ../Kick-Flight-Assets:/srv/Kick-Flight-Assets:ro
     ports:
       - "18080:18080"

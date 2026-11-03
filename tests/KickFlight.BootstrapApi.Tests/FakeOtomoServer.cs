@@ -215,6 +215,7 @@ public static class OtomoTestEnvironment
     private static readonly Lazy<FakeOtomoServer> LazyServer = new(FakeOtomoServer.Start);
     private static readonly Lazy<FakeOtomoEconomy> LazyEconomy = new(FakeOtomoEconomy.Start);
     private static readonly Lazy<FakeOtomoSocial> LazySocial = new(FakeOtomoSocial.Start);
+    private static readonly Lazy<FakeOtomoRecordings> LazyRecordings = new(FakeOtomoRecordings.Start);
 
     private static readonly Lazy<FakeOtomoChat> LazyChat = new(() =>
     {
@@ -236,6 +237,10 @@ public static class OtomoTestEnvironment
     // The session service the follow screens and the ranking board read: the relation and the points are its, and
     // migration 6 dropped the tables this adapter used to keep them in.
     public static FakeOtomoSocial Social => LazySocial.Value;
+
+    // The patch recordings every host in this suite lists replays from. Shared, so a test that asserts which replays a
+    // channel holds starts a fake of its own (BattleReplayTests) and points its host there instead.
+    public static FakeOtomoRecordings Recordings => LazyRecordings.Value;
 
     [ModuleInitializer]
     internal static void Initialize()
@@ -261,6 +266,11 @@ public static class OtomoTestEnvironment
         Environment.SetEnvironmentVariable("Otomo__Rank__InternalBaseUrl", Social.BaseUrl);
         Environment.SetEnvironmentVariable("Otomo__Rank__ServiceKey", FakeOtomoSocial.ServiceKey);
         Environment.SetEnvironmentVariable("Otomo__Rank__Timeout", "00:00:10");
+        Environment.SetEnvironmentVariable("Otomo__Recordings__Enabled", "true");
+        Environment.SetEnvironmentVariable("Otomo__Recordings__BaseUrl", Recordings.BaseUrl);
+        Environment.SetEnvironmentVariable("Otomo__Recordings__InternalBaseUrl", Recordings.BaseUrl);
+        Environment.SetEnvironmentVariable("Otomo__Recordings__ServiceKey", FakeOtomoRecordings.ServiceKey);
+        Environment.SetEnvironmentVariable("Otomo__Recordings__Timeout", "00:00:10");
         Environment.SetEnvironmentVariable("Otomo__Masters__Enabled", "true");
         Environment.SetEnvironmentVariable("Otomo__Masters__BaseUrl", Social.BaseUrl);
         Environment.SetEnvironmentVariable("Otomo__Masters__Key", FakeOtomoSocial.ServiceKey);
