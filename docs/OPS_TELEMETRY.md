@@ -67,7 +67,7 @@ events. The player store is what intentionally fails the start on an unreachable
 | `custom` | boolean | a `/customBattle/start` record |
 | `first_start_at` | timestamptz | first `/battle/start` of a human |
 | `battle_time_seconds` | integer | from the BattleRule master (default 300), used by the silent-drop deadline |
-| `outcome` | text NULL | `clean` / `partial` / `abandoned` / `never_started`, or NULL while open |
+| `outcome` | text NULL | `clean` / `partial` / `abandoned` / `start_failed` / `queue_cancelled` (legacy rows: `never_started`), or NULL while open |
 
 `battle_participants` — one row per human per match, PK `(battle_id, user_id)`.
 
@@ -113,8 +113,11 @@ Participant statuses — open: `matching` (waiting for the window), `assigned` (
 re-authenticated within 5 minutes of its last sign of life), `matching_timeout`, `cancelled`,
 `matching_failed:<cause>`, `requeued` (moved to the next room, not a failure).
 
-Match outcomes: `clean` (every assigned human completed), `partial`, `abandoned`, `never_started`
-(no human ever reached `/battle/start`, or the room was dropped before its window closed).
+Match outcomes: `clean` (every assigned human completed), `partial`, `abandoned`, `start_failed`
+(finalized with an assigned human but nobody reached `/battle/start`: a real failure), `queue_cancelled`
+(room dropped because every waiting human left, or finalized with nobody assigned: not a failure, excluded from
+failure metrics). `never_started` is the legacy outcome of rows stored before the split (about 90% were queue
+cancels); it stays readable and is shown as "legacy".
 
 ## Endpoints
 

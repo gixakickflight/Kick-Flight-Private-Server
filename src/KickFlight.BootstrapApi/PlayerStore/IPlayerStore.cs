@@ -1,5 +1,8 @@
 namespace KickFlight.BootstrapApi.PlayerStore;
 
+// A player's registered push token (see SessionState.PushToken).
+public sealed record PushRegistration(long PlayerId, string Token);
+
 // A resolved session token: which player it belongs to, and the key their bodies are encrypted with.
 public sealed record SessionRecord(long PlayerId, byte[] Key);
 
@@ -83,6 +86,10 @@ public interface IPlayerStore
     long? TryGetRealFriendTokenOwner(string token);
     void AddRealFriend(long firstPlayerId, long secondPlayerId);
     bool AreRealFriends(long firstPlayerId, long secondPlayerId);
+
+    // Every player with a non-empty SessionState.PushToken (id + token). Used to pick push recipients and to dedupe a
+    // token registered on a second account.
+    IReadOnlyList<PushRegistration> ListPushRegistrations();
 
     // A null playerIds selects the complete named-player ranking. Filtered results retain their global position.
     IReadOnlyList<RankedPlayer> ListRanks(

@@ -13,7 +13,7 @@ What this does to <decoded-apk-dir> (an `apktool d -s` tree):
 
 Usage: patch-exit-reporter.py <decoded-apk-dir> --base-url http://<server>:18080 [--rebuild]
 Reading the reports on the VPS: /opt/kickflight/.local/diag-uploads/logcat-*.txt whose first line is
-"KF-EXIT-REPORT v1" (grep -l KF-EXIT-REPORT); native tombstones: base64 -d | protoc --decode_raw.
+"KF-EXIT-REPORT v2" (v1 before 2.11.7) (grep -l KF-EXIT-REPORT); native tombstones: base64 -d | protoc --decode_raw.
 """
 import argparse, os, re, shutil, subprocess, sys, tempfile
 from pathlib import Path

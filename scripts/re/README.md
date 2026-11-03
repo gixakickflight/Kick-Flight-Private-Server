@@ -191,3 +191,19 @@ Pass the same flags through the normal APK builder. The server flag is independe
 `ai_role_diag_read.py` reads captured logcat; quote filters as `KFDIAG:V Unity:V '*:S'`. Marker7650 is a low-HP threshold change during candidate evaluation, not a completed deposit. Markers7590/7591 classify a final guardian target by role regardless of purpose; check purpose before treating it as an attack.
 
 Run `.venv/bin/python -m unittest discover -s tests -p 'test_ai_role*.py' -q`; optional `unicorn==2.1.4` enables actual ARM64 deposit-cave execution with stubbed HP/logger calls. See the status report for static versus Android validation limits.
+
+## 2.11.7-DIAG build (UnzipDamageInfo caller capture via NRE LR)
+
+```bash
+M=~/Proyectos/KickFlight/Kick-Flight-Private-Server
+PYTHON=$M/.venv/bin/python SOURCE_APK=$M/base.apk KEYSTORE=$M/.local/signing/kickflight-test-signing.jks \
+KF_PUSH=1 KF_FIREBASE_CONFIG=$M/.local/firebase/google-services.json \
+KF_DIAG=1 KF_NRE_LR=1 SERVER_BASE_URL=http://10.0.2.2:18080 OUTPUT_APK=.local/artifacts/KickFlight-2.11.7-DIAG.apk \
+scripts/build-direct-apk.sh
+# dry-run (prod 244 patches; DIAG+NRE_LR 457):
+KF_DIAG=1 KF_NRE_LR=1 python scripts/patch-il2cpp-endpoints.py --dry-run --arm64 <pristine-libil2cpp.so>
+```
+
+Run: `adb logcat -c`, reproduce, `adb logcat -d -v time > .local/run/logcat-x.txt`; each `KFDIAG v=<n>` just before an
+NRE is `LR & 0xFFFFFFFF` -> RVA (see AGENTS.md "Locating NREs with KF_NRE_LR=1"). Native crashes in exit reports:
+`python scripts/re/symbolize_exit_report.py <report>`.

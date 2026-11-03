@@ -76,7 +76,7 @@ safe_host="${server_base_url#http://}"
 safe_host="${safe_host//:/-}"
 artifact_dir="$repo/.local/artifacts"
 work_root="$repo/.local/apk-direct-work"
-output_apk="${OUTPUT_APK:-$artifact_dir/KickFlight-${KF_VERSION_NAME:-2.11.6}-remote.apk}"
+output_apk="${OUTPUT_APK:-$artifact_dir/KickFlight-${KF_VERSION_NAME:-2.11.7}-remote.apk}"
 
 # Keystore resolution: explicit path, then worktree-local production key
 if [[ -n "${KEYSTORE:-}" ]]; then
@@ -161,6 +161,16 @@ fi
 
 echo "==> Patching previous-session exit reporter"
 "$python" "$repo/scripts/patch-exit-reporter.py" "$work/decoded" --base-url "$server_base_url"
+
+if [[ "${KF_PUSH:-}" == "1" ]]; then
+  echo "==> Patching Firebase push (FCM token -> our server)"
+  KF_FIREBASE_CONFIG="${KF_FIREBASE_CONFIG:-$repo/.local/firebase/google-services.json}"
+  if [[ ! -f "$KF_FIREBASE_CONFIG" ]]; then
+    echo "KF_PUSH=1 requires google-services.json at $KF_FIREBASE_CONFIG (set KF_FIREBASE_CONFIG=<path>; never commit this file)" >&2
+    exit 1
+  fi
+  "$python" "$repo/scripts/patch-firebase-push.py" "$work/decoded" --base-url "$server_base_url" --firebase-config "$KF_FIREBASE_CONFIG"
+fi
 
 echo "==> Building APK"
 apktool b "$work/decoded" -o "$work/unsigned.apk"

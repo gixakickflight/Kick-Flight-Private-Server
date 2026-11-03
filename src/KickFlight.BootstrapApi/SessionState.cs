@@ -20,6 +20,12 @@ public sealed class SessionState
     // (see the tutorialProgressStatus handling in BuildStartupJson) - so it must not be defaulted here.
     public string UserName { get; set; } = "";
     public int KickerId { get; set; } = 1;
+    // FCM registration token the client reported through POST /push/register, used for the "someone is searching
+    // ranked" push (Push/). Null until the client registers; cleared when FCM reports it dead or another player
+    // registers the same token (one device, one account). Never log it in full.
+    public string? PushToken { get; set; }
+    public DateTime? PushTokenUpdatedAtUtc { get; set; }
+    public string? PushPlatform { get; set; }
     // The honor (badge) the player currently displays. The default honor is also owned by every new account.
     public int HonorId { get; set; } = BadgeAwardRules.DefaultHonorId;
     // Persisted ownership and lifetime facts used by the badge rules the server can verify.

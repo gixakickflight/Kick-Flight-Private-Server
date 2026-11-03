@@ -364,6 +364,12 @@ docker compose --env-file .env --project-name deploy \
 
 Evita `down -v`: además de los volúmenes de Caddy y GeoIP, borraría `postgres-data` y la base de jugadores.
 
+## Push FCM de "alguien busca ranked"
+
+- El API envía una notificación FCM (HTTP v1) cuando alguien entra a cola ranked. Los clientes registran su token en `POST /push/register`.
+- Credenciales (cuenta de servicio de Firebase): en el host `.local/secrets/fcm-service-account.json`, visible en el contenedor `api` como `/srv/repo/.local/secrets/fcm-service-account.json` (el repo se monta de solo lectura). Permisos recomendados: `chmod 600` y directorio `chmod 700`; nunca en git ni en logs.
+- Ajustes (`Push__*`, ya definidos en `docker-compose.vps.yml`): `Push__Enabled`, `Push__CredentialsPath`, `Push__Title`, `Push__Body`, `Push__GlobalCooldownSeconds` (240), `Push__PerPlayerCooldownSeconds` (240), `Push__SkipRecentlyActiveSeconds` (120), `Push__TtlSeconds` (60), `Push__MaxConcurrentSends` (8). Por defecto `Enabled=false`; sin archivo de credenciales no hace nada.
+
 ## WebUI de balance (masters con overrides persistentes)
 
 El servidor no lee los masters de PostgreSQL: `DemoSessionApi` carga `config/masters_*.json` una sola vez al
