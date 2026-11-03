@@ -39,9 +39,11 @@ public sealed partial class DemoSessionApi
             {
                 var economy = await ReadPlayerEconomyAsync(ticket, EconomyRead.Inventory, path, context.RequestAborted);
                 if (economy.Snapshot is null) return EconomyUnavailable(context, path, economy.Error);
+                var (own, loadoutFailure) = await TryReadOwnLoadoutAsync(context, ticket, path);
+                if (own is null) return loadoutFailure!;
                 AdvanceTutorial(state, TutorialStatusStart);
                 NormalizeCostume(state);
-                var userKickerList = Payloads(state).BuildUserKickerList(economy.Snapshot, state.KickerId,
+                var userKickerList = Payloads(state, own.Loadout).BuildUserKickerList(economy.Snapshot, state.KickerId,
                     state.KickerCostumeId);
                 return OkJson(context, key, JsonSerializer.Serialize(new { userKickerList }));
             }
@@ -249,6 +251,10 @@ public sealed partial class DemoSessionApi
         SessionState state, byte[] key)
     {
         const string path = "/tutorial/gachaKickerDraw";
+        // The kicker list shows the gear in each costume's slots, which is session's; read before the grant is made so
+        // an unreachable session fails the step before anything is paid.
+        var (own, loadoutFailure) = await TryReadOwnLoadoutAsync(context, ticket, path);
+        if (own is null) return loadoutFailure!;
         var (grant, failure) = await GrantTutorialRewardAsync(path, context, ticket, key, TutorialKickerClass);
         if (failure is not null) return failure;
 
@@ -260,7 +266,7 @@ public sealed partial class DemoSessionApi
         // The grant's item moves read as draws, so the kicker rows are built the way a real draw's are, except that
         // each row names the granted skin: this response has no drop list, and the client shows these rows as one.
         var draws = (grant!.Items ?? []).Select(move => new EconomyDraw(move.Item, null, false, null, 0, false)).ToList();
-        var payloads = Payloads(state);
+        var payloads = Payloads(state, own.Loadout);
         return OkJson(context, key, JsonSerializer.Serialize(new
         {
             receivedUserKickerList = payloads.BuildReceivedUserKickerList(draws, economy.Snapshot, state.KickerId,

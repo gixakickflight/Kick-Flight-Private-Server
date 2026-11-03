@@ -195,10 +195,14 @@ render, and an operator would only hear about it from a player.
 
 ## What is left in `SessionState`
 
-`UserId`, `UserName`, `KickerId`, `KickerCostumeId`, `ActiveDeckNumber`, `Decks`, `CostumeGears`, `PendingGear`
-(and the derived `PlayerId`/`HasName`). That is a player's choices and their gear slots - not a balance, a ticket, a
-disc or a currency. `PostgresPlayerStore` migration 4 drops the four currency columns; a save document written before
-it still carries the old keys, which are ignored on read and gone on the next write.
+`UserId`, `UserName`, `KickerId`, `KickerCostumeId` (and the derived `PlayerId`/`HasName`), plus the tutorial, badge and
+onboarding facts. That is a player's choices - not a balance, a ticket, a disc, a currency, a deck or a gear slot.
+`PostgresPlayerStore` migration 4 drops the four currency columns and migration 8 the active-deck column; a save
+document written before them still carries the old keys, which are ignored on read and gone on the next write.
+
+A battle capsule is an economy *entitlement* (kind `capsule`, `max_open` 3, rule `match.capsule.<type>`), claimed when the
+slot is opened (`DemoSessionApi.Capsules.cs`); decks, the active deck, costume gears and a pending gear roll are the `ext`
+of the player's session card (`DemoSessionApi.Loadout.cs`).
 
 ## Tests
 

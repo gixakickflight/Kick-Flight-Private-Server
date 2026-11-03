@@ -29,7 +29,7 @@ namespace KickFlight.BootstrapApi.Tests;
 //
 // Account existence is lenient: any account id the auth fake minted is "a player session knows" and is created on its
 // first use here. An id starting with "ghost-" is the one session has never heard of (404 player_not_found).
-public sealed class FakeOtomoSocial : IAsyncDisposable
+public sealed partial class FakeOtomoSocial : IAsyncDisposable
 {
     private readonly WebApplication _app;
     private readonly ConcurrentDictionary<string, Account> _accounts = new(StringComparer.Ordinal);
@@ -98,6 +98,7 @@ public sealed class FakeOtomoSocial : IAsyncDisposable
         var server = new FakeOtomoSocial(app, "");
         server.Map();
         server.MapRank();
+        server.MapExt();
         app.StartAsync().GetAwaiter().GetResult();
 
         var address = app.Urls.FirstOrDefault(url => !url.EndsWith(":0", StringComparison.Ordinal))
@@ -544,6 +545,9 @@ public sealed class FakeOtomoSocial : IAsyncDisposable
         public string DisplayName { get; set; } = "";
         public int Discriminator { get; init; }
         public Dictionary<string, int> Points { get; } = new(StringComparer.Ordinal);
+
+        // The instance-declared fields session holds for this account (ext.session.player); see FakeOtomoSocial.Ext.cs.
+        public System.Text.Json.Nodes.JsonObject Ext { get; set; } = new();
 
         // Kept so a test could assert recency; the follow lists are unordered here, as the contract does not promise
         // an order.

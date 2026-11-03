@@ -143,8 +143,10 @@ public sealed partial class DemoSessionApi
             return StatusError(context, key);
         }
 
-        var record = FindProfileByDisplayOrStoredId(displayUserId);
-        if (record is null) return StatusError(context, key);
+        var local = FindProfileByDisplayOrStoredId(displayUserId);
+        if (local is null) return StatusError(context, key);
+        var (record, _, cardFailure) = await ReadTargetCardAsync(context, key, "/user/search", local);
+        if (record is null) return cardFailure;
         var followed = await ReadFollowedIdsAsync(ticket, "/user/search", context.RequestAborted);
         var (cardRanks, cardError) = await TryReadCardRanksAsync(ticket, state, [record.PlayerId], context.RequestAborted);
         if (cardRanks is null) return SocialUnavailable(context, "/user/search", cardError);
@@ -175,13 +177,16 @@ public sealed partial class DemoSessionApi
             return StatusError(context, key);
         }
 
-        var record = FindProfileByDisplayOrStoredId(searchUserId);
-        if (record is null) return StatusError(context, key);
-        var targetState = _playerStore.TryLoad(record.PlayerId);
+        var local = FindProfileByDisplayOrStoredId(searchUserId);
+        if (local is null) return StatusError(context, key);
+        var targetState = _playerStore.TryLoad(local.PlayerId);
         if (targetState is null) return StatusError(context, key);
+        // The name and the decks are session's answer for that player; the kicker, costume and honor are the game rows'.
+        var (record, card, cardFailure) = await ReadTargetCardAsync(context, key, "/user/detail", local);
+        if (record is null) return cardFailure;
 
         NormalizeCostume(targetState);
-        if (!TryBuildUserBattleParameterJson(targetState, out var battleParameter))
+        if (!TryBuildUserBattleParameterJson(targetState, Loadout.FromExt(card!.Ext), out var battleParameter))
             return StatusError(context, key);
 
         var targetProfile = record with
@@ -252,22 +257,48 @@ public sealed partial class DemoSessionApi
     private static long CurrentDisplayUserId(SessionState state) =>
         PlayerDisplayIdCodec.ToPublic(long.TryParse(state.UserId, out var parsed) ? parsed : 1000001);
 
-    // A card built from a numeric id with no session row in hand (a search box, a profile tap), so the name is the
-    // adapter's own FindProfile.
-    // TODO(otomo-profile): that name is a local copy of what session holds; remove it with the profile/loadout move.
+    // The game row a numeric id (a search box, a profile tap) names. It supplies the id mapping and the kicker and costume
+    // the adapter keeps; the name on the card is session's (ReadTargetCardAsync), never this row's DisplayName.
     private PlayerProfile? FindProfileByDisplayOrStoredId(long id) =>
         PlayerDisplayIdCodec.Find(id, _playerStore.FindProfile);
 
+    // Another player's card from session: the game row with the name session shows for that player, and the card itself
+    // (its ext carries the decks). A row with no otomo account was never signed in through otomo and has no card, so it is
+    // a lookup miss; a player session does not know is one too; session not answering is the 503 contract.
+    private async Task<(PlayerProfile? Profile, SessionPlayerProfile? Card, IResult? Failure)> ReadTargetCardAsync(
+        HttpContext context, byte[] key, string path, PlayerProfile local)
+    {
+        var link = _playerStore.FindOtomoPlayer(local.PlayerId);
+        if (link is null)
+        {
+            _logger.LogInformation("{Path}: game row {PlayerId} has no otomo account, so there is no card to show", path,
+                local.PlayerId);
+            return (null, null, StatusError(context, key));
+        }
+
+        var (card, error) = await TryReadCardAsync(link.OtomoPlayerId, context.RequestAborted);
+        if (card is null)
+        {
+            if (error is OtomoRankException { Failure: OtomoRankFailure.Refused, Code: "player_not_found" })
+            {
+                _logger.LogInformation("{Path}: session has no card for otomo player {OtomoPlayerId}", path, link.OtomoPlayerId);
+                return (null, null, StatusError(context, key));
+            }
+            return (null, null, LoadoutUnavailable(context, path, error));
+        }
+        return (local with { DisplayName = card.DisplayName ?? "" }, card, null);
+    }
+
     // The client resolves every disc id through DiscMasterData while building a friend card. Keep the detail
-    // payload tied to the target's persisted active deck, with the same initial deck as SessionState when a slot
-    // is absent or invalid. Rule 1 is the valid regular rule; SessionState does not persist a selected rule.
-    private bool TryBuildUserBattleParameterJson(SessionState state, out string json)
+    // payload tied to the target's active deck as session holds it, with the initial deck where a slot is absent or
+    // invalid. Rule 1 is the valid regular rule; no selected rule is stored.
+    private bool TryBuildUserBattleParameterJson(SessionState state, Loadout loadout, out string json)
     {
         json = "";
         if (_discIdList.Count < 4) return false;
 
         int[] initialDeck = [3010001, 3010002, 3010003, 3010004];
-        var activeDeck = state.Decks.GetValueOrDefault(state.ActiveDeckNumber) ?? [];
+        var activeDeck = loadout.DeckSets.GetValueOrDefault(loadout.ActiveDeck) ?? [];
         int DiscAt(int slot)
         {
             var current = slot < activeDeck.Count ? activeDeck[slot] : 0;

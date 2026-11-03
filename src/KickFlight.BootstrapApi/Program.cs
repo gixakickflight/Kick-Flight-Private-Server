@@ -59,10 +59,14 @@ builder.Services.AddSingleton<IOtomoSocial>(services => OtomoSocial.Create(
 // One client, holding no standing of its own: migration 7 dropped player_ranks, and the tier thresholds are read from
 // the published session.rank document through OtomoMasters.
 builder.Services.Configure<OtomoRankOptions>(builder.Configuration.GetSection(OtomoRankOptions.SectionName));
-builder.Services.AddSingleton<IOtomoRank>(services => OtomoRank.Create(
+builder.Services.AddSingleton(services => OtomoRank.Create(
     services.GetRequiredService<IOptions<OtomoRankOptions>>(),
     services.GetRequiredService<IOptions<OtomoSocialOptions>>(),
     services.GetRequiredService<ILogger<OtomoRank>>()));
+builder.Services.AddSingleton<IOtomoRank>(services => services.GetRequiredService<OtomoRank>());
+// Profile: a player's loadout (decks, gears, the active deck, a pending gear roll) is ext on their session card. Same
+// listener, key and failure model as the rank client above, so it is the same instance behind a second interface.
+builder.Services.AddSingleton<IOtomoProfile>(services => services.GetRequiredService<OtomoRank>());
 // Masters: otomo publishes them as a release and this adapter follows the channel (docs/OTOMO_MASTERS.md). The
 // tables named in Otomo:Masters:Tables are read from otomo and from nowhere else; every other table is still a
 // file under config/. The refresher is what turns a publish into a running server's new values.

@@ -463,6 +463,10 @@ public sealed partial class DemoSessionApi
         }
         count = Math.Clamp(count, 1, MaxRollCount);
 
+        // The received kickers show the gear in each costume's slots, which is session's: read before the roll is paid for.
+        var (own, loadoutFailure) = await TryReadOwnLoadoutAsync(context, ticket, "/gacha/kickerDraw");
+        if (own is null) return loadoutFailure!;
+
         string accessToken;
         EconomyRoll roll;
         try
@@ -491,7 +495,7 @@ public sealed partial class DemoSessionApi
         var economy = await ReadPlayerEconomyAsync(ticket, EconomyRead.Balances | EconomyRead.Inventory,
             "/gacha/kickerDraw", context.RequestAborted);
         var snapshot = economy.Snapshot ?? SnapshotFromRoll(roll);
-        var payloads = Payloads(state);
+        var payloads = Payloads(state, own.Loadout);
 
         var response = new
         {
