@@ -1647,7 +1647,13 @@ public sealed partial class DemoSessionApi : IDisposable
         }));
 
         // The level the disc stands at now, from its possession's attrs: economy's answer, not a saved one.
-        var level = DiscLevelOf(snapshot, discId);
+        //
+        // `stored` is the raw attrs value, where 0 means economy holds no level for this disc - a disc nobody has ever
+        // raised, which reads as its rarity's start level. That is why the advance below moves by the distance to the
+        // target rather than by one: at 0, economy has to be told the level the disc reaches (3, say), not the one step
+        // the client thinks it took, or the two would disagree for the rest of the disc's life.
+        var stored = (int)Math.Clamp(owned?.Attrs?.Level ?? 0, 0, int.MaxValue);
+        var level = stored > 0 ? stored : _tuning.StartLevel(rarity);
 
         var cacheId = context.Request.Headers["x-app-response-cache-id"].ToString();
         if (cacheId.Length > 0 && state.DiscBuildupRequests.TryGetValue(discId, out var lastCacheId) &&
@@ -1730,8 +1736,8 @@ public sealed partial class DemoSessionApi : IDisposable
         {
             advanced = await _economy.AdvanceAsync(new EconomyAdvanceRequest(
                     ticket.OtomoPlayerId, discItem, EconomyDiscLevels.AdvanceKey(ticket.OtomoPlayerId, discId, step.TargetLevel),
-                    "disc level-up", ProgressKeyPart($"disc-buildup:{discId}"), EconomyDiscLevels.LevelField, 1,
-                    _discLevels.MaxLevel(rarity)),
+                    "disc level-up", ProgressKeyPart($"disc-buildup:{discId}"), EconomyDiscLevels.LevelField,
+                    Math.Max(1, step.TargetLevel - stored), _discLevels.MaxLevel(rarity)),
                 context.RequestAborted);
         }
         catch (OtomoEconomyException ex)

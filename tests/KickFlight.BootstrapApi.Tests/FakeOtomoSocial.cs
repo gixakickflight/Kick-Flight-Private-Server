@@ -90,6 +90,17 @@ public sealed class FakeOtomoSocial : IAsyncDisposable
         }
     }
 
+    // Empties every ladder. The fake is shared by the whole suite, so a test that asserts an exact board order seeds
+    // after calling this - otherwise the previous test's points are still on the ladder.
+    public void ResetBoards()
+    {
+        lock (_lock)
+        {
+            _boards.Clear();
+            foreach (var account in _accounts.Values) account.Points.Clear();
+        }
+    }
+
     // A follow edge made directly, for a test that is not exercising the follow routes themselves.
     public void Follow(string followerId, string followedId)
     {

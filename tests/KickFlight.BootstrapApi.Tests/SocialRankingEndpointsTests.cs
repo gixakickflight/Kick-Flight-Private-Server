@@ -109,7 +109,9 @@ public sealed class SocialRankingEndpointsTests
         var store = factory.Services.GetRequiredService<IPlayerStore>();
         var aliceId = long.Parse(alice.UserId);
         var bobId = long.Parse(bob.UserId);
-        // The ladder is session's; a published ladder names its tiers with the client's rank numbers.
+        // The ladder is session's; a published ladder names its tiers with the client's rank numbers. The fake is
+        // shared by the suite, so the board starts empty for this test's three players.
+        _social.ResetBoards();
         _social.SeedRank(alice.Account, "rule_1", 1200, "8");
         _social.SeedRank(bob.Account, "rule_1", 3400, "11");
         _social.SeedRank(carol.Account, "rule_1", 2200, "9");
@@ -179,6 +181,7 @@ public sealed class SocialRankingEndpointsTests
         await PostAsync(carol, "/user/change", new { name = "Rotation Carol " + carol.UserId[^4..] });
 
         // Give each ladder a different order and points, so a stale client battleRuleId cannot pass by coincidence.
+        _social.ResetBoards();
         _social.SeedRank(alice.Account, "rule_1", 100_001_100, "11");
         _social.SeedRank(bob.Account, "rule_1", 100_001_200, "12");
         _social.SeedRank(carol.Account, "rule_1", 100_001_300, "13");
@@ -227,7 +230,11 @@ public sealed class SocialRankingEndpointsTests
                         Assert.Equal(mode.topUser, list[0].GetProperty("userId").GetString());
                         Assert.Equal(mode.topPoints, list[0].GetProperty("battlePoint").GetInt32());
                     }
-                    Assert.Equal(mode.alicePoints, response.GetProperty("battleRanking").GetProperty("battlePoint").GetInt32());
+                    // The local tab has no own-entry member: it lists the population, not the caller's standing.
+                    if (route != "/ranking/region")
+                    {
+                        Assert.Equal(mode.alicePoints, response.GetProperty("battleRanking").GetProperty("battlePoint").GetInt32());
+                    }
                 }
             }
 
