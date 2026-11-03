@@ -1,6 +1,6 @@
 # Android 2.11.7 publication checklist
 
-## Status: SERVER DEPLOYED VIA THIS PR; CLIENT NOT YET PUBLISHED (release gate pending)
+## Status: SERVER DEPLOYED (PR #75, merge ed8aaef); CLIENT PUBLISHED WITH OWNER-WAIVED BATTLE GATE; POST-MAINTENANCE BATTLE CHECK PENDING
 
 Rollout order: (1) this PR deploys the server (push, server fixes); (2) the client APK, catalog/apk entry, ClientUpdate minimum and announcements are published in a follow-up PR only after the live-VPS release gate passes.
 
@@ -31,10 +31,30 @@ Byte-guarded dry run against pristine base.apk `libil2cpp.so` with production fl
 - Known, not fixed: Flag Flight minimap issue (not reproduced).
 - Known, ignored: `UnzipDamageInfo` NRE is non-fatal.
 
-## Pending release gate (exact signed APK, live VPS)
+## Candidate identity
 
-- [ ] Build with release key; record SHA-256 and signing cert (expected `81ca6334fd069edbc8756a49fc135c91141eba8265cb64d0510ed9b231b21537`)
-- [ ] Startup, login, matchmaking, full battle to ResultScene against live VPS
-- [ ] Push registration reaches prod (`/push/register`) and a ranked-search notification is received
-- [ ] Chat still works
-- [ ] Then follow-up PR: catalog.json, apk entry, ClientUpdate minimum, announcements
+- Version: Android 2.11.7, versionCode 62
+- Release: tag `android-2.11.7`, asset `KickFlight-2.11.7-remote.apk`
+- SHA-256: `f7b91e49fbe399854b6160be206f23bf4c4e17dc1476e17c5ca42109c3f3cdf0`
+- Signing certificate SHA-256: `81ca6334fd069edbc8756a49fc135c91141eba8265cb64d0510ed9b231b21537` (matches 2.11.6)
+- File size: 149,876,242 bytes
+- Build flags: see "Build flags" above (production config, `KF_PUSH=1`); manifest `kf.push_url` = `http://159.54.134.159:18080`.
+- Verified in output `libil2cpp.so`: patched bytes at 0x17C42DC (RemoveDebuff) and 0x18E5CB0 (GPGS neutralized); same length as pristine.
+
+## Release gate: WAIVED by owner for raising the Android minimum
+
+- The owner explicitly waived the full battle-proof gate (startup, login, matchmaking, battle, push receipt, chat on the exact signed APK against the live VPS) before raising the Android minimum to 2.11.7.
+- Evidence actually collected (server in maintenance): the exact release-key APK was installed with `adb install -r` on AVD `KickFlight_API35` (no uninstall/wipe), launched, and after TAP START the live VPS maintenance popup ("Update incoming / The devs are finally working...") was displayed, proving client-to-VPS connectivity.
+- Pending: post-maintenance battle check (login, matchmaking, full battle, push registration and ranked-search notification, chat). Not yet performed.
+
+## Android/iOS minimums
+
+- Android minimum: `2.11.7` (old clients intentionally refused).
+- iOS minimum unchanged (`2.11.3`).
+
+## Post-deploy verification
+
+- [ ] Deploy workflow success
+- [ ] `/apk/KickFlight-2.11.7-remote.apk` serves the exact SHA-256 above
+- [ ] 2.11.6 Android client version refused; 2.11.7 accepted
+- [ ] Post-maintenance battle check (see above)
