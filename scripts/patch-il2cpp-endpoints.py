@@ -2736,6 +2736,18 @@ NATIVE_PATCHES: dict[str, list[dict[str, object]]] = {
             "expected": bytes.fromhex("e0031faa"),  # mov x0,xzr
             "replacement": bytes.fromhex("0a000014"),  # b 0x17C4304
         },
+        # 2.11.7 Google Play Games sign-in off. APP_ID 421182863000 belongs to the original game, so under our signing
+        # cert GMS raises the "fatal developer error" (zzf). GooglePlayGameService.OnSignIn (0x18E5BA0, only caller of
+        # PlayGamesPlatform.Authenticate) builds the closure (x19) then InitializeInstance/Activate/Authenticate. At
+        # 0x18E5CB0 (4 plain non-branch instrs, x19 = closure still live, x29/x30/x19-x21 saved by the prologue) we call
+        # closure.<OnSignIn>b__0(false) (0x18E5DB4: skips GetIdToken, invokes callback(false)) and jump to the original
+        # epilogue 0x18E5D2C. Our own server login never depends on GPGS; callers just see "sign-in failed".
+        {
+            "description": "GooglePlayGameService.OnSignIn: skip PlayGames init/Authenticate, report callback(false)",
+            "offset": 0x18E5CB0,
+            "expected": bytes.fromhex("e10342ade20fc03de0030091e1031faa"),
+            "replacement": bytes.fromhex("e00313aae1031f2a3f0000941c000014"),
+        },
         *_attack_interval_patches(),
         # Diagnostics: KF_DIAG=1 installs the full KFDIAG probe set (regions relocated out of LoadDeckSummonModel on
         # 2026-09-20 so disc pets still load); KF_RESULT_DIAG=1 installs only the isolated ResultManager/ResultScene
