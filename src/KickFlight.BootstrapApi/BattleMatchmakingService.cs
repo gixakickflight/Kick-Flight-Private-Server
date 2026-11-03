@@ -159,6 +159,26 @@ public sealed class BattleMatchmakingService
         }
     }
 
+    /// <summary>
+    /// Re-attaches a user to the team lobby their existing battle entry belongs to (client /battle/teamRejoin after a
+    /// reconnect). Null when the entry is unknown, owned by someone else, or its team no longer exists.
+    /// </summary>
+    public TeamMemberEntry? RejoinTeam(string battleEntryId, string userId)
+    {
+        lock (_teamLock)
+        {
+            if (string.IsNullOrEmpty(battleEntryId)
+                || !_entriesByBattleEntryId.TryGetValue(battleEntryId, out var entry)
+                || entry.UserId != userId
+                || entry.PartyId is not { } teamId
+                || !_teamsById.TryGetValue(teamId, out var team)
+                || !team.MembersByUserId.TryGetValue(userId, out var member)
+                || member.BattleEntryId != battleEntryId)
+                return null;
+            return new TeamMemberEntry(member.BattleEntryId, member.TicketId, team.MatchmakingTeamId);
+        }
+    }
+
     public bool StartTeam(string teamId, string hostUserId, IReadOnlyCollection<string> userIds)
     {
         lock (_teamLock)
