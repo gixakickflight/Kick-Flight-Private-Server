@@ -1,0 +1,4 @@
+{
+  "audience": "server",
+  "description": "The Kick-Flight player loadout: three disc decks, which deck is active, the gear on each kicker costume and a gear roll not yet equipped. Schema version 1 of the document otomo's session service stores per player, with the disc and gear ids enumerated from the game's masters. Server-only: Session reads it from the live release's server manifest, and the game client renders its own loadout screen from the masters rather than from this schema."
+}
