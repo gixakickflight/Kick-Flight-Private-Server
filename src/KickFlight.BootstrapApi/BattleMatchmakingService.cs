@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text.Json;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
+using KickFlight.BootstrapApi.Otomo;
 using OpenMatch;
 using KickFlight.BootstrapApi.PlayerStore;
 
@@ -12,12 +13,17 @@ public sealed class BattleMatchmakingService
 {
     private readonly ILogger<BattleMatchmakingService> _logger;
     private readonly IPhotonServerManager _photonManager;
+    private readonly IOtomoMatchmaking? _otomoMatchmaking;
     private readonly MaintenanceState? _maintenance;
     private readonly IReadOnlyList<ScrambleBotDeck> _scrambleBotDecks;
     private readonly ConcurrentDictionary<string, BattleEntrySession> _entriesByTicket = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, BattleEntrySession> _entriesByBattleEntryId = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, ActiveBattleRoom> _roomsByBattleId = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, TeamLobby> _teamsById = new(StringComparer.Ordinal);
+    // Matches otomo placed, keyed by its match id. Not rooms: no in-memory roster, no window and no bots - only what
+    // /battle/start has to answer the same way for every player of the match (the rule it was entered with, the arena,
+    // and where the room server is). Written once per match, read by GetRoomFieldId/GetRoomBattleRuleId.
+    private readonly ConcurrentDictionary<string, OtomoAssignment> _otomoAssignments = new(StringComparer.Ordinal);
     private readonly object _teamLock = new();
     // Luxon can outlive this API process. Seed the compact numeric suffix from
     // the current UTC second so an API restart cannot accidentally reuse a
@@ -25,11 +31,13 @@ public sealed class BattleMatchmakingService
     private int _battleCounter = (int)(DateTimeOffset.UtcNow.ToUnixTimeSeconds() % 1_000_000_000);
 
     public BattleMatchmakingService(ILogger<BattleMatchmakingService> logger, IPhotonServerManager photonManager,
-        MaintenanceState? maintenance = null, IWebHostEnvironment? environment = null)
+        MaintenanceState? maintenance = null, IWebHostEnvironment? environment = null,
+        IOtomoMatchmaking? otomoMatchmaking = null)
     {
         _logger = logger;
         _photonManager = photonManager;
         _maintenance = maintenance;
+        _otomoMatchmaking = otomoMatchmaking;
         _scrambleBotDecks = ScrambleBotDeckCatalog.Load(
             environment?.ContentRootPath ?? Directory.GetCurrentDirectory(), logger);
         if (ExperimentalAiRoleService.IsEnabled && _scrambleBotDecks.Count == 0)
@@ -39,6 +47,11 @@ public sealed class BattleMatchmakingService
                 ExperimentalAiRoleService.EnvFlagName);
         }
     }
+
+    // Which matchmaker answers a /battle/entry, and where its assignment comes from. False is the stack this repo
+    // has always run: a local ticket id, an in-memory room per battle, bot fill. True is otomo's queue: the party is
+    // queued there, GetAssignments polls its state, and no room or bot exists on this path at all.
+    public bool OtomoPathEnabled => _otomoMatchmaking?.Enabled == true;
 
     // Room lifecycle hooks for the ops telemetry (Ops/OpsTelemetryService). Some are raised while _matchLock is
     // held, so a handler must be quick, must not call back into this service, and only takes leaf locks; Notify
@@ -86,6 +99,21 @@ public sealed class BattleMatchmakingService
         /// matches these tickets instead of refusing them (see StreamAssignmentsCoreAsync).
         /// </summary>
         public bool IsDiag { get; set; }
+        /// <summary>
+        /// otomo's party for this entry, when /battle/entry took the otomo path. Its presence is what routes this
+        /// ticket's GetAssignments stream to the matchmaker instead of to an in-memory room; null is the legacy path,
+        /// which is why a team ticket never takes it.
+        /// </summary>
+        public string? OtomoPartyId { get; set; }
+        /// <summary>The player's own otomo access token, needed to read and cancel the party's queue entry.</summary>
+        public string? OtomoAccessToken { get; set; }
+        /// <summary>When this entry's wait runs out. otomo's answer is polled until then; past it the entry gives up.</summary>
+        public DateTime? OtomoWindowDeadline { get; set; }
+        /// <summary>
+        /// The match otomo placed this entry in, once Stage 3 went out. A retried stream replays the same assignment
+        /// from it instead of waiting in the queue again.
+        /// </summary>
+        public string? OtomoMatchId { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         internal object BattleResultLock { get; } = new();
         internal RankedResultSnapshot? AppliedRankedResult { get; set; }
@@ -111,6 +139,14 @@ public sealed class BattleMatchmakingService
     public sealed record BattleResultEntry(string UserId, int BattleRuleId, int? MatchType, int? BattleRuleType);
     public sealed record RankedResultSnapshot(int BattleRuleType, RankState Before, RankState After);
     public sealed record BattleResultProcessing(BattleResultEntry Entry, RankedResultSnapshot? RankedResult, bool IsReplay);
+
+    /// <summary>
+    /// A match otomo placed, as far as this adapter records it. There is no room: the roster, the window and the bots
+    /// stay otomo's business. What /battle/start still needs from here is the rule the player entered with, one arena
+    /// shared by everyone in the match, and the room server the descriptor named.
+    /// </summary>
+    public sealed record OtomoAssignment(
+        string MatchId, int BattleRuleId, int FieldId, OtomoJoinEndpoint Endpoint, string Status);
 
     public TeamMemberEntry CreateTeam(
         string userId, string userName, int kickerId, int costumeId, int battleRuleId, List<int> deck, string code,
@@ -251,8 +287,11 @@ public sealed class BattleMatchmakingService
     /// zone (a UTC "now + X" was hours in the past on a UTC+8 phone and timed out, 2026-09-14), so the string
     /// carries an explicit UTC designator.
     /// </summary>
-    private static string MatchmakingExpiry(ActiveBattleRoom room) =>
-        (DateTime.SpecifyKind(room.WindowDeadline, DateTimeKind.Utc) + MatchmakingExpiryMargin)
+    private static string MatchmakingExpiry(ActiveBattleRoom room) => MatchmakingExpiry(room.WindowDeadline);
+
+    /// <summary>The same expiry string for a deadline that has no room behind it (the otomo path's wait).</summary>
+    private static string MatchmakingExpiry(DateTime deadline) =>
+        (DateTime.SpecifyKind(deadline, DateTimeKind.Utc) + MatchmakingExpiryMargin)
             .ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
 
     /// <summary>
@@ -302,6 +341,37 @@ public sealed class BattleMatchmakingService
     {
         var session = RegisterTeamMember(userId, userName, kickerId, costumeId, battleRuleId, deck, partyId,
             isDiag, matchType, battleRuleType);
+        return (session.BattleEntryId, session.TicketId);
+    }
+
+    /// <summary>
+    /// A /battle/entry that otomo's queue answered. The queued ticket becomes both ids the client is given, so its
+    /// later /battle/cancel and GetAssignments name the same thing to this process and to the matchmaker. The entry
+    /// is still registered here: the client's own roster details (kicker, costume, discs, rule) are not something a
+    /// matchmaker's queue knows about, and /battle/start and /battle/end still read them.
+    /// </summary>
+    public (string battleEntryId, string ticketId) RegisterOtomoEntry(
+        string userId, string userName, int kickerId, int costumeId, int battleRuleId, List<int> deck,
+        string partyId, string accessToken, bool isDiag = false, int? matchType = null, int? battleRuleType = null)
+    {
+        var session = RegisterTeamMember(userId, userName, kickerId, costumeId, battleRuleId, deck, partyId,
+            isDiag, matchType, battleRuleType);
+        session.OtomoPartyId = partyId;
+        session.OtomoAccessToken = accessToken;
+        session.OtomoWindowDeadline = DateTime.UtcNow + MatchWindow;
+
+        // The client is handed otomo's ticket as its battle entry id, so /battle/cancel comes back naming it.
+        // Re-key the entry under that id instead of keeping a second, invisible one.
+        lock (_matchLock)
+        {
+            _entriesByBattleEntryId.TryRemove(session.BattleEntryId, out _);
+            session.BattleEntryId = session.TicketId;
+            _entriesByBattleEntryId[session.BattleEntryId] = session;
+        }
+
+        _logger.LogInformation(
+            "Registered otomo battle entry: user={UserId}, ticket={TicketId}, party={PartyId}, window={Seconds:0.#}s",
+            userId, session.TicketId, partyId, MatchWindow.TotalSeconds);
         return (session.BattleEntryId, session.TicketId);
     }
 
@@ -358,12 +428,24 @@ public sealed class BattleMatchmakingService
     /// <summary>Field of an existing room (both humans of a room must load the same arena), else null.</summary>
     public int? GetRoomFieldId(string battleId)
     {
-        return _roomsByBattleId.TryGetValue(battleId, out var room) ? room.FieldId : null;
+        if (_roomsByBattleId.TryGetValue(battleId, out var room)) return room.FieldId;
+        // An otomo match has no room here, but /battle/start still has to draw once and give everyone the same arena.
+        return _otomoAssignments.TryGetValue(battleId, out var otomo) ? otomo.FieldId : null;
     }
 
     /// <summary>The mode selected when this room was created; it remains authoritative across schedule changes.</summary>
     public int? GetRoomBattleRuleId(string battleId) =>
-        _roomsByBattleId.TryGetValue(battleId, out var room) ? room.BattleRuleId : null;
+        _roomsByBattleId.TryGetValue(battleId, out var room) ? room.BattleRuleId
+        : _otomoAssignments.TryGetValue(battleId, out var otomo) ? otomo.BattleRuleId
+        : null;
+
+    /// <summary>
+    /// Where the room server of an otomo match is, as its descriptor said: the host and the three ports the client
+    /// dials. Null for a match this process did not place, or for one whose descriptor carried no usable endpoint.
+    /// The legacy path has no equivalent: its host and ports are PhotonServerOptions, patched into the client.
+    /// </summary>
+    public OtomoJoinEndpoint? GetOtomoJoinEndpoint(string battleId) =>
+        _otomoAssignments.TryGetValue(battleId, out var otomo) ? otomo.Endpoint : null;
 
     /// <summary>
     /// The final roster of a room still in memory, or an empty list. Used by /battle/end to snapshot the players
@@ -589,6 +671,43 @@ public sealed class BattleMatchmakingService
         return true;
     }
 
+    /// <summary>
+    /// /battle/cancel on the otomo path: withdraws the party from otomo's queue first, then does exactly what
+    /// CancelEntry does locally (forget the entry, end its open stream). Nothing here may fail the request: the
+    /// client's back button always gets its answer, so a refused or unreachable cancel is logged and the local entry
+    /// is forgotten anyway - otomo drops a party whose player never comes back.
+    /// </summary>
+    public async Task<bool> CancelOtomoEntryAsync(string battleEntryId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(battleEntryId)) return false;
+        if (!_entriesByBattleEntryId.TryGetValue(battleEntryId, out var session)) return false;
+
+        if (_otomoMatchmaking is not null && session.OtomoPartyId is { Length: > 0 } partyId &&
+            !string.IsNullOrEmpty(session.OtomoAccessToken))
+        {
+            try
+            {
+                await _otomoMatchmaking.CancelAsync(partyId, session.OtomoAccessToken, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (OtomoMatchmakingException exception) when (exception.Failure == OtomoMatchmakingFailure.Refused)
+            {
+                // 409 match_in_progress: the match is already forming, so there is nothing left to withdraw. The
+                // player is going to the battle (or to its result) either way; the local entry still goes.
+                _logger.LogInformation(
+                    "otomo matchmaking: party {Party} was not withdrawn ({Code}): {Message}",
+                    partyId, exception.Code, exception.Message);
+            }
+            catch (OtomoMatchmakingException exception)
+            {
+                _logger.LogWarning("otomo matchmaking: cancel of party {Party} failed: {Message}",
+                    partyId, exception.Message);
+            }
+        }
+
+        return CancelEntry(battleEntryId);
+    }
+
     /// <summary>Forgets a room every waiting human left. Caller holds _matchLock.</summary>
     private void DropRoom(ActiveBattleRoom room)
     {
@@ -662,6 +781,15 @@ public sealed class BattleMatchmakingService
         var playerSession = _entriesByTicket.TryGetValue(ticketId, out var registered)
             ? registered
             : DemoEntrySession(ticketId);
+
+        // Which matchmaker this ticket belongs to. A ticket registered from otomo's queue carries its party, and that
+        // is the whole difference: this path never looks at _pendingRoom, never builds an ActiveBattleRoom and never
+        // adds a bot. With the switch off nothing registers such a ticket, so this is the same code it always was.
+        if (OtomoPathEnabled && playerSession.OtomoPartyId is { Length: > 0 } otomoPartyId)
+        {
+            await StreamOtomoAssignmentsAsync(playerSession, otomoPartyId, responseStream, cancellationToken);
+            return;
+        }
 
         // Team tickets can be returned while members are still recruiting. Do not let an early client poll
         // create or join a battle room until the host's /battle/teamEntry commits the selected roster.
@@ -867,6 +995,166 @@ public sealed class BattleMatchmakingService
                     if (room.HumanPlayers.Count == 0) DropRoom(room);
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// GetAssignments on the otomo path: the party's state is polled every PollInterval, bounded by the entry's own
+    /// window, and the same three stages the room used to send go out at the same points. Stage 1 while the party is
+    /// queued; Stage 2 and Stage 3 once otomo answers in_match, with the match id as the connection and the
+    /// descriptor's host and ports as where to join. There is no room, no roster merge and no bot fill on this path:
+    /// what the player sees is otomo's answer plus the party this process registered.
+    /// </summary>
+    private async Task StreamOtomoAssignmentsAsync(BattleEntrySession session, string partyId,
+        IServerStreamWriter<GetAssignmentsResponse> responseStream, CancellationToken cancellationToken)
+    {
+        var deadline = session.OtomoWindowDeadline ??
+                       DateTime.UtcNow + (MatchWindow > TimeSpan.Zero ? MatchWindow : TimeSpan.FromSeconds(1));
+        var pollInterval = _otomoMatchmaking?.PollInterval ?? TimeSpan.FromMilliseconds(400);
+        var roster = BuildOtomoRoster(partyId, session, deadline);
+
+        // A retried stream for a match that is already known replays the assignment it had, as the room path replays
+        // a finalized room: re-entering the queue would put the client back on the matching screen for a battle it is
+        // (or was just) in.
+        if (session.OtomoMatchId is { Length: > 0 } knownMatchId && _otomoAssignments.ContainsKey(knownMatchId))
+        {
+            _logger.LogInformation("Replaying otomo assignment {MatchId} for ticket {TicketId}",
+                knownMatchId, session.TicketId);
+            await SendAssignmentUpdateAsync(responseStream, knownMatchId, roster);
+            await HoldFinalAssignmentAsync(session.UserId, cancellationToken);
+            return;
+        }
+
+        var subscriber = new AssignmentSubscriber(responseStream);
+
+        // --- STAGE 1: the party waiting in the queue. Same shape as the room's: no connection, no bots, and the
+        // expiry the client counts down.
+        await subscriber.SendStageAsync("", roster);
+        _logger.LogInformation(
+            "Streamed Stage 1 (otomo queue; {Players} player(s), party {Party}) for user {UserId}",
+            roster.battlePlayerList.Count, partyId, session.UserId);
+
+        OtomoMatchAssignment match;
+        while (true)
+        {
+            if (DateTime.UtcNow >= deadline)
+            {
+                // The wait this entry was given is over. Withdraw the party so it is not matched after the client
+                // has already left the matching screen, and end the stream the way an expired window does.
+                _logger.LogInformation(
+                    "otomo matchmaking: party {Party} still queued when its wait window closed; withdrawing it",
+                    partyId);
+                await WithdrawOtomoAsync(session, partyId, cancellationToken);
+                return;
+            }
+
+            var state = await _otomoMatchmaking!.StateAsync(partyId, session.OtomoAccessToken ?? "", cancellationToken);
+            if (state.IsInMatch && state.Match is { MatchId.Length: > 0 } found)
+            {
+                match = found;
+                break;
+            }
+
+            if (!state.IsQueued)
+            {
+                // Neither queued nor matched: the queue entry is gone (withdrawn elsewhere, or the match it was in
+                // has ended). There is nothing left to wait for, and nothing to withdraw.
+                _logger.LogInformation(
+                    "otomo matchmaking: party {Party} reported {State}; ending the assignment stream",
+                    partyId, state.State ?? "(no state)");
+                return;
+            }
+
+            await Task.Delay(pollInterval, cancellationToken);
+        }
+
+        var endpoint = OtomoJoinEndpoint.FromDescriptor(match.Descriptor);
+        if (endpoint is null)
+        {
+            // Without a usable join endpoint Stage 3 would hand the client a battle it cannot enter. Say so and end
+            // the stream rather than sending a connection the descriptor did not back.
+            _logger.LogError(
+                "otomo matchmaking: match {MatchId} carried no usable join descriptor (host='{Host}', ports={Master}/{Game}/{Name}); no Stage 3 sent",
+                match.MatchId, match.Descriptor?.Host ?? "", match.Descriptor?.Ports?.Master ?? 0,
+                match.Descriptor?.Ports?.Game ?? 0, match.Descriptor?.Ports?.Name ?? 0);
+            return;
+        }
+
+        // --- STAGE 2: matched. The same roster - this path adds no bots, so the party is the whole list.
+        await subscriber.SendStageAsync("", roster);
+        _logger.LogInformation("Streamed Stage 2 (otomo match {MatchId}) for user {UserId}",
+            match.MatchId, session.UserId);
+
+        // Stage 3 must arrive while the client's local start control is still pending: same 2 s hold as the room
+        // path, for the same reason.
+        await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
+
+        session.OtomoMatchId = match.MatchId;
+        RememberOtomoAssignment(session, match, endpoint);
+
+        // --- STAGE 3: the assignment. The connection is otomo's match id: that is the battle id, and the client
+        // joins a Photon room by that name.
+        await subscriber.SendFinalStageAsync(match.MatchId!, roster);
+        _logger.LogInformation("Streamed Stage 3 (otomo match {MatchId}) for user {UserId}",
+            match.MatchId, session.UserId);
+
+        await HoldFinalAssignmentAsync(session.UserId, cancellationToken);
+    }
+
+    /// <summary>
+    /// The party's roster as this process knows it: the entries registered with this party. There are no bots to add
+    /// because bot fill belongs to the room, and the otomo path has none; a party of one is a roster of one.
+    /// </summary>
+    private MatchingBattleInfo BuildOtomoRoster(string partyId, BattleEntrySession session, DateTime deadline)
+    {
+        List<BattleEntrySession> players;
+        lock (_matchLock)
+        {
+            players = _entriesByTicket.Values
+                .Where(player => string.Equals(player.OtomoPartyId, partyId, StringComparison.Ordinal))
+                .Where(player => !_cancelledTickets.Contains(player.TicketId))
+                .OrderBy(player => player.CreatedAt)
+                .ThenBy(player => player.UserId, StringComparer.Ordinal)
+                .ToList();
+        }
+        if (players.Count == 0) players = [session];
+
+        return new MatchingBattleInfo
+        {
+            matchmakingExpirationDatetime = MatchmakingExpiry(deadline),
+            photonCloudRegionId = 1,
+            battlePlayerList = BuildHumanEntries(players, AssignHumanTeamsForInterim(players))
+        };
+    }
+
+    /// <summary>Records where a match is and which arena /battle/start should answer, once, for everyone in it.</summary>
+    private void RememberOtomoAssignment(BattleEntrySession session, OtomoMatchAssignment match,
+        OtomoJoinEndpoint endpoint)
+    {
+        var assignment = _otomoAssignments.GetOrAdd(match.MatchId!, _ => new OtomoAssignment(
+            match.MatchId!, session.BattleRuleId, PickRandomField(), endpoint, match.Status ?? ""));
+
+        _logger.LogInformation(
+            "otomo matchmaking: user {UserId} matched {MatchId} ({Status}) at {Host}:{Master}/{Game}/{Name} (region {Region}, proxied {Proxied}); arena {FieldId}",
+            session.UserId, assignment.MatchId, assignment.Status, assignment.Endpoint.Host,
+            assignment.Endpoint.MasterPort, assignment.Endpoint.GamePort, assignment.Endpoint.NamePort,
+            assignment.Endpoint.Region, assignment.Endpoint.Proxied, assignment.FieldId);
+    }
+
+    /// <summary>Withdraws a party whose wait ended. Best effort: the stream ends either way.</summary>
+    private async Task WithdrawOtomoAsync(BattleEntrySession session, string partyId,
+        CancellationToken cancellationToken)
+    {
+        if (_otomoMatchmaking is null || string.IsNullOrEmpty(session.OtomoAccessToken)) return;
+        try
+        {
+            await _otomoMatchmaking.CancelAsync(partyId, session.OtomoAccessToken, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (OtomoMatchmakingException exception)
+        {
+            _logger.LogInformation("otomo matchmaking: could not withdraw party {Party} ({Failure}/{Code}): {Message}",
+                partyId, exception.Failure, exception.Code, exception.Message);
         }
     }
 

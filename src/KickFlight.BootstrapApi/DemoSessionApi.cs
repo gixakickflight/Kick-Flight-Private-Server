@@ -68,6 +68,9 @@ public sealed partial class DemoSessionApi
     private readonly IOtomoIdentity _identity;
     // The only source of value: this process holds no balance, no ticket and no disc (see DemoSessionApi.Economy.cs).
     private readonly IOtomoEconomy _economy;
+    // The queue behind /battle/entry when Otomo:Matchmaking is on. Off, nothing here is called and the request is
+    // served by the in-memory room exactly as before.
+    private readonly IOtomoMatchmaking _otomoMatchmaking;
     private readonly KfAccessTokenCodec _accessTokens;
     private readonly IPlayerStore _playerStore;
     private readonly OtomoMasters _otomoMasters;
@@ -99,7 +102,7 @@ public sealed partial class DemoSessionApi
 
     public DemoSessionApi(ILogger<DemoSessionApi> logger, IWebHostEnvironment environment,
         BattleMatchmakingService matchmaking, BattleReplayService replays, IPlayerStore playerStore,
-        IOtomoIdentity identity, IOtomoEconomy economy, KfAccessTokenCodec accessTokens,
+        IOtomoIdentity identity, IOtomoEconomy economy, IOtomoMatchmaking otomoMatchmaking, KfAccessTokenCodec accessTokens,
         IConfiguration configuration, MaintenanceState maintenance, ClientUpdateState clientUpdate,
         TimeProvider timeProvider, OpsTelemetryService ops, IOptions<HarnessOptions> harnessOptions,
         OtomoMasters otomoMasters)
@@ -114,6 +117,7 @@ public sealed partial class DemoSessionApi
         _playerStore = playerStore;
         _identity = identity;
         _economy = economy;
+        _otomoMatchmaking = otomoMatchmaking;
         _accessTokens = accessTokens;
         _otomoMasters = otomoMasters;
         _harnessOptions = harnessOptions.Value;
@@ -1216,7 +1220,7 @@ public sealed partial class DemoSessionApi
 
         if (path == "/battle/entry")
         {
-            return await HandleBattleEntryAsync(context, state, key);
+            return await HandleBattleEntryAsync(context, ticket, state, key);
         }
 
         if (path == "/customBattle/prepare")
@@ -2219,7 +2223,8 @@ public sealed partial class DemoSessionApi
         return [new ApplicationAssetRevision(platform, revision)];
     }
 
-    private async Task<IResult?> HandleBattleEntryAsync(HttpContext context, SessionState state, byte[] key)
+    private async Task<IResult?> HandleBattleEntryAsync(HttpContext context, KfIdentityTicket identityTicket,
+        SessionState state, byte[] key)
     {
         var body = await ReadBodyAsync(context.Request);
         int battleRuleId = 1;
@@ -2255,10 +2260,24 @@ public sealed partial class DemoSessionApi
         var deck = state.Decks.GetValueOrDefault(state.ActiveDeckNumber) ?? [3010001, 3010002, 3010003, 3010004];
         NormalizeCostume(state);
         var ruleMetadata = BattleRuleMetadata(battleRuleId);
-        var (battleEntryId, ticketId) = _matchmaking.RegisterEntry(
-            state.UserId, state.UserName, state.KickerId, state.KickerCostumeId, battleRuleId, deck,
-            isDiag: IsDiagClient(context), matchType: ruleMetadata.MatchType,
-            battleRuleType: ruleMetadata.BattleRuleType);
+        string battleEntryId;
+        string ticketId;
+        if (_matchmaking.OtomoPathEnabled)
+        {
+            // Otomo's queue answers this entry. Its ticket stands in for both ids the client is given, so the shape of
+            // the response below does not change: only where the ticket came from did.
+            var otomoEntry = await RegisterOtomoEntryAsync(context, identityTicket, state, deck, battleRuleId,
+                ruleMetadata);
+            if (otomoEntry is null) return StatusError(context, key);
+            (battleEntryId, ticketId) = otomoEntry.Value;
+        }
+        else
+        {
+            (battleEntryId, ticketId) = _matchmaking.RegisterEntry(
+                state.UserId, state.UserName, state.KickerId, state.KickerCostumeId, battleRuleId, deck,
+                isDiag: IsDiagClient(context), matchType: ruleMetadata.MatchType,
+                battleRuleType: ruleMetadata.BattleRuleType);
+        }
 
         var resp = new
         {
@@ -2279,6 +2298,47 @@ public sealed partial class DemoSessionApi
         return BinaryJson(JsonSerializer.Serialize(resp), key);
     }
 
+    /// <summary>
+    /// /battle/entry on the otomo path: the player's party is created (or the existing one is used), the party is
+    /// queued, and otomo's ticket becomes the id the client is handed. A refusal and an unreachable matchmaker both
+    /// answer the game's error envelope - the same one a stale ranked entry gets - because there is no id to hand
+    /// back and no ticket the client could cancel with.
+    /// </summary>
+    private async Task<(string BattleEntryId, string TicketId)?> RegisterOtomoEntryAsync(
+        HttpContext context, KfIdentityTicket identityTicket, SessionState state, List<int> deck, int battleRuleId,
+        (int? MatchType, int? BattleRuleType) ruleMetadata)
+    {
+        var cancellationToken = context.RequestAborted;
+        try
+        {
+            var accessToken =
+                (await _identity.GetSessionForDeviceIdAsync(identityTicket.DeviceId, cancellationToken)).AccessToken;
+            var party = await _otomoMatchmaking.EnsurePartyAsync(accessToken, cancellationToken);
+            var queued = await _otomoMatchmaking.EnqueueAsync(party.PartyId!, accessToken, cancellationToken);
+
+            _logger.LogInformation(
+                "Queued /battle/entry for {UserId} at otomo: party={PartyId}, ticket={TicketId}, position={Position}",
+                state.UserId, party.PartyId, queued.TicketId, queued.Position);
+
+            return _matchmaking.RegisterOtomoEntry(state.UserId, state.UserName, state.KickerId,
+                state.KickerCostumeId, battleRuleId, deck, party.PartyId!, accessToken, IsDiagClient(context),
+                ruleMetadata.MatchType, ruleMetadata.BattleRuleType);
+        }
+        catch (OtomoMatchmakingException exception)
+        {
+            _logger.LogWarning("Refusing /battle/entry for {UserId}: matchmaking {Failure} ({Code}): {Message}",
+                state.UserId, exception.Failure, exception.Code, exception.Message);
+            return null;
+        }
+        catch (OtomoIdentityException exception)
+        {
+            // The player's token is what the queue call needs, so a failed identity call is a failed entry.
+            _logger.LogWarning("Refusing /battle/entry for {UserId}: identity {Failure}: {Message}",
+                state.UserId, exception.Failure, exception.Message);
+            return null;
+        }
+    }
+
     private async Task<IResult?> HandleBattleCancelAsync(HttpContext context, SessionState state, byte[] key)
     {
         // BattleCancelRequest { battleEntryId }. Answer {} with status 0 whatever happens: on success the client
@@ -2297,7 +2357,9 @@ public sealed partial class DemoSessionApi
             _logger.LogWarning("Could not decode /battle/cancel body for {UserId}: {Error}", state.UserId, ex.Message);
         }
 
-        var cancelled = _matchmaking.CancelEntry(battleEntryId);
+        var cancelled = _matchmaking.OtomoPathEnabled
+            ? await _matchmaking.CancelOtomoEntryAsync(battleEntryId, context.RequestAborted)
+            : _matchmaking.CancelEntry(battleEntryId);
         _ops.RecordCancel(state.UserId, battleEntryId, cancelled, OpsClientInfo.FromRequest(context));
         if (!cancelled)
         {

@@ -46,6 +46,14 @@ builder.Services.Configure<OtomoEconomyOptions>(builder.Configuration.GetSection
 builder.Services.AddSingleton<IOtomoEconomy>(services => OtomoEconomy.Create(
     services.GetRequiredService<IOptions<OtomoEconomyOptions>>(),
     services.GetRequiredService<ILogger<OtomoEconomy>>()));
+// Matchmaking: off by default, and off is the stack this repo has always run (the in-memory room below). On, a
+// /battle/entry is a party queued at otomo and GetAssignments follows otomo's answer instead of a room. The base URL
+// falls back to Otomo:BaseUrl, so enabling it is one environment variable: Otomo__Matchmaking__Enabled=true.
+builder.Services.Configure<OtomoMatchmakingOptions>(builder.Configuration.GetSection(OtomoMatchmakingOptions.SectionName));
+builder.Services.AddSingleton<IOtomoMatchmaking>(services => OtomoMatchmaking.Create(
+    services.GetRequiredService<IOptions<OtomoMatchmakingOptions>>(),
+    services.GetRequiredService<IOptions<OtomoOptions>>(),
+    services.GetRequiredService<ILogger<OtomoMatchmaking>>()));
 // Masters: otomo publishes them as a release and this adapter follows the channel (docs/OTOMO_MASTERS.md). The
 // tables named in Otomo:Masters:Tables are read from otomo and from nowhere else; every other table is still a
 // file under config/. The refresher is what turns a publish into a running server's new values.
