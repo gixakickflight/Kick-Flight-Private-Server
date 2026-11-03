@@ -136,12 +136,17 @@ public sealed partial class DemoSessionApi
 
         // The claim has paid, so from here the answer must describe it rather than fail: a progress list that cannot
         // be re-read falls back to the one read before the claim.
-        var after = await ReadPlayerEconomyAsync(ticket, EconomyRead.Tasks, "/mission/receipt", context.RequestAborted);
+        // Inventory as well as tasks: a receipt shows each disc at the level it stands at, and that level is
+        // attrs.level on the disc's own possession (EconomyRead.Inventory). A read that fails leaves the fallback
+        // below with the tracks read before the claim, whose item list carries no attrs.
+        var after = await ReadPlayerEconomyAsync(ticket, EconomyRead.Tasks | EconomyRead.Inventory, "/mission/receipt",
+            context.RequestAborted);
         var payloads = Payloads(state);
         var response = new
         {
             receivedUserCapsuleList = Array.Empty<object>(),
-            receivedUserDiscList = payloads.BuildReceivedUserDiscList(claim.Items, discId => DiscStandingOf(state, discId)),
+            receivedUserDiscList = payloads.BuildReceivedUserDiscList(claim.Items,
+                discId => DiscStandingOf(after.Snapshot ?? before.Snapshot, discId)),
             receivedUserHonorList = Array.Empty<object>(),
             receivedUserItemList = payloads.BuildReceivedCounters(claim.Balances, claim.Entries, claim.Items),
             receivedUserStampList = Array.Empty<object>(),

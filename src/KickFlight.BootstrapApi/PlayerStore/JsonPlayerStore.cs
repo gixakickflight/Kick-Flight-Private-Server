@@ -3,25 +3,30 @@ using System.Text.Json;
 
 namespace KickFlight.BootstrapApi.PlayerStore;
 
-// The original on-disk store: one <player id>.json per player under <content root>/data/users, plus two
-// indexes so identity survives a restart - _identities.json (device uuid -> player id, the pre-otomo key) and
-// _otomo-players.json (otomo account -> player id, the identity now).
+// The original on-disk store: one <player id>.json per player under <content root>/data/users, plus three
+// indexes so identity survives a restart - _identities.json (device uuid -> player id, the pre-otomo key),
+// _otomo-players.json (otomo account -> player id, the identity now) and _otomo-tags.json (the display name and
+// discriminator otomo answers for an account, which is what a follow is addressed by).
 //
 // This is the fallback, selected when no connection string is configured, so that local runs and the test
 // suite work with no database. The deployment uses PostgresPlayerStore.
 //
 // Identity is otomo's: what is remembered here is which numeric row belongs to which account, and which row a
 // device used before otomo owned identity - that row is adopted by the first account that presents the device,
-// so an existing player keeps their name, rank, inventory and friends. Sessions are held in memory, and no
-// caller issues them any more (the access token is signed by the API); the map is kept because local runs may
-// still restart mid-session.
+// so an existing player keeps their name, rank and inventory. Sessions are held in memory, and no caller issues
+// them any more (the access token is signed by the API); the map is kept because local runs may still restart
+// mid-session.
+//
+// The social relation is not here at all any more: follows, friend tokens and real friends moved to otomo's
+// session service, and the three tables migration 6 drops have this file's _social.json behind them. What is left
+// is identity, which is what this store was always for.
 public sealed class JsonPlayerStore : IPlayerStore
 {
     // The index file names are prefixed so they cannot collide with a save file, whose name is always a
     // bare player id. They are also excluded from the glob the deploy script uses to report user counts.
     private const string IdentityIndexFile = "_identities.json";
     private const string OtomoIndexFile = "_otomo-players.json";
-    private const string SocialStateFile = "_social.json";
+    private const string OtomoTagFile = "_otomo-tags.json";
     private const string FirstPlayerId = "1000001";
 
     // The highest id this directory has ever been seen to contain, process-wide. Two stores over one directory -
@@ -30,15 +35,14 @@ public sealed class JsonPlayerStore : IPlayerStore
     // overwrite each other's save file. One server in production never needs this, but it costs nothing there.
     private static readonly object IdLock = new();
     private static readonly ConcurrentDictionary<string, object> IdentityLocksByDirectory = new(StringComparer.Ordinal);
-    private static readonly ConcurrentDictionary<string, object> SocialLocksByDirectory = new(StringComparer.Ordinal);
     private static long _idHighWaterMark;
 
     private readonly string _usersDirectory;
     private readonly ILogger<JsonPlayerStore> _logger;
     private readonly object _identityLock;
-    private readonly object _socialLock;
     private readonly Dictionary<string, long> _playerIdByUuid = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> _playerIdByOtomoPlayer = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, OtomoTag> _tagsByOtomoPlayer = new(StringComparer.Ordinal);
     private readonly Dictionary<string, byte[]> _keysByAccessToken = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> _playerIdByToken = new(StringComparer.Ordinal);
 
@@ -47,12 +51,12 @@ public sealed class JsonPlayerStore : IPlayerStore
         _logger = logger;
         _usersDirectory = Path.Combine(environment.ContentRootPath, "data", "users");
         _identityLock = IdentityLocksByDirectory.GetOrAdd(Path.GetFullPath(_usersDirectory), _ => new object());
-        _socialLock = SocialLocksByDirectory.GetOrAdd(Path.GetFullPath(_usersDirectory), _ => new object());
         Directory.CreateDirectory(_usersDirectory);
         lock (_identityLock)
         {
             LoadIdentityIndex();
             LoadOtomoIndex();
+            LoadOtomoTags();
         }
     }
 
@@ -127,6 +131,41 @@ public sealed class JsonPlayerStore : IPlayerStore
         catch (Exception ex)
         {
             _logger.LogError(ex, "Could not write the otomo player index; this mapping will be lost on restart");
+        }
+    }
+
+    private void LoadOtomoTags()
+    {
+        var path = Path.Combine(_usersDirectory, OtomoTagFile);
+        if (!File.Exists(path)) return;
+        try
+        {
+            var index = JsonSerializer.Deserialize<Dictionary<string, OtomoTag>>(File.ReadAllText(path));
+            if (index is null) return;
+            foreach (var (account, tag) in index) _tagsByOtomoPlayer[account] = tag;
+            _logger.LogInformation("Loaded {Count} otomo tags from {Path}", _tagsByOtomoPlayer.Count, path);
+        }
+        catch (Exception ex)
+        {
+            // A lost tag is recoverable - the account is asked for its tag again the next time it renames - but it is
+            // never silent, because until then a follow cannot be addressed by a client that names that player.
+            _logger.LogError(ex, "Could not read the otomo tag index at {Path}; follows by name will need a rename", path);
+        }
+    }
+
+    private void PersistOtomoTags()
+    {
+        try
+        {
+            var path = Path.Combine(_usersDirectory, OtomoTagFile);
+            var json = JsonSerializer.Serialize(_tagsByOtomoPlayer, new JsonSerializerOptions { WriteIndented = true });
+            var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            File.WriteAllText(temporary, json);
+            File.Move(temporary, path, overwrite: true);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Could not write the otomo tag index; follows by name will need a rename");
         }
     }
 
@@ -333,177 +372,54 @@ public sealed class JsonPlayerStore : IPlayerStore
             .ToArray();
     }
 
-    public IReadOnlyList<long> FindFollowedIds(long followerId, IReadOnlyCollection<long> candidateIds)
+    public IReadOnlyList<OtomoPlayer> FindOtomoPlayers(IReadOnlyCollection<string> otomoPlayerIds)
     {
-        ArgumentNullException.ThrowIfNull(candidateIds);
-        if (candidateIds.Count == 0) return Array.Empty<long>();
-        var candidates = candidateIds.ToHashSet();
-        lock (_socialLock)
+        ArgumentNullException.ThrowIfNull(otomoPlayerIds);
+        if (otomoPlayerIds.Count == 0) return Array.Empty<OtomoPlayer>();
+        lock (_identityLock)
         {
-            var document = LoadSocialStateLocked();
-            return document.Follows
-                .Where(edge => edge.FollowerId == followerId && candidates.Contains(edge.FollowedId))
-                .Select(edge => edge.FollowedId)
-                .Distinct()
-                .OrderBy(id => id)
-                .ToArray();
-        }
-    }
-
-    public void AddFollow(long followerId, long followedId)
-    {
-        ValidateFollowIds(followerId, followedId);
-        lock (_socialLock)
-        {
-            EnsureProfileExists(followerId);
-            EnsureProfileExists(followedId);
-            var document = LoadSocialStateLocked();
-            if (document.Follows.Any(edge => edge.FollowerId == followerId && edge.FollowedId == followedId)) return;
-            document.Follows.Add(new FollowEdge(followerId, followedId, DateTimeOffset.UtcNow, false));
-            PersistSocialStateLocked(document);
-        }
-    }
-
-    public void RemoveFollow(long followerId, long followedId)
-    {
-        ValidateFollowIds(followerId, followedId);
-        lock (_socialLock)
-        {
-            var document = LoadSocialStateLocked();
-            var removed = document.Follows.RemoveAll(edge => edge.FollowerId == followerId && edge.FollowedId == followedId);
-            if (removed > 0) PersistSocialStateLocked(document);
-        }
-    }
-
-    public int CountFollowing(long playerId)
-    {
-        lock (_socialLock)
-            return LoadSocialStateLocked().Follows.Count(edge => edge.FollowerId == playerId);
-    }
-
-    public int CountFollowers(long playerId)
-    {
-        lock (_socialLock)
-            return LoadSocialStateLocked().Follows.Count(edge => edge.FollowedId == playerId);
-    }
-
-    public IReadOnlyList<FollowedProfile> ListFollowing(long playerId, int offset, int limit)
-    {
-        ValidatePage(offset, limit);
-        lock (_socialLock)
-        {
-            var rows = LoadSocialStateLocked().Follows
-                .Where(edge => edge.FollowerId == playerId)
-                .OrderByDescending(edge => edge.CreatedAt)
-                .ThenBy(edge => edge.FollowedId)
-                .Select(edge => ToFollowedProfile(edge, edge.FollowedId, isNew: false))
-                .Where(row => row is not null)
-                .Select(row => row!)
-                .Skip(offset)
-                .Take(limit)
-                .ToArray();
-            return rows;
-        }
-    }
-
-    public IReadOnlyList<FollowedProfile> ListFollowers(long playerId, int offset, int limit)
-    {
-        ValidatePage(offset, limit);
-        lock (_socialLock)
-        {
-            var rows = LoadSocialStateLocked().Follows
-                .Where(edge => edge.FollowedId == playerId)
-                .OrderByDescending(edge => edge.CreatedAt)
-                .ThenBy(edge => edge.FollowerId)
-                .Select(edge => ToFollowedProfile(edge, edge.FollowerId, isNew: !edge.IsRead))
-                .Where(row => row is not null)
-                .Select(row => row!)
-                .Skip(offset)
-                .Take(limit)
-                .ToArray();
-            return rows;
-        }
-    }
-
-    public int CountNewFollowers(long playerId)
-    {
-        lock (_socialLock)
-            return LoadSocialStateLocked().Follows.Count(edge => edge.FollowedId == playerId && !edge.IsRead);
-    }
-
-    public void MarkFollowersRead(long playerId, IReadOnlyCollection<long> followerIds)
-    {
-        ArgumentNullException.ThrowIfNull(followerIds);
-        if (followerIds.Count == 0) return;
-        var followers = followerIds.ToHashSet();
-        lock (_socialLock)
-        {
-            var document = LoadSocialStateLocked();
-            var changed = false;
-            foreach (var edge in document.Follows.Where(edge => edge.FollowedId == playerId && followers.Contains(edge.FollowerId)))
+            LoadOtomoIndex();
+            LoadOtomoTags();
+            var players = new List<OtomoPlayer>();
+            foreach (var account in otomoPlayerIds.Distinct(StringComparer.Ordinal))
             {
-                if (edge.IsRead) continue;
-                edge.IsRead = true;
-                changed = true;
+                if (!_playerIdByOtomoPlayer.TryGetValue(account, out var playerId)) continue;
+                var tag = _tagsByOtomoPlayer.GetValueOrDefault(account);
+                players.Add(new OtomoPlayer(playerId, account, tag?.DisplayName ?? "", tag?.Discriminator ?? 0));
             }
-            if (changed) PersistSocialStateLocked(document);
+            return players.OrderBy(player => player.PlayerId).ToArray();
         }
     }
 
-    public string GetOrCreateRealFriendToken(long playerId)
+    public OtomoPlayer? FindOtomoPlayer(long playerId)
     {
-        if (playerId <= 0) throw new ArgumentOutOfRangeException(nameof(playerId));
-        lock (_socialLock)
+        if (playerId <= 0) return null;
+        lock (_identityLock)
         {
-            EnsureProfileExists(playerId);
-            var document = LoadSocialStateLocked();
-            var existing = document.Tokens.FirstOrDefault(row => row.PlayerId == playerId);
-            if (existing is not null) return existing.Token;
-
-            string token;
-            do token = CreateOpaqueToken();
-            while (document.Tokens.Any(row => string.Equals(row.Token, token, StringComparison.Ordinal)));
-            document.Tokens.Add(new RealFriendToken(playerId, token));
-            PersistSocialStateLocked(document);
-            return token;
+            LoadOtomoIndex();
+            LoadOtomoTags();
+            foreach (var (account, owner) in _playerIdByOtomoPlayer)
+            {
+                if (owner != playerId) continue;
+                var tag = _tagsByOtomoPlayer.GetValueOrDefault(account);
+                return new OtomoPlayer(playerId, account, tag?.DisplayName ?? "", tag?.Discriminator ?? 0);
+            }
+            return null;
         }
     }
 
-    public long? TryGetRealFriendTokenOwner(string token)
+    public void SaveOtomoTag(string otomoPlayerId, string displayName, int discriminator)
     {
-        if (string.IsNullOrWhiteSpace(token)) return null;
-        lock (_socialLock)
+        if (string.IsNullOrWhiteSpace(otomoPlayerId)) return;
+        lock (_identityLock)
         {
-            return LoadSocialStateLocked().Tokens
-                .FirstOrDefault(row => string.Equals(row.Token, token, StringComparison.Ordinal))?.PlayerId;
-        }
-    }
-
-    public void AddRealFriend(long firstPlayerId, long secondPlayerId)
-    {
-        ValidateFollowIds(firstPlayerId, secondPlayerId);
-        var low = Math.Min(firstPlayerId, secondPlayerId);
-        var high = Math.Max(firstPlayerId, secondPlayerId);
-        lock (_socialLock)
-        {
-            EnsureProfileExists(low);
-            EnsureProfileExists(high);
-            var document = LoadSocialStateLocked();
-            if (document.RealFriends.Any(pair => pair.PlayerLowId == low && pair.PlayerHighId == high)) return;
-            document.RealFriends.Add(new RealFriendPair(low, high));
-            PersistSocialStateLocked(document);
-        }
-    }
-
-    public bool AreRealFriends(long firstPlayerId, long secondPlayerId)
-    {
-        ValidateFollowIds(firstPlayerId, secondPlayerId);
-        var low = Math.Min(firstPlayerId, secondPlayerId);
-        var high = Math.Max(firstPlayerId, secondPlayerId);
-        lock (_socialLock)
-        {
-            return LoadSocialStateLocked().RealFriends
-                .Any(pair => pair.PlayerLowId == low && pair.PlayerHighId == high);
+            LoadOtomoIndex();
+            LoadOtomoTags();
+            if (!_playerIdByOtomoPlayer.ContainsKey(otomoPlayerId)) return;
+            var tag = new OtomoTag(displayName, discriminator);
+            if (_tagsByOtomoPlayer.TryGetValue(otomoPlayerId, out var current) && current == tag) return;
+            _tagsByOtomoPlayer[otomoPlayerId] = tag;
+            PersistOtomoTags();
         }
     }
 
@@ -537,59 +453,8 @@ public sealed class JsonPlayerStore : IPlayerStore
         return all.Skip(offset).Take(limit).ToArray();
     }
 
-    private FollowedProfile? ToFollowedProfile(FollowEdge edge, long profileId, bool isNew)
-    {
-        var profile = FindProfile(profileId);
-        return profile is null ? null : new FollowedProfile(profile, edge.CreatedAt, isNew);
-    }
-
-    private void EnsureProfileExists(long playerId)
-    {
-        if (FindProfile(playerId) is null)
-            throw new InvalidOperationException($"Player {playerId} has no persisted profile.");
-    }
-
     private static PlayerProfile ProfileFromState(long playerId, SessionState state) =>
         new(playerId, state.UserName, state.KickerId, state.KickerCostumeId);
-
-    private SocialDocument LoadSocialStateLocked()
-    {
-        var path = Path.Combine(_usersDirectory, SocialStateFile);
-        if (!File.Exists(path)) return new SocialDocument();
-        try
-        {
-            return JsonSerializer.Deserialize<SocialDocument>(File.ReadAllText(path)) ?? new SocialDocument();
-        }
-        catch (JsonException ex)
-        {
-            _logger.LogError(ex, "Social state file {Path} is not valid JSON; refusing to overwrite it", path);
-            throw new InvalidDataException("Social state is unreadable; refusing to reset it.", ex);
-        }
-    }
-
-    private void PersistSocialStateLocked(SocialDocument document)
-    {
-        var path = Path.Combine(_usersDirectory, SocialStateFile);
-        var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
-        try
-        {
-            File.WriteAllText(temporary, JsonSerializer.Serialize(document));
-            if (!OperatingSystem.IsWindows())
-                File.SetUnixFileMode(temporary, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-            File.Move(temporary, path, overwrite: true);
-        }
-        finally
-        {
-            if (File.Exists(temporary)) File.Delete(temporary);
-        }
-    }
-
-    private static void ValidateFollowIds(long followerId, long followedId)
-    {
-        if (followerId <= 0) throw new ArgumentOutOfRangeException(nameof(followerId));
-        if (followedId <= 0) throw new ArgumentOutOfRangeException(nameof(followedId));
-        if (followerId == followedId) throw new ArgumentException("A player cannot follow themselves.", nameof(followedId));
-    }
 
     private static void ValidatePage(int offset, int limit)
     {
@@ -597,29 +462,7 @@ public sealed class JsonPlayerStore : IPlayerStore
         if (limit < 0) throw new ArgumentOutOfRangeException(nameof(limit));
     }
 
-    private static string CreateOpaqueToken() =>
-        Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))
-            .TrimEnd('=')
-            .Replace('+', '-')
-            .Replace('/', '_');
-
-    private sealed class SocialDocument
-    {
-        public List<FollowEdge> Follows { get; set; } = new();
-        public List<RealFriendToken> Tokens { get; set; } = new();
-        public List<RealFriendPair> RealFriends { get; set; } = new();
-    }
-
-    private sealed class FollowEdge(long followerId, long followedId, DateTimeOffset createdAt, bool isRead)
-    {
-        public long FollowerId { get; set; } = followerId;
-        public long FollowedId { get; set; } = followedId;
-        public DateTimeOffset CreatedAt { get; set; } = createdAt;
-        public bool IsRead { get; set; } = isRead;
-    }
-
-    private sealed record RealFriendToken(long PlayerId, string Token);
-    private sealed record RealFriendPair(long PlayerLowId, long PlayerHighId);
+    private sealed record OtomoTag(string DisplayName, int Discriminator);
 
     // A directory scan, which is the honest way to answer this against files: the deployment, where the answer
     // has to be fast and exact, uses the unique index the Postgres store queries instead.

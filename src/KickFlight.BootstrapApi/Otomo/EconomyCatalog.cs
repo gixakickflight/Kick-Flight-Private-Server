@@ -19,7 +19,7 @@ namespace KickFlight.BootstrapApi.Otomo;
 //               shard           cosmetic duplicates convert into it, and it buys a missing skin
 //               event_coin      carried over between events
 //   items       fragment        disc fragments; the client's Item row 6 (DiscFragment, 303)
-//               disc:<discId>       a disc the player owns; its level is the save's (SessionState.DiscLevels)
+//               disc:<discId>       a disc the player owns; its level is attrs.level on that possession
 //               skin:<costumeId>    a kicker costume, keyed by the KickerCostume master's ROW id;
 //                                   owning a costume owns its kicker
 //

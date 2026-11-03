@@ -110,4 +110,14 @@ public sealed class EconomyDiscLevels
     // or two taps that both read the old level - is economy's replay and spends once.
     public static string Key(string playerId, int discId, int targetLevel) =>
         $"level-up:{playerId}:{discId}:{targetLevel}";
+
+    // The advance key: the same fact under a different name. Economy keys idempotency per player across every
+    // operation, so a key shared with the consume would be answered as that consume's replay instead of moving the
+    // level; two names keep both halves of one level-up retryable on their own.
+    public static string AdvanceKey(string playerId, int discId, int targetLevel) =>
+        $"level-up-advance:{playerId}:{discId}:{targetLevel}";
+
+    // The attrs field a disc's level lives in. Economy's schema is closed - level, counter, available_at - and an
+    // advance names the field it moves rather than implying it.
+    public const string LevelField = "level";
 }
