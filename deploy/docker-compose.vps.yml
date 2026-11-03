@@ -124,9 +124,6 @@ services:
       Harness__DirectClientHosts__1: kick-flight-fenix.us.ci
       Harness__PersistCaptures: "false"
       Diagnostics__UploadDirectory: /srv/diag-uploads
-      # Replay blobs/metadata live in the host's .local/ (excluded from the CI rsync, so a deploy never wipes
-      # them) but the .local tree is mounted read-only above, hence the dedicated writable sub-mount.
-      Replays__Directory: /srv/replays
       # In-game chat is otomo's (services/chat): the adapter translates the client's websocket and write onto it and
       # stores nothing. Set Otomo__Chat__Enabled, Otomo__Chat__BaseUrl (its internal listener, :8081) and
       # Otomo__Chat__ServiceKeyFile (chat_adapter.key) to turn it on.
@@ -134,7 +131,6 @@ services:
       - ../config:/srv/repo/config:ro
       - ../content:/srv/repo/content:ro
       - ../.local:/srv/repo/.local:ro
-      - ../.local/replays:/srv/replays
       - ../.local/maintenance:/srv/repo/data
       - ../.local/diag-uploads:/srv/diag-uploads
       - ${KF_ASSETS_PATH:-../../Kick-Flight-Assets}:/srv/Kick-Flight-Assets:ro
