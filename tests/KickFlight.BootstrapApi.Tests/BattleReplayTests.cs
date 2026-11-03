@@ -350,48 +350,88 @@ public sealed class BattleReplayTests
         var blob = await StoreAsync(service, clock, "battle-5", humans: 1, kickers: [1]);
         var now = clock.GetUtcNow().UtcDateTime;
 
-        var (keyId, key) = await service.CreatePlayKeyAsync("battle-5", "device-1", Token, now, default);
+        var (keyId, key) = await service.CreatePlayKeyAsync("battle-5", "device-1", now, default);
         Assert.NotEmpty(keyId);
         Assert.Equal(32, Encoding.UTF8.GetByteCount(key));
 
-        string? deviceAsked = null;
-        var encoded = await service.TryEncodeBlobAsync(keyId, now, (device, _) =>
-        {
-            deviceAsked = device;
-            return Task.FromResult(Token);
-        }, default);
+        var encoded = await service.TryEncodeBlobAsync(keyId, now, default);
 
         Assert.NotNull(encoded);
         Assert.Equal(blob, D2CCodec.Decode(encoded!, Encoding.ASCII.GetBytes(key)));
-        // The sealed id is what carried the player: the blob request has no session of its own.
-        Assert.Equal("device-1", deviceAsked);
-        // The bytes were fetched with the player's token, from patch, not from anywhere in this process.
-        Assert.Contains(patch.Requests, r => r.Path == "/patch/v1/recordings/battle-5/blob" && r.Authorization == "Bearer " + Token && r.Range == "");
+        // The bytes came from patch's internal route with the game-server key; no player token, no player route.
+        Assert.Contains(patch.Requests, r => r.Path == "/internal/patch/recording/battle-5/blob"
+            && r.Authorization == "Bearer " + FakeOtomoRecordings.ServiceKey);
+        Assert.DoesNotContain(patch.Requests, r => r.Path.StartsWith("/patch/v1/recordings/", StringComparison.Ordinal));
     }
 
     [Fact]
-    public async Task Play_key_is_refused_for_an_unknown_replay_one_the_player_was_not_in_and_a_forged_or_expired_id()
+    public async Task Play_key_works_for_a_featured_row_and_a_kicker_row_the_viewer_was_not_in()
+    {
+        await using var patch = FakeOtomoRecordings.Start();
+        var clock = new AdjustableTimeProvider(DateTimeOffset.UnixEpoch);
+        var service = NewService(patch, clock);
+        var now = clock.GetUtcNow().UtcDateTime;
+        // Two battles uploaded by other players: acct-viewer is in neither, so patch's player blob route would 404.
+        var featured = Gzip(BuildArchive(("battle", Encoding.UTF8.GetBytes(BattleJson("battle-f", ("u1", false, 3, 0))))));
+        var channel = Gzip(BuildArchive(("battle", Encoding.UTF8.GetBytes(BattleJson("battle-k", ("u2", false, 7, 0))))));
+        Assert.True(await service.StoreUploadAsync("battle-f", featured, "acct-other-1", _ => null, now, default));
+        Assert.True(await service.StoreUploadAsync("battle-k", channel, "acct-other-2", _ => null, now, default));
+        patch.PublishCurated("featured", "battle-f");
+
+        var index = await IndexAsync(service, [7]);
+        Assert.Equal(new[] { "battle-f" }, ReplayIds(index, 1));
+        Assert.Equal(new[] { "battle-k" }, ReplayIds(index, 1007));
+
+        foreach (var (id, bytes) in new[] { ("battle-f", featured), ("battle-k", channel) })
+        {
+            var (keyId, key) = await service.CreatePlayKeyAsync(id, "device-viewer", now, default);
+            Assert.NotEmpty(keyId);
+            var encoded = await service.TryEncodeBlobAsync(keyId, now, default);
+            Assert.Equal(bytes, D2CCodec.Decode(encoded!, Encoding.ASCII.GetBytes(key)));
+        }
+    }
+
+    [Fact]
+    public async Task Play_key_is_refused_for_an_unknown_or_malformed_replay_and_a_forged_or_expired_id()
     {
         await using var patch = FakeOtomoRecordings.Start();
         var clock = new AdjustableTimeProvider(DateTimeOffset.UnixEpoch);
         var service = NewService(patch, clock);
         await StoreAsync(service, clock, "battle-5", humans: 1, kickers: [1]);
         var now = clock.GetUtcNow().UtcDateTime;
-        Task<string> TokenFor(string _, CancellationToken __) => Task.FromResult(Token);
 
-        Assert.Equal(("", ""), await service.CreatePlayKeyAsync("does-not-exist", "d", Token, now, default));
-        // Patch answers 404 for a recording the caller was not in; the adapter promises no URL it cannot fetch.
-        Assert.Equal(("", ""), await service.CreatePlayKeyAsync("battle-5", "d", FakeOtomoRecordings.TokenFor("acct-stranger"), now, default));
-        Assert.Equal(("", ""), await service.CreatePlayKeyAsync("../etc/passwd", "d", Token, now, default));
+        Assert.Equal(("", ""), await service.CreatePlayKeyAsync("does-not-exist", "d", now, default));
+        Assert.Equal(("", ""), await service.CreatePlayKeyAsync("../etc/passwd", "d", now, default));
 
-        var (keyId, _) = await service.CreatePlayKeyAsync("battle-5", "d", Token, now, default);
+        var (keyId, _) = await service.CreatePlayKeyAsync("battle-5", "d", now, default);
         var forged = keyId[..^2] + (keyId.EndsWith("AA", StringComparison.Ordinal) ? "BB" : "AA");
-        Assert.Null(await service.TryEncodeBlobAsync(forged, now, TokenFor, default));
-        Assert.Null(await service.TryEncodeBlobAsync("garbage", now, TokenFor, default));
-        Assert.Null(await service.TryEncodeBlobAsync("", now, TokenFor, default));
+        Assert.Null(await service.TryEncodeBlobAsync(forged, now, default));
+        Assert.Null(await service.TryEncodeBlobAsync("garbage", now, default));
+        Assert.Null(await service.TryEncodeBlobAsync("", now, default));
 
         clock.Advance(TimeSpan.FromMinutes(11));
-        Assert.Null(await service.TryEncodeBlobAsync(keyId, clock.GetUtcNow().UtcDateTime, TokenFor, default));
+        Assert.Null(await service.TryEncodeBlobAsync(keyId, clock.GetUtcNow().UtcDateTime, default));
+    }
+
+    [Fact]
+    public async Task Play_url_for_a_recording_patch_has_since_deleted_is_not_found_and_patch_down_is_an_error()
+    {
+        await using var patch = FakeOtomoRecordings.Start();
+        var clock = new AdjustableTimeProvider(DateTimeOffset.UnixEpoch);
+        var service = NewService(patch, clock);
+        await StoreAsync(service, clock, "battle-5", humans: 1, kickers: [1]);
+        var now = clock.GetUtcNow().UtcDateTime;
+        var (keyId, _) = await service.CreatePlayKeyAsync("battle-5", "d", now, default);
+
+        patch.SetUnavailable(true);
+        var down = await Assert.ThrowsAsync<OtomoRecordingsException>(() => service.TryEncodeBlobAsync(keyId, now, default));
+        Assert.Equal(OtomoRecordingsFailure.Unavailable, down.Failure);
+        await Assert.ThrowsAsync<OtomoRecordingsException>(() => service.CreatePlayKeyAsync("battle-5", "d", now, default));
+        patch.SetUnavailable(false);
+
+        patch.Delete("battle-5");
+        Assert.Null(await service.TryEncodeBlobAsync(keyId, now, default));
+        Assert.Equal(("", ""), await service.CreatePlayKeyAsync("battle-5", "d", now, default));
     }
 
     [Fact]
@@ -402,17 +442,16 @@ public sealed class BattleReplayTests
         var service = NewService(patch, clock);
         var blob = await StoreAsync(service, clock, "battle-5", humans: 1, kickers: [1]);
         var now = clock.GetUtcNow().UtcDateTime;
-        var (keyId, key) = await service.CreatePlayKeyAsync("battle-5", "d", Token, now, default);
-        Task<string> TokenFor(string _, CancellationToken __) => Task.FromResult(Token);
+        var (keyId, key) = await service.CreatePlayKeyAsync("battle-5", "d", now, default);
 
         // A restarted adapter (or a second replica) is a new object that has seen nothing.
         var restarted = NewService(patch, clock);
-        var encoded = await restarted.TryEncodeBlobAsync(keyId, now, TokenFor, default);
+        var encoded = await restarted.TryEncodeBlobAsync(keyId, now, default);
         Assert.Equal(blob, D2CCodec.Decode(encoded!, Encoding.ASCII.GetBytes(key)));
 
         // An adapter with another secret cannot open it, and could not have derived its key.
         var stranger = NewService(patch, clock, secret: "another-secret");
-        Assert.Null(await stranger.TryEncodeBlobAsync(keyId, now, TokenFor, default));
+        Assert.Null(await stranger.TryEncodeBlobAsync(keyId, now, default));
     }
 
     // ---------------------------------------------------------------- endpoint behaviour
@@ -504,6 +543,18 @@ public sealed class BattleReplayTests
         var missing = await PostAsync(session, "/battleReplay/play", new { battleReplayId = "battle-unknown" });
         Assert.Equal("", missing.GetProperty("battleReplayUrl").GetString());
         Assert.Equal("", missing.GetProperty("encryptionKey").GetString());
+
+        // A replay the viewer was not in, listed in Featured and in its kicker's channel, plays all the same.
+        var foreign = Gzip(BuildArchive(("battle", Encoding.UTF8.GetBytes(BattleJson("battle-foreign", ("someone-else", false, 5, 0))))));
+        patch.Seed("battle-foreign", ["kicker:5"], ["acct-someone-else"], """{"BattleId":"battle-foreign","Teams":[]}""", foreign);
+        patch.PublishCurated("featured", "battle-100", "battle-foreign");
+        var foreignPlay = await PostAsync(session, "/battleReplay/play", new { battleReplayId = "battle-foreign" });
+        var foreignUrl = foreignPlay.GetProperty("battleReplayUrl").GetString();
+        Assert.False(string.IsNullOrEmpty(foreignUrl));
+        using var foreignDownload = await session.Client.GetAsync(foreignUrl);
+        Assert.Equal(HttpStatusCode.OK, foreignDownload.StatusCode);
+        Assert.Equal(foreign, D2CCodec.Decode(await foreignDownload.Content.ReadAsByteArrayAsync(),
+            Encoding.ASCII.GetBytes(foreignPlay.GetProperty("encryptionKey").GetString()!)));
 
         using var forged = await session.Client.GetAsync(url![..^3] + "AAA");
         Assert.Equal(HttpStatusCode.NotFound, forged.StatusCode);

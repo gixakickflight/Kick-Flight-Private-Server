@@ -11,12 +11,12 @@ namespace KickFlight.BootstrapApi.Otomo;
 //
 // Two planes, two credentials, and no route takes both (services/patch/README.md "Recorded content"):
 //
-//   * Internal plane (PUT /internal/patch/recording/{id}): the game-server key (patch_gameserver.key) as a bearer,
+//   * Internal plane (PUT, and GET .../{id}/blob, /internal/patch/recording/{id}): the game-server key (patch_gameserver.key) as a bearer,
 //     sent the way OtomoRank sends its internal key. It names the players who were in the recording, so it is a trust
 //     decision, and it is off without a key.
-//   * Player plane (GET /patch/v1/recordings, GET /patch/v1/recordings/{id}/blob): the player's own access token.
-//     Patch verifies it itself and takes the subject from it. A listing by tag or curated list is not scoped to the
-//     caller, but the bytes are: patch answers 404 for a recording the caller was not in.
+//   * Player plane (GET /patch/v1/recordings): the player's own access token. Patch verifies it itself. A listing by
+//     tag or curated list is not scoped to the caller. The bytes are NOT read on this plane (the player route is
+//     participants-only); they come from the internal blob route with the game-server key.
 //
 // Same transport rules as OtomoSocial and OtomoRank: one retry for a transport failure or a 5xx, none for a 4xx.
 // The upload is safe to retry because patch accepts an identical repeat (200) and refuses a different one (409).
@@ -70,13 +70,7 @@ public sealed class OtomoRecordings : IOtomoRecordings, IDisposable
 
     public async Task<bool> PutAsync(string recordingId, RecordingUpload upload, CancellationToken cancellationToken)
     {
-        var key = ReadServiceKey();
-        if (string.IsNullOrEmpty(key))
-        {
-            throw new OtomoRecordingsException(OtomoRecordingsFailure.Disabled,
-                "an upload needs the internal plane: set Otomo:Recordings:ServiceKeyFile (or ServiceKey)");
-        }
-
+        var key = RequireServiceKey("an upload");
         var url = Under(_internalBase, $"internal/patch/recording/{Uri.EscapeDataString(recordingId)}");
         var response = await SendAsync(url, HttpMethod.Put, () => BuildUpload(upload), key, "upload",
             _options.TransferTimeout, cancellationToken).ConfigureAwait(false);
@@ -110,14 +104,14 @@ public sealed class OtomoRecordings : IOtomoRecordings, IDisposable
         }
     }
 
-    public async Task<bool> CanFetchAsync(string accessToken, string recordingId, CancellationToken cancellationToken)
+    public async Task<bool> CanFetchAsync(string recordingId, CancellationToken cancellationToken)
     {
-        var url = Under(_playerBase, $"patch/v1/recordings/{Uri.EscapeDataString(recordingId)}/blob");
+        var key = RequireServiceKey("a recording fetch");
+        var url = Under(_internalBase, $"internal/patch/recording/{Uri.EscapeDataString(recordingId)}/blob");
         try
         {
-            using var response = await SendAsync(url, HttpMethod.Get, null, accessToken, "blob probe",
-                _options.Timeout, cancellationToken, request =>
-                    request.Headers.Range = new RangeHeaderValue(0, 0)).ConfigureAwait(false);
+            using var response = await SendAsync(url, HttpMethod.Get, null, key, "blob probe", _options.Timeout,
+                cancellationToken, request => request.Headers.Range = new RangeHeaderValue(0, 0)).ConfigureAwait(false);
             return true;
         }
         catch (OtomoRecordingsException exception) when (exception is
@@ -127,13 +121,14 @@ public sealed class OtomoRecordings : IOtomoRecordings, IDisposable
         }
     }
 
-    public async Task<byte[]?> GetBlobAsync(string accessToken, string recordingId, CancellationToken cancellationToken)
+    public async Task<byte[]?> GetBlobAsync(string recordingId, CancellationToken cancellationToken)
     {
-        var url = Under(_playerBase, $"patch/v1/recordings/{Uri.EscapeDataString(recordingId)}/blob");
+        var key = RequireServiceKey("a recording fetch");
+        var url = Under(_internalBase, $"internal/patch/recording/{Uri.EscapeDataString(recordingId)}/blob");
         try
         {
-            using var response = await SendAsync(url, HttpMethod.Get, null, accessToken, "blob",
-                _options.TransferTimeout, cancellationToken).ConfigureAwait(false);
+            using var response = await SendAsync(url, HttpMethod.Get, null, key, "blob", _options.TransferTimeout,
+                cancellationToken).ConfigureAwait(false);
             return await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (OtomoRecordingsException exception) when (exception is
@@ -141,6 +136,14 @@ public sealed class OtomoRecordings : IOtomoRecordings, IDisposable
         {
             return null;
         }
+    }
+
+    private string RequireServiceKey(string what)
+    {
+        var key = ReadServiceKey();
+        if (!string.IsNullOrEmpty(key)) return key;
+        throw new OtomoRecordingsException(OtomoRecordingsFailure.Disabled,
+            $"{what} needs the internal plane: set Otomo:Recordings:ServiceKeyFile (or ServiceKey)");
     }
 
     // The multipart body, fields first and the bytes in the final `file` part, which patch requires

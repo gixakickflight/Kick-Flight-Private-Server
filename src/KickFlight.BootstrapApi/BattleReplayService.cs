@@ -20,7 +20,7 @@ namespace KickFlight.BootstrapApi;
 /// <item><b>Index</b> (/battleReplay/index): one type-2 channel per kicker from patch's by-tag listing (newest first), and
 /// the type-3 "Featured" row from the published <c>patch.curated</c> list, in the order it was published.</item>
 /// <item><b>Play</b> (/battleReplay/play and GET /battleReplay/blob/{keyId}): the client's own encryption
-/// (<see cref="D2CCodec"/>) around bytes fetched from patch with the player's token. The URL is sealed, so no key table
+/// (<see cref="D2CCodec"/>) around bytes fetched from patch with the game-server key. The URL is sealed, so no key table
 /// exists to lose.</item>
 /// </list>
 ///
@@ -508,37 +508,36 @@ public sealed class BattleReplayService
     // ------------------------------------------------------------------ playback
 
     /// <summary>
-    /// Mints the URL id and encryption key /battleReplay/play answers with, or ("","") when the player cannot fetch that
-    /// recording (patch says 404 for one that does not exist and for one the player was not in).
+    /// Mints the URL id and encryption key /battleReplay/play answers with, or ("","") when patch does not hold that
+    /// recording. Any recording patch holds is playable by any player (the adapter fetches with the game-server key).
     ///
     /// Nothing is stored. The id is the replay id, the player's otomo device and an expiry sealed with AES-GCM under the
     /// server's secret, and the key is an HMAC of that id, so the blob request (which carries no session) can open the id,
-    /// fetch with the right player's token and encrypt with the key the client was given. A replayed URL works until it
+    /// check it is unexpired and encrypt with the key the client was given. The device is kept as part of the id's
+    /// authorisation; the fetch itself needs no player token. A replayed URL works until it
     /// expires, as the one-shot map it replaces did (the entry was only dropped by expiry).
     /// </summary>
     public async Task<(string KeyId, string EncryptionKey)> CreatePlayKeyAsync(string replayId, string otomoDeviceId,
-        string accessToken, DateTime nowUtc, CancellationToken cancellationToken)
+        DateTime nowUtc, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(replayId) || !PatchIdPattern.IsMatch(replayId)) return ("", "");
-        if (!await _recordings.CanFetchAsync(accessToken, replayId, cancellationToken).ConfigureAwait(false)) return ("", "");
+        if (!await _recordings.CanFetchAsync(replayId, cancellationToken).ConfigureAwait(false)) return ("", "");
 
         var keyId = Seal(new PlayClaim(replayId, otomoDeviceId, new DateTimeOffset(nowUtc, TimeSpan.Zero).Add(_options.PlayLifetime).ToUnixTimeSeconds()));
         return (keyId, DeriveKey(keyId));
     }
 
     /// <summary>
-    /// Encrypts the recording exactly as the client expects (D2CCodec = IV || AES-256-CBC/PKCS7) from patch's bytes.
-    /// <paramref name="accessTokenForDevice"/> turns the sealed device into that player's current access token.
+    /// Encrypts the recording exactly as the client expects (D2CCodec = IV || AES-256-CBC/PKCS7) from patch's bytes,
+    /// fetched with the game-server key.
     /// Returns null for an id that is forged, expired, or whose recording patch no longer serves.
     /// </summary>
-    public async Task<byte[]?> TryEncodeBlobAsync(string keyId, DateTime nowUtc,
-        Func<string, CancellationToken, Task<string>> accessTokenForDevice, CancellationToken cancellationToken)
+    public async Task<byte[]?> TryEncodeBlobAsync(string keyId, DateTime nowUtc, CancellationToken cancellationToken)
     {
         var claim = Open(keyId);
         if (claim is null || claim.ExpiresUnix < new DateTimeOffset(nowUtc, TimeSpan.Zero).ToUnixTimeSeconds()) return null;
 
-        var accessToken = await accessTokenForDevice(claim.Device, cancellationToken).ConfigureAwait(false);
-        var blob = await _recordings.GetBlobAsync(accessToken, claim.Replay, cancellationToken).ConfigureAwait(false);
+        var blob = await _recordings.GetBlobAsync(claim.Replay, cancellationToken).ConfigureAwait(false);
         return blob is null
             ? null
             : D2CCodec.Encode(blob, Encoding.ASCII.GetBytes(DeriveKey(keyId)),

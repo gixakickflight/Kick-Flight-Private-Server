@@ -103,12 +103,12 @@ public sealed class FakeOtomoRecordings : IAsyncDisposable
     }
 
     // A recording filed directly (another producer's, with whatever meta it likes), bypassing the upload route.
-    public void Seed(string id, string[] tags, string[] players, string metaJson)
+    public void Seed(string id, string[] tags, string[] players, string metaJson, byte[]? content = null)
     {
         lock (_lock)
         {
             _clock = _clock.AddSeconds(1);
-            var bytes = Encoding.UTF8.GetBytes("seed:" + id);
+            var bytes = content ?? Encoding.UTF8.GetBytes("seed:" + id);
             _recordings[id] = new Stored(id, "other.kind", bytes.Length, Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant(),
                 JsonNode.Parse(metaJson)!, [.. players], [.. tags], _clock, bytes);
         }
@@ -242,6 +242,21 @@ public sealed class FakeOtomoRecordings : IAsyncDisposable
                 }
                 return Results.Json(new { recordings = rows.Select(r => r.ToWire()).ToArray() });
             }
+        });
+
+        // GET /internal/patch/recording/{id}/blob: the game-server key, no participant check, 404 recording_not_found
+        // for missing or deleted, Range -> 206.
+        _app.MapGet("/internal/patch/recording/{id}/blob", (HttpContext context, string id) =>
+        {
+            Log(context);
+            if (_down) return Error(context, 503, "unavailable", "patch is down");
+            if (context.Request.Headers.Authorization.ToString() != "Bearer " + ServiceKey)
+                return Error(context, 401, "invalid_key", "the service key is not usable");
+            Stored? stored;
+            lock (_lock) stored = _recordings.GetValueOrDefault(id);
+            if (stored is null) return Error(context, 404, "recording_not_found", "no such recording");
+            context.Response.Headers["ETag"] = "\"" + stored.Sha256 + "\"";
+            return Results.File(stored.Bytes, "application/octet-stream", enableRangeProcessing: true);
         });
 
         _app.MapGet("/patch/v1/recordings/{id}/blob", (HttpContext context, string id) =>

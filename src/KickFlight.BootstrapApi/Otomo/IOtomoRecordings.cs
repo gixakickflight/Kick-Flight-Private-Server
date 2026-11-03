@@ -78,10 +78,11 @@ public interface IOtomoRecordings
     Task<IReadOnlyList<PatchRecording>?> ListCuratedAsync(string accessToken, string list,
         CancellationToken cancellationToken);
 
-    // Whether the player's token can fetch this recording's bytes: a one-byte ranged read of
-    // GET /patch/v1/recordings/{id}/blob. Patch answers 404 both for no such recording and for one the caller was not in.
-    Task<bool> CanFetchAsync(string accessToken, string recordingId, CancellationToken cancellationToken);
+    // Whether patch holds this recording: a one-byte ranged read of the internal blob route,
+    // GET /internal/patch/recording/{id}/blob, with the game-server key. No participant check: the same bytes for
+    // every recording, so a featured or channel row the viewer was not in is playable. False on 404 recording_not_found.
+    Task<bool> CanFetchAsync(string recordingId, CancellationToken cancellationToken);
 
-    // The bytes, or null when patch answers 404.
-    Task<byte[]?> GetBlobAsync(string accessToken, string recordingId, CancellationToken cancellationToken);
+    // The bytes from the same route, or null when patch answers 404.
+    Task<byte[]?> GetBlobAsync(string recordingId, CancellationToken cancellationToken);
 }

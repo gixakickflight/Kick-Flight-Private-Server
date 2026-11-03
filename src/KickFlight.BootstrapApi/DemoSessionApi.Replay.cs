@@ -136,11 +136,10 @@ public sealed partial class DemoSessionApi
         string keyId, encryptionKey;
         try
         {
-            var accessToken = await PlayerTokenAsync(ticket, context.RequestAborted);
-            (keyId, encryptionKey) = await _replays.CreatePlayKeyAsync(replayId, ticket.DeviceId, accessToken,
+            (keyId, encryptionKey) = await _replays.CreatePlayKeyAsync(replayId, ticket.DeviceId,
                 _timeProvider.GetUtcNow().UtcDateTime, context.RequestAborted);
         }
-        catch (Exception exception) when (exception is OtomoRecordingsException or OtomoIdentityException)
+        catch (OtomoRecordingsException exception)
         {
             return ReplayUnavailable(context, "/battleReplay/play", exception);
         }
@@ -154,19 +153,17 @@ public sealed partial class DemoSessionApi
         return OkJson(context, key, JsonSerializer.Serialize(new { battleReplayUrl = url, encryptionKey }));
     }
 
-    // GET /battleReplay/blob/{keyId}: the recording from patch with the sealed player's token, in the client's
+    // GET /battleReplay/blob/{keyId}: the recording from patch's internal route with the game-server key, in the client's
     // encryption. No session headers arrive here, so a failure is a bare status, not the game's error body.
     private async Task<IResult> HandleBattleReplayBlobAsync(HttpContext context, string keyId)
     {
         try
         {
             var encoded = await _replays.TryEncodeBlobAsync(keyId, _timeProvider.GetUtcNow().UtcDateTime,
-                async (deviceId, cancellationToken) =>
-                    (await _identity.GetSessionForDeviceIdAsync(deviceId, cancellationToken)).AccessToken,
                 context.RequestAborted);
             return encoded is null ? Results.NotFound() : Results.Bytes(encoded, "application/octet-stream");
         }
-        catch (Exception exception) when (exception is OtomoRecordingsException or OtomoIdentityException)
+        catch (OtomoRecordingsException exception)
         {
             _logger.LogError("Refusing /battleReplay/blob: {Reason}", exception.Message);
             return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
