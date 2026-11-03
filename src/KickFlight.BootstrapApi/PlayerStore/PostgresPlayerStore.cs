@@ -134,7 +134,16 @@ public sealed class PostgresPlayerStore : IPlayerStore
         _logger = logger;
         _dataSource = NpgsqlDataSource.Create(connectionString);
         Migrate();
+        _hasRankTable = RankTableExists();
     }
+
+    // Whether the adapter still keeps rank rows. It is the table's existence rather than a configuration flag: an
+    // operator who has dropped player_ranks - the documented step for a deployment where otomo owns rank - is not
+    // asked to also remember it here, and a database from before the drop keeps its ranking until it goes.
+    private bool _hasRankTable;
+
+    // One log line for the "flag off after the drop" case, not one per battle.
+    private bool _rankDropWarned;
 
     // Serialised across instances because two API containers starting at once would race here; the advisory
     // lock is held for the length of the migration and released with the connection.
@@ -373,6 +382,8 @@ public sealed class PostgresPlayerStore : IPlayerStore
 
     public RankState LoadRank(long playerId, int battleRuleType)
     {
+        if (!_hasRankTable) return RankProgression.Starting;
+
         using var connection = _dataSource.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText = "select battle_point, rank from player_ranks where player_id = $1 and battle_rule_type = $2";
@@ -384,6 +395,19 @@ public sealed class PostgresPlayerStore : IPlayerStore
 
     public void SaveRank(long playerId, int battleRuleType, RankState rank)
     {
+        // After a documented drop there is nowhere to write, and throwing would fail a player's battle result over
+        // it. The log line is the operator's: it names the table and the flag that now answers rank instead.
+        if (!_hasRankTable)
+        {
+            if (!_rankDropWarned)
+            {
+                _rankDropWarned = true;
+                _logger.LogError(
+                    "player_ranks is not present, so rank writes are ignored: this deployment dropped the table while Otomo:Rank was on, and turning the flag off now needs the table restored");
+            }
+            return;
+        }
+
         using var connection = _dataSource.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText = """
@@ -399,6 +423,14 @@ public sealed class PostgresPlayerStore : IPlayerStore
         command.Parameters.AddWithValue(rank.BattlePoint);
         command.Parameters.AddWithValue(rank.Rank);
         command.ExecuteNonQuery();
+    }
+
+    private bool RankTableExists()
+    {
+        using var connection = _dataSource.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "select to_regclass('player_ranks') is not null";
+        return Convert.ToBoolean(command.ExecuteScalar());
     }
 
     public bool IsNameTaken(string name, long exceptPlayerId)
@@ -640,10 +672,8 @@ public sealed class PostgresPlayerStore : IPlayerStore
 
         using var connection = _dataSource.OpenConnection();
         using var command = connection.CreateCommand();
-        command.CommandText = playerIds is null
-            ? RankingQuery(includePlayerFilter: false)
-            : RankingQuery(includePlayerFilter: true);
-        command.Parameters.AddWithValue(battleRuleType);
+        command.CommandText = RankingQuery(includePlayerFilter: playerIds is not null, withRanks: _hasRankTable);
+        if (_hasRankTable) command.Parameters.AddWithValue(battleRuleType);
         command.Parameters.AddWithValue(RankProgression.StartBattlePoint);
         command.Parameters.AddWithValue(RankProgression.StartRank);
         if (playerIds is not null)
@@ -667,19 +697,39 @@ public sealed class PostgresPlayerStore : IPlayerStore
         return result;
     }
 
-    private static string RankingQuery(bool includePlayerFilter)
+    // The ranking query has two shapes, and the difference is whether the adapter still keeps rank rows.
+    //
+    // With them, a player's row decides their points and order. Without them - the deployment has dropped player_ranks
+    // because otomo owns rank - there is no per-player number on this side at all, so every named player is at the
+    // starting standing and the order is the id: a leaderboard that says "the adapter no longer knows", rather than a
+    // 500 on a relation that is gone. Positions still have to be produced, which is why the no-rows shape exists
+    // instead of the caller skipping the query.
+    private static string RankingQuery(bool includePlayerFilter, bool withRanks)
     {
-        var filter = includePlayerFilter ? "where id = any($4)" : "";
-        var offsetParameter = includePlayerFilter ? "$5" : "$4";
-        var limitParameter = includePlayerFilter ? "$6" : "$5";
+        var ranks = withRanks
+            ? "select player_id, battle_point, rank from player_ranks where battle_rule_type = $1"
+            : "select null::bigint as player_id, null::integer as battle_point, null::integer as rank where false";
+        // $1 is the battle rule type only when there is a table to read it from; the two standing parameters follow it,
+        // then the optional id filter, then the page. ListRanks binds them in exactly this order.
+        var pointParameter = withRanks ? 2 : 1;
+        var rankParameter = pointParameter + 1;
+        var next = rankParameter + 1;
+        var filter = includePlayerFilter ? $"where id = any(${next++})" : "";
+        // The dollar is part of the placeholder: Npgsql binds $n by position, and a bare `offset 4` would be a
+        // literal that silently skips rows.
+        var offsetParameter = "$" + next++;
+        var limitParameter = "$" + next;
         return $"""
-            with scored as (
+            with ranked as (
+                {ranks}
+            ),
+            scored as (
                 select p.id, coalesce(p.display_name, '') as display_name, p.kicker_id, p.kicker_costume_id,
-                       coalesce(r.battle_point, $2) as battle_point,
-                       coalesce(r.rank, $3) as rank,
-                       row_number() over (order by coalesce(r.battle_point, $2) desc, p.id asc) as position
+                       coalesce(r.battle_point, ${pointParameter}) as battle_point,
+                       coalesce(r.rank, ${rankParameter}) as rank,
+                       row_number() over (order by coalesce(r.battle_point, ${pointParameter}) desc, p.id asc) as position
                 from players p
-                left join player_ranks r on r.player_id = p.id and r.battle_rule_type = $1
+                left join ranked r on r.player_id = p.id
                 where nullif(p.display_name, '') is not null
             )
             select id, display_name, kicker_id, kicker_costume_id, battle_point, rank, position

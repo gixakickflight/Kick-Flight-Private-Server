@@ -46,6 +46,16 @@ builder.Services.Configure<OtomoEconomyOptions>(builder.Configuration.GetSection
 builder.Services.AddSingleton<IOtomoEconomy>(services => OtomoEconomy.Create(
     services.GetRequiredService<IOptions<OtomoEconomyOptions>>(),
     services.GetRequiredService<ILogger<OtomoEconomy>>()));
+// Rank: otomo's player rank service (docs/OTOMO_RANK.md). Off by default, and off is the table this repo has always
+// read. On, this player's own standing comes from otomo on the player's own token and the adapter stops writing its
+// own table; the base URL falls back to Otomo:BaseUrl, so enabling it is one variable: Otomo__Rank__Enabled=true.
+builder.Services.Configure<OtomoRankOptions>(builder.Configuration.GetSection(OtomoRankOptions.SectionName));
+builder.Services.AddSingleton<IOtomoRank>(services => OtomoRank.Create(
+    services.GetRequiredService<IOptions<OtomoRankOptions>>(),
+    services.GetRequiredService<IOptions<OtomoOptions>>(),
+    services.GetRequiredService<ILogger<OtomoRank>>()));
+// The one place the two rank sources meet: payload builders ask this, and never either source directly.
+builder.Services.AddSingleton<IRankSource, RankSource>();
 // Masters: otomo publishes them as a release and this adapter follows the channel (docs/OTOMO_MASTERS.md). The
 // tables named in Otomo:Masters:Tables are read from otomo and from nowhere else; every other table is still a
 // file under config/. The refresher is what turns a publish into a running server's new values.
@@ -87,6 +97,9 @@ var app = builder.Build();
 // this were left lazy, the first request would throw and /health/ready - which never touches the store - would
 // keep answering "ready" for a server that cannot serve a single player.
 app.Services.GetRequiredService<IPlayerStore>();
+// Rank that otomo owns leaves player_ranks unwritten but not removed: the table is the only copy of a player's old
+// points, and a rollback to Otomo:Rank=false needs it. Dropping it is an operator step, taken deliberately and only
+// once no rollback is wanted (docs/OTOMO_RANK.md). Nothing in this process deletes it.
 // Loads data/maintenance.json now, so a restart during hard maintenance answers 503 from the first request.
 app.Services.GetRequiredService<MaintenanceState>();
 // Loads data/client-update.json now, so a restart keeps the forced-update minimum from the first request.

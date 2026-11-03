@@ -477,7 +477,8 @@ public sealed class HarnessTests : IClassFixture<ServerTestHostFixture>
         {
             Path.Combine("src", "KickFlight.BootstrapApi", "Otomo", "OtomoIdentity.cs"),
             Path.Combine("src", "KickFlight.BootstrapApi", "Otomo", "OtomoMasters.cs"),
-            Path.Combine("src", "KickFlight.BootstrapApi", "Otomo", "OtomoEconomy.cs")
+            Path.Combine("src", "KickFlight.BootstrapApi", "Otomo", "OtomoEconomy.cs"),
+            Path.Combine("src", "KickFlight.BootstrapApi", "Otomo", "OtomoRank.cs")
         };
         foreach (var file in sourceFiles)
         {

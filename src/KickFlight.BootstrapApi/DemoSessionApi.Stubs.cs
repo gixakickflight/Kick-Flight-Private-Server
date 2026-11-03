@@ -70,7 +70,7 @@ public sealed partial class DemoSessionApi
             case "/ranking/user":
             case "/ranking/follow":
             case "/ranking/region":
-                return await HandleRankingAsync(context, state, key, path);
+                return await HandleRankingAsync(context, state, ticket, key, path);
 
             case "/sns/index":
                 return OkJson(context, key, """{"userProfileList":[]}""");

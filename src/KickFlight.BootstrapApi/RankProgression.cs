@@ -34,6 +34,11 @@ public static class RankProgression
     public const int WinBattlePoint = 50;
     public const int LoseBattlePoint = 20;
 
+    // The battle rule types that keep a standing, in the order the client's payloads list them: Crystal Scramble,
+    // Flag Flight, Rapid Ball. The client's userBattleRankList and the store's rows are keyed by these integers, and
+    // one place has to name them or the two drift.
+    public static readonly int[] BattleRuleTypes = [1, 2, 3];
+
     public static readonly int[] TotalBattlePointByRank =
     [
         0, 200, 500, 900, 1400, 1900, 2400, 2900, 3400, 3900, 4400, 4900, 5400, 5900, 6400, 6900, 7500

@@ -47,6 +47,11 @@ public interface IPlayerStore
     void Save(SessionState state);
 
     // Rank per battle rule type. Absent rows read as the starting rank, so a new player needs no seeding.
+    //
+    // These three are the adapter's own rank, which is what a deployment runs until Otomo:Rank is on. With it on
+    // nothing on the request path calls the read or the write: otomo answers the player's standing, and the table is
+    // left alone so that turning the flag back off restores the rank players had (see docs/OTOMO_RANK.md for when an
+    // operator may drop it).
     RankState LoadRank(long playerId, int battleRuleType);
 
     void SaveRank(long playerId, int battleRuleType, RankState rank);

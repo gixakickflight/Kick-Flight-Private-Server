@@ -31,8 +31,9 @@ public sealed partial class DemoSessionApi
         get { lock (_mastersLock) { return _masterVersion; } }
     }
 
-    // Rank is per player and persisted now (player_ranks, via IPlayerStore); the table it indexes into, the
-    // range that renders, and the per-battle delta live in RankProgression.
+    // Rank is per player. Otomo:Rank off (the default), it is persisted in player_ranks via IPlayerStore; on, it is
+    // otomo's session rank service and the adapter's table is neither read nor written (see docs/OTOMO_RANK.md). The
+    // ladder both sources render through, the range that draws, and the per-battle delta live in RankProgression.
 
     // Onboarding status, which is how the player is made to choose a name.
     //
@@ -50,14 +51,36 @@ public sealed partial class DemoSessionApi
 
     // The three rule types have separate ranked standings. Casual results continue using the existing regular ladder.
     public const int RegularBattleRuleType = 1;
-    private static readonly int[] RankedBattleRuleTypes = [1, 2, 3];
+    private static readonly int[] RankedBattleRuleTypes = RankProgression.BattleRuleTypes;
 
+    // The rank payload the client reads, in the only shape it has ever had: the rule type, the points, and the rank
+    // those points place the player in. Both sources fill these three fields, so switching Otomo:Rank on changes where
+    // the numbers come from and nothing about how they are sent.
+    private static object RankPayload(int battleRuleType, RankState rank) =>
+        new { battleRuleType, battlePoint = rank.BattlePoint, rank = rank.Rank };
+
+    // The standing of a player this request has no otomo token for: another player's card, or a builder reached without
+    // one. With Otomo:Rank on there is no second source to fall back to, so the card reads as a player who has never
+    // battled rather than as a stale number from a table nothing writes.
     private object[] BuildBattleRankList(SessionState state) =>
-        RankedBattleRuleTypes.Select(ruleType =>
-        {
-            var rank = _playerStore.LoadRank(state.PlayerId, ruleType);
-            return (object)new { battleRuleType = ruleType, battlePoint = rank.BattlePoint, rank = rank.Rank };
-        }).ToArray();
+        _rank.UsesOtomo
+            ? RankedBattleRuleTypes.Select(ruleType => RankPayload(ruleType, RankProgression.Starting)).ToArray()
+            : RankedBattleRuleTypes.Select(ruleType => RankPayload(ruleType, _playerStore.LoadRank(state.PlayerId, ruleType)))
+                .ToArray();
+
+    // The caller's own standings, one read of the selected source. Off, three store reads exactly as before; on, one
+    // otomo answer for every rule type. A rule type otomo cannot answer for reads as unranked, never from the store.
+    private async Task<object[]> BuildBattleRankListAsync(KfIdentityTicket ticket, SessionState state,
+        CancellationToken cancellationToken)
+    {
+        if (!_rank.UsesOtomo) return BuildBattleRankList(state);
+
+        var ranks = await _rank.ReadAllAsync(ticket, state.PlayerId, cancellationToken);
+        return RankedBattleRuleTypes
+            .Select(ruleType => RankPayload(ruleType,
+                ranks is not null && ranks.TryGetValue(ruleType, out var rank) ? rank : RankProgression.Starting))
+            .ToArray();
+    }
 
     private readonly string _contentRoot;
     private readonly int _grpcPort;
@@ -68,6 +91,9 @@ public sealed partial class DemoSessionApi
     private readonly IOtomoIdentity _identity;
     // The only source of value: this process holds no balance, no ticket and no disc (see DemoSessionApi.Economy.cs).
     private readonly IOtomoEconomy _economy;
+    // Where a player's standing comes from: the adapter's store, or otomo when Otomo:Rank is on. The switch lives in
+    // this one object, so a payload never has to know which source answered it.
+    private readonly IRankSource _rank;
     private readonly KfAccessTokenCodec _accessTokens;
     private readonly IPlayerStore _playerStore;
     private readonly OtomoMasters _otomoMasters;
@@ -99,7 +125,7 @@ public sealed partial class DemoSessionApi
 
     public DemoSessionApi(ILogger<DemoSessionApi> logger, IWebHostEnvironment environment,
         BattleMatchmakingService matchmaking, BattleReplayService replays, IPlayerStore playerStore,
-        IOtomoIdentity identity, IOtomoEconomy economy, KfAccessTokenCodec accessTokens,
+        IOtomoIdentity identity, IOtomoEconomy economy, IRankSource rank, KfAccessTokenCodec accessTokens,
         IConfiguration configuration, MaintenanceState maintenance, ClientUpdateState clientUpdate,
         TimeProvider timeProvider, OpsTelemetryService ops, IOptions<HarnessOptions> harnessOptions,
         OtomoMasters otomoMasters)
@@ -114,6 +140,7 @@ public sealed partial class DemoSessionApi
         _playerStore = playerStore;
         _identity = identity;
         _economy = economy;
+        _rank = rank;
         _accessTokens = accessTokens;
         _otomoMasters = otomoMasters;
         _harnessOptions = harnessOptions.Value;
@@ -1188,7 +1215,7 @@ public sealed partial class DemoSessionApi
 
             context.Response.Headers["x-app-status-code"] = "0";
             context.Response.Headers["x-kickflight-fixture"] = "dynamic-demo-session";
-            var json = BuildHomeJson(state, snapshot);
+            var json = await BuildHomeJsonAsync(state, snapshot, ticket, context.RequestAborted);
             _logger.LogInformation("Serving dynamic home index (active kickerId={KickerId}, costumeId={CostumeId}, activeDeck={Deck}, offers={Offers}, pools={Pools})",
                 state.KickerId, state.KickerCostumeId, state.ActiveDeckNumber, snapshot.Offers.Count, snapshot.Pools.Count);
             return BinaryJson(json, key);
@@ -1724,7 +1751,16 @@ public sealed partial class DemoSessionApi
     private bool IsDiagClient(HttpContext context) =>
         _maintenance.IsBypassClient(context.Request.Headers["x-app-application-version"].ToString());
 
-    private string BuildHomeJson(SessionState state, EconomySnapshot economy)
+    // The caller's own rank is the one field in this payload that can come from otomo, so the builder is async: the
+    // read happens once, before assembly, and everything else is the same work it always was.
+    private async Task<string> BuildHomeJsonAsync(SessionState state, EconomySnapshot economy, KfIdentityTicket ticket,
+        CancellationToken cancellationToken)
+    {
+        var battleRanks = await BuildBattleRankListAsync(ticket, state, cancellationToken);
+        return BuildHomeJson(state, economy, battleRanks);
+    }
+
+    private string BuildHomeJson(SessionState state, EconomySnapshot economy, object[] battleRanks)
     {
         NormalizeCostume(state);
 
@@ -1768,7 +1804,7 @@ public sealed partial class DemoSessionApi
             // threw ArgumentOutOfRangeException (List<T>.get_Item).
             discGachaGroupList = BuildHomeDiscGachaGroupList(),
             kickerGachaGroupList = BuildHomeKickerGachaGroupList(economy),
-            userBattleRankList = BuildBattleRankList(state),
+            userBattleRankList = battleRanks,
             userMissionProgressList = Array.Empty<object>(),
             // shopProductList is the real-money IAP list, which this server does not sell; the goods shop is the
             // JetCoin one and is served in full.
@@ -2488,17 +2524,22 @@ public sealed partial class DemoSessionApi
                 state.UserId, battleEntryId);
         }
 
+        // The player's standing before this result comes from whichever source owns rank, and the update itself is
+        // that source's: the store's progression writes, otomo's does not (a match's points are the matchmaker's
+        // award on session's internal listener, so a write here would be a second, racing authority). The read is
+        // safe to repeat; the update stays inside the per-entry gate below, so a retried result applies once.
+        var standingBefore = await _rank.ReadAsync(ticket, state.PlayerId, battleRuleType, context.RequestAborted)
+            ?? RankProgression.Starting;
+
         var processedRankedResult = applyProgression
             ? _matchmaking.ProcessRankedResultOnce(battleEntryId, state.UserId, ruleType =>
             {
-                var beforeRank = _playerStore.LoadRank(state.PlayerId, ruleType);
-                var afterRank = RankProgression.Apply(beforeRank, won: true);
-                _playerStore.SaveRank(state.PlayerId, ruleType, afterRank);
-                return new BattleMatchmakingService.RankedResultSnapshot(ruleType, beforeRank, afterRank);
+                var afterRank = _rank.ApplyRankedResult(state.PlayerId, ruleType, standingBefore, won: true);
+                return new BattleMatchmakingService.RankedResultSnapshot(ruleType, standingBefore, afterRank);
             })
             : null;
         var rankSnapshot = processedRankedResult?.RankedResult;
-        var before = rankSnapshot?.Before ?? _playerStore.LoadRank(state.PlayerId, battleRuleType);
+        var before = rankSnapshot?.Before ?? standingBefore;
         var after = rankSnapshot?.After ?? before;
 
         var rank = new { battleRuleType, battlePoint = after.BattlePoint, rank = after.Rank };

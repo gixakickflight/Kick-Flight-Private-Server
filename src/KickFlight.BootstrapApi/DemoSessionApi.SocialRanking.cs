@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
+using KickFlight.BootstrapApi.Otomo;
 using KickFlight.BootstrapApi.PlayerStore;
 
 namespace KickFlight.BootstrapApi;
@@ -91,7 +92,10 @@ public sealed partial class DemoSessionApi
         return OkJson(context, key, JsonSerializer.Serialize(new { userProfileList = profiles }));
     }
 
-    private async Task<IResult> HandleRankingAsync(HttpContext context, SessionState state, byte[] key, string path)
+    // The caller's own row in this payload is their standing, so it comes from the source that owns rank; the list
+    // rows are other players, which otomo's player plane deliberately has no route for (see RankSource).
+    private async Task<IResult> HandleRankingAsync(HttpContext context, SessionState state, KfIdentityTicket ticket,
+        byte[] key, string path)
     {
         var request = await ReadRequestRootAsync(context, key);
         if (request is null) return StatusError(context, key);
@@ -127,7 +131,10 @@ public sealed partial class DemoSessionApi
         }
 
         var resultRows = ranked.Select(row => RankingProfile(state.PlayerId, row)).ToArray();
-        var ownRank = _playerStore.LoadRank(state.PlayerId, battleRuleType);
+        var ownRank = _rank.UsesOtomo
+            ? await _rank.ReadAsync(ticket, state.PlayerId, battleRuleType, context.RequestAborted)
+              ?? RankProgression.Starting
+            : _playerStore.LoadRank(state.PlayerId, battleRuleType);
         var ownProfile = _playerStore.FindProfile(state.PlayerId);
         var ownPosition = _playerStore.ListRanks(battleRuleType, [state.PlayerId], 0, 1).FirstOrDefault()?.Position ?? 0;
         var self = ownProfile is null
