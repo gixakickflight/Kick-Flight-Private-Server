@@ -1098,7 +1098,7 @@ public sealed partial class DemoSessionApi : IDisposable
             var session = _playerStore.FindSession(accessToken);
             if (session is null)
             {
-                _logger.LogWarning("Rejecting unknown access token {Token}", accessToken);
+                _logger.LogWarning("Rejecting unknown access token (length {Length})", accessToken.Length);
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 context.Response.Headers["x-app-status-code"] = "1";
                 return Results.Empty;
