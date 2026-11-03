@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading;
 using KickFlight.BootstrapApi.Ops;
 using KickFlight.BootstrapApi.PlayerStore;
+using KickFlight.BootstrapApi.Push;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 
@@ -98,8 +99,16 @@ public sealed partial class DemoSessionApi : IDisposable
         BattleMatchmakingService matchmaking, BattleReplayService replays, IPlayerStore playerStore,
         IConfiguration configuration, MaintenanceState maintenance, ClientUpdateState clientUpdate,
         TimeProvider timeProvider, OpsTelemetryService ops, IOptions<HarnessOptions> harnessOptions,
-        IBotAiProfileProvider? botAiProfiles = null, ChatService? chat = null)
+        IBotAiProfileProvider? botAiProfiles = null, ChatService? chat = null,
+        PushTokenService? pushTokens = null, RankedSearchNotifier? rankedNotifier = null)
     {
+        _pushTokens = pushTokens;
+        _rankedNotifier = rankedNotifier;
+        if (pushTokens is not null)
+        {
+            _pushThrottle = new PushRegisterThrottle(timeProvider);
+            pushTokens.LiveStates = id => _sessions.Values.Where(s => s.State.PlayerId == id).Select(s => s.State).Distinct();
+        }
         _chat = chat ?? new ChatService(environment, configuration, timeProvider, Microsoft.Extensions.Logging.Abstractions.NullLogger<ChatService>.Instance);
         _logger = logger;
         _ops = ops;
@@ -1064,6 +1073,9 @@ public sealed partial class DemoSessionApi : IDisposable
         // to a running match by client address + device, to flag a silent drop as a probable crash + relaunch.
         if (path == "/boot/index") _ops.RecordBoot(OpsClientInfo.FromRequest(context));
 
+        // Unauthenticated and exempt from the update/maintenance gates: the client's FCM hook has no session.
+        if (path == "/push/register") return await HandlePushRegisterAsync(context);
+
         // An out-of-date client is stopped here, before auth and before any other handler: /boot/index is served
         // from a fixture, so a gate inside this method is what catches it. The admin and health routes are mapped
         // outside this catch-all, so they never reach here.
@@ -1086,7 +1098,7 @@ public sealed partial class DemoSessionApi : IDisposable
             var session = _playerStore.FindSession(accessToken);
             if (session is null)
             {
-                _logger.LogWarning("Rejecting unknown access token {Token}", accessToken);
+                _logger.LogWarning("Rejecting unknown access token (length {Length})", accessToken.Length);
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 context.Response.Headers["x-app-status-code"] = "1";
                 return Results.Empty;
@@ -1902,8 +1914,8 @@ public sealed partial class DemoSessionApi : IDisposable
             context.Response.Headers["x-app-access-token"] = sessionToken;
             context.Response.Headers["x-kickflight-fixture"] = "dynamic-demo-auth";
             context.Response.Headers["x-app-datetime"] = DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
-            _logger.LogInformation("Created session for player {PlayerId} (name {UserName:l}) with token {Token}",
-                playerId, state.HasName ? state.UserName : "<unset>", sessionToken);
+            _logger.LogInformation("Created session for player {PlayerId} (name {UserName:l})",
+                playerId, state.HasName ? state.UserName : "<unset>");
             _ops.RecordAuth(state.UserId, OpsClientInfo.FromRequest(context));
             return BinaryJson("{}", key);
         }
@@ -2266,6 +2278,11 @@ public sealed partial class DemoSessionApi : IDisposable
         _ops.RecordEntry(state.UserId, battleEntryId, ticketId, battleRuleId, ruleMetadata.MatchType,
             state.KickerId, state.KickerCostumeId, IsDiagClient(context), OpsClientInfo.FromRequest(context));
         _logger.LogInformation("Handled /battle/entry for {UserId}: ticket={TicketId}", state.UserId, ticketId);
+        if (RankedModeRotation.IsRankedRule(battleRuleId))
+        {
+            // Fire-and-forget: never delays or fails the entry response.
+            _rankedNotifier?.NotifyInBackground(state.PlayerId, id => _matchmaking.IsUserQueued(id.ToString()), LastActivityOf);
+        }
         return BinaryJson(JsonSerializer.Serialize(resp), key);
     }
 

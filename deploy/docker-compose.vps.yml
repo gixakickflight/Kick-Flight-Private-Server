@@ -124,6 +124,8 @@ services:
       Harness__DirectClientHosts__1: kick-flight-fenix.us.ci
       Harness__PersistCaptures: "false"
       Diagnostics__UploadDirectory: /srv/diag-uploads
+      Push__Enabled: "true"
+      Push__CredentialsPath: /srv/repo/.local/secrets/fcm-service-account.json
       # Replay blobs/metadata live in the host's .local/ (excluded from the CI rsync, so a deploy never wipes
       # them) but the .local tree is mounted read-only above, hence the dedicated writable sub-mount.
       Replays__Directory: /srv/replays

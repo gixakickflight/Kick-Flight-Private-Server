@@ -35,6 +35,7 @@ builder.Services.AddSingleton<IPlayerStore>(services => PlayerStoreFactory.Creat
 // events; the same singleton is the background batch writer and 60 s status sweep.
 builder.Services.AddSingleton<OpsTelemetryService>();
 builder.Services.AddHostedService(services => services.GetRequiredService<OpsTelemetryService>());
+KickFlight.BootstrapApi.Push.PushServiceCollectionExtensions.AddRankedPush(builder.Services, builder.Configuration);
 builder.Services.AddSingleton<ChatService>();
 builder.Services.AddSingleton<DemoSessionApi>();
 builder.Services.AddGrpc();

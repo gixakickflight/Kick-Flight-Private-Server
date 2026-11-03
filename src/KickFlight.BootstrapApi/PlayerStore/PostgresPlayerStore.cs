@@ -686,6 +686,20 @@ public sealed class PostgresPlayerStore : IPlayerStore
         command.ExecuteNonQuery();
     }
 
+    public IReadOnlyList<PushRegistration> ListPushRegistrations()
+    {
+        using var connection = _dataSource.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            select id, state->>'PushToken' from players
+            where coalesce(state->>'PushToken', '') <> ''
+            """;
+        var result = new List<PushRegistration>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read()) result.Add(new PushRegistration(reader.GetInt64(0), reader.GetString(1)));
+        return result;
+    }
+
     public bool IsNameTaken(string name, long exceptPlayerId)
     {
         using var connection = _dataSource.OpenConnection();
