@@ -79,13 +79,14 @@ and it is in memory, never stored.
 | Blocked by | the same missing cross-player rank read as domain 1: the ranking list (`IPlayerStore.ListRanks`) is the whole player base ordered by battle points, with `battlePoint`, `rank` and a one-based `position` per row. Follows replace *who* is listed; otomo cannot say what any of them scored |
 | To unblock | as domain 1, plus a decision on whether the ranking screen keeps points at all |
 
-### 6. Loadout (decks, gear, active deck) - BLOCKED, as expected
+### 6. Loadout (decks, gear, active deck) - DONE, through `ext`
 
-`ext.session.player` is not published on the instance, and the seeded document declares no fields, so
-every non-empty ext write is refused. `SessionState.Decks`, `CostumeGears`, `PendingGear` and
-`ActiveDeckNumber` stay. The moment an instance publishes a schema with `decks`/`gear`/`activeDeck`,
-the move is mechanical: `PUT /api/player/session/loadout` with the revision in `If-Match`, and the
-schema published from `otomo/namespaces/session.ext/` the way `kf.kickers` is.
+The loadout is the `ext` of the player's session card (`ext.session.player`): `decks`, `costume_gears`, `active_deck` and
+`pending_gear`. Reads are `GET /api/player/session/me` (the caller) and `GET /internal/session/players/{id}` (another
+player); every write is `POST /internal/session/players/ext` with `merge: true`, keyed so a retry writes once
+(`DemoSessionApi.Loadout.cs`). `SessionState.Decks`, `CostumeGears`, `PendingGear` and `ActiveDeckNumber`, and the
+`players.active_deck_number` column (migration 8), are gone. The kicker and costume a player picked stay in the game row:
+the schema declares no field for them.
 
 ## The suite as it stands
 

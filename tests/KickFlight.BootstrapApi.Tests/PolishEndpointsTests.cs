@@ -70,7 +70,7 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
         var gearId = created.GetProperty("gearId").GetInt32();
         Assert.Contains(gearId, gearIds);
 
-        // ... and the roll stays pending until it is equipped or discarded, in the payload and in the save file
+        // ... and the roll stays pending until it is equipped or discarded, in the payload and in session's ext
         var pending = await PostAsync(session, "/startup/index", null);
         Assert.Equal(gearId, pending.GetProperty("userGear").GetProperty("gearId").GetInt32());
         Assert.Equal(kickerId, pending.GetProperty("userGear").GetProperty("kickerId").GetInt32());
@@ -475,7 +475,11 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
         var own = (await PostAsync(session, "/user/search", new { displayUserId = ownId })).GetProperty("userProfile");
         Assert.Equal(session.UserId, own.GetProperty("userId").GetString());
         Assert.Equal(publicOwnId, own.GetProperty("displayUserId").GetInt64());
-        Assert.Equal("", own.GetProperty("name").GetString());
+        // The name on a card is session's, and a player who has not chosen one holds the provisional name session gave
+        // them at first sign-in (this used to be the adapter's own empty copy of it).
+        var ownAccount = _factory.Services.GetRequiredService<KickFlight.BootstrapApi.PlayerStore.IPlayerStore>()
+            .FindOtomoPlayer(ownId)!.OtomoPlayerId;
+        Assert.Equal(OtomoTestEnvironment.Social.Ensure(ownAccount).DisplayName, own.GetProperty("name").GetString());
         Assert.Equal(6010000, own.GetProperty("honorId").GetInt32());
         Assert.Equal(NewPlayerRank, own.GetProperty("userBattleRankList")[0].GetProperty("rank").GetInt32());
 
@@ -784,11 +788,21 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
         return document.RootElement.Clone();
     }
 
+    // The loadout is the ext of the player's session card now, so what these assertions cover is what session holds, not a
+    // file this server wrote.
+    private JsonElement ReadSessionExt(DemoSession session)
+    {
+        var account = _factory.Services.GetRequiredService<KickFlight.BootstrapApi.PlayerStore.IPlayerStore>()
+            .FindOtomoPlayer(long.Parse(session.UserId))!.OtomoPlayerId;
+        using var document = JsonDocument.Parse(OtomoTestEnvironment.Social.ExtOf(account));
+        return document.RootElement.Clone();
+    }
+
     private int ReadPendingGearId(DemoSession session) =>
-        ReadUserState(session).GetProperty("PendingGear").GetProperty("GearId").GetInt32();
+        ReadSessionExt(session).GetProperty("pending_gear").GetProperty("gear_id").GetInt32();
 
     private int ReadCostumeGearSlot(DemoSession session, int costumeId, int slotNumber) =>
-        ReadUserState(session).GetProperty("CostumeGears").GetProperty(costumeId.ToString())[slotNumber - 1].GetInt32();
+        ReadSessionExt(session).GetProperty("costume_gears").GetProperty(costumeId.ToString())[slotNumber - 1].GetInt32();
 
     // A POST that is allowed to fail: the rejection codes (2005 for a name the client refuses to accept, 401 for a
     // session the server no longer knows) are exactly what these tests are about, so the status header is left to

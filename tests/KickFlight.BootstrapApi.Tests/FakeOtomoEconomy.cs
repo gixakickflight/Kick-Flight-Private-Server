@@ -314,6 +314,11 @@ public sealed class FakeOtomoEconomy : IAsyncDisposable
             var root = body.RootElement;
             var poolId = root.TryGetProperty("pool_id", out var poolProp) ? poolProp.GetString() ?? "" : "";
             var count = root.TryGetProperty("count", out var countProp) && countProp.TryGetInt64(out var wanted) ? wanted : 1;
+            if (poolId.StartsWith("capsule.", StringComparison.Ordinal))
+            {
+                var idempotencyKey = root.TryGetProperty("idempotency_key", out var keyProp) ? keyProp.GetString() ?? "" : "";
+                return RollCapsulePool(context, account, poolId, count, idempotencyKey);
+            }
             if (!Pools.TryGetValue(poolId, out var pool))
             {
                 return Error(context, StatusCodes.Status404NotFound, "unknown_pool", "that gacha pool does not exist");
@@ -558,14 +563,237 @@ public sealed class FakeOtomoEconomy : IAsyncDisposable
                 });
             }
         });
+        // --- entitlements (services/economy/internal/api/entitlements.go) ----------------------------------------------
+        // The KF tenant declares exactly one kind, capsule, with max_open 3. A create is idempotent by (player, key) and
+        // answers the stored row (409 idempotency_key_reused when the key made another kind or rule) before the cap is
+        // consulted; a claim pays the row's class once, keyed by the entitlement id, and is refused before available_at.
+        _app.MapPost("/internal/economy/entitlements", async (HttpContext context) =>
+        {
+            var (root, failure) = await InternalAsync(context);
+            if (root is null) return failure;
+            var playerId = root.Value.GetProperty("player_id").GetString() ?? "";
+            var kind = root.Value.GetProperty("kind").GetString() ?? "";
+            var rule = root.Value.GetProperty("rule").GetString() ?? "";
+            var source = root.Value.TryGetProperty("source", out var sourceProp) ? sourceProp.GetString() ?? "" : "";
+            var key = root.Value.TryGetProperty("key", out var keyProp) ? keyProp.GetString() ?? "" : "";
+            var availableAt = DateTimeOffset.UtcNow;
+            if (root.Value.TryGetProperty("available_at", out var availableProp) && availableProp.ValueKind == JsonValueKind.String &&
+                !DateTimeOffset.TryParse(availableProp.GetString(), System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AssumeUniversal, out availableAt))
+            {
+                return Error(context, StatusCodes.Status400BadRequest, "invalid_body", "available_at must be an RFC3339 timestamp");
+            }
+            var meta = root.Value.TryGetProperty("meta", out var metaProp) && metaProp.ValueKind == JsonValueKind.Object
+                ? JsonSerializer.SerializeToElement(metaProp) : JsonSerializer.SerializeToElement(new { });
+
+            if (kind != EntitlementKind)
+                return Error(context, StatusCodes.Status422UnprocessableEntity, "kind_unknown", "the entitlement kind is not declared by this deployment");
+            if (!Classes.ContainsKey(rule))
+                return Error(context, StatusCodes.Status422UnprocessableEntity, "class_unknown", "the rule names no configured reward class");
+
+            lock (_lock)
+            {
+                var rows = _entitlements.GetOrAdd(playerId, _ => []);
+                if (key.Length > 0 && rows.FirstOrDefault(row => row.Key == key) is { } existing)
+                {
+                    if (existing.Kind != kind || existing.Rule != rule)
+                        return Error(context, StatusCodes.Status409Conflict, "idempotency_key_reused", "the key already made another entitlement");
+                    return Results.Json(EntitlementJson(existing));
+                }
+                if (rows.Count(row => row.Kind == kind && row.ClaimedAt is null) >= EntitlementMaxOpen)
+                    return Error(context, StatusCodes.Status409Conflict, "entitlement_cap", $"{kind} already holds {EntitlementMaxOpen} unclaimed");
+                var created = new Entitlement
+                {
+                    Id = Guid.NewGuid().ToString(), PlayerId = playerId, Kind = kind, Rule = rule, Source = source,
+                    AvailableAt = availableAt, Meta = meta, Key = key, CreatedAt = DateTimeOffset.UtcNow, Sequence = rows.Count
+                };
+                rows.Add(created);
+                return Results.Json(EntitlementJson(created));
+            }
+        });
+
+        _app.MapGet("/internal/economy/entitlements", (HttpContext context) =>
+        {
+            var failure = InternalGet(context);
+            if (failure is not null) return failure;
+            var playerId = context.Request.Query["player_id"].ToString();
+            var includeClaimed = string.Equals(context.Request.Query["include_claimed"].ToString(), "true", StringComparison.OrdinalIgnoreCase);
+            lock (_lock)
+            {
+                var rows = _entitlements.GetValueOrDefault(playerId) ?? [];
+                return Results.Json(new
+                {
+                    player_id = playerId,
+                    entitlements = rows.Where(row => !_hiddenFromList.GetValueOrDefault(playerId) && (includeClaimed || row.ClaimedAt is null))
+                        .OrderByDescending(row => row.Sequence).Select(EntitlementJson).ToArray()
+                });
+            }
+        });
+
+        _app.MapPost("/internal/economy/entitlements/{id}/claim", async (HttpContext context, string id) =>
+        {
+            var (root, failure) = await InternalAsync(context);
+            if (root is null) return failure;
+            var playerId = root.Value.GetProperty("player_id").GetString() ?? "";
+            lock (_lock)
+            {
+                var row = _entitlements.GetValueOrDefault(playerId)?.FirstOrDefault(candidate => candidate.Id == id);
+                if (row is null)
+                    return Error(context, StatusCodes.Status404NotFound, "entitlement_not_found", "no such entitlement for this player");
+                if (row.ClaimedAt is not null)
+                    return Error(context, StatusCodes.Status409Conflict, "entitlement_claimed", "entitlement already claimed");
+                if (DateTimeOffset.UtcNow < row.AvailableAt)
+                    return Error(context, StatusCodes.Status409Conflict, "entitlement_not_ready", $"claimable from {row.AvailableAt:O}");
+
+                var payoutKey = "entitlement:" + row.Id;
+                var applied = !_internalReplies.ContainsKey(payoutKey);
+                var player = _players.GetOrAdd(playerId, _ => new PlayerEconomy());
+                if (applied)
+                {
+                    foreach (var grant in Classes[row.Rule])
+                    {
+                        if (grant.Currency is not null)
+                            player.Balances[grant.Currency] = player.Balances.GetValueOrDefault(grant.Currency) + grant.Amount;
+                        if (grant.Item is not null)
+                            player.Items[grant.Item] = player.Items.GetValueOrDefault(grant.Item) + grant.Amount;
+                    }
+                    _internalReplies[payoutKey] = JsonSerializer.SerializeToElement(new { });
+                }
+                row.ClaimedAt = DateTimeOffset.UtcNow;
+                return Results.Json(new
+                {
+                    applied,
+                    balances = player.Balances.Select(pair => new { currency = pair.Key, balance = pair.Value }).ToArray(),
+                    items = Array.Empty<object>()
+                });
+            }
+        });
     }
+
+    private readonly ConcurrentDictionary<string, bool> _hiddenFromList = new(StringComparer.Ordinal);
+
+    /// <summary>The list route answers empty for this player: a read that predates rows another request has just made.</summary>
+    public void HideEntitlementsFromList(string accountId, bool hidden) => _hiddenFromList[accountId] = hidden;
+
+    public const string EntitlementKind = "capsule";
+    public const int EntitlementMaxOpen = 3;
+
+    private readonly ConcurrentDictionary<string, List<Entitlement>> _entitlements = new(StringComparer.Ordinal);
+
+    private sealed class Entitlement
+    {
+        public string Id { get; init; } = "";
+        public string PlayerId { get; init; } = "";
+        public string Kind { get; init; } = "";
+        public string Rule { get; init; } = "";
+        public string Source { get; init; } = "";
+        public string Key { get; init; } = "";
+        public DateTimeOffset AvailableAt { get; set; }
+        public DateTimeOffset CreatedAt { get; init; }
+        public DateTimeOffset? ClaimedAt { get; set; }
+        public JsonElement Meta { get; init; }
+        public int Sequence { get; init; }
+    }
+
+    private static object EntitlementJson(Entitlement row) => new
+    {
+        id = row.Id,
+        player_id = row.PlayerId,
+        kind = row.Kind,
+        rule = row.Rule,
+        source = row.Source,
+        available_at = row.AvailableAt.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'"),
+        claimed_at = row.ClaimedAt?.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'"),
+        meta = row.Meta,
+        created_at = row.CreatedAt.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'")
+    };
+
+    /// <summary>The player's entitlements as economy holds them (claimed ones too), oldest first.</summary>
+    public IReadOnlyList<(string Id, string Rule, string Source, DateTimeOffset AvailableAt, bool Claimed, string Meta)>
+        EntitlementsOf(string accountId)
+    {
+        lock (_lock)
+        {
+            return (_entitlements.GetValueOrDefault(accountId) ?? []).OrderBy(row => row.Sequence)
+                .Select(row => (row.Id, row.Rule, row.Source, row.AvailableAt, row.ClaimedAt is not null, row.Meta.GetRawText()))
+                .ToList();
+        }
+    }
+
+    /// <summary>Makes a player's open entitlement claimable now, as time passing would.</summary>
+    public void MakeDue(string accountId)
+    {
+        lock (_lock)
+        {
+            foreach (var row in _entitlements.GetValueOrDefault(accountId) ?? [])
+            {
+                row.AvailableAt = DateTimeOffset.UtcNow.AddMinutes(-1);
+            }
+        }
+    }
+
+    // capsule.<type>: one capsule_<type> token per draw, idempotent by key; the one item every draw lands on is a disc.
+    private IResult RollCapsulePool(HttpContext context, string account, string poolId, long count, string idempotencyKey)
+    {
+        var token = "capsule_" + poolId["capsule.".Length..];
+        lock (_lock)
+        {
+            var replayKey = $"roll:{account}:{idempotencyKey}";
+            if (idempotencyKey.Length > 0 && _internalReplies.TryGetValue(replayKey, out var first)) return Replay(first);
+            var player = _players.GetOrAdd(account, _ => new PlayerEconomy());
+            if (player.Balances.GetValueOrDefault(token) < count)
+                return Error(context, StatusCodes.Status409Conflict, "insufficient_funds", "insufficient funds");
+            player.Balances[token] = player.Balances.GetValueOrDefault(token) - count;
+
+            var draws = new List<object>();
+            var moved = new List<object>();
+            for (var i = 0; i < count; i++)
+            {
+                var item = "disc:3010014";
+                player.Items[item] = player.Items.GetValueOrDefault(item) + 1;
+                draws.Add(new { item, rarity = "r", duplicate = false, paid_currency = (string?)null, paid_amount = 0L, from_pity = false });
+                moved.Add(new { item, qty = 1L, total = player.Items[item] });
+            }
+            var reply = new
+            {
+                player_id = account,
+                pool_id = poolId,
+                release = "test",
+                count,
+                draws,
+                balances = player.Balances.Select(pair => new { currency = pair.Key, balance = pair.Value }).ToArray(),
+                items = moved,
+                pity = 0
+            };
+            if (idempotencyKey.Length == 0) return Results.Json(WithReplayed(JsonSerializer.SerializeToElement(reply), false));
+            return Remember(replayKey, reply);
+        }
+    }
+
+    // An internal-plane GET: recorded and authenticated like the POSTs, with no body to read.
+    private IResult? InternalGet(HttpContext context)
+    {
+        var authorization = context.Request.Headers.Authorization.ToString();
+        _requests.Enqueue(new RecordedRequest(context.Request.Method, context.Request.Path.Value ?? "", authorization,
+            context.Request.QueryString.Value));
+        if (!authorization.StartsWith("Bearer ", StringComparison.Ordinal) || authorization.Length <= "Bearer ".Length)
+            return Error(context, StatusCodes.Status401Unauthorized, "invalid_key", "a service key is required");
+        if (Interlocked.Decrement(ref _failures) >= 0)
+            return Error(context, StatusCodes.Status503ServiceUnavailable, "internal_error", "internal server error");
+        return null;
+    }
+
 
     // What the published classes pay, as far as this suite needs them (otomo/namespaces/economy, release 18).
     private static readonly Dictionary<string, Grant[]> Classes = new(StringComparer.Ordinal)
     {
         ["starter.disc_force"] = [new Grant("disc_force", null, StarterDiscForce)],
         ["tutorial.disc"] = [new Grant(null, "disc:3010013", 1)],
-        ["tutorial.kicker"] = [new Grant(null, "skin:2010201", 1)]
+        ["tutorial.kicker"] = [new Grant(null, "skin:2010201", 1)],
+        // A battle capsule's class pays one capsule_<type> token (the capsule.<type> pool costs one per draw).
+        ["match.capsule.wooden"] = [new Grant("capsule_wooden", null, 1)],
+        ["match.capsule.standard"] = [new Grant("capsule_standard", null, 1)],
+        ["match.capsule.golden"] = [new Grant("capsule_golden", null, 1)]
     };
 
     public const long StarterDiscForce = 300;

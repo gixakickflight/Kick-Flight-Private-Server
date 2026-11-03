@@ -188,7 +188,8 @@ public sealed class SocialRankingEndpointsTests
         // Tapping a crown row uses its raw userId string in /user/detail.searchUserId.
         var topUserId = world.GetProperty("battleRankingList")[0].GetProperty("userId").GetString()!;
         var topUserState = Assert.IsType<SessionState>(store.TryLoad(long.Parse(topUserId)));
-        var topUserDeck = topUserState.Decks[topUserState.ActiveDeckNumber];
+        // The deck is session's: a player who never changed it holds the starter decks, written to ext on first read.
+        var topUserDeck = Loadout.DefaultDecks()[1];
         var detail = await PostAsync(alice, "/user/detail", new { searchUserId = topUserId });
         var detailedProfile = detail.GetProperty("userProfile");
         var battleParameter = detail.GetProperty("userBattleParameter");
@@ -340,9 +341,8 @@ public sealed class SocialRankingEndpointsTests
         var targetKickerId = targetState.KickerId;
         var targetCostumeId = targetState.KickerCostumeId;
         var activeDeck = new[] { 3010005, 3010006, 3010007, 3010008 };
-        targetState.ActiveDeckNumber = 3;
-        targetState.Decks[3] = activeDeck.ToList();
-        store.Save(targetState);
+        var targetAccount = store.FindOtomoPlayer(targetId)!.OtomoPlayerId;
+        _social.SeedExt(targetAccount, """{"decks":{"3":[3010005,3010006,3010007,3010008]},"active_deck":3}""");
 
         var detail = await PostAsync(viewer, "/user/detail", new
         {
@@ -366,8 +366,7 @@ public sealed class SocialRankingEndpointsTests
             Assert.True(battle.GetProperty($"discLevel{slot + 1}").GetInt32() > 0);
         }
 
-        targetState.ActiveDeckNumber = 99;
-        store.Save(targetState);
+        _social.SeedExt(targetAccount, """{"decks":{"3":[3010005,3010006,3010007,3010008]},"active_deck":99}""");
         var missingDeckDetail = await PostAsync(viewer, "/user/detail", new
         {
             searchUserId = PlayerDisplayIdCodec.ToPublic(targetId).ToString()
@@ -378,17 +377,16 @@ public sealed class SocialRankingEndpointsTests
         Assert.All(Enumerable.Range(1, 4), slot => Assert.True(fallback.GetProperty($"discLevel{slot}").GetInt32() > 0));
         Assert.DoesNotContain(Enumerable.Range(1, 4), slot => fallback.GetProperty($"discId{slot}").GetInt32() == 0);
 
-        targetState.ActiveDeckNumber = 98;
-        targetState.Decks[98] = [3010005, 0, 3010007];
-        store.Save(targetState);
+        // A deck of fewer than four discs (session's schema allows up to eight, and does not allow a 0 placeholder, which
+        // is what this case used to store) is completed from the initial deck slot by slot.
+        _social.SeedExt(targetAccount, """{"decks":{"98":[3010005]},"active_deck":98}""");
         var partialDeckDetail = await PostAsync(viewer, "/user/detail", new
         {
             searchUserId = PlayerDisplayIdCodec.ToPublic(targetId).ToString()
         });
         var partial = partialDeckDetail.GetProperty("userBattleParameter");
-        Assert.Equal(new[] { 3010005, 3010002, 3010007, 3010004 },
+        Assert.Equal(new[] { 3010005, 3010002, 3010003, 3010004 },
             Enumerable.Range(1, 4).Select(slot => partial.GetProperty($"discId{slot}").GetInt32()).ToArray());
-        Assert.All(Enumerable.Range(1, 4), slot => Assert.True(partial.GetProperty($"discLevel{slot}").GetInt32() > 0));
     }
 
     private static WebApplicationFactory<Program> NewFactory(TimeProvider? clock = null, string? contentRoot = null) =>

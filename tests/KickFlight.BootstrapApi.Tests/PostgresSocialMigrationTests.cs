@@ -5,17 +5,17 @@ using Xunit;
 
 namespace KickFlight.BootstrapApi.Tests;
 
-// The migrations that end this store's ownership of the social relation and of battle points: version 6 drops
-// player_follows, real_friend_tokens and player_real_friends, and version 7 drops player_ranks - every write to them
-// having been removed first. Nothing replaces them: no live data migrates, and the adapter keeps no column for a name,
-// a tag or a point.
+// The migrations that end this store's ownership of the social relation, of battle points and of the loadout: version 6
+// drops player_follows, real_friend_tokens and player_real_friends, version 7 drops player_ranks, and version 8 drops
+// players.active_deck_number - every write to them having been removed first. Nothing replaces them: no live data
+// migrates, and the adapter keeps no column for a name, a tag, a point or a deck.
 //
 // It starts from a database at version 1, which is what the previous migration test also started from, so it covers the
 // whole ladder rather than only the last rung.
 public sealed class PostgresSocialMigrationTests
 {
     [PostgresIntegrationFact]
-    public void V1_schema_migrates_to_v7_dropping_the_social_and_rank_tables_and_keeping_the_accounts()
+    public void V1_schema_migrates_to_v8_dropping_the_social_rank_and_loadout_storage_and_keeping_the_accounts()
     {
         var connectionString = Environment.GetEnvironmentVariable("KF_TEST_POSTGRES_CONNECTION_STRING");
         Assert.False(string.IsNullOrWhiteSpace(connectionString));
@@ -38,7 +38,7 @@ public sealed class PostgresSocialMigrationTests
         var bob = CreatePlayer(store, "bob");
         var carol = CreatePlayer(store, "carol");
 
-        Assert.Equal(7, ReadSchemaVersion(connectionString));
+        Assert.Equal(8, ReadSchemaVersion(connectionString));
 
         // The v1 database had player_ranks; it is gone once the ladder has run, and the accounts survive.
         using (var connection = new NpgsqlConnection(connectionString))
@@ -46,6 +46,12 @@ public sealed class PostgresSocialMigrationTests
             connection.Open();
             using var ranksTable = new NpgsqlCommand("select to_regclass('public.player_ranks') is null", connection);
             Assert.True(Convert.ToBoolean(ranksTable.ExecuteScalar()), "player_ranks should have been dropped");
+            // ... and so is the active deck column: the deck is session's ext now.
+            using var deckColumn = new NpgsqlCommand("""
+                select count(*) from information_schema.columns
+                where table_name = 'players' and column_name = 'active_deck_number'
+                """, connection);
+            Assert.Equal(0, Convert.ToInt32(deckColumn.ExecuteScalar()));
         }
 
         // The relation is otomo's; what this store keeps of a player is who the account behind the row is.
@@ -80,14 +86,14 @@ public sealed class PostgresSocialMigrationTests
         using (var connection = new NpgsqlConnection(connectionString))
         {
             connection.Open();
-            using var insertFutureVersion = new NpgsqlCommand("insert into schema_meta(version) values (8)", connection);
+            using var insertFutureVersion = new NpgsqlCommand("insert into schema_meta(version) values (9)", connection);
             insertFutureVersion.ExecuteNonQuery();
         }
         Assert.Throws<InvalidOperationException>(() => NewStore(connectionString));
         using (var connection = new NpgsqlConnection(connectionString))
         {
             connection.Open();
-            using var removeFutureVersion = new NpgsqlCommand("delete from schema_meta where version = 8", connection);
+            using var removeFutureVersion = new NpgsqlCommand("delete from schema_meta where version = 9", connection);
             removeFutureVersion.ExecuteNonQuery();
         }
     }

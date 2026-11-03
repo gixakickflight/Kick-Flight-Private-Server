@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using KickFlight.BootstrapApi.Ops;
 using KickFlight.BootstrapApi.Otomo;
@@ -107,6 +108,9 @@ public sealed partial class DemoSessionApi : IDisposable
     private readonly OtomoSocialOptions _socialOptions;
     // The only source of battle points (see DemoSessionApi.Rank.cs).
     private readonly IOtomoRank _rank;
+    // The only source of a player's loadout - decks, gears, the active deck, a pending gear roll - and of another
+    // player's card (see DemoSessionApi.Loadout.cs).
+    private readonly IOtomoProfile _profile;
     private readonly KfAccessTokenCodec _accessTokens;
     private readonly IPlayerStore _playerStore;
     private readonly OtomoMasters _otomoMasters;
@@ -149,7 +153,7 @@ public sealed partial class DemoSessionApi : IDisposable
 
     public DemoSessionApi(ILogger<DemoSessionApi> logger, IWebHostEnvironment environment,
         BattleMatchmakingService matchmaking, BattleReplayService replays, IPlayerStore playerStore,
-        IOtomoIdentity identity, IOtomoEconomy economy, IOtomoSocial social, IOtomoRank rank, KfAccessTokenCodec accessTokens,
+        IOtomoIdentity identity, IOtomoEconomy economy, IOtomoSocial social, IOtomoRank rank, IOtomoProfile profile, KfAccessTokenCodec accessTokens,
         IConfiguration configuration, MaintenanceState maintenance, ClientUpdateState clientUpdate,
         TimeProvider timeProvider, OpsTelemetryService ops, IOptions<HarnessOptions> harnessOptions,
         IOptions<OtomoSocialOptions> socialOptions, OtomoMasters otomoMasters,
@@ -168,6 +172,7 @@ public sealed partial class DemoSessionApi : IDisposable
         _economy = economy;
         _social = social;
         _rank = rank;
+        _profile = profile;
         _socialOptions = socialOptions.Value;
         _accessTokens = accessTokens;
         _otomoMasters = otomoMasters;
@@ -219,12 +224,12 @@ public sealed partial class DemoSessionApi : IDisposable
 
     private void InitializeMasters(string contentRoot)
     {
-        var kickerJson = LoadJson(contentRoot, "config/masters_kicker.json", """[{"id":1,"name":"Tsubame","shortName":"Tsubame","nameSpelling":"Tsubame","voiceActorName":"CV: Yuma Uchida"}]""");
-        var costumeJson = LoadJson(contentRoot, "config/masters_kicker_costume.json", """[{"id":1,"kickerId":1,"costumeId":1,"costumeName":"Tsubame - Standard Color","sortOrder":1,"battleResultPositionSortOrder":1,"battleResultModelScale":1.0,"exclusiveFlag":false,"releaseDatetime":"2019-01-01 00:00:00"}]""");
-        var detailJson = LoadJson(contentRoot, "config/masters_kicker_detail.json", """[{"id":1,"kickerId":1,"kickerIntroductionText":"Fast as the wind","kickerSkillName":"Sonic Rush","kickerSkillShortText":"Quick attack","kickerSkillLongText":"Dashes forward","specialSkillName":"Burst Glide","specialSkillShortText":"Massive tornado","specialSkillLongText":"Creates a powerful tornado","kickerAbilityName":"Accel Charge","kickerAbilityShortText":"Speed","kickerAbilityLongText":"Faster with crystals","kickerDiscDistinctionText":"Aerial combat","kickerGraphHpRate":0.8,"kickerGraphAttackRate":0.9,"kickerGraphSpeedRate":1.0,"age":18,"birthday":"1/1","height":"165cm","profileText":"Fast as the wind"}]""");
-        var parameterJson = LoadJson(contentRoot, "config/masters_kicker_parameter.json", "[]");
-        var abilityJson = LoadJson(contentRoot, "config/masters_kicker_ability.json", "[]");
-        var abilityConditionJson = LoadJson(contentRoot, "config/masters_kicker_ability_condition.json", "[]");
+        var kickerJson = MasterJson("Kicker", contentRoot, "config/masters_kicker.json", """[{"id":1,"name":"Tsubame","shortName":"Tsubame","nameSpelling":"Tsubame","voiceActorName":"CV: Yuma Uchida"}]""");
+        var costumeJson = MasterJson("KickerCostume", contentRoot, "config/masters_kicker_costume.json", """[{"id":1,"kickerId":1,"costumeId":1,"costumeName":"Tsubame - Standard Color","sortOrder":1,"battleResultPositionSortOrder":1,"battleResultModelScale":1.0,"exclusiveFlag":false,"releaseDatetime":"2019-01-01 00:00:00"}]""");
+        var detailJson = MasterJson("KickerDetail", contentRoot, "config/masters_kicker_detail.json", """[{"id":1,"kickerId":1,"kickerIntroductionText":"Fast as the wind","kickerSkillName":"Sonic Rush","kickerSkillShortText":"Quick attack","kickerSkillLongText":"Dashes forward","specialSkillName":"Burst Glide","specialSkillShortText":"Massive tornado","specialSkillLongText":"Creates a powerful tornado","kickerAbilityName":"Accel Charge","kickerAbilityShortText":"Speed","kickerAbilityLongText":"Faster with crystals","kickerDiscDistinctionText":"Aerial combat","kickerGraphHpRate":0.8,"kickerGraphAttackRate":0.9,"kickerGraphSpeedRate":1.0,"age":18,"birthday":"1/1","height":"165cm","profileText":"Fast as the wind"}]""");
+        var parameterJson = MasterJson("KickerParameter", contentRoot, "config/masters_kicker_parameter.json", "[]");
+        var abilityJson = MasterJson("KickerAbility", contentRoot, "config/masters_kicker_ability.json", "[]");
+        var abilityConditionJson = MasterJson("KickerAbilityCondition", contentRoot, "config/masters_kicker_ability_condition.json", "[]");
         var translationJson = MasterJson("Translation", contentRoot, "config/masters_translation.json", "[]");
 
         try
@@ -287,13 +292,13 @@ public sealed partial class DemoSessionApi : IDisposable
         // scaling (150 came out as ~50 on a ~40k HP kicker; 6000 = ~2000 per shot). Row 2 is the ball-rule goal
         // guardian: NPCRevivalableGuardian.SetMaxHP is MAX_HP_STEP_AMOUNT (6) x hp, so 6 x 3000 = 18000 = ~7 hits.
         // The file is the source; the literal is only the fallback for a checkout without config/.
-        var guardianParameterJson = LoadJson(contentRoot, "config/masters_guardian_parameter.json", """[{"id":1,"matchType":1,"rank":1,"hp":8000,"attack":6000}]""");
+        var guardianParameterJson = MasterJson("GuardianParameter", contentRoot, "config/masters_guardian_parameter.json", """[{"id":1,"matchType":1,"rank":1,"hp":8000,"attack":6000}]""");
         _encryptedMasters["GuardianParameter"] = EncryptMaster(guardianParameterJson);
         // guardianAmount is per team: GameManager.CreateGuardian spawns it for both teams and indexes
         // FieldManager.GetGuardianInitialPosition, and FLD00101_1 (the crystal-rule variant) has exactly two
         // guardian points; the ball variants (rules 3/4) also spawn one guard per goal, which must be destroyed
         // before the team can score. The file is the source; the literal is only the fallback.
-        var battleRuleJson = LoadJson(contentRoot, "config/masters_battle_rule.json", BattleRuleFallbackJson);
+        var battleRuleJson = MasterJson("BattleRule", contentRoot, "config/masters_battle_rule.json", BattleRuleFallbackJson);
         _encryptedMasters["BattleRule"] = EncryptMaster(battleRuleJson);
         // id -> mode and rule type. Entries snapshot both values at matchmaking time, so results never infer mode
         // from a result request or from a master that may have changed while the battle was running.
@@ -328,7 +333,7 @@ public sealed partial class DemoSessionApi : IDisposable
         _encryptedMasters["BattleRuleField"] = EncryptMaster(JsonSerializer.Serialize(battleRuleFieldRows));
         // Custom battle uses its own stage lookup. Only expose fields whose base scene and three rule variants
         // are present in the catalog; Trial field 801 has a single flat _100 variant and is not a custom stage.
-        var customBattleRuleFieldJson = LoadJson(contentRoot, "config/masters_custom_battle_rule_field.json", """
+        var customBattleRuleFieldJson = MasterJson("CustomBattleRuleField", contentRoot, "config/masters_custom_battle_rule_field.json", """
             [
               {"id":1,"battleRuleType":1,"fieldId":101,"sortOrder":1},
               {"id":2,"battleRuleType":1,"fieldId":301,"sortOrder":2},
@@ -354,7 +359,7 @@ public sealed partial class DemoSessionApi : IDisposable
 
         // These are the retail-supported AI kicker/AI deck pairs. The client uses this custom-only master when an
         // owner chooses Add AI; humans do not depend on it.
-        var customBattleKickerAiJson = LoadJson(contentRoot, "config/masters_custom_battle_kicker_ai.json", """
+        var customBattleKickerAiJson = MasterJson("CustomBattleKickerAi", contentRoot, "config/masters_custom_battle_kicker_ai.json", """
             [
               {"id":1,"kickerAiParameterId":1,"kickerAiDiscDeckId":1},
               {"id":2,"kickerAiParameterId":2,"kickerAiDiscDeckId":1},
@@ -374,7 +379,7 @@ public sealed partial class DemoSessionApi : IDisposable
             """);
         _encryptedMasters["CustomBattleKickerAi"] = EncryptMaster(customBattleKickerAiJson);
         // The file is the source; the literal is only the fallback.
-        var regularMatchScheduleJson = LoadJson(contentRoot, "config/masters_regular_match_battle_schedule.json", """
+        var regularMatchScheduleJson = MasterJson("RegularMatchBattleSchedule", contentRoot, "config/masters_regular_match_battle_schedule.json", """
             [
               {"id":1,"seasonMatchBattleRuleType":3,"groupId":1,"startTime":"00:00:00","endTime":"23:59:59","battleRuleId":1,"sortOrder":1},
               {"id":2,"seasonMatchBattleRuleType":3,"groupId":1,"startTime":"00:00:00","endTime":"23:59:59","battleRuleId":2,"sortOrder":2},
@@ -618,14 +623,14 @@ public sealed partial class DemoSessionApi : IDisposable
         // item icon renders as a white quad. The counts the client shows come from userItemList, not from here.
         _ = itemJson;
 
-        var discJson = LoadJson(contentRoot, "config/masters_disc.json", "[]");
-        var skillJson = LoadJson(contentRoot, "config/masters_skill.json", "[]");
-        var discGrowJson = LoadJson(contentRoot, "config/masters_disc_grow.json", "[]");
-        var discBuildupJson = LoadJson(contentRoot, "config/masters_disc_buildup.json", "[]");
-        var initialDiscDeckJson = LoadJson(contentRoot, "config/masters_initial_disc_deck.json", "[]");
-        var gearJson = LoadJson(contentRoot, "config/masters_gear.json", "[]");
-        var gearSkillJson = LoadJson(contentRoot, "config/masters_gear_skill.json", "[]");
-        var gearSameColorBonusJson = LoadJson(contentRoot, "config/masters_gear_same_color_bonus.json", "[]");
+        var discJson = MasterJson("Disc", contentRoot, "config/masters_disc.json", "[]");
+        var skillJson = MasterJson("Skill", contentRoot, "config/masters_skill.json", "[]");
+        var discGrowJson = MasterJson("DiscGrow", contentRoot, "config/masters_disc_grow.json", "[]");
+        var discBuildupJson = MasterJson("DiscBuildup", contentRoot, "config/masters_disc_buildup.json", "[]");
+        var initialDiscDeckJson = MasterJson("InitialDiscDeck", contentRoot, "config/masters_initial_disc_deck.json", "[]");
+        var gearJson = MasterJson("Gear", contentRoot, "config/masters_gear.json", "[]");
+        var gearSkillJson = MasterJson("GearSkill", contentRoot, "config/masters_gear_skill.json", "[]");
+        var gearSameColorBonusJson = MasterJson("GearSameColorBonus", contentRoot, "config/masters_gear_same_color_bonus.json", "[]");
 
         try
         {
@@ -685,10 +690,10 @@ public sealed partial class DemoSessionApi : IDisposable
         _encryptedMasters["GearSkill"] = EncryptMaster(gearSkillJson);
         _encryptedMasters["GearSameColorBonus"] = EncryptMaster(gearSameColorBonusJson);
 
-        var aiParamJson = LoadJson(contentRoot, "config/masters_kicker_ai_parameter.json", "[]");
-        var aiDiscJson = LoadJson(contentRoot, "config/masters_kicker_ai_disc.json", "[]");
-        var aiDeckJson = LoadJson(contentRoot, "config/masters_kicker_ai_disc_deck.json", "[]");
-        var pingThresholdJson = LoadJson(contentRoot, "config/masters_matchmaking_ping_threshold.json", "[]");
+        var aiParamJson = MasterJson("KickerAiParameter", contentRoot, "config/masters_kicker_ai_parameter.json", "[]");
+        var aiDiscJson = MasterJson("KickerAiDisc", contentRoot, "config/masters_kicker_ai_disc.json", "[]");
+        var aiDeckJson = MasterJson("KickerAiDiscDeck", contentRoot, "config/masters_kicker_ai_disc_deck.json", "[]");
+        var pingThresholdJson = MasterJson("MatchmakingPingThreshold", contentRoot, "config/masters_matchmaking_ping_threshold.json", "[]");
 
         var aiParamRows = AppendGymAiRows(aiParamJson);
         _baseAiParamRows = aiParamRows;
@@ -738,7 +743,7 @@ public sealed partial class DemoSessionApi : IDisposable
             ("ChatRoom", "masters_chat_room.json"),
         })
         {
-            var json = LoadJson(contentRoot, "config/" + fileName, "[]");
+            var json = MasterJson(masterName, contentRoot, "config/" + fileName, "[]");
             if (json.Trim() == "[]" && masterName is "WeaponAttack" or "WeaponAttackHit" or "WeaponAttackCollision" or "Summon" or "SpecialSkill" or "SpecialSkillHit" or "SpecialSkillCollision")
                 _logger.LogWarning("Combat master {Master} is empty ({File} missing?) - attacks/skills will throw in the client", masterName, fileName);
             _encryptedMasters[masterName] = EncryptMaster(ApplyObscuredOffsets(masterName, json));
@@ -805,8 +810,8 @@ public sealed partial class DemoSessionApi : IDisposable
         // (RuleControllerBase.CalcScore); a missing row NREs and the client never leaves "Cargando". The lookup is
         // TMasterBase.get_Item(battleRuleId) - by row *id*, with a hard-coded fallback to id 3 - so each row's id must
         // equal its battleRuleId (verified 2026-09-19: ids 1/2 kept the NRE, ids 3/4 fixed it).
-        _encryptedMasters["BattleRuleRapidBallScore"] = EncryptMaster(LoadJson(contentRoot, "config/masters_battle_rule_rapid_ball_score.json", "[]"));
-        _encryptedMasters["BattleRuleFlagFlightScore"] = EncryptMaster(LoadJson(contentRoot, "config/masters_battle_rule_flag_flight_score.json", BattleRuleFlagFlightScoreFallbackJson));
+        _encryptedMasters["BattleRuleRapidBallScore"] = EncryptMaster(MasterJson("BattleRuleRapidBallScore", contentRoot, "config/masters_battle_rule_rapid_ball_score.json", "[]"));
+        _encryptedMasters["BattleRuleFlagFlightScore"] = EncryptMaster(MasterJson("BattleRuleFlagFlightScore", contentRoot, "config/masters_battle_rule_flag_flight_score.json", BattleRuleFlagFlightScoreFallbackJson));
 
         _encryptedMasters["Guardian"] = EncryptMaster("""
             [
@@ -860,9 +865,9 @@ public sealed partial class DemoSessionApi : IDisposable
         // MovieCategoryMaster (the Pickup tab's categories; empty keeps it empty). The served key is the client's
         // master class name without the "Master" suffix - the same convention as every other table here (see
         // docs/REPLAYS.md for the disassembly evidence: MasterBase.get_ClassName, RVA 0x1798DF4).
-        var battleReplayChannelJson = LoadJson(contentRoot, "config/masters_battle_replay_channel.json",
+        var battleReplayChannelJson = MasterJson("BattleReplayChannel", contentRoot, "config/masters_battle_replay_channel.json",
             BuildBattleReplayChannelFallbackJson());
-        var movieCategoryJson = LoadJson(contentRoot, "config/masters_movie_category.json", "[]");
+        var movieCategoryJson = MasterJson("MovieCategory", contentRoot, "config/masters_movie_category.json", "[]");
         _encryptedMasters["BattleReplayChannel"] = EncryptMaster(battleReplayChannelJson);
         _encryptedMasters["MovieCategory"] = EncryptMaster(movieCategoryJson);
 
@@ -996,27 +1001,13 @@ public sealed partial class DemoSessionApi : IDisposable
         return JsonSerializer.Serialize(rows);
     }
 
-    // Loads a player, creating them empty if the id is unknown, and repairs whatever the masters no longer
-    // support. The repair is policy, which is why it stays here: it needs _discIdList, and the store is only
-    // responsible for persisting the document.
+    // Loads a player, creating them empty if the id is unknown. (The repair of a deck naming a disc the masters no longer
+    // carry moved with the decks: DemoSessionApi.Loadout.cs.)
     private SessionState GetOrCreateUserState(long playerId)
     {
         var loaded = _playerStore.TryLoad(playerId);
         if (loaded is not null)
         {
-            // a deck slot pointing at a disc that no longer exists in masters_disc.json makes the
-            // client throw in PlayerDeckParameter..ctor and the battle never loads: swap it for a valid disc
-            foreach (var (deckNumber, deck) in loaded.Decks)
-            {
-                for (var slot = 0; slot < deck.Count; slot++)
-                {
-                    if (_discIdList.Contains(deck[slot])) continue;
-                    var replacement = _discIdList.FirstOrDefault(id => !deck.Contains(id), _discIdList[0]);
-                    _logger.LogWarning("User {PlayerId} deck {Deck} slot {Slot}: disc {DiscId} is not in the masters, replaced with {Replacement}",
-                        playerId, deckNumber, slot + 1, deck[slot], replacement);
-                    deck[slot] = replacement;
-                }
-            }
             return loaded;
         }
 
@@ -1214,7 +1205,7 @@ public sealed partial class DemoSessionApi : IDisposable
 
         if (path == "/disc/change")
         {
-            return await HandleDiscChangeAsync(context, state, key);
+            return await HandleDiscChangeAsync(context, ticket, state, key);
         }
 
         if (path == "/disc/buildup")
@@ -1224,17 +1215,17 @@ public sealed partial class DemoSessionApi : IDisposable
 
         if (path == "/gear/create")
         {
-            return await HandleGearCreateAsync(context, state, key);
+            return await HandleGearCreateAsync(context, ticket, state, key);
         }
 
         if (path == "/gear/set")
         {
-            return await HandleGearSetAsync(context, state, key);
+            return await HandleGearSetAsync(context, ticket, state, key);
         }
 
         if (path == "/gear/destroy")
         {
-            return await HandleGearDestroyAsync(context, state, key);
+            return await HandleGearDestroyAsync(context, ticket, state, key);
         }
 
         // Round C: the gacha screens, the goods shop, and the real-money IAP endpoints the shop view also calls.
@@ -1303,10 +1294,12 @@ public sealed partial class DemoSessionApi : IDisposable
                 EconomyRead.Balances | EconomyRead.Inventory | EconomyRead.Tasks, path, context.RequestAborted);
             if (economy.Snapshot is null) return EconomyUnavailable(context, path, economy.Error);
             var snapshot = economy.Snapshot!;
+            var (own, loadoutFailure) = await TryReadOwnLoadoutAsync(context, ticket, path);
+            if (own is null) return loadoutFailure!;
 
             context.Response.Headers["x-app-status-code"] = "0";
             context.Response.Headers["x-kickflight-fixture"] = "dynamic-demo-session";
-            var json = BuildStartupJson(state, snapshot, context.Request, newLoginHonors);
+            var json = BuildStartupJson(state, snapshot, own, context.Request, newLoginHonors);
             _logger.LogInformation("Serving dynamic startup index ({ItemRows} item rows, {DiscCount} discs owned, {KickerCount} kickers owned)",
                 EconomyCatalog.ItemMasterIds.Length,
                 snapshot.Items.Count(item => EconomyCatalog.TryDiscId(item.Item, out _)),
@@ -1332,9 +1325,13 @@ public sealed partial class DemoSessionApi : IDisposable
             {
                 return SocialUnavailable(context, path, exception);
             }
-            var json = BuildHomeJson(state, snapshot, ranks);
+            var (own, loadoutFailure) = await TryReadOwnLoadoutAsync(context, ticket, path);
+            if (own is null) return loadoutFailure!;
+            var (capsules, capsuleError) = await TryBuildUserCapsuleListAsync(ticket, context.RequestAborted);
+            if (capsules is null) return EconomyUnavailable(context, path, capsuleError);
+            var json = BuildHomeJson(state, snapshot, ranks, own, capsules);
             _logger.LogInformation("Serving dynamic home index (active kickerId={KickerId}, costumeId={CostumeId}, activeDeck={Deck}, offers={Offers}, pools={Pools})",
-                state.KickerId, state.KickerCostumeId, state.ActiveDeckNumber, snapshot.Offers.Count, snapshot.Pools.Count);
+                state.KickerId, state.KickerCostumeId, own.Loadout.ActiveDeck, snapshot.Offers.Count, snapshot.Pools.Count);
             return BinaryJson(json, key);
         }
 
@@ -1521,9 +1518,16 @@ public sealed partial class DemoSessionApi : IDisposable
         }
     }
 
-    private async Task<IResult?> HandleDiscChangeAsync(HttpContext context, SessionState state, byte[] key)
+    // /disc/change {discDeckNumber, userDiscDeckList[{number, discIdList}]}: the active deck and any decks the player edited,
+    // written to the ext of their session card. Session replaces a field whole on a merge, so the decks are written as the
+    // full set: the player's current decks with the edited ones put over them.
+    private async Task<IResult?> HandleDiscChangeAsync(HttpContext context, KfIdentityTicket ticket, SessionState state,
+        byte[] key)
     {
+        const string path = "/disc/change";
         var body = await ReadBodyAsync(context.Request);
+        int? activeDeck = null;
+        var edited = new Dictionary<int, List<int>>();
         try
         {
             var plaintext = D2CCodec.Decode(body, key);
@@ -1531,7 +1535,7 @@ public sealed partial class DemoSessionApi : IDisposable
             var root = document.RootElement;
             if (root.TryGetProperty("discDeckNumber", out var deckProp))
             {
-                state.ActiveDeckNumber = deckProp.GetInt32();
+                activeDeck = deckProp.GetInt32();
             }
             if (root.TryGetProperty("userDiscDeckList", out var deckListProp) && deckListProp.ValueKind == JsonValueKind.Array)
             {
@@ -1541,24 +1545,38 @@ public sealed partial class DemoSessionApi : IDisposable
                         deckEl.TryGetProperty("discIdList", out var discListProp) &&
                         discListProp.ValueKind == JsonValueKind.Array)
                     {
-                        var deckNumber = numProp.GetInt32();
-                        var ids = discListProp.EnumerateArray().Select(x => x.GetInt32()).ToList();
-                        state.Decks[deckNumber] = ids;
+                        edited[numProp.GetInt32()] = discListProp.EnumerateArray().Select(x => x.GetInt32()).ToList();
                     }
                 }
             }
-
-            SaveUserState(state);
-            _logger.LogInformation("Disc deck updated: activeDeck={ActiveDeck}", state.ActiveDeckNumber);
-            context.Response.Headers["x-app-status-code"] = "0";
-            context.Response.Headers["x-kickflight-fixture"] = "dynamic-disc-change";
-            return BinaryJson("{}", key);
         }
         catch (Exception ex)
         {
             _logger.LogWarning("Could not decode disc change request: {Error}", ex.Message);
             return null;
         }
+
+        var ext = new JsonObject();
+        if (activeDeck is { } number) ext[Loadout.ActiveDeckField] = number;
+        if (edited.Count > 0)
+        {
+            var (own, failure) = await TryReadOwnLoadoutAsync(context, ticket, path);
+            if (own is null) return failure!;
+            var decks = new Dictionary<int, List<int>>(own.Loadout.DeckSets);
+            foreach (var (deckNumber, discs) in edited) decks[deckNumber] = discs;
+            ext[Loadout.DecksField] = Loadout.DecksToExt(decks);
+        }
+
+        if (ext.Count > 0)
+        {
+            var (written, failure) = await TryWriteLoadoutAsync(context, ticket, key, path, "disc-change", ext);
+            if (written is null) return failure;
+        }
+        _logger.LogInformation("Disc deck updated: activeDeck={ActiveDeck}, edited decks {Edited}", activeDeck,
+            string.Join(",", edited.Keys));
+        context.Response.Headers["x-app-status-code"] = "0";
+        context.Response.Headers["x-kickflight-fixture"] = "dynamic-disc-change";
+        return BinaryJson("{}", key);
     }
 
     // /disc/buildup {discId}: one level, paid for in one economy transaction.
@@ -1813,18 +1831,6 @@ public sealed partial class DemoSessionApi : IDisposable
             ? DiscLevelOf(snapshot, discId)
             : _tuning.CasualDiscLevel).ToList();
 
-    // Slot array of a costume: always three entries, padded from whatever the save file holds (a file from before
-    // gear support, or a short hand-edited array, must read as empty slots instead of throwing).
-    private static int[] GearSlots(SessionState state, int kickerCostumeId)
-    {
-        var slots = new int[3];
-        if (state.CostumeGears is not null && state.CostumeGears.TryGetValue(kickerCostumeId, out var stored) && stored is not null)
-        {
-            Array.Copy(stored, slots, Math.Min(stored.Length, slots.Length));
-        }
-        return slots;
-    }
-
     // The one error shape this server uses: any non-zero x-app-status-code aborts the client flow and it shows the
     // generic error toast for that screen. The body stays schema-shaped so nothing is left half-deserialized.
     private static LocalFixtureResult StatusError(HttpContext context, byte[] key)
@@ -1834,9 +1840,12 @@ public sealed partial class DemoSessionApi : IDisposable
     }
 
     // gear/create: retail rolls a random gear for the requested kicker and hands the id back; the player then either
-    // equips it (gear/set) or discards it (gear/destroy), both of which clear the pending roll.
-    private async Task<IResult?> HandleGearCreateAsync(HttpContext context, SessionState state, byte[] key)
+    // equips it (gear/set) or discards it (gear/destroy), both of which clear the pending roll. The roll waits in the ext
+    // of the player's session card (pending_gear), so a restart or a second server still has it.
+    private async Task<IResult?> HandleGearCreateAsync(HttpContext context, KfIdentityTicket ticket, SessionState state,
+        byte[] key)
     {
+        const string path = "/gear/create";
         var body = await ReadBodyAsync(context.Request);
         var kickerId = state.KickerId;
         try
@@ -1864,8 +1873,15 @@ public sealed partial class DemoSessionApi : IDisposable
         }
 
         var gearId = _gearIdList[Random.Shared.Next(_gearIdList.Count)];
-        state.PendingGear = new PendingGearState { KickerId = kickerId, GearId = gearId };
-        SaveUserState(state);
+        var (written, failure) = await TryWriteLoadoutAsync(context, ticket, key, path, "gear-create",
+            new JsonObject { [Loadout.GearRollField] = Loadout.RollToExt(new GearRoll(kickerId, gearId)) });
+        if (written is null) return failure;
+        if (!written.Applied)
+        {
+            // A retry of a roll session already stored: the gear the player was shown is the one stored, not this roll.
+            var stored = Loadout.FromExt(written.Ext).Roll;
+            if (stored.GearId != 0) gearId = stored.GearId;
+        }
 
         context.Response.Headers["x-app-status-code"] = "0";
         context.Response.Headers["x-kickflight-fixture"] = "dynamic-gear-create";
@@ -1873,73 +1889,78 @@ public sealed partial class DemoSessionApi : IDisposable
         return BinaryJson($"{{\"gearId\":{gearId}}}", key);
     }
 
-    private async Task<IResult?> HandleGearSetAsync(HttpContext context, SessionState state, byte[] key)
+    private async Task<IResult?> HandleGearSetAsync(HttpContext context, KfIdentityTicket ticket, SessionState state,
+        byte[] key)
     {
+        const string path = "/gear/set";
         var body = await ReadBodyAsync(context.Request);
+        int costumeId, slotNumber;
         try
         {
             var plaintext = D2CCodec.Decode(body, key);
             using var document = JsonDocument.Parse(plaintext);
             var root = document.RootElement;
-            var costumeId = root.TryGetProperty("kickerCostumeId", out var costumeProp) ? costumeProp.GetInt32() : 0;
-            var slotNumber = root.TryGetProperty("gearIdNumber", out var slotProp) ? slotProp.GetInt32() : 0;
-
-            var gearId = state.PendingGear?.GearId ?? 0;
-            if (slotNumber is < 1 or > 3 || !_costumeKicker.ContainsKey(costumeId) || !_gearIdList.Contains(gearId))
-            {
-                _logger.LogWarning("Rejected gear/set: costume={CostumeId} slot={Slot} pendingGear={GearId}", costumeId, slotNumber, gearId);
-                return StatusError(context, key);
-            }
-
-            if (!state.CostumeGears.TryGetValue(costumeId, out var slots))
-            {
-                slots = new int[3];
-                state.CostumeGears[costumeId] = slots;
-            }
-            else if (slots.Length < 3)
-            {
-                Array.Resize(ref slots, 3);
-                state.CostumeGears[costumeId] = slots;
-            }
-            slots[slotNumber - 1] = gearId;
-            state.PendingGear = new PendingGearState();
-            SaveUserState(state);
-
-            context.Response.Headers["x-app-status-code"] = "0";
-            context.Response.Headers["x-kickflight-fixture"] = "dynamic-gear-set";
-            _logger.LogInformation("Equipped gear {GearId} in slot {Slot} of costume {CostumeId} (user {UserId})", gearId, slotNumber, costumeId, state.UserId);
-            return BinaryJson("{}", key);
+            costumeId = root.TryGetProperty("kickerCostumeId", out var costumeProp) ? costumeProp.GetInt32() : 0;
+            slotNumber = root.TryGetProperty("gearIdNumber", out var slotProp) ? slotProp.GetInt32() : 0;
         }
         catch (Exception ex)
         {
             _logger.LogWarning("Could not decode gear set request: {Error}", ex.Message);
             return StatusError(context, key);
         }
+
+        var (own, failure) = await TryReadOwnLoadoutAsync(context, ticket, path);
+        if (own is null) return failure!;
+        var gearId = own.Loadout.Roll.GearId;
+        if (slotNumber is < 1 or > 3 || !_costumeKicker.ContainsKey(costumeId) || !_gearIdList.Contains(gearId))
+        {
+            _logger.LogWarning("Rejected gear/set: costume={CostumeId} slot={Slot} pendingGear={GearId}", costumeId, slotNumber, gearId);
+            return StatusError(context, key);
+        }
+
+        var gears = new Dictionary<int, int[]>(own.Loadout.GearsByCostume);
+        var slots = own.Loadout.GearSlots(costumeId);
+        slots[slotNumber - 1] = gearId;
+        gears[costumeId] = slots;
+        var (written, writeFailure) = await TryWriteLoadoutAsync(context, ticket, key, path, "gear-set", new JsonObject
+        {
+            [Loadout.GearSlotsField] = Loadout.GearSlotsToExt(gears),
+            [Loadout.GearRollField] = Loadout.RollToExt(GearRoll.None)
+        });
+        if (written is null) return writeFailure;
+
+        context.Response.Headers["x-app-status-code"] = "0";
+        context.Response.Headers["x-kickflight-fixture"] = "dynamic-gear-set";
+        _logger.LogInformation("Equipped gear {GearId} in slot {Slot} of costume {CostumeId} (user {UserId})", gearId, slotNumber, costumeId, state.UserId);
+        return BinaryJson("{}", key);
     }
 
-    private Task<IResult?> HandleGearDestroyAsync(HttpContext context, SessionState state, byte[] key)
+    private async Task<IResult?> HandleGearDestroyAsync(HttpContext context, KfIdentityTicket ticket, SessionState state,
+        byte[] key)
     {
-        state.PendingGear = new PendingGearState();
-        SaveUserState(state);
+        var (written, failure) = await TryWriteLoadoutAsync(context, ticket, key, "/gear/destroy", "gear-destroy",
+            new JsonObject { [Loadout.GearRollField] = Loadout.RollToExt(GearRoll.None) });
+        if (written is null) return failure;
 
         context.Response.Headers["x-app-status-code"] = "0";
         context.Response.Headers["x-kickflight-fixture"] = "dynamic-gear-destroy";
         _logger.LogInformation("Discarded the pending gear of user {UserId}", state.UserId);
-        return Task.FromResult<IResult?>(BinaryJson("{}", key));
+        return BinaryJson("{}", key);
     }
 
-    private string BuildStartupJson(SessionState state, EconomySnapshot economy, HttpRequest request,
+    private string BuildStartupJson(SessionState state, EconomySnapshot economy, OwnLoadout own, HttpRequest request,
         IReadOnlyCollection<int>? newHonorIds = null)
     {
         NormalizeCostume(state);
         // The status decides which masters the client downloads next, and with them whether it can take mission rows.
         var tutorialStatus = TutorialStatus(state, economy);
         RecordStartupStatus(state, tutorialStatus);
-        var pendingGear = state.PendingGear ?? new PendingGearState();
+        var pendingGear = own.Loadout.Roll;
+        var payloads = Payloads(state, own.Loadout);
         // The kickers and costumes the player owns, from the inventory's skin:<costumeId> items: owning a costume
         // owns its kicker. The active costume is always included, so a save whose inventory says nothing still
         // renders the player it says is selected.
-        var userKickerList = Payloads(state).BuildUserKickerList(economy, state.KickerId, state.KickerCostumeId);
+        var userKickerList = payloads.BuildUserKickerList(economy, state.KickerId, state.KickerCostumeId);
 
         var kickerTrainingList = _kickerList.Select(k => new
         {
@@ -1948,7 +1969,7 @@ public sealed partial class DemoSessionApi : IDisposable
         }).ToArray();
 
         // The discs the player owns, from the inventory's disc:<discId> items, at the level economy holds on each.
-        var userDiscList = Payloads(state).BuildUserDiscList(economy, discId => DiscStandingOf(economy, discId));
+        var userDiscList = payloads.BuildUserDiscList(economy, discId => DiscStandingOf(economy, discId));
 
         var data = new
         {
@@ -1958,7 +1979,7 @@ public sealed partial class DemoSessionApi : IDisposable
                 .Select(honorId => new { honorId, registerDatetime = "2026-09-01 00:00:00", newFlag = newHonorIds?.Contains(honorId) == true }).ToArray(),
             // All 8 Item master rows: 1-4 the legacy counters, 5-8 the round C stocks (gear stamps, disc fragments
             // and the two gacha tickets) that the gear screen and the shop read their counters from.
-            userItemList = Payloads(state).BuildUserItemList(economy),
+            userItemList = payloads.BuildUserItemList(economy),
             // The client reads userGear.gearId != 0 as "there is a rolled gear waiting for equip/discard", and
             // userGear.kickerId as whose it is; with nothing pending it keeps pointing at the active kicker.
             userGear = new
@@ -2071,7 +2092,8 @@ public sealed partial class DemoSessionApi : IDisposable
 
     // KF_CHAT_EXP=1: serve a non-empty chat connection id so the client attempts Firebase chat setup (experiment only).
 
-    private string BuildHomeJson(SessionState state, EconomySnapshot economy, IReadOnlyList<BattleRankLine> ranks)
+    private string BuildHomeJson(SessionState state, EconomySnapshot economy, IReadOnlyList<BattleRankLine> ranks,
+        OwnLoadout own, object[] userCapsuleList)
     {
         NormalizeCostume(state);
 
@@ -2079,7 +2101,7 @@ public sealed partial class DemoSessionApi : IDisposable
         {
             userId = state.UserId,
             displayUserId = PlayerDisplayIdCodec.ToPublic(int.TryParse(state.UserId, out var uid) ? uid : 1000001),
-            name = CurrentUserName(state),
+            name = OwnName(state, own),
             exp = 38500,
             honorId = BadgeAwardRules.GetOwnedHonorIds(state).Contains(state.HonorId)
                 ? state.HonorId
@@ -2094,11 +2116,11 @@ public sealed partial class DemoSessionApi : IDisposable
             lastNameUpdateDatetime = "2026-09-03 00:00:00",
             kickerId = state.KickerId,
             kickerCostumeId = state.KickerCostumeId,
-            discDeckNumber = state.ActiveDeckNumber,
+            discDeckNumber = own.Loadout.ActiveDeck,
             officialFlag = false
         };
 
-        var userDiscDeckList = state.Decks.Select(d => new
+        var userDiscDeckList = own.Loadout.DeckSets.OrderBy(d => d.Key).Select(d => new
         {
             number = d.Key,
             discIdList = d.Value.ToArray()
@@ -2109,7 +2131,7 @@ public sealed partial class DemoSessionApi : IDisposable
             userPlayer,
             userDiscDeckList,
             // The capsules battles have handed out and the player has not opened (DemoSessionApi.Capsules.cs).
-            userCapsuleList = BuildUserCapsuleList(state),
+            userCapsuleList = userCapsuleList,
             // The shop's disc/kicker scrollers (Colorful.ShopDiscScroller._data : List<GachaGroupInfo>) are filled
             // from these two lists through GachaGroupListInfo(ResponseGachaGroup[]); serving them empty left the
             // scroller with a data list shorter than the cell range EnhancedScroller._Resize walks and GetCellHeight
@@ -2371,12 +2393,14 @@ public sealed partial class DemoSessionApi : IDisposable
         }
 
         NormalizeCostume(state);
-        var deck = state.Decks.GetValueOrDefault(state.ActiveDeckNumber) ?? [3010001, 3010002, 3010003, 3010004];
+        var (own, loadoutFailure) = await TryReadOwnLoadoutAsync(context, ticket, "/battle/teamCreate");
+        if (own is null) return loadoutFailure!;
+        var deck = own.Loadout.ActiveDeckDiscs();
         var ruleMetadata = BattleRuleMetadata(battleRuleId);
         var levels = await ReadDeckLevelEconomyAsync(ticket, "/battle/teamCreate", context);
         if (levels.Snapshot is null) return EconomyUnavailable(context, "/battle/teamCreate", levels.Error);
         var entry = _matchmaking.CreateTeam(
-            state.UserId, state.UserName, state.KickerId, state.KickerCostumeId, battleRuleId, deck, code,
+            state.UserId, EntryName(state, own), state.KickerId, state.KickerCostumeId, battleRuleId, deck, code,
             isDiag: IsDiagClient(context), matchType: ruleMetadata.MatchType,
             battleRuleType: ruleMetadata.BattleRuleType,
             deckLevels: DeckLevelsFor(levels.Snapshot, deck, ruleMetadata.MatchType));
@@ -2414,13 +2438,15 @@ public sealed partial class DemoSessionApi : IDisposable
         }
 
         NormalizeCostume(state);
-        var deck = state.Decks.GetValueOrDefault(state.ActiveDeckNumber) ?? [3010001, 3010002, 3010003, 3010004];
+        var (own, loadoutFailure) = await TryReadOwnLoadoutAsync(context, ticket, "/battle/teamJoin");
+        if (own is null) return loadoutFailure!;
+        var deck = own.Loadout.ActiveDeckDiscs();
         // The joiner does not choose the rule - the team does - so the levels are chosen for whatever the team
         // turns out to be playing. The read is taken before the join because the lambda below is evaluated inside it.
         var levels = await ReadDeckLevelEconomyAsync(ticket, "/battle/teamJoin", context);
         if (levels.Snapshot is null) return EconomyUnavailable(context, "/battle/teamJoin", levels.Error);
         var entry = _matchmaking.JoinTeam(
-            teamId, state.UserId, state.UserName, state.KickerId, state.KickerCostumeId, deck,
+            teamId, state.UserId, EntryName(state, own), state.KickerId, state.KickerCostumeId, deck,
             isDiag: IsDiagClient(context), deckLevels: matchType => DeckLevelsFor(levels.Snapshot, deck, matchType));
         if (entry is null) return StatusError(context, key);
 
@@ -2612,13 +2638,15 @@ public sealed partial class DemoSessionApi : IDisposable
             return StatusError(context, key);
         }
 
-        var deck = state.Decks.GetValueOrDefault(state.ActiveDeckNumber) ?? [3010001, 3010002, 3010003, 3010004];
+        var (own, loadoutFailure) = await TryReadOwnLoadoutAsync(context, ticket, "/battle/entry");
+        if (own is null) return loadoutFailure!;
+        var deck = own.Loadout.ActiveDeckDiscs();
         NormalizeCostume(state);
         var ruleMetadata = BattleRuleMetadata(battleRuleId);
         var levels = await ReadDeckLevelEconomyAsync(ticket, "/battle/entry", context);
         if (levels.Snapshot is null) return EconomyUnavailable(context, "/battle/entry", levels.Error);
         var (battleEntryId, ticketId) = _matchmaking.RegisterEntry(
-            state.UserId, state.UserName, state.KickerId, state.KickerCostumeId, battleRuleId, deck,
+            state.UserId, EntryName(state, own), state.KickerId, state.KickerCostumeId, battleRuleId, deck,
             isDiag: IsDiagClient(context), matchType: ruleMetadata.MatchType,
             battleRuleType: ruleMetadata.BattleRuleType,
             deckLevels: DeckLevelsFor(levels.Snapshot, deck, ruleMetadata.MatchType));
@@ -2753,7 +2781,7 @@ public sealed partial class DemoSessionApi : IDisposable
 
             // CustomBattleRuleField is the client's source of legal rule/map pairs. Enforce that same pair at
             // start so the saved map and the selected mode cannot drift after the lobby has been created.
-            using var customFields = JsonDocument.Parse(LoadJson(
+            using var customFields = JsonDocument.Parse(MasterJson("CustomBattleRuleField",
                 _contentRoot, "config/masters_custom_battle_rule_field.json", "[]"));
             var fieldIsAllowed = customFields.RootElement.EnumerateArray().Any(row =>
                 row.TryGetProperty("battleRuleType", out var type) && type.GetInt32() == battleRuleType

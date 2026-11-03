@@ -216,13 +216,8 @@ public sealed class JsonPlayerStore : IPlayerStore
             var loaded = JsonSerializer.Deserialize<SessionState>(File.ReadAllText(file));
             if (loaded is null) return null;
             loaded.UserId = playerId.ToString();
-            // Save files written before gear support (or hand-edited with an explicit null) must load as
-            // "no gear", never as a null dictionary the gear handlers would then dereference.
-            loaded.CostumeGears ??= new Dictionary<int, int[]>();
-            loaded.PendingGear ??= new PendingGearState();
             loaded.ItemAmounts ??= new Dictionary<int, int>();
             loaded.Discs ??= new Dictionary<int, UserDiscState>();
-            loaded.Decks ??= new Dictionary<int, List<int>>();
             return loaded;
         }
         catch (Exception ex)

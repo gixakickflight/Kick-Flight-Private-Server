@@ -40,7 +40,11 @@ discs or translation keys.
 The rule is the same for all 62: the file stem after `masters_` is the namespace's last segment and the schema's
 file name. `masters/otomo/namespaces.json` carries the full list with each table's row count.
 
-**The mapping is configuration, not a constant.** `Otomo:Masters:Tables` is an array of `<master>=<namespace>`
+**The mapping is configuration, not a constant.** The whole list - every table the adapter serves, 61 of the 62
+namespaces (`disc_rarity` is carried by the release but is not a master `DemoSessionApi` serves) - is in
+`appsettings.json`, under `Otomo:Masters:Tables`, so a deploy only needs `Otomo__Masters__Enabled` and the connection
+settings; a table bound there is read from the release and the file read is skipped. With `Enabled` off nothing is
+owned and the files are read as before. `Otomo:Masters:Tables` is an array of `<master>=<namespace>`
 entries, where `<master>` is the name `DemoSessionApi` files the table under (`Translation`, `KickerAbility`,
 `BattleRule`, …) — the same name that appears in `/download/master` and after `/demo-master/`.
 

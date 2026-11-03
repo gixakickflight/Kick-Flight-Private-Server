@@ -29,7 +29,7 @@ namespace KickFlight.BootstrapApi.Tests;
 //
 // Account existence is lenient: any account id the auth fake minted is "a player session knows" and is created on its
 // first use here. An id starting with "ghost-" is the one session has never heard of (404 player_not_found).
-public sealed class FakeOtomoSocial : IAsyncDisposable
+public sealed partial class FakeOtomoSocial : IAsyncDisposable
 {
     private readonly WebApplication _app;
     private readonly ConcurrentDictionary<string, Account> _accounts = new(StringComparer.Ordinal);
@@ -98,6 +98,7 @@ public sealed class FakeOtomoSocial : IAsyncDisposable
         var server = new FakeOtomoSocial(app, "");
         server.Map();
         server.MapRank();
+        server.MapExt();
         app.StartAsync().GetAwaiter().GetResult();
 
         var address = app.Urls.FirstOrDefault(url => !url.EndsWith(":0", StringComparison.Ordinal))
@@ -472,6 +473,10 @@ public sealed class FakeOtomoSocial : IAsyncDisposable
                     { DataStream = new MemoryStream(Encoding.UTF8.GetBytes(text)) });
                 Add("manifest.json", "{\"release\":\"test-release\"}");
                 Add("config/session.rank.json", LadderDocument);
+                // The tenant's staging release carries every master table as kf.masters.<table> = {"rows": [...]}. The
+                // fake serves the repository's own config/masters_*.json files in that envelope, so a host that follows
+                // it serves what the files hold unless a test changes a table here (ReplaceMasterRows).
+                foreach (var (ns, rows) in MasterDocuments()) Add($"config/{ns}.json", rows);
             }
             var bytes = buffer.ToArray();
             context.Response.Headers["Digest"] = "sha-256=" + Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
@@ -480,6 +485,29 @@ public sealed class FakeOtomoSocial : IAsyncDisposable
             return Results.Bytes(bytes, "application/gzip");
         });
     }
+
+    // namespace -> the {"rows": [...]} document, for every table masters/otomo/namespaces.json lists.
+    private static readonly Lazy<IReadOnlyDictionary<string, string>> RepositoryMasterDocuments = new(() =>
+    {
+        var root = KickFlight.BootstrapApi.RepositoryPaths.FindRoot(AppContext.BaseDirectory);
+        using var catalogue = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "masters", "otomo", "namespaces.json")));
+        var documents = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var entry in catalogue.RootElement.GetProperty("namespaces").EnumerateArray())
+        {
+            var file = Path.Combine(root, entry.GetProperty("source").GetString()!);
+            documents[entry.GetProperty("namespace").GetString()!] = "{\"rows\": " + File.ReadAllText(file) + "}";
+        }
+        return documents;
+    });
+
+    private readonly ConcurrentDictionary<string, string> _replacedMasters = new(StringComparer.Ordinal);
+
+    // Makes the release carry other rows for a table (by namespace, e.g. "kf.masters.stamp") than the file holds.
+    public void ReplaceMasterRows(string ns, string rowsJson) => _replacedMasters[ns] = "{\"rows\": " + rowsJson + "}";
+
+    private IEnumerable<KeyValuePair<string, string>> MasterDocuments() =>
+        RepositoryMasterDocuments.Value.Select(pair =>
+            new KeyValuePair<string, string>(pair.Key, _replacedMasters.GetValueOrDefault(pair.Key, pair.Value)));
 
     private bool Service(HttpContext context, out IResult? failure)
     {
@@ -544,6 +572,9 @@ public sealed class FakeOtomoSocial : IAsyncDisposable
         public string DisplayName { get; set; } = "";
         public int Discriminator { get; init; }
         public Dictionary<string, int> Points { get; } = new(StringComparer.Ordinal);
+
+        // The instance-declared fields session holds for this account (ext.session.player); see FakeOtomoSocial.Ext.cs.
+        public System.Text.Json.Nodes.JsonObject Ext { get; set; } = new();
 
         // Kept so a test could assert recency; the follow lists are unordered here, as the contract does not promise
         // an order.

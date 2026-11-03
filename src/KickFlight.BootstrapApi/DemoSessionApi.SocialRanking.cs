@@ -448,8 +448,8 @@ public sealed partial class DemoSessionApi
             result.Add(new
             {
                 userId = link.PlayerId.ToString(),
-                // The name is session's answer for this row. The fallback is for a row session sent unnamed.
-                name = string.IsNullOrEmpty(row.DisplayName) ? profile?.DisplayName ?? "" : row.DisplayName,
+                // The name is session's answer for this row.
+                name = row.DisplayName ?? "",
                 honorId = EquippedHonorId(_playerStore.TryLoad(link.PlayerId)),
                 kickerId = profile?.KickerId ?? DefaultKickerId,
                 kickerCostumeId = profile?.KickerCostumeId ?? DefaultKickerCostumeId,
@@ -500,15 +500,12 @@ public sealed partial class DemoSessionApi
         return fromPoints;
     }
 
-    // The card for a player on a follow screen. The name is session's answer for that row. The kicker and costume - and
-    // the name only when session sent the row unnamed - are this adapter's own FindProfile.
-    // TODO(otomo-profile): FindProfile is a local copy of what the player chose; it goes away with the profile/loadout
-    // move to otomo, at which point the card is built from otomo's profile alone.
+    // The card for a player on a follow screen. The name is session's answer for that row, and only that: this adapter no
+    // longer reads its own copy of it. The kicker and costume are the game row's (session's ext declares no kicker).
     private PlayerProfile ProfileOf(SocialRow row)
     {
         var local = _playerStore.FindProfile(row.PlayerId);
-        return new PlayerProfile(row.PlayerId,
-            string.IsNullOrEmpty(row.DisplayName) ? local?.DisplayName ?? "" : row.DisplayName,
+        return new PlayerProfile(row.PlayerId, row.DisplayName ?? "",
             local?.KickerId ?? DefaultKickerId, local?.KickerCostumeId ?? DefaultKickerCostumeId);
     }
 

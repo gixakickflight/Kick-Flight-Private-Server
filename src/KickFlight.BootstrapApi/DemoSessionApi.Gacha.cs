@@ -68,16 +68,16 @@ public sealed partial class DemoSessionApi
     // /download/master list, which BuildDownloadMasterJson derives from _encryptedMasters.
     private void InitializeGachaMasters(string contentRoot)
     {
-        var groupJson = LoadJson(contentRoot, "config/masters_gacha_group.json", "[]");
-        var discGachaJson = LoadJson(contentRoot, "config/masters_disc_gacha.json", "[]");
-        var kickerGachaJson = LoadJson(contentRoot, "config/masters_kicker_gacha.json", "[]");
-        var lotteryCostJson = LoadJson(contentRoot, "config/masters_lottery_cost.json", "[]");
-        var lotteryDiscRarityJson = LoadJson(contentRoot, "config/masters_lottery_disc_rarity.json", "[]");
-        var lotteryDropDiscJson = LoadJson(contentRoot, "config/masters_lottery_drop_disc.json", "[]");
-        var lotteryDropKickerJson = LoadJson(contentRoot, "config/masters_lottery_drop_kicker.json", "[]");
-        var lotteryDiscDropAmountJson = LoadJson(contentRoot, "config/masters_lottery_disc_drop_amount.json", "[]");
-        var lotteryDropCountRewardJson = LoadJson(contentRoot, "config/masters_lottery_drop_count_reward.json", "[]");
-        var lotteryGearRarityJson = LoadJson(contentRoot, "config/masters_lottery_gear_rarity.json", "[]");
+        var groupJson = MasterJson("GachaGroup", contentRoot, "config/masters_gacha_group.json", "[]");
+        var discGachaJson = MasterJson("DiscGacha", contentRoot, "config/masters_disc_gacha.json", "[]");
+        var kickerGachaJson = MasterJson("KickerGacha", contentRoot, "config/masters_kicker_gacha.json", "[]");
+        var lotteryCostJson = MasterJson("LotteryCost", contentRoot, "config/masters_lottery_cost.json", "[]");
+        var lotteryDiscRarityJson = MasterJson("LotteryDiscRarity", contentRoot, "config/masters_lottery_disc_rarity.json", "[]");
+        var lotteryDropDiscJson = MasterJson("LotteryDropDisc", contentRoot, "config/masters_lottery_drop_disc.json", "[]");
+        var lotteryDropKickerJson = MasterJson("LotteryDropKicker", contentRoot, "config/masters_lottery_drop_kicker.json", "[]");
+        var lotteryDiscDropAmountJson = MasterJson("LotteryDiscDropAmount", contentRoot, "config/masters_lottery_disc_drop_amount.json", "[]");
+        var lotteryDropCountRewardJson = MasterJson("LotteryDropCountReward", contentRoot, "config/masters_lottery_drop_count_reward.json", "[]");
+        var lotteryGearRarityJson = MasterJson("LotteryGearRarity", contentRoot, "config/masters_lottery_gear_rarity.json", "[]");
 
         _encryptedMasters["GachaGroup"] = EncryptMaster(groupJson);
         _encryptedMasters["DiscGacha"] = EncryptMaster(discGachaJson);
@@ -463,6 +463,10 @@ public sealed partial class DemoSessionApi
         }
         count = Math.Clamp(count, 1, MaxRollCount);
 
+        // The received kickers show the gear in each costume's slots, which is session's: read before the roll is paid for.
+        var (own, loadoutFailure) = await TryReadOwnLoadoutAsync(context, ticket, "/gacha/kickerDraw");
+        if (own is null) return loadoutFailure!;
+
         string accessToken;
         EconomyRoll roll;
         try
@@ -491,7 +495,7 @@ public sealed partial class DemoSessionApi
         var economy = await ReadPlayerEconomyAsync(ticket, EconomyRead.Balances | EconomyRead.Inventory,
             "/gacha/kickerDraw", context.RequestAborted);
         var snapshot = economy.Snapshot ?? SnapshotFromRoll(roll);
-        var payloads = Payloads(state);
+        var payloads = Payloads(state, own.Loadout);
 
         var response = new
         {

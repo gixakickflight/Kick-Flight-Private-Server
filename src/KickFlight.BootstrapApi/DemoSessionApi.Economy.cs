@@ -34,8 +34,11 @@ public sealed partial class DemoSessionApi
 
     // The payload builders, bound to this request's save and to the served masters. One per request is cheap; the
     // dictionaries it closes over are the boot-time ones.
-    private EconomyPayloads Payloads(SessionState state) =>
-        new(_costumeKicker, costumeId => GearSlots(state, costumeId), _discIdList, _logger);
+    //
+    // The gear in a kicker list's slots is the loadout's, which the caller passes in when the answer carries a kicker
+    // list (the loadout is session's, so this method cannot fetch it); without one every slot reads as empty.
+    private EconomyPayloads Payloads(SessionState state, Loadout? loadout = null) =>
+        new(_costumeKicker, costumeId => loadout?.GearSlots(costumeId) ?? new int[3], _discIdList, _logger);
 
     // One round of reads, on the player's own token.
     //

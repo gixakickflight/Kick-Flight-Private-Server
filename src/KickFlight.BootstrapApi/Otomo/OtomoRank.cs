@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.Options;
 
 namespace KickFlight.BootstrapApi.Otomo;
@@ -16,7 +17,7 @@ namespace KickFlight.BootstrapApi.Otomo;
 //
 // Same transport rules as OtomoSocial and OtomoEconomy: one retry for a transport failure or a 5xx, none for a 4xx.
 // The award is safe to retry because session applies it once per (player, rule type, key).
-public sealed class OtomoRank : IOtomoRank, IDisposable
+public sealed class OtomoRank : IOtomoRank, IOtomoProfile, IDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
@@ -90,6 +91,30 @@ public sealed class OtomoRank : IOtomoRank, IDisposable
         return await CallAsync<SessionRankAward>(url, HttpMethod.Post,
             new { player_id = otomoPlayerId, rule_type = ruleType, delta, key }, null, serviceKey, "rank award",
             cancellationToken).ConfigureAwait(false);
+    }
+
+    // GET /api/player/session/me: the caller's own card and ext, with the player's own token.
+    public Task<SessionMe> GetOwnProfileAsync(string accessToken, CancellationToken cancellationToken) =>
+        CallAsync<SessionMe>(Under(_playerBase, "api/player/session/me"), HttpMethod.Get, null, accessToken, null,
+            "own profile", cancellationToken);
+
+    // GET /internal/session/players/{player_id}: another player's card (name, discriminator, ext).
+    public Task<SessionPlayerProfile> GetPlayerProfileAsync(string otomoPlayerId, CancellationToken cancellationToken)
+    {
+        var key = RequireServiceKey("another player's profile");
+        return CallAsync<SessionPlayerProfile>(
+            Under(_internalBase, $"internal/session/players/{Uri.EscapeDataString(otomoPlayerId)}"),
+            HttpMethod.Get, null, null, key, "player profile", cancellationToken);
+    }
+
+    // POST /internal/session/players/ext {player_id, ext, key, merge}. Session validates `ext` against the published
+    // ext.session.player schema and answers 400 invalid_ext naming the field when it does not follow it.
+    public Task<SessionExtWrite> WriteExtAsync(string otomoPlayerId, JsonObject ext, string key, bool merge,
+        CancellationToken cancellationToken)
+    {
+        var serviceKey = RequireServiceKey("an ext write");
+        return CallAsync<SessionExtWrite>(Under(_internalBase, "internal/session/players/ext"), HttpMethod.Post,
+            new { player_id = otomoPlayerId, ext, key, merge }, null, serviceKey, "ext write", cancellationToken);
     }
 
     private Uri Under(Uri? baseUri, string relative) =>

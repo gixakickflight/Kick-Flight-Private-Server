@@ -8,7 +8,7 @@ namespace KickFlight.BootstrapApi.PlayerStore;
 //
 // Shape, and why it is not fully normalised: the two things a service actually queries - identity and the
 // display name - are real columns, and the rest of the state is one `state jsonb` document. Currencies moved to
-// otomo's economy (migration 5) and battle points to otomo's session (migration 7). Decks, owned discs, costume gears and the pending gear roll are only ever read and
+// otomo's economy (migration 5) and battle points to otomo's session (migration 7). Owned discs and the badge facts are only ever read and
 // written as a whole (the API loads a player, mutates, saves), so normalising them would buy nothing and cost
 // a mapping layer plus the chance of a half-applied save. See deploy/README.md.
 //
@@ -20,7 +20,7 @@ namespace KickFlight.BootstrapApi.PlayerStore;
 // the API once. `schema_meta` records which have been applied, so applying is idempotent and additive.
 public sealed class PostgresPlayerStore : IPlayerStore
 {
-    private const int SchemaVersion = 7;
+    private const int SchemaVersion = 8;
 
     private static readonly (int Version, string Sql)[] Migrations =
     [
@@ -186,6 +186,17 @@ public sealed class PostgresPlayerStore : IPlayerStore
             -- Nothing is copied: no live player data migrates, every player starts fresh on otomo, so there is no
             -- backfill of points and no compatibility path for an old save's rank.
             drop table if exists player_ranks;
+            """),
+        (8, """
+            -- The loadout moved to otomo's session service: a player's decks, active deck, costume gears and pending gear
+            -- roll are the ext of their session card (ext.session.player), and capsules are economy entitlements. The
+            -- active deck column is dropped rather than left to drift, because every read and write of it is gone; the
+            -- `state` document keys for decks, gears and capsules simply stop being written, and an old document that still
+            -- carries them is ignored on read.
+            --
+            -- Nothing is copied: no live player data migrates, every player starts fresh on otomo, so there is no
+            -- backfill of decks or gears and no compatibility path for an old save's loadout.
+            alter table players drop column if exists active_deck_number;
             """)
     ];
 
@@ -304,8 +315,8 @@ public sealed class PostgresPlayerStore : IPlayerStore
         var defaults = new SessionState();
         var inserted = FindPlayerId(connection, transaction, """
             insert into players (
-                id, otomo_player_id, legacy_device_uuid, kicker_id, kicker_costume_id, active_deck_number, state)
-            values (nextval('player_id_seq'), $1, $2, $3, $4, $5, '{}'::jsonb)
+                id, otomo_player_id, legacy_device_uuid, kicker_id, kicker_costume_id, state)
+            values (nextval('player_id_seq'), $1, $2, $3, $4, '{}'::jsonb)
             on conflict do nothing
             returning id
             """,
@@ -315,7 +326,6 @@ public sealed class PostgresPlayerStore : IPlayerStore
                 command.Parameters.AddWithValue(string.IsNullOrEmpty(legacyDeviceUuid) ? DBNull.Value : legacyDeviceUuid);
                 command.Parameters.AddWithValue(defaults.KickerId);
                 command.Parameters.AddWithValue(defaults.KickerCostumeId);
-                command.Parameters.AddWithValue(defaults.ActiveDeckNumber);
             });
         if (inserted is { } created)
         {
@@ -358,8 +368,8 @@ public sealed class PostgresPlayerStore : IPlayerStore
 
         var defaults = new SessionState();
         var created = FindPlayerId(connection, transaction, """
-            insert into players (id, legacy_device_uuid, kicker_id, kicker_costume_id, active_deck_number, state)
-            values (nextval('player_id_seq'), $1, $2, $3, $4, '{}'::jsonb)
+            insert into players (id, legacy_device_uuid, kicker_id, kicker_costume_id, state)
+            values (nextval('player_id_seq'), $1, $2, $3, '{}'::jsonb)
             returning id
             """,
             command =>
@@ -367,7 +377,6 @@ public sealed class PostgresPlayerStore : IPlayerStore
                 command.Parameters.AddWithValue(uuid);
                 command.Parameters.AddWithValue(defaults.KickerId);
                 command.Parameters.AddWithValue(defaults.KickerCostumeId);
-                command.Parameters.AddWithValue(defaults.ActiveDeckNumber);
             });
         transaction.Commit();
         return created ?? throw new InvalidOperationException($"No player row for device {uuid}, and one could not be created.");
@@ -393,7 +402,7 @@ public sealed class PostgresPlayerStore : IPlayerStore
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
-            select display_name, kicker_id, kicker_costume_id, active_deck_number, state
+            select display_name, kicker_id, kicker_costume_id, state
             from players where id = $1
             """;
         command.Parameters.AddWithValue(playerId);
@@ -403,12 +412,11 @@ public sealed class PostgresPlayerStore : IPlayerStore
 
         // The document carries everything except the identity and the columns that a service queries; those
         // are authoritative in their own columns and are copied over whatever the document said.
-        var state = DecodeDocument(reader.GetString(4));
+        var state = DecodeDocument(reader.GetString(3));
         state.UserId = playerId.ToString();
         state.UserName = reader.IsDBNull(0) ? "" : reader.GetString(0);
         state.KickerId = reader.GetInt32(1);
         state.KickerCostumeId = reader.GetInt32(2);
-        state.ActiveDeckNumber = reader.GetInt32(3);
         reader.Close();
 
         // The tables are authoritative for badge facts; the document may be older (or newer, if a previous
@@ -424,9 +432,6 @@ public sealed class PostgresPlayerStore : IPlayerStore
         {
             var state = JsonSerializer.Deserialize<SessionState>(json);
             if (state is null) return new SessionState();
-            state.CostumeGears ??= new Dictionary<int, int[]>();
-            state.PendingGear ??= new PendingGearState();
-            state.Decks ??= new Dictionary<int, List<int>>();
             return state;
         }
         catch (JsonException ex)
@@ -473,8 +478,7 @@ public sealed class PostgresPlayerStore : IPlayerStore
                 display_name        = nullif($2, ''),
                 kicker_id           = $3,
                 kicker_costume_id   = $4,
-                active_deck_number  = $5,
-                state               = $6::jsonb,
+                state               = $5::jsonb,
                 updated_at          = now()
             where id = $1
             """;
@@ -484,7 +488,6 @@ public sealed class PostgresPlayerStore : IPlayerStore
         command.Parameters.AddWithValue(state.UserName);
         command.Parameters.AddWithValue(state.KickerId);
         command.Parameters.AddWithValue(state.KickerCostumeId);
-        command.Parameters.AddWithValue(state.ActiveDeckNumber);
         command.Parameters.AddWithValue(document);
 
         if (command.ExecuteNonQuery() == 0)

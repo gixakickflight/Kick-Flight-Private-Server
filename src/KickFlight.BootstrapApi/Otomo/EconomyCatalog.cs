@@ -28,7 +28,7 @@ namespace KickFlight.BootstrapApi.Otomo;
 //
 //   row 2  JetCoinPaid       no IAP on this server: there is no paid coin
 //   row 4  KickPoint          retired with the pre-EOS battle rewards
-//   row 5  GearMaterial      the gear roll is still the adapter's own (SessionState.PendingGear)
+//   row 5  GearMaterial      the gear roll is session's (ext pending_gear, DemoSessionApi.Loadout.cs)
 //   row 8  DiscGachaTicket   the disc gacha is priced in Jet Coin, so nothing earns or spends it
 //
 // Anything the economy holds that is not named here is not shown to the client: an unmapped item is logged and

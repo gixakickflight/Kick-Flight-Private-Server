@@ -39,15 +39,8 @@ public sealed class SessionState
     // client hardcodes for the tutorial's placeholder player (TutorialUtil.KICKER_COSTUME_ID). A fresh
     // account starts on it, and NormalizeCostume repairs a save that still carries an older numbering.
     public int KickerCostumeId { get; set; } = 2010101;
-    public int ActiveDeckNumber { get; set; } = 1;
-    public Dictionary<int, List<int>> Decks { get; set; } = new()
-    {
-        [1] = [3010001, 3010002, 3010003, 3010004],
-        [2] = [3010005, 3010006, 3010007, 3010008],
-        [3] = [3010009, 3010010, 3010011, 3010012],
-        [4] = [3010013, 3010014, 3010020, 3010022],
-        [5] = [3010023, 3010024, 3010029, 3010030]
-    };
+    // The decks, the active deck, the gear in each costume's slots and a pending gear roll are not in this document:
+    // they are the ext of the player's session card (DemoSessionApi.Loadout.cs, Otomo/Loadout.cs).
     // The discs this player owns, as main's model holds them (discId -> level/amount). Our economy owns
     // possession, so nothing on this side reads it any more: it stays in the document because main's store and
     // gacha code load and save it, and a merge must not delete a model member its code still touches.
@@ -61,11 +54,6 @@ public sealed class SessionState
     // Item master ids 5-8: gear stamps (202), disc fragments (303) and the two gacha tickets (401/402). An
     // absent entry reads as DefaultStockAmount, so a session saved before round C starts with a full stock.
     public Dictionary<int, int> ItemAmounts { get; set; } = new();
-    // costume row id -> three gear slots (0 = empty), the shape the client reads back as gearId1..3.
-    public Dictionary<int, int[]> CostumeGears { get; set; } = new();
-    // The gear rolled by gear/create and not yet equipped or discarded. gearId 0 = nothing pending.
-    public PendingGearState PendingGear { get; set; } = new();
-
     // The furthest TutorialProgressStatus the client has reported through a /tutorial/* step. 0 = none yet, which
     // a fresh account reads as Start (1); the name ends it at 207 regardless (see DemoSessionApi.TutorialStatus).
     public int TutorialProgress { get; set; }
@@ -84,10 +72,8 @@ public sealed class SessionState
     // per player, so this only saves the call on later startups; a lost flag pays nothing twice.
     public bool StarterDiscForcePaid { get; set; }
 
-    // The capsules a battle has handed out and the player has not opened yet, one per client slot. The token that
-    // pays for each one's roll is already in the player's wallet (see DemoSessionApi.Capsules.cs); this is only
-    // which slot shows which capsule, and when it may be opened.
-    public List<PendingCapsule> Capsules { get; set; } = [];
+    // Capsules are not here either: a battle's capsule is an entitlement in economy, and the home's slots are built from the
+    // open ones (DemoSessionApi.Capsules.cs).
 
     // True once the player has chosen a name, which is also what ends onboarding.
     public bool HasName => !string.IsNullOrEmpty(UserName);
@@ -101,27 +87,4 @@ public sealed class UserDiscState
     public int DiscId { get; set; }
     public int Level { get; set; } = 10;
     public int Amount { get; set; } = 99;
-}
-
-public sealed class PendingGearState
-{
-    public int KickerId { get; set; }
-    public int GearId { get; set; }
-}
-
-public sealed class PendingCapsule
-{
-    // The client's slot, 1..EconomyTuning.CapsuleSlots.
-    public int SlotNumber { get; set; }
-    // The Capsule master row the slot renders (EconomyTuning.CapsuleType.CapsuleId).
-    public int CapsuleId { get; set; }
-    // The tuning's type name: wooden, standard or golden. It names the economy currency, class and pool.
-    public string Type { get; set; } = "";
-    // How many discs the open draws, chosen when the capsule was handed out; it is also how many tokens were paid.
-    public int DiscCount { get; set; }
-    public DateTimeOffset GrantedAt { get; set; }
-    public DateTimeOffset UnlockAt { get; set; }
-    // The battle entry the capsule came from. Every economy key for this capsule derives from it, so a retried
-    // result, a retried grant and a retried open all name the same fact.
-    public string Source { get; set; } = "";
 }

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.Options;
 
 namespace KickFlight.BootstrapApi.Otomo;
@@ -234,6 +235,72 @@ public sealed class OtomoEconomy : IOtomoEconomy, IDisposable
         return element.Deserialize<EconomyAdvanceResult>(JsonOptions)
                ?? throw new OtomoEconomyException(OtomoEconomyFailure.Unavailable,
                    "economy answered the advance with an empty body");
+    }
+
+    // POST /internal/economy/entitlements. The same plane, key and switch as the grant: it names a player and records
+    // value owed, so it is the same trust decision. The body names a class (`rule`) and never an amount.
+    public async Task<EconomyEntitlement> CreateEntitlementAsync(EconomyEntitlementRequest request,
+        CancellationToken cancellationToken)
+    {
+        var (baseUri, serviceKey) = InternalPlane("entitlements");
+        var payload = new Dictionary<string, object?>
+        {
+            ["player_id"] = request.PlayerId,
+            ["kind"] = request.Kind,
+            ["rule"] = request.Rule,
+            ["available_at"] = request.AvailableAt.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'",
+                System.Globalization.CultureInfo.InvariantCulture),
+            ["source"] = request.Source,
+            ["meta"] = request.Meta,
+            ["key"] = request.Key
+        };
+        var element = await SendAsync(new Uri(baseUri, "internal/economy/entitlements"), HttpMethod.Post, payload,
+            bearer: null, serviceKey, "entitlement create", cancellationToken).ConfigureAwait(false);
+        return element.Deserialize<EconomyEntitlement>(JsonOptions)
+               ?? throw new OtomoEconomyException(OtomoEconomyFailure.Unavailable,
+                   "economy answered the entitlement create with an empty body");
+    }
+
+    // GET /internal/economy/entitlements?player_id=&include_claimed=. A bare array is accepted as well as the
+    // `{entitlements: [...]}` envelope the service writes.
+    public async Task<IReadOnlyList<EconomyEntitlement>> ListEntitlementsAsync(string playerId, bool includeClaimed,
+        CancellationToken cancellationToken)
+    {
+        var (baseUri, serviceKey) = InternalPlane("entitlements");
+        var url = new Uri(baseUri,
+            $"internal/economy/entitlements?player_id={Uri.EscapeDataString(playerId)}&include_claimed={(includeClaimed ? "true" : "false")}");
+        var element = await SendAsync(url, HttpMethod.Get, null, bearer: null, serviceKey, "entitlement list",
+            cancellationToken).ConfigureAwait(false);
+        if (element.ValueKind == JsonValueKind.Array)
+            return element.Deserialize<List<EconomyEntitlement>>(JsonOptions) ?? [];
+        return element.Deserialize<EconomyEntitlements>(JsonOptions)?.Entitlements ?? [];
+    }
+
+    // POST /internal/economy/entitlements/{id}/claim. The retry in SendAsync resends the same key; the payout is keyed by
+    // the entitlement id on economy's side, so a repeated claim never pays twice (it answers 409 entitlement_claimed).
+    public async Task<EconomyEntitlementClaim> ClaimEntitlementAsync(string entitlementId, string playerId, string key,
+        CancellationToken cancellationToken)
+    {
+        var (baseUri, serviceKey) = InternalPlane("entitlement claims");
+        var url = new Uri(baseUri, $"internal/economy/entitlements/{Uri.EscapeDataString(entitlementId)}/claim");
+        var element = await SendAsync(url, HttpMethod.Post, new { player_id = playerId, key }, bearer: null, serviceKey,
+            "entitlement claim", cancellationToken).ConfigureAwait(false);
+        return element.Deserialize<EconomyEntitlementClaim>(JsonOptions)
+               ?? throw new OtomoEconomyException(OtomoEconomyFailure.Unavailable,
+                   "economy answered the entitlement claim with an empty body");
+    }
+
+    // The internal plane's one gate: the switch, a readable game-server key and a base URL.
+    private (Uri BaseUri, string ServiceKey) InternalPlane(string what)
+    {
+        if (!Enabled) throw Disabled();
+        var key = ReadServiceKey();
+        if (!_options.ProgressEnabled || string.IsNullOrEmpty(key) || _internalBase is null)
+        {
+            throw new OtomoEconomyException(OtomoEconomyFailure.Disabled,
+                $"internal {what} are off: set Otomo:Economy:ProgressEnabled and a gameserver service key");
+        }
+        return (_internalBase, key);
     }
 
     private Uri Player(string relative) =>

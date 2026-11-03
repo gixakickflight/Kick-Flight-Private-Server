@@ -41,7 +41,7 @@ public sealed class EconomyTuning
         public string PoolId => $"capsule.{Type}";
     }
 
-    public IReadOnlyList<CapsuleType> Capsules { get; }
+    public IReadOnlyList<CapsuleType> CapsuleTypes { get; }
 
     // Every disc in a casual battle fights at this level, whatever the player has raised it to.
     public int CasualDiscLevel { get; }
@@ -69,7 +69,7 @@ public sealed class EconomyTuning
     private EconomyTuning(IReadOnlyList<CapsuleType> capsules, int casualDiscLevel, bool levelsRankedOnly,
         IReadOnlyDictionary<int, int> startLevels, string source)
     {
-        Capsules = capsules;
+        CapsuleTypes = capsules;
         CasualDiscLevel = casualDiscLevel;
         LevelsRankedOnly = levelsRankedOnly;
         StartLevels = startLevels;
@@ -77,7 +77,7 @@ public sealed class EconomyTuning
     }
 
     public CapsuleType? FindCapsule(string? type) =>
-        Capsules.FirstOrDefault(capsule => string.Equals(capsule.Type, type, StringComparison.Ordinal));
+        CapsuleTypes.FirstOrDefault(capsule => string.Equals(capsule.Type, type, StringComparison.Ordinal));
 
     // The level a disc of this rarity has before the player has raised it.
     public int StartLevel(int rarityType) => StartLevels.TryGetValue(rarityType, out var level) ? level : 1;
@@ -87,10 +87,10 @@ public sealed class EconomyTuning
     // ever sees. The draws inside the capsule are economy's own.
     public (CapsuleType Type, int DiscCount) RollCapsule(Random random)
     {
-        var total = Capsules.Sum(capsule => Math.Max(0, capsule.Weight));
+        var total = CapsuleTypes.Sum(capsule => Math.Max(0, capsule.Weight));
         var pick = total > 0 ? random.Next(total) : 0;
-        var chosen = Capsules[0];
-        foreach (var capsule in Capsules)
+        var chosen = CapsuleTypes[0];
+        foreach (var capsule in CapsuleTypes)
         {
             var weight = Math.Max(0, capsule.Weight);
             if (pick < weight)
@@ -129,7 +129,7 @@ public sealed class EconomyTuning
             logger.LogInformation(
                 "Economy tuning from {Path}: capsules {Capsules}, casual disc level {Casual}",
                 path,
-                string.Join(", ", tuning.Capsules.Select(c => $"{c.Type} {c.Weight}% {c.Unlock} {c.MinDiscs}-{c.MaxDiscs}")),
+                string.Join(", ", tuning.CapsuleTypes.Select(c => $"{c.Type} {c.Weight}% {c.Unlock} {c.MinDiscs}-{c.MaxDiscs}")),
                 tuning.CasualDiscLevel);
             return tuning;
         }
@@ -149,7 +149,7 @@ public sealed class EconomyTuning
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
 
-        var capsules = Defaults.Capsules;
+        var capsules = Defaults.CapsuleTypes;
         if (root.TryGetProperty("capsules", out var capsuleArray) && capsuleArray.ValueKind == JsonValueKind.Array)
         {
             var parsed = new List<CapsuleType>();
