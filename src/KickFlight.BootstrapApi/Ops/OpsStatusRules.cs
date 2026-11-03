@@ -79,7 +79,15 @@ public static class OpsStatusRules
     public const string Clean = "clean";
     public const string Partial = "partial";
     public const string Abandoned = "abandoned";
+    /// <summary>Legacy: rows stored before the split. New evaluations emit QueueCancelled / StartFailed instead.</summary>
     public const string NeverStarted = "never_started";
+    /// <summary>The room was dropped (every waiting human left) or no human was assigned: a queue cancel, not a failure.</summary>
+    public const string QueueCancelled = "queue_cancelled";
+    /// <summary>The room finalized with an assigned human but nobody reached /battle/start: a real failure.</summary>
+    public const string StartFailed = "start_failed";
+
+    /// <summary>True for the legacy never_started outcome and its two successors (no human ever started).</summary>
+    public static bool IsNeverStartedFamily(string? outcome) => outcome is NeverStarted or QueueCancelled or StartFailed;
 
     public const int DefaultBattleTimeSeconds = 300;
     /// <summary>A started player who sends nothing until battle time + this is a silent drop.</summary>
@@ -141,15 +149,17 @@ public static class OpsStatusRules
 
     /// <summary>
     /// Null while the match is open: its window has not closed, or a human still has an open status. A dropped room
-    /// is never_started at once.
+    /// is queue_cancelled at once. Once the window closed: nobody assigned is queue_cancelled; someone assigned but
+    /// nobody started is start_failed.
     /// </summary>
     public static string? EvaluateOutcome(BattleFacts battle, IReadOnlyCollection<(string Status, bool Assigned, bool Started)> humans)
     {
-        if (battle.Dropped) return NeverStarted;
+        if (battle.Dropped) return QueueCancelled;
         if (battle.FinalizedAt is null) return null;
         if (humans.Any(h => IsOpen(h.Status))) return null;
         var assigned = humans.Where(h => h.Assigned).ToList();
-        if (assigned.Count == 0 || !assigned.Any(h => h.Started)) return NeverStarted;
+        if (assigned.Count == 0) return QueueCancelled;
+        if (!assigned.Any(h => h.Started)) return StartFailed;
         var completed = assigned.Count(h => IsCompleted(h.Status));
         if (completed == assigned.Count) return Clean;
         return completed == 0 ? Abandoned : Partial;

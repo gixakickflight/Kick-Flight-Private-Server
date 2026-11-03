@@ -108,9 +108,24 @@ public sealed class OpsStatusRulesTests
         Assert.Equal("abandoned", OpsStatusRules.EvaluateOutcome(Started, [H("reconnect_failed:x"), H("dropped_silent+relaunched")]));
         // A human excluded from the roster (requeued) does not count either way.
         Assert.Equal("clean", OpsStatusRules.EvaluateOutcome(Started, [H("completed"), H("requeued", false, false)]));
-        Assert.Equal("never_started", OpsStatusRules.EvaluateOutcome(
+        // Finalized + assigned but nobody started: a real failure.
+        Assert.Equal("start_failed", OpsStatusRules.EvaluateOutcome(
             Started with { FirstStartAt = null }, [H("matching_failed:never_started", started: false)]));
-        Assert.Equal("never_started", OpsStatusRules.EvaluateOutcome(new BattleFacts { CreatedAt = T0, Dropped = true }, [H("cancelled", false, false)]));
+        // Dropped room or nobody assigned: a queue cancel, not a failure.
+        Assert.Equal("queue_cancelled", OpsStatusRules.EvaluateOutcome(new BattleFacts { CreatedAt = T0, Dropped = true }, [H("cancelled", false, false)]));
+        Assert.Equal("queue_cancelled", OpsStatusRules.EvaluateOutcome(
+            Started with { FirstStartAt = null }, [H("cancelled", false, false)]));
+    }
+
+    [Fact]
+    public void Legacy_never_started_rows_stay_in_the_never_started_family_but_not_in_failures()
+    {
+        Assert.True(OpsStatusRules.IsNeverStartedFamily("never_started"));
+        Assert.True(OpsStatusRules.IsNeverStartedFamily(OpsStatusRules.QueueCancelled));
+        Assert.True(OpsStatusRules.IsNeverStartedFamily(OpsStatusRules.StartFailed));
+        Assert.False(OpsStatusRules.IsNeverStartedFamily("clean"));
+        Assert.False(OpsStatusRules.IsNeverStartedFamily(null));
+        Assert.Equal("never_started", OpsStatusRules.NeverStarted);
     }
 
     [Fact]

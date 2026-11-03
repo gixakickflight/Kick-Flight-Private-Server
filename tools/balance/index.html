@@ -2456,6 +2456,8 @@ function renderHealthPanel(panel) {
     [BalanceI18n.t("health.outcomes.clean"), totals.clean],
     [BalanceI18n.t("health.outcomes.partial"), totals.partial],
     [BalanceI18n.t("health.outcomes.abandoned"), totals.abandoned],
+    [BalanceI18n.t("health.outcomes.startFailed"), totals.startFailed || 0],
+    [BalanceI18n.t("health.outcomes.queueCancelled"), totals.queueCancelled || 0],
     [BalanceI18n.t("health.outcomes.neverStarted"), totals.neverStarted],
     [BalanceI18n.t("health.outcomes.running"), totals.running],
     [BalanceI18n.t("health.outcomes.matching"), totals.matching]
@@ -2517,7 +2519,7 @@ function renderHealthPanel(panel) {
   const problemRows = (summary.problemMatches || []).slice(0, 100).map(function (match) {
     const button = el("button", { type: "button" }, BalanceI18n.t("health.drillDownBtn"));
     button.addEventListener("click", function () { loadHealthBattle(match.battleId); });
-    const outcomes = { clean: "outcomeClean", partial: "outcomePartial", abandoned: "outcomeAbandoned", never_started: "outcomeNeverStarted", running: "outcomeRunning", matching: "outcomeMatching", open: "outcomeOpen" };
+    const outcomes = { clean: "outcomeClean", partial: "outcomePartial", abandoned: "outcomeAbandoned", never_started: "outcomeNeverStarted", start_failed: "outcomeStartFailed", queue_cancelled: "outcomeQueueCancelled", running: "outcomeRunning", matching: "outcomeMatching", open: "outcomeOpen" };
     const statuses = (match.participants || []).map(function (p) {
       const statusKey = p.status === "dropped_silent" ? "statusDroppedSilent" : (p.status === "open" ? "statusOpen" : null);
       return p.userId + "=" + (statusKey ? BalanceI18n.t("health." + statusKey) : p.status);
@@ -2561,7 +2563,7 @@ function renderHealthPanel(panel) {
       const data = state.healthBattle.data || {};
       const battle = data.battle;
       if (battle) {
-        const outcomeKeys = { clean: "outcomeClean", partial: "outcomePartial", abandoned: "outcomeAbandoned", never_started: "outcomeNeverStarted", running: "outcomeRunning", matching: "outcomeMatching", open: "outcomeOpen" };
+        const outcomeKeys = { clean: "outcomeClean", partial: "outcomePartial", abandoned: "outcomeAbandoned", never_started: "outcomeNeverStarted", start_failed: "outcomeStartFailed", queue_cancelled: "outcomeQueueCancelled", running: "outcomeRunning", matching: "outcomeMatching", open: "outcomeOpen" };
         const battleOutcome = outcomeKeys[battle.outcome] ? BalanceI18n.t("health." + outcomeKeys[battle.outcome]) : (battle.outcome || "-");
         drill.appendChild(el("p", { class: "note" },
           BalanceI18n.t("health.thOutcome") + " " + battleOutcome + " · " + BalanceI18n.t("health.rule") + " " + battle.ruleId + " · " + BalanceI18n.t("health.field") + " " + battle.fieldId +

@@ -1219,6 +1219,11 @@ public sealed partial class DemoSessionApi : IDisposable
             return await HandleTeamJoinAsync(context, state, key);
         }
 
+        if (path == "/battle/teamRejoin")
+        {
+            return await HandleTeamRejoinAsync(context, state, key);
+        }
+
         if (path == "/battle/teamEntry")
         {
             return await HandleTeamEntryAsync(context, state, key);
@@ -2072,6 +2077,10 @@ public sealed partial class DemoSessionApi : IDisposable
             battleEntryId = entry.BattleEntryId,
             matchmakingTeamId = entry.MatchmakingTeamId,
             battleEntryTicketId = entry.TicketId,
+            // BattleTeamJoinResponseData has no assetList; the client's DirectTeamMatchingInfo.AssetList stays null
+            // for joins, and RejoinTeamDirect later feeds it to a List ctor. Emitting it here is harmless and kept
+            // in step with teamCreate.
+            assetList = BuildApplicationAssetList(context.Request),
             campaignList = Array.Empty<object>()
         };
 
@@ -2081,6 +2090,40 @@ public sealed partial class DemoSessionApi : IDisposable
         _ops.RecordEntry(state.UserId, entry.BattleEntryId, entry.TicketId, joinedRule?.BattleRuleId ?? 0, joinedRule?.MatchType,
             state.KickerId, state.KickerCostumeId, IsDiagClient(context), OpsClientInfo.FromRequest(context));
         _logger.LogInformation("User {UserId} joined team {TeamId}", state.UserId, teamId);
+        return BinaryJson(JsonSerializer.Serialize(response), key);
+    }
+
+    /// <summary>
+    /// /battle/teamRejoin: request {battleEntryId, userPingList}; response BattleTeamRejoinResponseData
+    /// {battleEntryId, matchmakingTeamId, battleEntryTicketId, assetList, campaignList}. Echoes the caller's existing
+    /// team entry; an unknown entry/team is a status error (client CallbackTeamRejoinFailed) instead of the old
+    /// catch-all {} that left assetList null and crashed RejoinTeamDirect.
+    /// </summary>
+    private async Task<IResult?> HandleTeamRejoinAsync(HttpContext context, SessionState state, byte[] key)
+    {
+        using var request = await ReadTeamRequestAsync(context, state, key);
+        if (request is null
+            || !TryReadString(request.RootElement, "battleEntryId", out var battleEntryId)
+            || string.IsNullOrWhiteSpace(battleEntryId))
+        {
+            return StatusError(context, key);
+        }
+
+        var entry = _matchmaking.RejoinTeam(battleEntryId, state.UserId);
+        if (entry is null) return StatusError(context, key);
+
+        var response = new
+        {
+            battleEntryId = entry.BattleEntryId,
+            matchmakingTeamId = entry.MatchmakingTeamId,
+            battleEntryTicketId = entry.TicketId,
+            assetList = BuildApplicationAssetList(context.Request),
+            campaignList = Array.Empty<object>()
+        };
+
+        context.Response.Headers["x-app-status-code"] = "0";
+        context.Response.Headers["x-kickflight-fixture"] = "dynamic-battle-team-rejoin";
+        _logger.LogInformation("User {UserId} rejoined team {TeamId}", state.UserId, entry.MatchmakingTeamId);
         return BinaryJson(JsonSerializer.Serialize(response), key);
     }
 

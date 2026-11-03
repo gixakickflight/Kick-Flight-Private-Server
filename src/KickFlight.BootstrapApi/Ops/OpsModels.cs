@@ -31,7 +31,7 @@ public sealed record BattleRow
     public bool Custom { get; init; }
     public DateTime? FirstStartAt { get; init; }
     public int BattleTimeSeconds { get; init; }
-    /// <summary>clean / partial / abandoned / never_started, or null while the match is still open.</summary>
+    /// <summary>clean / partial / abandoned / start_failed / queue_cancelled (legacy: never_started), or null while the match is still open.</summary>
     public string? Outcome { get; init; }
 }
 
