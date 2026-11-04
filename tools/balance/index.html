@@ -546,7 +546,11 @@
   #clientUpdateStatus .line.ok { color: var(--ok); }
   #clientUpdateStatus .line.err { color: var(--err); }
   #clientUpdateStatus .line.info { color: var(--fg2); }
-</style>
+    table.guardian-edit, table.guardian-preview { border-collapse: collapse; font-size: 13px; }
+    table.guardian-edit th, table.guardian-edit td, table.guardian-preview th, table.guardian-preview td { border: 1px solid var(--line, #ccc); padding: 4px 8px; text-align: right; }
+    table.guardian-edit td:first-child, table.guardian-preview td:first-child { text-align: left; font-weight: 600; }
+    table.guardian-edit input { width: 110px; }
+  </style>
 </head>
 <body>
 <header id="top">
@@ -571,6 +575,7 @@
       <button type="button" data-tab="kickers" data-i18n="tabs.kickers" class="on">Kickers</button>
       <button type="button" data-tab="discs" data-i18n="tabs.discs">Discos</button>
       <button type="button" data-tab="text" data-i18n="tabs.text">Texto</button>
+      <button type="button" data-tab="guardians" data-i18n="tabs.guardians">Guardianes</button>
       <button type="button" data-tab="bot-ai" data-i18n="tabs.botAi">IA de bots</button>
       <button type="button" data-tab="latest-information" data-i18n="tabs.latestInformation">Última información</button>
       <button type="button" data-tab="health" data-i18n="tabs.health">Salud</button>
@@ -630,7 +635,8 @@ const WEAPON_EXTRA_TABLES = [
   "weapon_attack_condition"
 ];
 const TEXT_TABLES = ["translation"];   /* masters_translation.json: key -> UI text (Text tab) */
-const ALL_TABLES = CORE_TABLES.concat(KS_EXTRA_TABLES, SS_EXTRA_TABLES, WEAPON_EXTRA_TABLES, TEXT_TABLES);
+const GUARDIAN_TABLE = "guardian_balance";
+const ALL_TABLES = CORE_TABLES.concat(KS_EXTRA_TABLES, SS_EXTRA_TABLES, WEAPON_EXTRA_TABLES, TEXT_TABLES, [GUARDIAN_TABLE]);
 const OTHER_SCREEN = "(keys used from code / enums)";
 const WIRE_SCALE = 1 / 3;   /* 1080x1920 canvas -> 360x640 wireframe */
 
@@ -1049,6 +1055,12 @@ function renderList() {
       : (isEs ? "Resultados, excepciones de clientes y desglose" : "Outcomes, client exceptions and a battle drill-down")));
     return;
   }
+  if (state.tab === "guardians") {
+    list.appendChild(el("li", { class: "count" }, isEs
+      ? "Vida y ataque del guardián por rango de la liga"
+      : "Guardian HP and attack by ranked rank"));
+    return;
+  }
   if (state.tab === "maintenance" || state.tab === "client-update") {
     list.appendChild(el("li", { class: "count" }, state.tab === "maintenance"
       ? (isEs ? "Modo de mantenimiento del servidor y aviso" : "Server maintenance mode and notice text")
@@ -1423,6 +1435,10 @@ function renderPanel() {
   }
   if (state.tab === "bot-ai") {
     renderBotAiPanel(panel);
+    return;
+  }
+  if (state.tab === "guardians") {
+    renderGuardianPanel(panel);
     return;
   }
   if (state.tab === "text") {
@@ -2008,6 +2024,117 @@ function clientUpdateStatus(lines) {
   if (!box) return;
   clear(box);
   for (const line of lines) box.appendChild(el("div", { class: "line " + line[0] }, line[1]));
+}
+
+/* ------------------------------------------------------------ guardians tab */
+
+const GUARDIAN_RANK_LABELS = ["C", "C+", "B", "B+", "A", "A+", "S",
+  "S+1", "S+2", "S+3", "S+4", "S+5", "S+6", "S+7", "S+8", "S+9"];   /* rank 1 (C) .. 16 (S+9) */
+const GUARDIAN_PROFILE_NAMES = {
+  1: ["Crystal Scramble", "Crystal Scramble"],
+  2: ["Portería Rapid Ball", "Rapid Ball goal"],
+  3: ["Gimnasio (no usado en partidas)", "Gym (unused in battles)"]
+};
+const GUARDIAN_FIELDS = [
+  ["baseHp", "Vida base (rango C)", "Base HP (rank C)", true],
+  ["hpPercentPerRank", "% de vida por rango", "HP % per rank step", false],
+  ["baseAttack", "Ataque base (rango C)", "Base attack (rank C)", true],
+  ["attackPercentPerRank", "% de ataque por rango", "Attack % per rank step", false]
+];
+
+/* Same formula as GuardianBalance.Scale: round-half-away(base * (1 + pct/100 * (rank - 1))), exact on 3 decimals. */
+function guardianScale(base, pct, rank) {
+  const steps = Math.max(0, rank - 1);
+  const pctMilli = Math.round(pct * 1000);
+  const numerator = base * (100000 + pctMilli * steps);
+  return Math.max(0, Math.floor((numerator * 2 + 100000) / 200000));
+}
+
+function renderGuardianPreview(box, rows) {
+  const isEs = BalanceI18n.getLang() === "es";
+  clear(box);
+  const table = el("table", { class: "guardian-preview" });
+  const head = el("tr");
+  head.appendChild(el("th", null, isEs ? "Rango" : "Rank"));
+  for (const row of rows) {
+    const names = GUARDIAN_PROFILE_NAMES[row.id] || [String(row.name || row.id), String(row.name || row.id)];
+    head.appendChild(el("th", null, (isEs ? names[0] : names[1]) + " · " + (isEs ? "Vida" : "HP")));
+    head.appendChild(el("th", null, (isEs ? names[0] : names[1]) + " · " + (isEs ? "Ataque" : "Attack")));
+  }
+  table.appendChild(head);
+  for (let rank = 1; rank <= GUARDIAN_RANK_LABELS.length; rank++) {
+    const tr = el("tr");
+    tr.appendChild(el("td", null, GUARDIAN_RANK_LABELS[rank - 1] + " (" + rank + ")"));
+    for (const row of rows) {
+      const ok = Number.isFinite(row.baseHp) && Number.isFinite(row.hpPercentPerRank) &&
+        Number.isFinite(row.baseAttack) && Number.isFinite(row.attackPercentPerRank);
+      tr.appendChild(el("td", null, ok ? String(guardianScale(row.baseHp, row.hpPercentPerRank, rank)) : "-"));
+      tr.appendChild(el("td", null, ok ? String(guardianScale(row.baseAttack, row.attackPercentPerRank, rank)) : "-"));
+    }
+    table.appendChild(tr);
+  }
+  box.appendChild(table);
+}
+
+function renderGuardianPanel(panel) {
+  const isEs = BalanceI18n.getLang() === "es";
+  const rows = rowsOf(GUARDIAN_TABLE);
+  const wrap = el("div", { class: "mpanel" });
+  const head = el("div", { class: "phead" });
+  const box = el("div");
+  box.appendChild(el("h1", null, isEs ? "Guardianes" : "Guardians"));
+  box.appendChild(el("div", { class: "meta" }, isEs
+    ? "Vida y ataque del guardián: valor en rango C más un porcentaje lineal por cada rango por encima de C. Con 0 % el guardián no cambia con el rango. El rango usado es el MÁS BAJO de los jugadores humanos de la sala."
+    : "Guardian HP and attack: the value at rank C plus a linear percentage for every rank above C. With 0 % the guardian does not change with rank. The rank used is the LOWEST among the human players in the room."));
+  head.appendChild(box);
+  wrap.appendChild(head);
+  wrap.appendChild(el("p", { class: "note" }, isEs
+    ? "Aviso: los cambios se guardan como modificación y NO se aplican en vivo. Después de guardar pulsa «Reiniciar API para aplicar» (los clientes descargarán el nuevo maestro al reconectar)."
+    : "Note: changes are saved as an override and are NOT applied live. After saving, press \"Restart API to apply\" (clients download the new master on reconnect)."));
+  if (!rows.length) {
+    wrap.appendChild(el("p", { class: "empty" }, isEs ? "No se pudo cargar masters_guardian_balance." : "Could not load masters_guardian_balance."));
+    panel.appendChild(wrap);
+    return;
+  }
+  const preview = el("div", { class: "guardian-preview-box" });
+  const section = el("section", { class: "sec" });
+  section.appendChild(el("h2", null, isEs ? "Perfiles" : "Profiles"));
+  const grid = el("table", { class: "guardian-edit" });
+  const headRow = el("tr");
+  headRow.appendChild(el("th", null, isEs ? "Perfil" : "Profile"));
+  for (const field of GUARDIAN_FIELDS) headRow.appendChild(el("th", null, isEs ? field[1] : field[2]));
+  grid.appendChild(headRow);
+  for (const row of rows) {
+    const names = GUARDIAN_PROFILE_NAMES[row.id] || [String(row.name || row.id), String(row.name || row.id)];
+    const tr = el("tr");
+    tr.appendChild(el("td", null, isEs ? names[0] : names[1]));
+    for (const field of GUARDIAN_FIELDS) {
+      const input = el("input", { type: "number", step: field[3] ? "1" : "any", min: "0", value: formatValue(row[field[0]]) });
+      input.dataset.table = GUARDIAN_TABLE;
+      input.dataset.rowId = String(row.id);
+      input.dataset.field = field[0];
+      if (field[3]) input.dataset.int = "1";
+      input.addEventListener("input", onFieldInput);
+      input.addEventListener("input", function () {
+        if (Number(input.value) < 0) input.dataset.invalid = "1";
+        renderGuardianPreview(preview, rows);
+        refreshDirty();
+      });
+      state.inputs.set(fieldKey(GUARDIAN_TABLE, row.id, field[0]), input);
+      const td = el("td");
+      td.appendChild(input);
+      tr.appendChild(td);
+    }
+    grid.appendChild(tr);
+  }
+  section.appendChild(grid);
+  wrap.appendChild(section);
+  const previewSection = el("section", { class: "sec" });
+  previewSection.appendChild(el("h2", null, isEs ? "Vista previa por rango (solo lectura)" : "Preview by rank (read-only)"));
+  previewSection.appendChild(preview);
+  wrap.appendChild(previewSection);
+  renderGuardianPreview(preview, rows);
+  panel.appendChild(wrap);
 }
 
 function renderClientUpdatePanel(panel) {
@@ -4041,12 +4168,12 @@ function wireEvents() {
       for (const other of tabs) other.classList.toggle("on", other === button);
       if (state.tab === "client-update") loadClientUpdate().then(renderPanel);
       document.getElementById("filters").style.display =
-        state.tab === "maintenance" || state.tab === "client-update" || state.tab === "latest-information" || state.tab === "health" || state.tab === "bot-ai" ? "none" : "flex";
+        state.tab === "maintenance" || state.tab === "client-update" || state.tab === "latest-information" || state.tab === "health" || state.tab === "bot-ai" || state.tab === "guardians" ? "none" : "flex";
       document.getElementById("discFilters").style.display =
         state.tab === "discs" ? "block" : "none";
       const foot = document.getElementById("foot");
       if (foot) {
-        foot.style.display = (state.tab === "kickers" || state.tab === "discs" || state.tab === "text") ? "block" : "none";
+        foot.style.display = (state.tab === "kickers" || state.tab === "discs" || state.tab === "text" || state.tab === "guardians") ? "block" : "none";
       }
       document.body.classList.toggle("tab-bot-ai", state.tab === "bot-ai");
       const topHint = document.getElementById("topHint");
