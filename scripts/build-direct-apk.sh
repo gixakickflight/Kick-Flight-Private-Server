@@ -76,7 +76,7 @@ safe_host="${server_base_url#http://}"
 safe_host="${safe_host//:/-}"
 artifact_dir="$repo/.local/artifacts"
 work_root="$repo/.local/apk-direct-work"
-output_apk="${OUTPUT_APK:-$artifact_dir/KickFlight-${KF_VERSION_NAME:-2.11.705}-remote.apk}"
+output_apk="${OUTPUT_APK:-$artifact_dir/KickFlight-${KF_VERSION_NAME:-2.11.706}-remote.apk}"
 
 # Keystore resolution: explicit path, then worktree-local production key
 if [[ -n "${KEYSTORE:-}" ]]; then

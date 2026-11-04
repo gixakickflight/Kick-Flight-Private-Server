@@ -25,8 +25,8 @@ import re
 import sys
 from pathlib import Path
 
-VERSION_NAME = "2.11.705"
-VERSION_CODE = 63
+VERSION_NAME = "2.11.706"
+VERSION_CODE = 64
 BASE_VERSION_CODE = 55  # base.apk
 
 
