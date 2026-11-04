@@ -35,8 +35,8 @@ public sealed class SocialRankingEndpointsTests
         var aliceId = long.Parse(alice.UserId);
         var bobId = long.Parse(bob.UserId);
         // Names are the tenant's session.rules names: at most 10 characters, as the client lets a player type.
-        await PostAsync(alice, "/user/change", new { name = "SAlice " + alice.UserId[^4..] });
-        await PostAsync(bob, "/user/change", new { name = "SBob " + bob.UserId[^4..] });
+        await PostAsync(alice, "/user/change", new { name = "SA" + alice.UserId[^4..] });
+        await PostAsync(bob, "/user/change", new { name = "SB" + bob.UserId[^4..] });
 
         await PostAsync(alice, "/follow/add", new { followUserId = bob.UserId });
         await PostAsync(alice, "/follow/add", new { followUserId = bob.UserId });
@@ -90,7 +90,7 @@ public sealed class SocialRankingEndpointsTests
         await PostAsync(alice, "/realFriend/token", null, expectStatusZero: false);
         await PostAsync(alice, "/realFriend/apply", new { token = "not-a-token" }, expectStatusZero: false);
         await PostAsync(alice, "/user/search", new { displayUserId = long.MaxValue }, expectStatusZero: false);
-        Assert.StartsWith("SAlice ", factory.Services.GetRequiredService<IPlayerStore>()
+        Assert.StartsWith("SA", factory.Services.GetRequiredService<IPlayerStore>()
             .FindProfile(aliceId)?.DisplayName ?? "");
     }
 
@@ -136,7 +136,7 @@ public sealed class SocialRankingEndpointsTests
         using var factory = NewFactory();
         var alice = await CreateSessionAsync(factory);
         var bob = await CreateSessionAsync(factory);
-        await PostAsync(bob, "/user/change", new { name = "LBob " + bob.UserId[^4..] });
+        await PostAsync(bob, "/user/change", new { name = "LB" + bob.UserId[^4..] });
         // Session's name now differs from the adapter's own copy: the row must show session's.
         _social.SeedName(bob.Account, "Session Bob " + bob.UserId[^4..]);
         await PostAsync(alice, "/follow/add", new { followUserId = bob.UserId });
@@ -155,9 +155,9 @@ public sealed class SocialRankingEndpointsTests
         var alice = await CreateSessionAsync(factory);
         var bob = await CreateSessionAsync(factory);
         var carol = await CreateSessionAsync(factory);
-        await PostAsync(alice, "/user/change", new { name = "RAlice " + alice.UserId[^4..] });
-        await PostAsync(bob, "/user/change", new { name = "RBob " + bob.UserId[^4..] });
-        await PostAsync(carol, "/user/change", new { name = "RCarol " + carol.UserId[^4..] });
+        await PostAsync(alice, "/user/change", new { name = "RA" + alice.UserId[^4..] });
+        await PostAsync(bob, "/user/change", new { name = "RB" + bob.UserId[^4..] });
+        await PostAsync(carol, "/user/change", new { name = "RC" + carol.UserId[^4..] });
 
         var store = factory.Services.GetRequiredService<IPlayerStore>();
         var aliceId = long.Parse(alice.UserId);
@@ -178,7 +178,7 @@ public sealed class SocialRankingEndpointsTests
         Assert.Equal(1, world.GetProperty("battleRankingList")[0].GetProperty("number").GetInt32());
         Assert.Equal(8, world.GetProperty("battleRankingList")[0].GetProperty("rank").GetInt32());
         // The row's name is the board's, which is otomo's name for that account - written through by /user/change.
-        Assert.StartsWith("RBob ", world.GetProperty("battleRankingList")[0].GetProperty("name").GetString());
+        Assert.StartsWith("RB", world.GetProperty("battleRankingList")[0].GetProperty("name").GetString());
         Assert.Equal(3, world.GetProperty("battleRanking").GetProperty("rank").GetInt32());
         Assert.Equal(1100, world.GetProperty("battleRanking").GetProperty("battlePoint").GetInt32());
         // 1100 points is rank 3; the next published tier (rank_4) starts at 1400.
@@ -245,7 +245,7 @@ public sealed class SocialRankingEndpointsTests
         var local = await PostAsync(alice, "/ranking/region", new { battleRuleId = 1 });
         Assert.Equal(world.GetProperty("battleRankingList")[0].GetProperty("userId").GetString(),
             local.GetProperty("battleRankingList")[0].GetProperty("userId").GetString());
-        Assert.StartsWith("RAlice ", store.FindProfile(aliceId)?.DisplayName ?? "");
+        Assert.StartsWith("RA", store.FindProfile(aliceId)?.DisplayName ?? "");
         Assert.Contains(_social.BoardRequests, request => request.FullPath.Contains("rule_type=crystal_scramble", StringComparison.Ordinal));
     }
 
@@ -258,9 +258,9 @@ public sealed class SocialRankingEndpointsTests
         var alice = await CreateSessionAsync(factory);
         var bob = await CreateSessionAsync(factory);
         var carol = await CreateSessionAsync(factory);
-        await PostAsync(alice, "/user/change", new { name = "ZAlice " + alice.UserId[^4..] });
-        await PostAsync(bob, "/user/change", new { name = "ZBob " + bob.UserId[^4..] });
-        await PostAsync(carol, "/user/change", new { name = "ZCarol " + carol.UserId[^4..] });
+        await PostAsync(alice, "/user/change", new { name = "ZA" + alice.UserId[^4..] });
+        await PostAsync(bob, "/user/change", new { name = "ZB" + bob.UserId[^4..] });
+        await PostAsync(carol, "/user/change", new { name = "ZC" + carol.UserId[^4..] });
 
         // Give each ladder a different order and points, so a stale client battleRuleId cannot pass by coincidence.
         _social.ResetBoards();
