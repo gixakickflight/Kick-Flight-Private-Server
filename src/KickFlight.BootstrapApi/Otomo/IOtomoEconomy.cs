@@ -194,7 +194,11 @@ public sealed record EconomyTrack(
     [property: JsonPropertyName("value")] long Value,
     [property: JsonPropertyName("repeat")] bool Repeat,
     [property: JsonPropertyName("steps")] IReadOnlyList<EconomyStep>? Steps,
-    [property: JsonPropertyName("repetition")] int Repetition);
+    [property: JsonPropertyName("repetition")] int Repetition,
+    // The high-water mark a step is held to, and how the counter moves ("cumulative" or "gauge"). For a gauge `Value`
+    // is where the streak is now and `Best` the peak; a service that predates them answers neither, and both default.
+    [property: JsonPropertyName("best")] long Best = 0,
+    [property: JsonPropertyName("mode")] string? Mode = null);
 
 public sealed record EconomyTasks(
     [property: JsonPropertyName("player_id")] string PlayerId,
@@ -270,7 +274,8 @@ public sealed record EconomyAdvanceRequest(string PlayerId, string ItemId, strin
 public sealed record EconomyTrackProgress(
     [property: JsonPropertyName("track_id")] string TrackId,
     [property: JsonPropertyName("period")] string? Period,
-    [property: JsonPropertyName("value")] long Value);
+    [property: JsonPropertyName("value")] long Value,
+    [property: JsonPropertyName("best")] long Best = 0);
 
 // POST /internal/economy/progress. A game fact, a counter and a delta: never a reward.
 public sealed record EconomyProgress(
@@ -287,6 +292,23 @@ public sealed record EconomyProgress(
 // retried report count once, so it names the fact (the match and the counter) rather than the moment.
 public sealed record EconomyProgressReport(string PlayerId, string Counter, long Delta, string Key,
     string Reason, string Reference);
+
+// POST /internal/economy/facts: a declared fact and its typed fields. Economy's tracks decide which reports count and
+// what each adds; this carries no amount and no reward. `Fields` are the JSON values of the fact's declared fields -
+// the schema is closed both ways, so every declared field is present and no other.
+public sealed record EconomyFactReport(string PlayerId, string Fact, IReadOnlyDictionary<string, object?> Fields,
+    string Key, string Reason, string Reference);
+
+public sealed record EconomyFact(
+    [property: JsonPropertyName("player_id")] string PlayerId,
+    [property: JsonPropertyName("fact")] string Fact,
+    [property: JsonPropertyName("tracks")] IReadOnlyList<EconomyTrackProgress>? Tracks,
+    [property: JsonPropertyName("key")] string Key,
+    [property: JsonPropertyName("replayed")] bool Replayed);
+
+// POST /internal/economy/progress/gauge: the present value of a counter that is set rather than added to (a streak).
+public sealed record EconomyGaugeReport(string PlayerId, string Counter, long Value, string Key, string Reason,
+    string Reference);
 
 // One row of economy's entitlement table (internal/entitlement): a reward owed to a player, claimable once and not before
 // `available_at`, paid through the reward class `rule` when it is claimed. `meta` is the caller's own document, handed
@@ -373,6 +395,15 @@ public interface IOtomoEconomy
     // Reports one battle fact on the internal plane. Throws OtomoEconomyException(Disabled) when the report is
     // not configured, which a caller treats as "nothing to do", not as a failure.
     Task<EconomyProgress> ReportProgressAsync(EconomyProgressReport report, CancellationToken cancellationToken);
+
+    // Reports one declared fact on the internal plane (POST /internal/economy/facts). Keyed, so a retry counts once.
+    // Same switch and key as the progress report; Disabled when either is missing. Refused 400 unknown_fact /
+    // unknown_fact_field / missing_fact_field / invalid_fact_field for a report the tenant's documents do not declare.
+    Task<EconomyFact> ReportFactAsync(EconomyFactReport report, CancellationToken cancellationToken);
+
+    // Sets a gauge counter's present value (POST /internal/economy/progress/gauge). The answer carries each listening
+    // track's value and its high-water mark. Same switch and key as the progress report.
+    Task<EconomyProgress> ReportGaugeAsync(EconomyGaugeReport report, CancellationToken cancellationToken);
 
     // Pays one configured class on the internal plane: a battle's capsule token, a tutorial step's disc or skin.
     // Same switch and key as the progress report; Disabled when either is missing.

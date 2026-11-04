@@ -19,7 +19,7 @@ namespace KickFlight.BootstrapApi.Tests;
 //
 // Every request it answers is recorded, which is how a test asserts that a purchase really carried an offer id and an
 // idempotency key rather than the adapter believing it did.
-public sealed class FakeOtomoEconomy : IAsyncDisposable
+public sealed partial class FakeOtomoEconomy : IAsyncDisposable
 {
     private readonly WebApplication _app;
     private readonly ConcurrentDictionary<string, PlayerEconomy> _players = new(StringComparer.Ordinal);
@@ -371,36 +371,19 @@ public sealed class FakeOtomoEconomy : IAsyncDisposable
         {
             var (account, failure) = await IdentifyAsync(context);
             if (account is null) return failure;
-            return Results.Json(new
-            {
-                player_id = account,
-                tracks = new[]
-                {
-                    new
-                    {
-                        // A served mission (EconomyMissions: 102 / task 10201) with its one step reached and not
-                        // claimed, so a test can see both the row and the badge it lights.
-                        track_id = "mission.daily.win",
-                        counter = "battle.win",
-                        period = "d04:2026-10-28",
-                        value = 1L,
-                        repeat = false,
-                        steps = new[]
-                        {
-                            new { step = 0, target = 1L, @class = "mission.daily.win.1", reached = true, claimed = false, claimable = true }
-                        },
-                        repetition = 0
-                    }
-                }
-            });
+            return TasksOf(account);
         });
 
         _app.MapPost("/api/player/economy/tasks/claim", async (HttpContext context) =>
         {
             var (account, failure) = await IdentifyAsync(context);
             if (account is null) return failure;
-            return Error(context, StatusCodes.Status409Conflict, "not_claimable", "track not claimable");
+            using var reader = new StreamReader(context.Request.Body, Encoding.UTF8, detectEncodingFromByteOrderMarks: false,
+                leaveOpen: true);
+            return ClaimTrack(context, account, await reader.ReadToEndAsync());
         });
+
+        MapBadges();
 
         // POST /internal/economy/items/advance: one value of one possession moved by a positive amount, up to the
         // ceiling the caller names. Idempotent on `key`, like the other two; it never creates a possession, so an item
@@ -897,5 +880,7 @@ public sealed class FakeOtomoEconomy : IAsyncDisposable
         public Dictionary<string, long> Items { get; } = new(StringComparer.Ordinal);
         // item id -> the level of that possession, which is attrs.level on the real service's row.
         public Dictionary<string, long> Levels { get; } = new(StringComparer.Ordinal);
+        // Tracks the tests seeded, and the progress of the declared gauge tracks (FakeOtomoEconomy.Badges.cs).
+        public Dictionary<string, BadgeTrack> Tracks { get; } = new(StringComparer.Ordinal);
     }
 }

@@ -545,7 +545,7 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
             Assert.Equal(JsonValueKind.String, row.GetProperty("title").ValueKind);
             Assert.Equal(JsonValueKind.Number, row.GetProperty("sortOrder").ValueKind);
         });
-        Assert.Contains(rows, r => r.GetProperty("id").GetInt32() == BadgeAwardRules.DefaultHonorId);
+        Assert.Contains(rows, r => r.GetProperty("id").GetInt32() == BadgeCatalog.DefaultHonorId);
     }
 
     [Fact]
@@ -567,14 +567,16 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
         var owned = startup.GetProperty("userHonorList").EnumerateArray()
             .Select(row => row.GetProperty("honorId").GetInt32()).ToArray();
 
-        Assert.Equal([BadgeAwardRules.DefaultHonorId], owned);
-        Assert.Single(ReadUserState(session).GetProperty("VerifiedLoginDays").EnumerateArray());
-        await PostAsync(session, "/startup/index", null);
-        Assert.Single(ReadUserState(session).GetProperty("VerifiedLoginDays").EnumerateArray());
+        Assert.Equal([BadgeCatalog.DefaultHonorId], owned);
+        // An honor the inventory does not hold is refused by session (403 item_not_owned) and the client is told the
+        // request failed; nothing is shown in the slot.
         await PostAsync(session, "/user/change", new { honorId = 6010101 }, expectStatusZero: false);
+        var account = _factory.Services.GetRequiredService<KickFlight.BootstrapApi.PlayerStore.IPlayerStore>()
+            .FindOtomoPlayer(long.Parse(session.UserId))!.OtomoPlayerId;
+        Assert.Empty(OtomoTestEnvironment.Social.DisplayOf(account));
 
         var home = await PostAsync(session, "/home/index", null);
-        Assert.Equal(BadgeAwardRules.DefaultHonorId, home.GetProperty("userPlayer").GetProperty("honorId").GetInt32());
+        Assert.Equal(BadgeCatalog.DefaultHonorId, home.GetProperty("userPlayer").GetProperty("honorId").GetInt32());
     }
 
     // A disc level-up is paid for by economy here, so it needs a disc the player owns and a price economy can
@@ -605,8 +607,11 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
             using var response = await session.Client.SendAsync(request);
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             Assert.Equal("2502", response.Headers.GetValues("x-app-status-code").Single());
-            Assert.Equal(0, ReadUserState(session).GetProperty("DiscUpgradeCount").GetInt32());
         }
+        var account = _factory.Services.GetRequiredService<KickFlight.BootstrapApi.PlayerStore.IPlayerStore>()
+            .FindOtomoPlayer(long.Parse(session.UserId))!.OtomoPlayerId;
+        Assert.DoesNotContain(OtomoTestEnvironment.Economy.FactReports,
+            fact => fact.PlayerId == account && fact.Fact == "item.upgraded");
     }
 
     // A capsule is only opened from a slot a battle result filled, and a mission is only claimed when economy says
@@ -685,6 +690,12 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
         Assert.Equal(206, (await PostAsync(session, "/startup/index", null)).GetProperty("tutorialProgressStatus").GetInt32());
 
         var name = NewName();
+        // The registration badge's track stands at its target when the name is accepted (the tenant's track counts the
+        // registration.completed fact; this fake does not evaluate tracks, so the test sets the result), and the adapter
+        // claims the rung with the player's own token.
+        var account = _factory.Services.GetRequiredService<KickFlight.BootstrapApi.PlayerStore.IPlayerStore>()
+            .FindOtomoPlayer(long.Parse(session.UserId))!.OtomoPlayerId;
+        OtomoTestEnvironment.Economy.SeedBadgeTrack(account, "badge.registration", 1, (1, "badge.6010001"));
         await PostAsync(session, "/tutorial/end", new { name });
 
         // The client re-issues /startup/index the moment the name is accepted, so that reply is what has to agree.

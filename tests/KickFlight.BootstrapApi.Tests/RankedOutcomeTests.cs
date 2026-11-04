@@ -9,6 +9,7 @@ using KickFlight.BootstrapApi.PlayerStore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -122,6 +123,13 @@ public sealed class RankedOutcomeTests
             fixture.Factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
             {
                 builder.UseContentRoot(AppContext.BaseDirectory);
+                // The internal plane is on, so the battle's badge fact reaches the economy fake.
+                builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Otomo:Economy:ProgressEnabled"] = "true",
+                    ["Otomo:Economy:InternalBaseUrl"] = OtomoTestEnvironment.Economy.BaseUrl,
+                    ["Otomo:Economy:ServiceKey"] = "kf-test-gameserver-key"
+                }));
                 builder.ConfigureTestServices(services =>
                 {
                     services.RemoveAll<TimeProvider>();
@@ -386,7 +394,15 @@ public sealed class RankedOutcomeTests
         using var response = await PostAsync(f.Client, player, "/battle/result",
             Result(entry, player.PlayerId, ctx.OwnTeamType!.Value, 9, 1, killCount: 100_000));
         Assert.Equal((StartBattlePoint + WinBattlePoint, StartRank), Rank(response.RootElement, "userBattleRank"));
-        Assert.Equal(0, f.Store.TryLoad(player.PlayerId)!.BadgeStats.Total("kills")); // stat set voided
+        // The stat set is voided: the battle is still reported (it was played), as void, with no stat and the reason.
+        var reported = Assert.Single(OtomoTestEnvironment.Economy.FactReports,
+            fact => fact.PlayerId == f.AccountOf(player) && fact.Fact == "battle.result" && fact.Key.EndsWith(entry, StringComparison.Ordinal));
+        Assert.False(reported.Fields.GetProperty("credited").GetBoolean());
+        Assert.False(reported.Fields.GetProperty("won").GetBoolean());
+        Assert.Equal(0, reported.Fields.GetProperty("kills").GetInt64());
+        Assert.StartsWith("cap:", reported.Fields.GetProperty("credit_reason").GetString());
+        // ...and the rank outcome (asserted above) was decided from the scores, which the cap does not void.
+        Assert.Equal("win", reported.Fields.GetProperty("outcome").GetString());
     }
 
     [Fact]
@@ -429,9 +445,10 @@ public sealed class RankedOutcomeTests
             Result(entry, player.PlayerId, ctx.OwnTeamType!.Value, 9, 1));
         Assert.Equal(StartBattlePoint + WinBattlePoint,
             response.RootElement.GetProperty("userBattleRank").GetProperty("battlePoint").GetInt32());
-        var stats = f.Store.TryLoad(player.PlayerId)!.BadgeStats;
-        Assert.Equal(1, stats.QueueWins.GetValueOrDefault("solo"));
-        Assert.Equal(0, stats.QueueWins.GetValueOrDefault("team"));
+        var reported = Assert.Single(OtomoTestEnvironment.Economy.FactReports,
+            fact => fact.PlayerId == f.AccountOf(player) && fact.Fact == "battle.result" && fact.Key.EndsWith(entry, StringComparison.Ordinal));
+        Assert.True(reported.Fields.GetProperty("won").GetBoolean());
+        Assert.Equal("solo", reported.Fields.GetProperty("queue").GetString());
     }
 
     [Fact]
@@ -447,18 +464,15 @@ public sealed class RankedOutcomeTests
         Assert.True(service.GetBadgeBattleContext(guest.BattleEntryId)!.QueuedAsParty);
         Assert.False(service.GetBadgeBattleContext(soloId)!.QueuedAsParty);
 
-        // A party win is credited under "team", a solo win under "solo".
-        var rules = BadgeAwardRules.Parse("{\"entries\":[]}");
-        foreach (var (queuedAsParty, key) in new[] { (true, "team"), (false, "solo") })
+        // A party win is reported under "team", a solo win under "solo".
+        foreach (var (queuedAsParty, queue) in new[] { (true, "team"), (false, "solo") })
         {
-            var state = new SessionState { UserId = "1000001" };
             var report = new BadgeBattleStatReport
             {
                 CreditStats = true, Reason = "ok", BattleRuleType = 1, KickerId = 9, QueuedAsParty = queuedAsParty,
                 Won = true, Outcome = BadgeBattleOutcome.Win
             };
-            Assert.True(rules.TryApplyVerifiedBattle(state, "be-" + key, out _, stats: report, now: DateTimeOffset.UtcNow));
-            Assert.Equal(1, state.BadgeStats.QueueWins.GetValueOrDefault(key));
+            Assert.Equal(queue, DemoSessionApi.BattleFields(report, 1, 0, -1)["queue"]);
         }
     }
 

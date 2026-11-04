@@ -120,6 +120,7 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
         server.Map();
         server.MapRank();
         server.MapExt();
+        server.MapDisplay();
         app.StartAsync().GetAwaiter().GetResult();
 
         var address = app.Urls.FirstOrDefault(url => !url.EndsWith(":0", StringComparison.Ordinal))
@@ -612,6 +613,9 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
 
         // The instance-declared fields session holds for this account (ext.session.player); see FakeOtomoSocial.Ext.cs.
         public System.Text.Json.Nodes.JsonObject Ext { get; set; } = new();
+
+        // The item shown in each display slot, {slot: item_id}; see FakeOtomoSocial.Display.cs.
+        public Dictionary<string, string> Display { get; } = new(StringComparer.Ordinal);
 
         // Kept so a test could assert recency; the follow lists are unordered here, as the contract does not promise
         // an order.

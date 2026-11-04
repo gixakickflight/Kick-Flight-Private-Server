@@ -383,7 +383,7 @@ public sealed partial class DemoSessionApi
 
         var followedIds = relation.Following.Select(link => link.PlayerId).ToHashSet();
         var resultRows = BuildRankingRows(board.Rows, state.PlayerId, followedIds, ladder);
-        var self = BuildOwnRankingRow(state, board.You, ladder);
+        var self = BuildOwnRankingRow(state, board.You, ladder, await EquippedHonorAsync(ticket, context.RequestAborted));
         // Client points still to go to the next published tier (0 at the top, and for a caller not on the board).
         var nextReward = ladder.RemainingToNextTier(board.You?.Points ?? 0);
 
@@ -450,7 +450,8 @@ public sealed partial class DemoSessionApi
                 userId = link.PlayerId.ToString(),
                 // The name is session's answer for this row.
                 name = row.DisplayName ?? "",
-                honorId = EquippedHonorId(_playerStore.TryLoad(link.PlayerId)),
+                // Another player's equipped badge is not readable (docs/OTOMO_BADGES.md): the default is shown.
+                honorId = BadgeCatalog.DefaultHonorId,
                 kickerId = profile?.KickerId ?? DefaultKickerId,
                 kickerCostumeId = profile?.KickerCostumeId ?? DefaultKickerCostumeId,
                 languageCode = "",
@@ -466,16 +467,14 @@ public sealed partial class DemoSessionApi
 
     // The caller's own line. Their name, kicker and costume are this adapter's record of what they chose - the board's
     // `you` carries position, points and tier and nothing else.
-    private string BuildOwnRankingRow(SessionState state, SessionBoardStanding? you, RankLadder ladder) =>
+    private string BuildOwnRankingRow(SessionState state, SessionBoardStanding? you, RankLadder ladder, int equippedHonor) =>
         you is null
             ? NeutralBattleRanking
             : JsonSerializer.Serialize(new
             {
                 userId = state.UserId,
                 name = state.UserName,
-                honorId = BadgeAwardRules.GetOwnedHonorIds(state).Contains(state.HonorId)
-                    ? state.HonorId
-                    : BadgeAwardRules.DefaultHonorId,
+                honorId = equippedHonor,
                 kickerId = state.KickerId,
                 kickerCostumeId = state.KickerCostumeId,
                 languageCode = "",
@@ -514,21 +513,17 @@ public sealed partial class DemoSessionApi
     private static int FollowStatus(HashSet<long> followedIds, long callerId, long targetId) =>
         callerId != targetId && followedIds.Contains(targetId) ? 1 : 0;
 
-    internal static int EquippedHonorId(SessionState? state) => state is not null
-        && BadgeAwardRules.GetOwnedHonorIds(state).Contains(state.HonorId)
-            ? state.HonorId
-            : BadgeAwardRules.DefaultHonorId;
-
+    // `honorId` is the caller's own equipped badge: it is shown on the caller's own card. Another player's is not
+    // readable from session, so their card shows the default (docs/OTOMO_BADGES.md).
     private string SocialProfileJson(SessionState caller, PlayerProfile profile, int followStatus, bool isNew,
-        IReadOnlyList<BattleRankLine> ranks)
+        IReadOnlyList<BattleRankLine> ranks, int callerHonorId = BadgeCatalog.DefaultHonorId)
     {
-        var targetState = _playerStore.TryLoad(profile.PlayerId) ?? caller;
         return JsonSerializer.Serialize(new
         {
             userId = profile.PlayerId.ToString(),
             displayUserId = PlayerDisplayIdCodec.ToPublic(profile.PlayerId),
             name = profile.DisplayName,
-            honorId = EquippedHonorId(targetState),
+            honorId = profile.PlayerId == caller.PlayerId ? callerHonorId : BadgeCatalog.DefaultHonorId,
             userFrameList = new[]
             {
                 new { battleRuleType = 1, frameId = 1 },

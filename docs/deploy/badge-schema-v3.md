@@ -1,3 +1,6 @@
+> **Superseded.** Migration 9 drops these four tables: badges are economy facts, tracks and `honor:*` items plus a session
+> display slot (`docs/OTOMO_BADGES.md`). Kept as the record of how the tables were once deployed.
+
 # Deploying PostgreSQL player-store schema v3 (badge tables)
 
 Applies to the badge restoration change: `PostgresPlayerStore.SchemaVersion` goes 2 -> 3 and migration 3 creates

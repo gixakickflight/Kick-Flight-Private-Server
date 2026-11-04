@@ -29,7 +29,9 @@ public sealed class ChatSenders(IPlayerStore players, IOtomoProfile profile, Tim
     {
         var row = players.FindOtomoPlayers([otomoPlayerId]).FirstOrDefault();
         var userId = row is null ? otomoPlayerId : row.PlayerId.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        var honor = row is null ? BadgeAwardRules.DefaultHonorId : DemoSessionApi.EquippedHonorId(players.TryLoad(row.PlayerId));
+        // Another player's equipped badge is not readable from session (its internal profile read carries no display
+        // map), so a chat line shows the default honor. docs/OTOMO_BADGES.md names the gap.
+        var honor = BadgeCatalog.DefaultHonorId;
         var name = await NameOfAsync(otomoPlayerId, cancellationToken).ConfigureAwait(false);
         return new ChatSender(userId, string.IsNullOrWhiteSpace(name) ? $"Player {userId}" : name, honor);
     }

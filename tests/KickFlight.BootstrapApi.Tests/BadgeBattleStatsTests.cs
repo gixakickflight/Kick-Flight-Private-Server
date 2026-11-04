@@ -8,6 +8,7 @@ using KickFlight.BootstrapApi.PlayerStore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.FileProviders;
@@ -25,13 +26,6 @@ public sealed class BadgeBattleStatsTests
     private const string CommonCode = "1a837b9ee2ae11a07a0f529a4cd4b61c";
     private static readonly DateTime Created = new(2026, 11, 1, 10, 0, 0, DateTimeKind.Utc);
     private static readonly DateTimeOffset Now = new(Created.AddMinutes(5), TimeSpan.Zero);
-
-    private static BadgeAwardRules Rules(params (int Id, string Req)[] entries)
-    {
-        var rows = entries.Select(e =>
-            $$"""{ "id": {{e.Id}}, "trust": "client_reported_bounded", "requirements": {{e.Req}} }""");
-        return BadgeAwardRules.Parse("{ \"entries\": [" + string.Join(",", rows) + "] }");
-    }
 
     private static BattleMatchmakingService.BadgeBattleEntryContext Context(
         int ruleType = 1, bool party = false, int kicker = 9, int team = 0, string user = "1000001",
@@ -155,53 +149,7 @@ public sealed class BadgeBattleStatsTests
         Assert.Equal(2, report.Stats["kills"]);
     }
 
-    // ---- rule kinds
-
-    private static IReadOnlyList<int> Apply(BadgeAwardRules rules, SessionState state, string entry, BadgeBattleStatReport report)
-    {
-        Assert.True(rules.TryApplyVerifiedBattle(state, entry, out var awards, stats: report, now: Now));
-        return awards;
-    }
-
-    private static BadgeBattleStatReport Report(int ruleType = 1, bool? won = true, int kicker = 9, bool party = false,
-        params (string Stat, long Value)[] stats)
-    {
-        var report = new BadgeBattleStatReport
-        {
-            CreditStats = true, Reason = "ok", BattleRuleType = ruleType, KickerId = kicker, QueuedAsParty = party, Won = won
-        };
-        foreach (var (stat, value) in stats) report.Stats[stat] = value;
-        return report;
-    }
-
-    [Fact]
-    public void Every_new_kind_awards_at_its_threshold_and_only_then()
-    {
-        var rules = Rules(
-            (1, """{"kind":"wins_total","target":2}"""),
-            (2, """{"kind":"kicker_wins","kickerId":9,"target":2}"""),
-            (3, """{"kind":"kicker_wins","kickerId":5,"target":1}"""),
-            (4, """{"kind":"mode_wins","battleRuleType":1,"target":2}"""),
-            (5, """{"kind":"mode_wins","battleRuleType":2,"target":1}"""),
-            (6, """{"kind":"queue_wins","queue":"solo","target":2}"""),
-            (7, """{"kind":"queue_wins","queue":"team","target":1}"""),
-            (8, """{"kind":"win_streak","battleRuleType":1,"target":2}"""),
-            (9, """{"kind":"mvp_count","target":2}"""),
-            (10, """{"kind":"stat_total","stat":"kills","target":5}"""),
-            (11, """{"kind":"stat_total","stat":"crystals_collected","target":50}"""));
-        Assert.Equal(11, rules.StatRuleCount);
-        var state = new SessionState { UserId = "1000001" };
-
-        Assert.Empty(Apply(rules, state, "e1", Report(stats: [("kills", 3), ("mvp", 1), ("crystals_collected", 30)])));
-        var second = Apply(rules, state, "e2", Report(stats: [("kills", 2), ("mvp", 1), ("crystals_collected", 20)]));
-        Assert.Equal([1, 2, 4, 6, 8, 9, 10, 11], second.Order());
-        Assert.DoesNotContain(3, state.UserHonorIds); // other kicker
-        Assert.DoesNotContain(5, state.UserHonorIds); // other mode
-        Assert.DoesNotContain(7, state.UserHonorIds); // no party win yet
-        Assert.Equal(new[] { 5 }, Apply(rules, state, "e3", Report(ruleType: 2, kicker: 5, party: true)).Intersect([5]).ToArray());
-        Assert.Contains(3, state.UserHonorIds);
-        Assert.Contains(7, state.UserHonorIds);
-    }
+    // ---- evaluator, continued
 
     [Fact]
     public void Rapid_ball_goals_and_drops_are_mode_gated_to_rule_type_3()
@@ -254,187 +202,6 @@ public sealed class BadgeBattleStatsTests
         Assert.Equal("malformed:movingDistance", Eval(Body(new { movingDistance = "5" })).Reason);
     }
 
-    [Fact]
-    public void Distance_goal_and_drop_totals_accumulate_and_award_at_threshold()
-    {
-        var rules = Rules(
-            (1, """{"kind":"stat_total","stat":"moving_distance","target":10000}"""),
-            (2, """{"kind":"stat_total","stat":"ball_goals","target":10}"""),
-            (3, """{"kind":"stat_total","stat":"ball_drops","target":8}"""));
-        Assert.Equal(3, rules.StatRuleCount);
-        var state = new SessionState { UserId = "1000001" };
-
-        Assert.Empty(Apply(rules, state, "e1", Report(ruleType: 3, stats: [("moving_distance", 6000), ("ball_goals", 6), ("ball_drops", 4)])));
-        Assert.Equal(6000, state.BadgeStats.Total("moving_distance"));
-        Assert.Equal([1, 2, 3], Apply(rules, state, "e2", Report(ruleType: 3, stats: [("moving_distance", 4000), ("ball_goals", 4), ("ball_drops", 4)])).Order());
-        Assert.Equal(10000, state.BadgeStats.Total("moving_distance"));
-    }
-
-    [Fact]
-    public void Loss_resets_streak_and_undecided_result_does_not_touch_it()
-    {
-        var rules = Rules((1, """{"kind":"win_streak","battleRuleType":1,"target":3}"""));
-        var state = new SessionState { UserId = "1000001" };
-        Apply(rules, state, "e1", Report());
-        Apply(rules, state, "e2", Report());
-        Apply(rules, state, "e3", Report(won: false));
-        Assert.Equal(0, state.BadgeStats.WinStreaks[1].Current);
-        Assert.Equal(2, state.BadgeStats.WinStreaks[1].Best);
-        Apply(rules, state, "e4", Report());
-        Apply(rules, state, "e5", Report(won: null)); // breakaway: neither extends nor resets
-        Assert.Equal(1, state.BadgeStats.WinStreaks[1].Current);
-        Apply(rules, state, "e6", Report());
-        Assert.DoesNotContain(1, state.UserHonorIds);
-        Assert.Contains(1, Apply(rules, state, "e7", Report()));
-    }
-
-    [Fact]
-    public void Rejected_report_counts_participation_but_no_stats()
-    {
-        var rules = Rules((1, """{"kind":"stat_total","stat":"kills","target":1}"""));
-        var state = new SessionState { UserId = "1000001" };
-        Assert.True(rules.TryApplyVerifiedBattle(state, "e1", out var awards,
-            stats: BadgeBattleStatReport.Rejected("cap:killCount"), now: Now));
-        Assert.Empty(awards);
-        Assert.Equal(1, state.VerifiedBattleCount);
-        Assert.Equal(0, state.BadgeStats.Total("kills"));
-    }
-
-    [Fact]
-    public void Unknown_kinds_and_untrusted_stat_rules_fail_closed()
-    {
-        var rules = BadgeAwardRules.Parse("""
-            { "entries": [
-              { "id": 1, "trust": "client_reported_bounded", "requirements": { "kind": "teleport_wins", "target": 1 } },
-              { "id": 2, "trust": "client_reported_bounded", "requirements": { "kind": "stat_total", "stat": "not_a_stat", "target": 1 } },
-              { "id": 3, "requirements": { "kind": "stat_total", "stat": "kills", "target": 1 } },
-              { "id": 4, "trust": "server_verified", "requirements": { "kind": "mvp_count", "target": 1 } },
-              { "id": 5, "trust": "client_reported_bounded", "requirements": { "kind": "mode_wins", "battleRuleType": 9, "target": 1 } },
-              { "id": 6, "trust": "client_reported_bounded", "requirements": { "kind": "stat_total", "stat": "kills", "target": 0 } },
-              { "id": 7, "trust": "client_reported_bounded", "requirements": { "kind": "stat_total", "stat": "kills", "target": 1 } }
-            ] }
-            """);
-        Assert.Equal(1, rules.StatRuleCount);
-        Assert.Equal("client_reported_bounded", rules.GetStatRuleTrust(7));
-        Assert.Null(rules.GetStatRuleTrust(3));
-    }
-
-    [Fact]
-    public void Retry_of_the_same_entry_is_idempotent_with_identical_output_and_no_double_count()
-    {
-        var directory = Directory.CreateTempSubdirectory("kf-badge-stats-");
-        try
-        {
-            var store = new JsonPlayerStore(NullLogger<JsonPlayerStore>.Instance, new TestEnvironment(directory.FullName));
-            var playerId = store.ResolvePlayerId("stat-retry");
-            store.Save(new SessionState { UserId = playerId.ToString(CultureInfo.InvariantCulture) });
-            var rules = Rules((1, """{"kind":"stat_total","stat":"kills","target":4}"""),
-                (2, """{"kind":"wins_total","target":1}"""));
-            var report = Report(stats: [("kills", 4)]);
-
-            var first = rules.RecordVerifiedBattle(store.TryLoad(playerId)!, store, "e1", stats: report, now: Now);
-            var retry = rules.RecordVerifiedBattle(store.TryLoad(playerId)!, store, "e1", stats: Report(stats: [("kills", 4)]), now: Now);
-
-            Assert.Equal([1, 2], first.Order());
-            Assert.Equal(first, retry);
-            var persisted = store.TryLoad(playerId)!;
-            Assert.Equal(4, persisted.BadgeStats.Total("kills"));
-            Assert.Equal(1, persisted.BadgeStats.WinsTotal);
-            Assert.Equal(1, persisted.VerifiedBattleCount);
-        }
-        finally { directory.Delete(true); }
-    }
-
-    [Fact]
-    public void Stale_session_save_merges_with_max_union_semantics_including_streaks()
-    {
-        var directory = Directory.CreateTempSubdirectory("kf-badge-stats-");
-        try
-        {
-            var store = new JsonPlayerStore(NullLogger<JsonPlayerStore>.Instance, new TestEnvironment(directory.FullName));
-            var playerId = store.ResolvePlayerId("stat-stale");
-            store.Save(new SessionState { UserId = playerId.ToString(CultureInfo.InvariantCulture) });
-            var rules = Rules((1, """{"kind":"win_streak","battleRuleType":1,"target":3}"""),
-                (2, """{"kind":"stat_total","stat":"kills","target":99}"""));
-            var stale = store.TryLoad(playerId)!; // loaded before the battles below
-
-            for (var i = 1; i <= 3; i++)
-                rules.RecordVerifiedBattle(store.TryLoad(playerId)!, store, "e" + i, stats: Report(stats: [("kills", 2)]), now: Now);
-            stale.UserName = "stale writer";
-            rules.SavePlayerState(stale, store);
-
-            var persisted = store.TryLoad(playerId)!;
-            Assert.Equal("stale writer", persisted.UserName);
-            Assert.Equal(6, persisted.BadgeStats.Total("kills"));
-            Assert.Equal(3, persisted.BadgeStats.WinsTotal);
-            Assert.Equal(3, persisted.BadgeStats.WinStreaks[1].Best);
-            Assert.Equal(3, persisted.BadgeStats.CreditedBattles.Count);
-            Assert.Contains(1, persisted.UserHonorIds);
-            // A result entry already counted cannot be recounted via the stale document either.
-            Assert.False(rules.TryApplyVerifiedBattle(persisted, "e2", out _, stats: Report(), now: Now));
-        }
-        finally { directory.Delete(true); }
-    }
-
-    [Fact]
-    public void Ledger_is_bounded_and_refuses_instead_of_forgetting_fresh_entries()
-    {
-        var ledger = new Dictionary<string, long>();
-        for (var i = 0; i < 4; i++) Assert.True(BadgeStatState.TryRecord(ledger, "k" + i, 1000, 4, 3600));
-        Assert.False(BadgeStatState.TryRecord(ledger, "k4", 1001, 4, 3600)); // full, nothing old enough to evict
-        Assert.False(BadgeStatState.TryRecord(ledger, "k0", 1002, 4, 3600)); // duplicate
-        Assert.True(BadgeStatState.TryRecord(ledger, "k5", 1000 + 3601, 4, 3600)); // old ones evictable
-        Assert.True(ledger.Count <= 4);
-    }
-
-    [Fact]
-    public void BadgeStats_round_trip_through_the_json_store()
-    {
-        var directory = Directory.CreateTempSubdirectory("kf-badge-stats-");
-        try
-        {
-            var store = new JsonPlayerStore(NullLogger<JsonPlayerStore>.Instance, new TestEnvironment(directory.FullName));
-            var playerId = store.ResolvePlayerId("stat-roundtrip");
-            var state = new SessionState { UserId = playerId.ToString(CultureInfo.InvariantCulture) };
-            var rules = Rules((1, """{"kind":"wins_total","target":99}"""));
-            rules.TryApplyVerifiedBattle(state, "e1", out _, stats: Report(party: true, stats: [("kills", 7), ("mvp", 1)]), now: Now);
-            store.Save(state);
-
-            var loaded = store.TryLoad(playerId)!.BadgeStats;
-            Assert.Equal(7, loaded.Total("kills"));
-            Assert.Equal(1, loaded.Total("mvp"));
-            Assert.Equal(1, loaded.WinsTotal);
-            Assert.Equal(1, loaded.KickerWins[9]);
-            Assert.Equal(1, loaded.ModeWins[1]);
-            Assert.Equal(1, loaded.QueueWins["team"]);
-            Assert.Equal(1, loaded.WinStreaks[1].Current);
-            Assert.True(loaded.CreditedBattles.ContainsKey("e1"));
-        }
-        finally { directory.Delete(true); }
-    }
-
-    // ---- likes
-
-    [Fact]
-    public void Likes_are_credited_once_per_battle_and_liker_and_only_for_existing_targets()
-    {
-        var directory = Directory.CreateTempSubdirectory("kf-badge-stats-");
-        try
-        {
-            var store = new JsonPlayerStore(NullLogger<JsonPlayerStore>.Instance, new TestEnvironment(directory.FullName));
-            var targetId = store.ResolvePlayerId("like-target");
-            store.Save(new SessionState { UserId = targetId.ToString(CultureInfo.InvariantCulture) });
-            var rules = Rules((1, """{"kind":"stat_total","stat":"likes_received","target":2}"""));
-
-            Assert.Empty(rules.RecordVerifiedLike(targetId, "A", "battle-1", Now, store));
-            Assert.Empty(rules.RecordVerifiedLike(targetId, "A", "battle-1", Now, store)); // duplicate ignored
-            Assert.Equal(1, store.TryLoad(targetId)!.BadgeStats.Total("likes_received"));
-            Assert.Equal([1], rules.RecordVerifiedLike(targetId, "B", "battle-1", Now, store));
-            Assert.Empty(rules.RecordVerifiedLike(999999999, "A", "battle-2", Now, store)); // unknown target
-        }
-        finally { directory.Delete(true); }
-    }
-
     // ---- catalog integrity
 
     [Fact]
@@ -456,16 +223,18 @@ public sealed class BadgeBattleStatsTests
             if (trust == "client_reported_bounded") Assert.False(string.IsNullOrWhiteSpace(entry.GetProperty("executedRuleText").GetString()));
         }
 
-        var rules = BadgeAwardRules.Parse(File.ReadAllText(path));
-        // Rank badges are client_reported_bounded too (rank follows the client-reported team scores) but execute
-        // through the rank rules, not the stat rules.
+        // Rank badges are client_reported_bounded too (rank follows the client-reported team scores).
         var clientReported = entries.Where(e => e.GetProperty("trust").GetString() == "client_reported_bounded").ToArray();
-        var rankEntries = clientReported.Count(e => e.GetProperty("requirements").GetProperty("kind").GetString() == "rank");
-        Assert.Equal(4, rankEntries);
-        Assert.Equal(clientReported.Length - rankEntries, rules.StatRuleCount);
-        Assert.Equal(115, rules.StatRuleCount);
+        Assert.Equal(4, clientReported.Count(e => e.GetProperty("requirements").GetProperty("kind").GetString() == "rank"));
         Assert.Equal(119, clientReported.Length);
         Assert.Equal(12, entries.Count(e => e.GetProperty("trust").GetString() == "server_verified"));
+
+        // The tenant's documents express every executable kind: 130 rules, none unported, and the other 81 entries (the
+        // default honor and 80 whose award trigger nobody could name) were never rules.
+        var coverage = BadgeCatalog.Measure(File.ReadAllText(path));
+        Assert.Equal(130, coverage.Translated);
+        Assert.Empty(coverage.Unported);
+        Assert.Equal(81, coverage.NotRules);
     }
 
     // ---- endpoint flow
@@ -501,14 +270,28 @@ public sealed class BadgeBattleStatsTests
         return (text, JsonDocument.Parse(text));
     }
 
+    // The battle is one declared fact per verified entry and player, keyed by the entry. The adapter counts nothing: what the
+    // fact is worth is the tenant's tracks, and a retry of the same result (with different numbers, as a forged retry would
+    // be) is economy's replay of the first report.
     [Fact]
-    public async Task Result_endpoint_credits_stats_once_keeps_response_shape_and_rejects_foreign_entries()
+    public async Task Result_endpoint_reports_one_battle_fact_per_entry_keeps_response_shape_and_ignores_foreign_entries()
+    {
+        await ResultEndpointReportsOneFactAsync();
+    }
+
+    private static async Task ResultEndpointReportsOneFactAsync()
     {
         // The test clock is "now + 5 minutes": entry and room use the real clock, so the room is >= 90 s old.
         var clock = new FixedClock(DateTimeOffset.UtcNow.AddMinutes(5));
         using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseContentRoot(AppContext.BaseDirectory);
+            builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Otomo:Economy:ProgressEnabled"] = "true",
+                ["Otomo:Economy:InternalBaseUrl"] = OtomoTestEnvironment.Economy.BaseUrl,
+                ["Otomo:Economy:ServiceKey"] = "kf-test-gameserver-key"
+            }));
             builder.ConfigureTestServices(services =>
             {
                 services.RemoveAll<TimeProvider>();
@@ -549,26 +332,58 @@ public sealed class BadgeBattleStatsTests
             }
         });
 
-        // Someone else's entry id: the shape is the usual one but nothing is credited to either account.
         var store = factory.Services.GetRequiredService<IPlayerStore>();
+        var playerAccount = store.FindOtomoPlayer(player.PlayerId)!.OtomoPlayerId;
+        var otherAccount = store.FindOtomoPlayer(other.PlayerId)!.OtomoPlayerId;
+        var economy = OtomoTestEnvironment.Economy;
+        var key = $"badge-battle:{entryId}";
+
+        // Someone else's entry id: the shape is the usual one but nothing is reported for either account.
         var (_, stolen) = await PostAsync(client, other, "/battle/result", Result(entryId, 5, 9, 1));
         Assert.True(stolen.RootElement.TryGetProperty("userExp", out _));
-        Assert.Equal(0, store.TryLoad(player.PlayerId)!.BadgeStats.Total("kills"));
-        Assert.Equal(0, store.TryLoad(other.PlayerId)!.BadgeStats.Total("kills"));
+        Assert.DoesNotContain(economy.FactReports, fact => fact.Key == key);
+        Assert.DoesNotContain(economy.GaugeReports, gauge => gauge.Key.EndsWith(entryId, StringComparison.Ordinal));
 
         var (firstRaw, first) = await PostAsync(client, player, "/battle/result", Result(entryId, 5, 9, 1));
         var keys = first.RootElement.EnumerateObject().Select(p => p.Name).ToArray();
         foreach (var expected in new[] { "userExp", "userBattleRank", "beforeUserBattleRank", "receivedUserHonorList",
                      "battleCount", "battleWinCount", "matchmakingTeamId" })
-            if (keys.Contains(expected)) Assert.Contains(expected, keys); // present keys unchanged
-        var stats = store.TryLoad(player.PlayerId)!;
-        Assert.Equal(5, stats.BadgeStats.Total("kills"));
-        Assert.Equal(1, stats.BadgeStats.Total("mvp"));
-        Assert.Equal(1, stats.BadgeStats.WinsTotal);
+            Assert.Contains(expected, keys);
 
+        // One fact for the verified battle, under the entry, with the fields the tenant declares and the numbers the
+        // evaluator bounded.
+        var reported = Assert.Single(economy.FactReports, fact => fact.Key == key);
+        Assert.Equal(playerAccount, reported.PlayerId);
+        Assert.Equal("battle.result", reported.Fact);
+        Assert.False(reported.Replayed);
+        var fields = reported.Fields;
+        Assert.Equal(FakeOtomoEconomy.FactSchemas["battle.result"].Keys.Order().ToArray(),
+            fields.EnumerateObject().Select(p => p.Name).Order().ToArray());
+        Assert.True(fields.GetProperty("credited").GetBoolean());
+        Assert.True(fields.GetProperty("won").GetBoolean());
+        Assert.False(fields.GetProperty("flagged").GetBoolean());
+        Assert.Equal("win", fields.GetProperty("outcome").GetString());
+        Assert.Equal("solo", fields.GetProperty("queue").GetString());
+        Assert.Equal(5, fields.GetProperty("kills").GetInt64());
+        Assert.True(fields.GetProperty("mvp").GetBoolean());
+        Assert.Equal(context.BattleRuleType, fields.GetProperty("rule_type").GetInt32());
+        Assert.Equal(context.KickerId, fields.GetProperty("kicker_id").GetInt32());
+        // A ranked battle carries the rank after it, which is what the rank badges are held to.
+        Assert.Equal(context.BattleRuleType, fields.GetProperty("rank_rule").GetInt32());
+        Assert.True(fields.GetProperty("rank_after").GetInt32() >= 0);
+        Assert.DoesNotContain(economy.FactReports, fact => fact.PlayerId == otherAccount && fact.Key == key);
+
+        // The win streak is a gauge the adapter sets from economy's own present value: 0 -> 1 on a win.
+        var gauge = Assert.Single(economy.GaugeReports, g => g.Key == $"badge-streak:{entryId}");
+        Assert.Equal($"badge.streak.{context.BattleRuleType}", gauge.Counter);
+        Assert.Equal(1, gauge.Value);
+
+        // The client retries with different numbers: economy answers its first report, nothing is counted twice.
         var (retryRaw, _) = await PostAsync(client, player, "/battle/result", Result(entryId, 50, 9, 1));
-        Assert.Equal(5, store.TryLoad(player.PlayerId)!.BadgeStats.Total("kills"));
-        Assert.Equal(1, store.TryLoad(player.PlayerId)!.BadgeStats.WinsTotal);
+        Assert.Equal(5, Assert.Single(economy.FactReports, fact => fact.Key == key && !fact.Replayed)
+            .Fields.GetProperty("kills").GetInt64());
+        Assert.Contains(economy.FactReports, fact => fact.Key == key && fact.Replayed);
+        Assert.Equal((1L, 1L), economy.GaugeOf(playerAccount, $"badge.streak.{context.BattleRuleType}"));
         using (var a = JsonDocument.Parse(firstRaw))
         using (var b = JsonDocument.Parse(retryRaw))
             Assert.Equal(
@@ -577,6 +392,104 @@ public sealed class BadgeBattleStatsTests
 
         cancel.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => task);
+
+        // A second battle, lost: the streak is where economy holds it (1) and the loss sets it to 0, while the peak stays.
+        var (_, secondEntry) = await PostAsync(client, player, "/battle/entry", JsonSerializer.Serialize(new { battleRuleId = ruleId }));
+        var secondId = secondEntry.RootElement.GetProperty("battleEntryId").GetString()!;
+        using var secondCancel = new CancellationTokenSource();
+        var secondWriter = new Writer();
+        var secondTask = matchmaking.StreamAssignmentsAsync(
+            secondEntry.RootElement.GetProperty("battleEntryTicketId").GetString()!, secondWriter, secondCancel.Token);
+        await secondWriter.Final.WaitAsync(TimeSpan.FromSeconds(5));
+        var secondContext = matchmaking.GetBadgeBattleContext(secondId)!;
+        await PostAsync(client, player, "/battle/result", JsonSerializer.Serialize(new Dictionary<string, object>
+        {
+            ["battleEntryId"] = secondId,
+            ["killCount"] = 0,
+            ["teamScoreList"] = new[]
+            {
+                new { teamType = secondContext.OwnTeamType!.Value, score = 1 },
+                new { teamType = 1 - secondContext.OwnTeamType!.Value, score = 9 }
+            },
+            ["userScoreList"] = new[]
+            {
+                new { userId = player.PlayerId, score = 1, mvpFlag = false, aiFlag = false, breakawayFlag = false, badConnectionFlag = false }
+            }
+        }));
+        var lost = Assert.Single(economy.FactReports, fact => fact.Key == $"badge-battle:{secondId}");
+        Assert.False(lost.Fields.GetProperty("won").GetBoolean());
+        Assert.Equal("loss", lost.Fields.GetProperty("outcome").GetString());
+        Assert.Equal(0, Assert.Single(economy.GaugeReports, g => g.Key == $"badge-streak:{secondId}").Value);
+        Assert.Equal((0L, 1L), economy.GaugeOf(playerAccount, $"badge.streak.{secondContext.BattleRuleType}"));
+        secondCancel.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => secondTask);
+    }
+
+    // A like is a fact about the player who received it, reported under their account and keyed by the (battle, liker)
+    // pair, so a second tap is economy's replay. Only players of the same finalized room can like one another.
+    [Fact]
+    public async Task A_like_is_reported_as_a_fact_for_the_target_once_per_liker_and_only_inside_the_room()
+    {
+        var clock = new FixedClock(DateTimeOffset.UtcNow.AddMinutes(5));
+        using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        {
+            builder.UseContentRoot(AppContext.BaseDirectory);
+            builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Otomo:Economy:ProgressEnabled"] = "true",
+                ["Otomo:Economy:InternalBaseUrl"] = OtomoTestEnvironment.Economy.BaseUrl,
+                ["Otomo:Economy:ServiceKey"] = "kf-test-gameserver-key"
+            }));
+            builder.ConfigureTestServices(services =>
+            {
+                services.RemoveAll<TimeProvider>();
+                services.AddSingleton<TimeProvider>(clock);
+            });
+        });
+        var client = factory.CreateClient();
+        var liker = await AuthAsync(client);
+        var target = await AuthAsync(client);
+        var outsider = await AuthAsync(client);
+        var ruleId = RankedModeRotation.RuleIdAt(clock.GetUtcNow());
+        var matchmaking = factory.Services.GetRequiredService<BattleMatchmakingService>();
+        matchmaking.MatchWindow = TimeSpan.FromMilliseconds(600);
+        matchmaking.JoinIncrementBaseSeconds = 0;
+
+        using var cancel = new CancellationTokenSource();
+        var streams = new List<Task>();
+        var writers = new List<Writer>();
+        foreach (var player in new[] { liker, target })
+        {
+            var (_, entry) = await PostAsync(client, player, "/battle/entry", JsonSerializer.Serialize(new { battleRuleId = ruleId }));
+            var writer = new Writer();
+            writers.Add(writer);
+            streams.Add(matchmaking.StreamAssignmentsAsync(entry.RootElement.GetProperty("battleEntryTicketId").GetString()!, writer, cancel.Token));
+        }
+        var battleIds = await Task.WhenAll(writers.Select(writer => writer.Final.WaitAsync(TimeSpan.FromSeconds(10))));
+        Assert.Equal(battleIds[0], battleIds[1]); // one room, two humans
+        var battleId = battleIds[0];
+
+        var store = factory.Services.GetRequiredService<IPlayerStore>();
+        var targetAccount = store.FindOtomoPlayer(target.PlayerId)!.OtomoPlayerId;
+        var economy = OtomoTestEnvironment.Economy;
+        var key = $"badge-like:{battleId}:{liker.PlayerId}";
+
+        string Like(params long[] ids) => JsonSerializer.Serialize(new { battleId, userIdList = ids });
+        await PostAsync(client, liker, "/battle/good", Like(target.PlayerId, outsider.PlayerId, liker.PlayerId));
+        await PostAsync(client, liker, "/battle/good", Like(target.PlayerId));
+
+        var reports = economy.FactReports.Where(fact => fact.Fact == "like.received" && fact.Key == key).ToArray();
+        Assert.Equal(2, reports.Length);
+        Assert.All(reports, report => Assert.Equal(targetAccount, report.PlayerId));
+        Assert.Equal(battleId, reports[0].Fields.GetProperty("battle").GetString());
+        Assert.False(reports[0].Replayed);
+        Assert.True(reports[1].Replayed);
+        // Not the outsider (not in the room) and not the liker themselves.
+        Assert.DoesNotContain(economy.FactReports, fact => fact.Fact == "like.received" && fact.PlayerId != targetAccount
+            && fact.Key.StartsWith($"badge-like:{battleId}", StringComparison.Ordinal));
+
+        cancel.Cancel();
+        foreach (var stream in streams) await Assert.ThrowsAnyAsync<OperationCanceledException>(() => stream);
     }
 
     private sealed class FixedClock(DateTimeOffset now) : TimeProvider

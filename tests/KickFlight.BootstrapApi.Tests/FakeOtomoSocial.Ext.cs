@@ -64,7 +64,9 @@ public sealed partial class FakeOtomoSocial
                     player_id = account.PlayerId,
                     display_name = account.DisplayName,
                     discriminator = account.Discriminator,
-                    ext = JsonNode.Parse(account.Ext.ToJsonString())
+                    ext = JsonNode.Parse(account.Ext.ToJsonString()),
+                    // The same map GET /display serves, so a client has its card in the one call it already makes.
+                    display = new Dictionary<string, string>(account.Display)
                 });
             }
         });

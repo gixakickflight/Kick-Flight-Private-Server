@@ -40,6 +40,11 @@ public sealed record SessionExtWrite(
     [property: JsonPropertyName("ext")] JsonElement? Ext,
     [property: JsonPropertyName("applied")] bool Applied);
 
+// GET/PUT/DELETE /api/player/session/display[/{slot}]: every slot the caller has set, as {slot: item_id}. The same map
+// is `display` on GET /me. Session checks, when a slot is set, that the slot is one the tenant's session.rules declares,
+// that the item is displayable in it (economy's display_slot) and that the caller holds it.
+// 400 slot_unknown, 404 item_unknown, 422 item_not_displayable, 403 item_not_owned, 503 display_unavailable.
+
 // The adapter's only view of a player's session card and the ext fields on it.
 public interface IOtomoProfile
 {
@@ -49,6 +54,17 @@ public interface IOtomoProfile
 
     // The caller's own card, with the player's own access token (the subject is the token's).
     Task<SessionMe> GetOwnProfileAsync(string accessToken, CancellationToken cancellationToken);
+
+    // The caller's own display map ({slot: item_id}, empty when nothing is set), with the player's own token.
+    Task<IReadOnlyDictionary<string, string>> GetDisplayAsync(string accessToken, CancellationToken cancellationToken);
+
+    // Points one slot at an item the caller owns; the answer is the whole map afterwards. Refused with the codes above.
+    Task<IReadOnlyDictionary<string, string>> SetDisplayAsync(string accessToken, string slot, string itemId,
+        CancellationToken cancellationToken);
+
+    // Clears one slot (clearing an empty one is a success); the answer is the whole map afterwards.
+    Task<IReadOnlyDictionary<string, string>> ClearDisplayAsync(string accessToken, string slot,
+        CancellationToken cancellationToken);
 
     // Another player's card, on the internal plane, by otomo player id. Refused 404 player_not_found for a stranger.
     Task<SessionPlayerProfile> GetPlayerProfileAsync(string otomoPlayerId, CancellationToken cancellationToken);

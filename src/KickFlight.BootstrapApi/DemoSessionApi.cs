@@ -114,7 +114,6 @@ public sealed partial class DemoSessionApi : IDisposable
     private readonly KfAccessTokenCodec _accessTokens;
     private readonly IPlayerStore _playerStore;
     private readonly OtomoMasters _otomoMasters;
-    private readonly BadgeAwardRules _badgeAwardRules;
     // The served tables as loaded, which is what PublishMasterState hashes and ApplyOtomoTables replaces entries
     // in. Mutated only under _masterLock; readers take the immutable snapshot in _masterState instead.
     private readonly Dictionary<string, byte[]> _encryptedMasters = new(StringComparer.Ordinal);
@@ -176,7 +175,6 @@ public sealed partial class DemoSessionApi : IDisposable
         _socialOptions = socialOptions.Value;
         _accessTokens = accessTokens;
         _otomoMasters = otomoMasters;
-        _badgeAwardRules = BadgeAwardRules.Load(environment.ContentRootPath, logger);
         _harnessOptions = harnessOptions.Value;
         _botAiProfiles = botAiProfiles ?? ExperimentalAiRoleService.CurrentProvider;
         _contentRoot = environment.ContentRootPath;
@@ -278,7 +276,9 @@ public sealed partial class DemoSessionApi : IDisposable
         _encryptedMasters["KickerAbility"] = EncryptMaster(ApplyObscuredOffsets("KickerAbility", abilityJson));
         _encryptedMasters["KickerAbilityCondition"] = EncryptMaster(abilityConditionJson);
         _encryptedMasters["Translation"] = EncryptMaster(translationJson);
-        _encryptedMasters["Honor"] = EncryptMaster(BadgeAwardRules.BuildHonorMasterJson(LoadJson(contentRoot, BadgeAwardRules.CatalogPath, "")));
+        var badgeCatalogJson = LoadJson(contentRoot, BadgeCatalog.CatalogPath, "");
+        _encryptedMasters["Honor"] = EncryptMaster(BadgeCatalog.BuildHonorMasterJson(badgeCatalogJson));
+        BadgeCatalog.LogCoverage(_logger, badgeCatalogJson);
 
         // FieldManager.InitializeAsync does FieldMaster[fieldId] and silently gives up (FieldInfo stays null, every
         // PlayerCharacter.Initialize then NREs and the loading screen never ends) when the row is missing. 801 is the
@@ -1010,8 +1010,7 @@ public sealed partial class DemoSessionApi : IDisposable
     // owns nothing until a grant has run.
     private static SessionState NewUserState(long playerId) => new() { UserId = playerId.ToString() };
 
-    private void SaveUserState(SessionState state, string? uuid = null, bool allowEquippedHonorChange = false) =>
-        _badgeAwardRules.SavePlayerState(state, _playerStore, uuid, allowEquippedHonorChange);
+    private void SaveUserState(SessionState state, string? uuid = null) => _playerStore.Save(state, uuid);
 
     // Gym-mode bots use KickerAiParameter row id 100 + kickerId (BattleMatchmakingService.GymAiParameterBase): a copy
     // of the kicker's real row with every motivation at 0, no lock-on and very long skill/dash intervals, so even a
@@ -1276,7 +1275,7 @@ public sealed partial class DemoSessionApi : IDisposable
             // tutorial's build-up button from them, and nothing later in onboarding repeats the item list.
             await PayStarterDiscForceAsync(ticket, state, path, context.RequestAborted);
             // Badges first, so a login honor is part of the list this answer carries.
-            var newLoginHonors = _badgeAwardRules.RecordVerifiedLoginDay(state, _playerStore, _timeProvider.GetUtcNow());
+            var newLoginHonors = await RecordBadgeLoginDayAsync(ticket, _timeProvider.GetUtcNow(), context.RequestAborted);
             var economy = await ReadPlayerEconomyAsync(ticket,
                 EconomyRead.Balances | EconomyRead.Inventory | EconomyRead.Tasks, path, context.RequestAborted);
             if (economy.Snapshot is null) return EconomyUnavailable(context, path, economy.Error);
@@ -1316,7 +1315,8 @@ public sealed partial class DemoSessionApi : IDisposable
             if (own is null) return loadoutFailure!;
             var (capsules, capsuleError) = await TryBuildUserCapsuleListAsync(ticket, context.RequestAborted);
             if (capsules is null) return EconomyUnavailable(context, path, capsuleError);
-            var json = BuildHomeJson(state, snapshot, ranks, own, capsules);
+            var equippedHonor = await EquippedHonorAsync(ticket, context.RequestAborted);
+            var json = BuildHomeJson(state, snapshot, ranks, own, capsules, equippedHonor);
             _logger.LogInformation("Serving dynamic home index (active kickerId={KickerId}, costumeId={CostumeId}, activeDeck={Deck}, offers={Offers}, pools={Pools})",
                 state.KickerId, state.KickerCostumeId, own.Loadout.ActiveDeck, snapshot.Offers.Count, snapshot.Pools.Count);
             return BinaryJson(json, key);
@@ -1756,7 +1756,8 @@ public sealed partial class DemoSessionApi : IDisposable
         // level is not, which is the same rule main applies to its own level mutation.
         var countsAsUpgrade = _discIdList.Contains(discId) && level < 50 && advanced.Value == level + 1;
         var receivedHonors = countsAsUpgrade
-            ? _badgeAwardRules.RecordVerifiedDiscUpgrade(state, _playerStore).ToArray()
+            ? (await RecordBadgeUpgradeAsync(ticket, discItem, advanced.Value,
+                EconomyDiscLevels.AdvanceKey(ticket.OtomoPlayerId, discId, step.TargetLevel), context.RequestAborted)).ToArray()
             : Array.Empty<int>();
 
         // The answer's own totals; a consume that answered without them is what was read before, less the price.
@@ -1963,7 +1964,7 @@ public sealed partial class DemoSessionApi : IDisposable
         {
             userKickerList,
             userDiscList,
-            userHonorList = BadgeAwardRules.GetOwnedHonorIds(state)
+            userHonorList = OwnedHonorIds(economy)
                 .Select(honorId => new { honorId, registerDatetime = "2026-09-01 00:00:00", newFlag = newHonorIds?.Contains(honorId) == true }).ToArray(),
             // All 8 Item master rows: 1-4 the legacy counters, 5-8 the round C stocks (gear stamps, disc fragments
             // and the two gacha tickets) that the gear screen and the shop read their counters from.
@@ -2081,7 +2082,7 @@ public sealed partial class DemoSessionApi : IDisposable
     // KF_CHAT_EXP=1: serve a non-empty chat connection id so the client attempts Firebase chat setup (experiment only).
 
     private string BuildHomeJson(SessionState state, EconomySnapshot economy, IReadOnlyList<BattleRankLine> ranks,
-        OwnLoadout own, object[] userCapsuleList)
+        OwnLoadout own, object[] userCapsuleList, int equippedHonor)
     {
         NormalizeCostume(state);
 
@@ -2091,9 +2092,7 @@ public sealed partial class DemoSessionApi : IDisposable
             displayUserId = PlayerDisplayIdCodec.ToPublic(int.TryParse(state.UserId, out var uid) ? uid : 1000001),
             name = OwnName(state, own),
             exp = 38500,
-            honorId = BadgeAwardRules.GetOwnedHonorIds(state).Contains(state.HonorId)
-                ? state.HonorId
-                : BadgeAwardRules.DefaultHonorId,
+            honorId = equippedHonor,
             userFrameList = new[]
             {
                 new { battleRuleType = 1, frameId = 1 },
@@ -2316,8 +2315,8 @@ public sealed partial class DemoSessionApi : IDisposable
 
         state.UserName = name;
         state.TutorialProgress = TutorialStatusComplete;
-        _badgeAwardRules.RecordRegistrationComplete(state, _playerStore);
         SaveUserState(state);
+        await RecordBadgeRegistrationAsync(ticket, context.RequestAborted);
         await PublishNameAsync(ticket, state, "/tutorial/end", context.RequestAborted);
         _logger.LogInformation("Player {PlayerId} chose the name {UserName:l}", state.PlayerId, name);
         return OkJson(context, key, "{}");
@@ -2938,16 +2937,13 @@ public sealed partial class DemoSessionApi : IDisposable
                 state.UserId, battleEntryId);
             return SocialUnavailable(context, "/battle/result", exception);
         }
-        var receivedHonors = ownedEntry is null
+        // The battle goes to economy as a declared fact, once per verified battle (keyed by the entry); the tenant's
+        // tracks decide what it earns, and the rungs it reached are claimed here so the result can say so.
+        var receivedHonors = ownedEntry is null || statReport is null
             ? Array.Empty<int>()
-            : _badgeAwardRules.RecordVerifiedBattle(
-                state,
-                _playerStore,
-                battleEntryId,
-                applyProgression ? battleRuleType : null,
-                applyProgression ? after.Rank : null,
-                statReport,
-                _timeProvider.GetUtcNow()).ToArray();
+            : (await RecordBadgeBattleAsync(ticket, battleEntryId, statReport, battleRuleType,
+                applyProgression ? battleRuleType : 0, applyProgression ? after.Rank : -1,
+                context.RequestAborted)).ToArray();
 
         // The battle's counters go to economy as facts, before the client is told the battle is over: what they
         // are worth is a track's step, claimed later on the player's own plane.

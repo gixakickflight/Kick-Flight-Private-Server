@@ -19,7 +19,7 @@ public sealed partial class DemoSessionApi
             if (body.Length > D2CCodec.VectorSizeBytes)
             {
                 using var document = JsonDocument.Parse(D2CCodec.Decode(body, key));
-                CreditBattleLikes(document.RootElement, state);
+                await CreditBattleLikesAsync(document.RootElement, state, context.RequestAborted);
             }
         }
         catch (Exception ex) when (ex is CryptographicException or JsonException or InvalidOperationException
@@ -30,7 +30,7 @@ public sealed partial class DemoSessionApi
         return BinaryJson("{}", key);
     }
 
-    private void CreditBattleLikes(JsonElement root, SessionState state)
+    private async Task CreditBattleLikesAsync(JsonElement root, SessionState state, CancellationToken cancellationToken)
     {
         if (root.ValueKind != JsonValueKind.Object || !TryGetString(root, "battleId", out var battleId)
             || !root.TryGetProperty("userIdList", out var list) || list.ValueKind != JsonValueKind.Array)
@@ -62,10 +62,10 @@ public sealed partial class DemoSessionApi
         foreach (var targetId in targets)
         {
             if (!long.TryParse(targetId, NumberStyles.None, CultureInfo.InvariantCulture, out var targetPlayerId)) continue;
-            var honors = _badgeAwardRules.RecordVerifiedLike(targetPlayerId, state.UserId, battleId, now, _playerStore);
-            if (honors.Count > 0)
-                _logger.LogInformation("Like from {Liker} in {BattleId} unlocked badges {Honors} for {Target}",
-                    state.UserId, battleId, string.Join(",", honors), targetPlayerId);
+            // The like is a fact about the target, reported under their otomo account; the (battle, liker) pair is the
+            // key, so a repeated tap counts once. Their rung is claimed on their own next sweep.
+            if (_playerStore.FindOtomoPlayer(targetPlayerId) is not { } target) continue;
+            await RecordBadgeLikeAsync(target.OtomoPlayerId, battleId, state.UserId, cancellationToken);
         }
     }
 }
