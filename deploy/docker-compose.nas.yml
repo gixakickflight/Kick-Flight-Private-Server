@@ -1,20 +1,32 @@
-# Kick-Flight API + CDN + PostgreSQL, as deployed on the TrueNAS (10.10.20.148 on the LAN, 100.116.38.51 on Tailscale).
+# Kick-Flight API + CDN + PostgreSQL + Photon (LuxonServer), as deployed in the kf-staging Incus instance on
+# the TrueNAS (10.10.20.148 on the LAN, 100.116.38.51 on Tailscale). Release procedure: deploy/nas/README.md
+# (deploy/nas/release.sh does every step).
 #
-# This is the file a TrueNAS Custom App is created from. It references a pre-built image rather than
-# building one: the Custom App UI has no build context, so the image is built on the NAS itself first.
-# See deploy/README.md for the full procedure.
+# Nothing host-specific is written here. Every address, otomo URL, key directory and client host comes from
+# deploy/.env beside this file on the host (0600, not in git; template: deploy/nas/nas.env.example). Compose
+# reads it twice: for ${...} interpolation below, and as an env_file of the api service, which is how the
+# variable-length Harness__DirectClientHosts__N list reaches the API.
 #
-# Photon is NOT here. The client is pointed at the VM that already runs it, so there is no luxon-server
-# service and no UDP ports to forward - only 18080 (HTTP + CDN) and 18081 (gRPC).
+# The host directory this runs from ($KF_ROOT/app) is not a git checkout: it holds the tracked config/ and
+# content/ of the deployed commit, the generated .local/ files, data/, and deploy/ (this file, nginx.conf,
+# photon/config.yml.template, the keys and the env files). Images are built from a checkout and loaded with
+# `docker load`, so `up` is always run with --no-build here.
 #
-# Ports bound on the NAS, both already forwarded by the router:
-#   18080 -> cdn      nginx: serves /cdn/ from disk, proxies everything else to the API
-#   18081 -> api      gRPC, published directly; the client learns this port from the matchmaking response
+# Ports:
+#   18080/tcp -> cdn     nginx: serves /cdn/ from disk, proxies everything else to the API
+#   18081/tcp -> api     gRPC, published directly; the client learns this port from the matchmaking response
+#   5055/5056/5058 (+27000-27002) udp/tcp -> photon, host networking (see the photon service)
+# The API's own HTTP port (8080) is not published: every HTTP request arrives through nginx, which is what keeps
+# the Host header (and therefore the CDN urls the client receives) correct. PostgreSQL publishes no port.
 #
-# The API's own HTTP port (8080) is deliberately not published - every HTTP request arrives through nginx,
-# which is what keeps the Host header (and therefore the CDN urls the client receives) correct.
-#
-# PostgreSQL publishes no port either: only the api service talks to it, over the compose network.
+# The deploy loads no appsettings.json (ASPNETCORE_CONTENTROOT=/srv/repo holds only host mounts), so every
+# setting the API needs, including all Otomo__Masters__Tables__N, is env here.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
 
 services:
   postgres:
@@ -24,15 +36,13 @@ services:
     environment:
       POSTGRES_USER: kickflight
       POSTGRES_DB: kickflight
-      # Not published, so this only guards the compose network. Override it in the TrueNAS app if the NAS is
-      # ever shared with something that should not read player state.
+      # Not published, so this only guards the compose network.
       POSTGRES_PASSWORD: ${KF_DB_PASSWORD:-kickflight-local}
-      # The dataset is mounted at the image's default PGDATA parent and the cluster lives in a subdirectory of
-      # it: initdb refuses a data directory that already has anything in it, and a ZFS dataset root is not
-      # guaranteed to be empty (a snapshot mount or a stray file would be enough).
+      # The cluster lives in a subdirectory of the mounted dataset: initdb refuses a non-empty data directory,
+      # and a ZFS dataset root is not guaranteed to be empty.
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
-      - /mnt/Tanuki_1/kickflight/pgdata:/var/lib/postgresql/data
+      - ${KF_ROOT:?Set KF_ROOT in deploy/.env}/pgdata:/var/lib/postgresql/data
     healthcheck:
       # The API applies its migrations at startup, so it must not start before the server accepts connections.
       test: ["CMD-SHELL", "pg_isready -U kickflight -d kickflight"]
@@ -47,8 +57,8 @@ services:
     ports:
       - "18080:18080"
     volumes:
-      - /mnt/Tanuki_1/kickflight/assets:/assets:ro
-      - /mnt/Tanuki_1/kickflight/app/deploy/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ${KF_ROOT}/assets:/assets:ro
+      - ${KF_ROOT}/app/deploy/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - api
 
@@ -59,47 +69,201 @@ services:
     ports:
       - "18081:18081"
     volumes:
-      # The repository root, as RepositoryPaths expects it. config/ must be read-write so a masters edit can
-      # be picked up by a restart without a rebuild; content/ and the assets tree are read-only.
-      - /mnt/Tanuki_1/kickflight/app/config:/srv/repo/config
-      - /mnt/Tanuki_1/kickflight/app/content:/srv/repo/content
-      # Mounted, not used: player state lives in PostgreSQL now and this is only where the JSON fallback would
-      # write, which is what the API falls back to when the connection string below is unset.
-      - /mnt/Tanuki_1/kickflight/app/data:/srv/repo/data
-      # One catalog entry addresses a file as ".local/...": the installable APK served at
-      # /apk/KickFlight-*, which is how a phone gets the client. It is a build artifact of the repository,
-      # so it is uploaded rather than committed - but the catalog pins its SHA-256, so it must be the exact
-      # file the catalog was generated against or /health/ready fails on it.
-      - /mnt/Tanuki_1/kickflight/app/.local:/srv/repo/.local:ro
+      # The repository root, as RepositoryPaths expects it. config/ is read-write so a masters edit can be picked
+      # up by a restart without a rebuild.
+      - ${KF_ROOT}/app/config:/srv/repo/config
+      - ${KF_ROOT}/app/content:/srv/repo/content
+      # Writable runtime state: the otomo masters cache, replays and diagnostics (see below). Player state is in
+      # PostgreSQL; data/users is only the JSON fallback, unused while the connection string is set.
+      - ${KF_ROOT}/app/data:/srv/repo/data
+      # Generated, gitignored files the catalog addresses as ".local/..." (localize bundles, weapon-costume
+      # fallbacks; the catalog pins their SHA-256). Read-only.
+      - ${KF_ROOT}/app/.local:/srv/repo/.local:ro
       # Mounted one level above the repo root because the catalog addresses bundles as
       # "../Kick-Flight-Assets/octo_sorted/...".
-      - /mnt/Tanuki_1/kickflight/assets:/srv/Kick-Flight-Assets:ro
+      - ${KF_ROOT}/assets:/srv/Kick-Flight-Assets:ro
+      # otomo service keys (0600, not in git). config: the masters release bundle; economy: the battle progress
+      # report; session: rank awards and other players' profiles; chat and patch: their internal listeners.
+      - ${KF_KEYS_DIR:?Set KF_KEYS_DIR in deploy/.env}/kf-config-gameserver.key:/run/secrets/config_gameserver.key:ro
+      - ${KF_KEYS_DIR}/economy_gameserver.key:/run/secrets/otomo/economy_gameserver.key:ro
+      - ${KF_KEYS_DIR}/session_matchmaker.key:/run/secrets/otomo/session_matchmaker.key:ro
+      - ${KF_KEYS_DIR}/chat_adapter.key:/run/secrets/otomo/chat_adapter.key:ro
+      - ${KF_KEYS_DIR}/patch_gameserver.key:/run/secrets/otomo/patch_gameserver.key:ro
+    env_file:
+      # Otomo__TokenSecret only (0600, not in git): the HMAC key of the access token this adapter hands the KF
+      # client. Rotating it invalidates client tokens until the next /auth/index.
+      - kf-otomo.env
+      # Host values the API reads directly: Harness__DirectClientHosts__N (the host gate answers 421 for any
+      # other Host; bare hostnames, the port is stripped before comparison).
+      - .env
+      # KF_RELEASE_SHA, written by deploy/nas/release.sh (recorded in the ops telemetry's server_runs table).
+      - path: release.env
+        required: false
     environment:
       HttpPort: "8080"
       GrpcPort: "18081"
       KF_REPO_ROOT: /srv/repo
-      KF_EXPERIMENTAL_AI_ROLES: ${KF_EXPERIMENTAL_AI_ROLES:-1}
+      KF_EXPERIMENTAL_AI_ROLES: ${KF_EXPERIMENTAL_AI_ROLES:-0}
 
-      # Player state. Setting this is what selects PostgresPlayerStore; unset, the API writes per-user JSON
-      # files under /srv/repo/data/users and identity is only as durable as that directory.
+      # Player state. Setting this is what selects PostgresPlayerStore.
       PlayerStore__ConnectionString: "Host=postgres;Port=5432;Database=kickflight;Username=kickflight;Password=${KF_DB_PASSWORD:-kickflight-local}"
 
-      # Photon stays on the public VM.
+      # Photon is the photon service below. The API probes it for /health/photon and hands this host to
+      # clients, so it is the public address Luxon advertises.
       PhotonServer__Enabled: "true"
-      PhotonServer__Host: 51.79.241.70
+      PhotonServer__Host: ${KF_PUBLIC_HOST:?Set KF_PUBLIC_HOST in deploy/.env}
       PhotonServer__MasterServerPort: "5055"
       PhotonServer__GameServerPort: "5056"
       PhotonServer__NameServerPort: "5058"
 
-      # The host gate in Program.cs answers 421 for anything not listed here. Entries are bare hostnames -
-      # the port is stripped before comparison - and the request's own Host decides the CDN urls, so a client
-      # on the LAN and one on the DDNS name both work.
-      Harness__DirectClientHosts__0: 10.10.20.148
-      Harness__DirectClientHosts__1: tanukifurhirenas.tplinkdns.com
-      Harness__DirectClientHosts__2: kickflightsg.ddns.net
-      Harness__DirectClientHosts__3: 192.168.68.55
-      Harness__DirectClientHosts__4: 100.116.38.51
+      # Identity is otomo's. The adapter signs each device in to the otomo player gateway and hands the client
+      # an access token it signs itself; it creates no account and stores no session (docs/OTOMO_IDENTITY.md).
+      # Enabled=false answers 503 identity-unavailable to player requests.
+      Otomo__Enabled: "true"
+      Otomo__BaseUrl: ${KF_OTOMO_GATEWAY_URL:?Set KF_OTOMO_GATEWAY_URL in deploy/.env}
+
+      # Masters: every table named below comes from otomo's published release on this channel, polled so a
+      # publish reaches the running server without a rebuild. CacheDir keeps the last good bundle for a restart
+      # while otomo is unreachable (it must be writable; .local is read-only).
+      Otomo__Masters__Enabled: "true"
+      Otomo__Masters__BaseUrl: ${KF_OTOMO_CONFIG_URL:?Set KF_OTOMO_CONFIG_URL in deploy/.env}
+      Otomo__Masters__Channel: ${KF_OTOMO_MASTERS_CHANNEL:-staging}
+      Otomo__Masters__KeyFile: /run/secrets/config_gameserver.key
+      Otomo__Masters__Refresh: "00:00:30"
+      Otomo__Masters__CacheDir: /srv/repo/data/otomo-masters
+      Otomo__Masters__Tables__0: Translation=kf.masters.translation
+      Otomo__Masters__Tables__1: BattleReplayChannel=kf.masters.battle_replay_channel
+      Otomo__Masters__Tables__2: BattleRule=kf.masters.battle_rule
+      Otomo__Masters__Tables__3: BattleRuleFlagFlightScore=kf.masters.battle_rule_flag_flight_score
+      Otomo__Masters__Tables__4: BattleRuleRapidBallScore=kf.masters.battle_rule_rapid_ball_score
+      Otomo__Masters__Tables__5: CommonConditionHit=kf.masters.common_condition_hit
+      Otomo__Masters__Tables__6: CustomBattleKickerAi=kf.masters.custom_battle_kicker_ai
+      Otomo__Masters__Tables__7: CustomBattleRuleField=kf.masters.custom_battle_rule_field
+      Otomo__Masters__Tables__8: Disc=kf.masters.disc
+      Otomo__Masters__Tables__9: DiscBuildup=kf.masters.disc_buildup
+      Otomo__Masters__Tables__10: DiscGacha=kf.masters.disc_gacha
+      Otomo__Masters__Tables__11: DiscGrow=kf.masters.disc_grow
+      Otomo__Masters__Tables__12: GachaGroup=kf.masters.gacha_group
+      Otomo__Masters__Tables__13: Gear=kf.masters.gear
+      Otomo__Masters__Tables__14: GearSameColorBonus=kf.masters.gear_same_color_bonus
+      Otomo__Masters__Tables__15: GearSkill=kf.masters.gear_skill
+      Otomo__Masters__Tables__16: GuardianParameter=kf.masters.guardian_parameter
+      Otomo__Masters__Tables__17: InitialDiscDeck=kf.masters.initial_disc_deck
+      Otomo__Masters__Tables__18: Kicker=kf.masters.kicker
+      Otomo__Masters__Tables__19: KickerAbility=kf.masters.kicker_ability
+      Otomo__Masters__Tables__20: KickerAbilityCondition=kf.masters.kicker_ability_condition
+      Otomo__Masters__Tables__21: KickerAiDisc=kf.masters.kicker_ai_disc
+      Otomo__Masters__Tables__22: KickerAiDiscDeck=kf.masters.kicker_ai_disc_deck
+      Otomo__Masters__Tables__23: KickerAiParameter=kf.masters.kicker_ai_parameter
+      Otomo__Masters__Tables__24: KickerCostume=kf.masters.kicker_costume
+      Otomo__Masters__Tables__25: KickerDetail=kf.masters.kicker_detail
+      Otomo__Masters__Tables__26: KickerGacha=kf.masters.kicker_gacha
+      Otomo__Masters__Tables__27: KickerParameter=kf.masters.kicker_parameter
+      Otomo__Masters__Tables__28: LotteryCost=kf.masters.lottery_cost
+      Otomo__Masters__Tables__29: LotteryDiscDropAmount=kf.masters.lottery_disc_drop_amount
+      Otomo__Masters__Tables__30: LotteryDiscRarity=kf.masters.lottery_disc_rarity
+      Otomo__Masters__Tables__31: LotteryDropCountReward=kf.masters.lottery_drop_count_reward
+      Otomo__Masters__Tables__32: LotteryDropDisc=kf.masters.lottery_drop_disc
+      Otomo__Masters__Tables__33: LotteryDropKicker=kf.masters.lottery_drop_kicker
+      Otomo__Masters__Tables__34: LotteryGearRarity=kf.masters.lottery_gear_rarity
+      Otomo__Masters__Tables__35: MatchmakingPingThreshold=kf.masters.matchmaking_ping_threshold
+      Otomo__Masters__Tables__36: MovieCategory=kf.masters.movie_category
+      Otomo__Masters__Tables__37: RegularMatchBattleSchedule=kf.masters.regular_match_battle_schedule
+      Otomo__Masters__Tables__38: Skill=kf.masters.skill
+      Otomo__Masters__Tables__39: SkillBlowOff=kf.masters.skill_blow_off
+      Otomo__Masters__Tables__40: SkillCollision=kf.masters.skill_collision
+      Otomo__Masters__Tables__41: SkillCondition=kf.masters.skill_condition
+      Otomo__Masters__Tables__42: SkillHeal=kf.masters.skill_heal
+      Otomo__Masters__Tables__43: SkillHit=kf.masters.skill_hit
+      Otomo__Masters__Tables__44: SkillPullIn=kf.masters.skill_pull_in
+      Otomo__Masters__Tables__45: SkillTrap=kf.masters.skill_trap
+      Otomo__Masters__Tables__46: SpecialSkill=kf.masters.special_skill
+      Otomo__Masters__Tables__47: SpecialSkillBlowOff=kf.masters.special_skill_blow_off
+      Otomo__Masters__Tables__48: SpecialSkillBullet=kf.masters.special_skill_bullet
+      Otomo__Masters__Tables__49: SpecialSkillCollision=kf.masters.special_skill_collision
+      Otomo__Masters__Tables__50: SpecialSkillCondition=kf.masters.special_skill_condition
+      Otomo__Masters__Tables__51: SpecialSkillHit=kf.masters.special_skill_hit
+      Otomo__Masters__Tables__52: SpecialSkillTrap=kf.masters.special_skill_trap
+      Otomo__Masters__Tables__53: Stamp=kf.masters.stamp
+      Otomo__Masters__Tables__54: StampSituation=kf.masters.stamp_situation
+      Otomo__Masters__Tables__55: Summon=kf.masters.summon
+      Otomo__Masters__Tables__56: WeaponAttack=kf.masters.weapon_attack
+      Otomo__Masters__Tables__57: WeaponAttackBullet=kf.masters.weapon_attack_bullet
+      Otomo__Masters__Tables__58: WeaponAttackCollision=kf.masters.weapon_attack_collision
+      Otomo__Masters__Tables__59: WeaponAttackCondition=kf.masters.weapon_attack_condition
+      Otomo__Masters__Tables__60: WeaponAttackHit=kf.masters.weapon_attack_hit
+      # Documents the adapter follows on the same channel (session.rank must also be on the live channel).
+      Otomo__Masters__Documents__0: session.rank
+      Otomo__Masters__Documents__1: kf.bot_ai_profiles
+
+      # Economy: every balance, disc, costume and ticket the client is shown, read on the player's own token
+      # through the gateway; purchases and draws are one call each. The battle progress report goes to
+      # economy's internal listener with the game-server key.
+      Otomo__Economy__Enabled: "true"
+      Otomo__Economy__BaseUrl: ${KF_OTOMO_GATEWAY_URL}
+      Otomo__Economy__ProgressEnabled: "true"
+      Otomo__Economy__InternalBaseUrl: ${KF_OTOMO_ECONOMY_URL:?Set KF_OTOMO_ECONOMY_URL in deploy/.env}
+      Otomo__Economy__ServiceKeyFile: /run/secrets/otomo/economy_gameserver.key
+      # Onboarding order: the tutorial runs first; the name window is the ladder step after the kicker change.
+      Tutorial__Ladder: "true"
+
+      # Social and rank are session's: follows and the ranking board on the player plane through the gateway;
+      # battle-point awards and other players' rank/profile/ext on session's internal listener.
+      Otomo__Social__Enabled: "true"
+      Otomo__Social__BaseUrl: ${KF_OTOMO_GATEWAY_URL}
+      Otomo__Rank__Enabled: "true"
+      Otomo__Rank__BaseUrl: ${KF_OTOMO_GATEWAY_URL}
+      Otomo__Rank__InternalBaseUrl: ${KF_OTOMO_SESSION_URL:?Set KF_OTOMO_SESSION_URL in deploy/.env}
+      Otomo__Rank__ServiceKeyFile: /run/secrets/otomo/session_matchmaker.key
+      # Chat is otomo's: the client's /.ws and chatRoomComment/write are translated onto chat's internal listener.
+      Otomo__Chat__Enabled: "true"
+      Otomo__Chat__BaseUrl: ${KF_OTOMO_CHAT_URL:?Set KF_OTOMO_CHAT_URL in deploy/.env}
+      Otomo__Chat__ServiceKeyFile: /run/secrets/otomo/chat_adapter.key
+      # Replays are otomo patch's: uploads and bytes through patch's internal listener, the channel and featured
+      # lists through the gateway.
+      Otomo__Recordings__Enabled: "true"
+      Otomo__Recordings__BaseUrl: ${KF_OTOMO_GATEWAY_URL}
+      Otomo__Recordings__InternalBaseUrl: ${KF_OTOMO_PATCH_URL:?Set KF_OTOMO_PATCH_URL in deploy/.env}
+      Otomo__Recordings__ServiceKeyFile: /run/secrets/otomo/patch_gameserver.key
+
+      # Two directories the API creates at startup. Both default under /srv/repo/.local, which is read-only here.
+      Replays__Directory: /srv/repo/data/replays
+      Diagnostics__UploadDirectory: /srv/repo/data/diagnostics
       Harness__PersistCaptures: "false"
+      # Push (Push__*) stays off: the NAS has no FCM service account.
     depends_on:
       postgres:
         condition: service_healthy
+
+  # Kick-Flight room server: LuxonServer from submodules/luxonserver (tanukifurhire/luxonserver, branch
+  # tanuki-server) with deploy/photon/luxon-patches applied, built with GCC 14 by deploy/photon/Dockerfile.
+  # release.sh builds it from the commit being released and loads it as kickflight/photon:local.
+  #
+  # Host networking on purpose: kf-staging is an Incus guest, and Incus proxies udp $KF_PUBLIC_HOST:{5055,5056,
+  # 5058} to the guest's own address (nat=true, so the client's source address is preserved). Luxon binds the
+  # guest's ports directly, with no docker UDP proxy hop, and advertises $KF_PUBLIC_HOST to clients.
+  photon:
+    image: kickflight/photon:local
+    build:
+      context: ..
+      dockerfile: deploy/photon/Dockerfile
+    container_name: kf-photon
+    restart: unless-stopped
+    network_mode: host
+    logging: *default-logging
+    environment:
+      KF_PUBLIC_HOST: ${KF_PUBLIC_HOST}
+    volumes:
+      - ${KF_ROOT}/app/deploy/photon/config.yml.template:/etc/luxon/config.yml.template:ro
+    working_dir: /etc/luxon
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        envsubst < /etc/luxon/config.yml.template > /etc/luxon/config.yml
+        exec /usr/local/bin/luxon_server
+    healthcheck:
+      # Luxon runs as PID 1; this catches an exited server process.
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3

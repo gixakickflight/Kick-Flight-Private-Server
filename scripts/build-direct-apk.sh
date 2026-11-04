@@ -78,7 +78,8 @@ artifact_dir="$repo/.local/artifacts"
 work_root="$repo/.local/apk-direct-work"
 output_apk="${OUTPUT_APK:-$artifact_dir/KickFlight-${KF_VERSION_NAME:-2.11.705}-remote.apk}"
 
-# Keystore resolution: explicit path, then worktree-local production key
+# Keystore resolution: explicit path, then worktree-local production key. KEYSTORE_ALIAS/KEYSTORE_PASS select another
+# key in it (an APK only installs over one signed with the same key).
 if [[ -n "${KEYSTORE:-}" ]]; then
   keystore="$KEYSTORE"
 elif [[ -f "$repo/.local/signing/kickflight-test-signing.jks" ]]; then
@@ -180,8 +181,8 @@ zipalign -p -f 4 "$work/unsigned.apk" "$work/aligned.apk"
 
 echo "==> Signing APK"
 apksigner sign \
-  --ks "$keystore" --ks-key-alias kickflight-test \
-  --ks-pass pass:android --key-pass pass:android \
+  --ks "$keystore" --ks-key-alias "${KEYSTORE_ALIAS:-kickflight-test}" \
+  --ks-pass "pass:${KEYSTORE_PASS:-android}" --key-pass "pass:${KEYSTORE_PASS:-android}" \
   --v1-signing-enabled true \
   --v2-signing-enabled true \
   --v3-signing-enabled true \

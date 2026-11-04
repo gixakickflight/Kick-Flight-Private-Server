@@ -1,0 +1,32 @@
+Luxon: echo PhotonPing probes
+
+The client sends a connectionless 13-byte probe (12 x 0x7d followed by a marker) to a candidate
+server before it opens a session and expects it echoed verbatim. It carries no ENet header, so
+without this it fails parse_packet and the client's region probe times out; the client then
+abandons the match with a network error although the name server answered.
+
+Recovered from the kf-staging NAS build (/root/kf-photon-build, image kickflight/photon:pingfix,
+2026-10-28), where it was an uncommitted change on top of Luxon 5401810.
+
+diff --git a/src/enet/enet_server.cpp b/src/enet/enet_server.cpp
+index dcaee39..dbdf768 100644
+--- a/src/enet/enet_server.cpp
++++ b/src/enet/enet_server.cpp
+@@ -89,6 +89,17 @@ void EnetServer::service_self() {
+             break;
+         }
+ 
++        // PhotonPing: a connectionless 13-byte probe (12 x 0x7d followed by a marker) that the
++        // client sends to a candidate server before it opens a session, and which it expects
++        // echoed verbatim. It has no ENet header, so without this it fails parse_packet below and
++        // the client's region probe times out — it then abandons the match with a network error
++        // even though the name server answered perfectly.
++        if (r == 13 && datagram[0] == 0x7d && datagram[11] == 0x7d) {
++            sock_.send_to(buf.data(), r, from);
++            ENET_METRIC_ADD(enet.pings_in, 1);
++            continue;
++        }
++
+         // Parse header to find challenge/peer id, etc.
+         EnetPacketHeader hdr;
+         std::vector<EnetCommand> cmds;

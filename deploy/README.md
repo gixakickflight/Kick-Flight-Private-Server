@@ -1,5 +1,11 @@
 # Despliegue en el TrueNAS
 
+> **Actualizado 2026-11-04:** el procedimiento vigente de release del NAS (kf-staging) está en
+> [`deploy/nas/README.md`](nas/README.md) y lo ejecuta `deploy/nas/release.sh`. Photon (LuxonServer) ya corre en el
+> NAS como servicio `photon` de `docker-compose.nas.yml`, y todos los valores del host (IPs, URLs de otomo, claves,
+> `DirectClientHosts`) viven en `deploy/.env` en el host. Las secciones de abajo que dicen que Photon sigue en la VM
+> describen la topología anterior.
+
 El API y el CDN corren en el NAS (`10.10.20.148` en la LAN, `100.116.38.51` por Tailscale; TrueNAS SCALE 25.10.3),
 Photon sigue en la VM pública. La dirección vieja `192.168.68.53` ya no existe (la LAN pasó a `10.10.20.0/24`).
 Este documento describe la topología, los puertos que se abren y cómo desplegar y verificar.
