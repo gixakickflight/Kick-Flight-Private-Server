@@ -229,9 +229,6 @@ public sealed partial class DemoSessionApi : IDisposable
         // The file is the source; the literal is only the fallback for a checkout without config/.
         // Since the rank-scaled guardian: the rows are generated from masters_guardian_balance.json (GuardianBalance),
         // edited in /balance. Restart applies an edit; defaults reproduce the previous 8000/6000, 3000/6000, 8000/0.
-        var guardianParameterJson = GuardianBalance.BuildMasterJson(
-            LoadJson(contentRoot, GuardianBalance.ConfigPath, GuardianBalance.DefaultJson));
-        _encryptedMasters["GuardianParameter"] = EncryptMaster(guardianParameterJson);
         // guardianAmount is per team: GameManager.CreateGuardian spawns it for both teams and indexes
         // FieldManager.GetGuardianInitialPosition, and FLD00101_1 (the crystal-rule variant) has exactly two
         // guardian points; the ball variants (rules 3/4) also spawn one guard per goal, which must be destroyed
@@ -260,6 +257,12 @@ public sealed partial class DemoSessionApi : IDisposable
         {
             _logger.LogWarning("Error parsing battle rule json: {Error}", ex.Message);
         }
+        // One GuardianParameter row per (battle rule id, ladder rank): the client predicate matches the controller's
+        // BattleRuleId and GuardianRank (see the guardian patch in patch-il2cpp-endpoints.py), so it needs the rules.
+        var guardianParameterJson = GuardianBalance.BuildMasterJson(
+            LoadJson(contentRoot, GuardianBalance.ConfigPath, GuardianBalance.DefaultJson),
+            _battleRuleTypeById.Select(r => (r.Key, r.Value)));
+        _encryptedMasters["GuardianParameter"] = EncryptMaster(guardianParameterJson);
 
         // every rule can be played on every arena of the pool (equal ratio); the server, not the client, draws the field
         var battleRuleFieldRows = new List<object>();
@@ -2407,9 +2410,8 @@ public sealed partial class DemoSessionApi : IDisposable
         // GuardianParameterMaster is looked up by the id returned here (CallbackBattleStartSuccess), so a rule
         // whose guardian is the revivable ball-goal variant (battleRuleType 3) gets the weaker row 2.
         // Gym: row 3 = same HP, attack 0, so the guardian's eye laser cannot hurt anyone.
-        var guardianProfile = GuardianBalance.ProfileFor(BattleMatchmakingService.GymEnabled, battleRuleType);
-        var guardianId = guardianProfile;
-        var guardianRank = GuardianRankKey(state, guardianProfile, battleRuleType, battleId);
+        var guardianRank = GuardianRoomRank(state, battleRuleType, battleId);
+        var guardianId = GuardianBalance.RowId(battleRuleId, guardianRank);
         // The arena: the room's draw (same for every human in it) or a fresh draw when the room is unknown.
         var fieldId = _matchmaking.GetRoomFieldId(battleId) ?? BattleMatchmakingService.PickRandomField();
         var resp = new
@@ -2439,25 +2441,25 @@ public sealed partial class DemoSessionApi : IDisposable
             ruleType => _playerStore.LoadRank(state.PlayerId, ruleType ?? RegularBattleRuleType).Rank,
             EquippedHonorId(state));
 
-    // The row key the client matches against GuardianParameter.rank: one ladder rank per ROOM (the lowest stored
-    // rank among its humans, see GuardianBalance.RoomRank) offset per guardian profile, so every client of the room
-    // receives the same key. An unknown room (restart, no roster) falls back to the requester's own rank.
-    // Custom battles have no matchmaking roster and are unranked: rank C for everyone.
-    private int GuardianRankKey(SessionState state, int profile, int battleRuleType, string? battleId)
+    // guardianParameter.rank: the plain ladder rank (0..16) of the ROOM, the lowest stored rank among its humans (see
+    // GuardianBalance.RoomRank), so every client of the room receives the same value. The client shows it as the
+    // battle-start "Guardian Rank" league icon (thumbnail_league_<n>), so it must stay a real rank, never a composite
+    // key; the mode is told apart by the row's matchType = battle rule id. An unknown room (restart, no roster) falls
+    // back to the requester's own rank. Custom battles have no matchmaking roster and are unranked: rank C.
+    private int GuardianRoomRank(SessionState state, int battleRuleType, string? battleId)
     {
         int Load(long playerId) => _playerStore.LoadRank(playerId, battleRuleType).Rank;
         var rank = GuardianBalance.RankC;
         try
         {
-            if (battleId is null) rank = GuardianBalance.RankC;
-            else
+            if (battleId is not null)
             {
                 var roster = _matchmaking.GetRoomRoster(battleId).Select(p => (p.userId, p.kickerAiParameterId));
                 rank = GuardianBalance.RoomRank(roster, Load, Load(state.PlayerId));
             }
         }
         catch (Exception ex) { _logger.LogWarning("Guardian rank fallback to C for {UserId}: {Error}", state.UserId, ex.Message); }
-        return GuardianBalance.RowRankKey(profile, rank);
+        return rank;
     }
 
     private async Task<IResult?> HandleCustomBattleStartAsync(HttpContext context, SessionState state, byte[] key)
@@ -2490,7 +2492,7 @@ public sealed partial class DemoSessionApi : IDisposable
             }
 
             guardianId = GuardianBalance.ProfileFor(false, battleRuleType);
-            guardianRank = GuardianRankKey(state, guardianId, battleRuleType, null);
+            guardianRank = GuardianRoomRank(state, battleRuleType, null);
         }
         catch (Exception ex) when (ex is CryptographicException or JsonException or InvalidOperationException
                                    or KeyNotFoundException or FormatException)

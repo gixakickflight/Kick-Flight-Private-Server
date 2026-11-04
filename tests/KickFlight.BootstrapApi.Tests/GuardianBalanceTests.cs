@@ -34,41 +34,55 @@ public sealed class GuardianBalanceTests : IDisposable
     public void Scale_is_linear_above_rank_C(double baseValue, double pct, int rank, int expected) =>
         Assert.Equal(expected, GuardianBalance.Scale(baseValue, pct, rank));
 
-    [Fact]
-    public void Defaults_reproduce_the_previous_rank_C_rows_and_stay_flat()
-    {
-        var rows = Rows(GuardianBalance.BuildMasterJson(GuardianBalance.DefaultJson));
+    // Battle rules as the client posts them: (battle rule id, battleRuleType). Rule 3/4 = Rapid Ball, 2/8 = Flag Flight.
+    private static readonly (int RuleId, int RuleType)[] Rules = [(1, 1), (2, 2), (3, 3), (4, 3), (7, 1)];
 
-        Assert.Equal(3 * 17, rows.Count);
-        Assert.Equal((8000, 6000, 1), (rows[1].GetProperty("hp").GetInt32(), rows[1].GetProperty("attack").GetInt32(), rows[1].GetProperty("rank").GetInt32()));
-        Assert.Equal((3000, 6000), (rows[2].GetProperty("hp").GetInt32(), rows[2].GetProperty("attack").GetInt32()));
-        Assert.Equal((8000, 0), (rows[3].GetProperty("hp").GetInt32(), rows[3].GetProperty("attack").GetInt32()));
-        Assert.All(rows.Values.Where(r => r.GetProperty("id").GetInt32() / 1000 == 1), r => Assert.Equal(8000, r.GetProperty("hp").GetInt32()));
+    private static string Build(string balance) => GuardianBalance.BuildMasterJson(balance, Rules);
+
+    [Fact]
+    public void Defaults_reproduce_the_previous_hp_and_attack_per_rule_and_stay_flat()
+    {
+        var rows = Rows(Build(GuardianBalance.DefaultJson));
+
+        Assert.Equal(Rules.Length * 17, rows.Count);
+        // Crystal rules (type 1) = 8000/6000 at every rank, Rapid Ball rules (type 3) = 3000/6000.
+        foreach (var rank in Enumerable.Range(0, 17))
+        {
+            Assert.Equal((8000, 6000), (rows[GuardianBalance.RowId(1, rank)].GetProperty("hp").GetInt32(), rows[GuardianBalance.RowId(1, rank)].GetProperty("attack").GetInt32()));
+            Assert.Equal((8000, 6000), (rows[GuardianBalance.RowId(7, rank)].GetProperty("hp").GetInt32(), rows[GuardianBalance.RowId(7, rank)].GetProperty("attack").GetInt32()));
+            Assert.Equal((3000, 6000), (rows[GuardianBalance.RowId(3, rank)].GetProperty("hp").GetInt32(), rows[GuardianBalance.RowId(3, rank)].GetProperty("attack").GetInt32()));
+            Assert.Equal((3000, 6000), (rows[GuardianBalance.RowId(4, rank)].GetProperty("hp").GetInt32(), rows[GuardianBalance.RowId(4, rank)].GetProperty("attack").GetInt32()));
+        }
     }
 
     [Fact]
-    public void The_first_row_is_still_Crystal_rank_C_and_ids_and_rank_keys_are_unique()
+    public void Rows_carry_the_plain_ladder_rank_and_the_rule_id_the_client_predicate_matches()
     {
-        using var doc = JsonDocument.Parse(GuardianBalance.BuildMasterJson(GuardianBalance.DefaultJson));
+        using var doc = JsonDocument.Parse(Build(GuardianBalance.DefaultJson));
         var all = doc.RootElement.EnumerateArray().ToList();
 
-        Assert.Equal(1, all[0].GetProperty("id").GetInt32());
+        // The rank is what the battle-start UI turns into a league icon: always 0..16, never a composite key.
+        Assert.All(all, r => Assert.InRange(r.GetProperty("rank").GetInt32(), 0, 16));
+        // The client predicate: row.MatchType == BattleRuleId && row.Rank == GuardianRank must hit exactly one row.
+        foreach (var (ruleId, _) in Rules)
+            for (var rank = 0; rank <= 16; rank++)
+                Assert.Single(all, r => r.GetProperty("matchType").GetInt32() == ruleId && r.GetProperty("rank").GetInt32() == rank);
         Assert.Equal(all.Count, all.Select(r => r.GetProperty("id").GetInt32()).Distinct().Count());
-        Assert.Equal(all.Count, all.Select(r => r.GetProperty("rank").GetInt32()).Distinct().Count());
     }
 
     [Fact]
-    public void Percentages_scale_hp_and_attack_per_profile_and_rank_key()
+    public void Percentages_scale_hp_and_attack_per_profile_and_rank()
     {
-        var json = """[{"id":1,"matchType":1,"baseHp":8000,"hpPercentPerRank":10.0,"baseAttack":6000,"attackPercentPerRank":5.0}]""";
-        var rows = Rows(GuardianBalance.BuildMasterJson(json));
-        var s = rows[GuardianBalance.RowId(1, 7)];
+        var json = """[{"id":1,"matchType":1,"baseHp":8000,"hpPercentPerRank":10.0,"baseAttack":6000,"attackPercentPerRank":5.0},{"id":2,"matchType":1,"baseHp":3000,"hpPercentPerRank":2.0,"baseAttack":6000,"attackPercentPerRank":0.0}]""";
+        var rows = Rows(Build(json));
+        var crystalS = rows[GuardianBalance.RowId(1, 7)];
+        var ballS = rows[GuardianBalance.RowId(3, 7)];
 
-        Assert.Equal(12800, s.GetProperty("hp").GetInt32());
-        Assert.Equal(7800, s.GetProperty("attack").GetInt32());
-        Assert.Equal(7, s.GetProperty("rank").GetInt32());
-        Assert.Equal(107, GuardianBalance.RowRankKey(2, 7));
-        Assert.Equal(2, GuardianBalance.RowId(2, 1));
+        Assert.Equal(12800, crystalS.GetProperty("hp").GetInt32());
+        Assert.Equal(7800, crystalS.GetProperty("attack").GetInt32());
+        Assert.Equal(7, crystalS.GetProperty("rank").GetInt32());
+        Assert.Equal(3360, ballS.GetProperty("hp").GetInt32()); // 3000 * (1 + 2% * 6)
+        Assert.Equal(107, GuardianBalance.RowId(1, 7));
     }
 
     [Fact]
@@ -77,14 +91,14 @@ public sealed class GuardianBalanceTests : IDisposable
         var overrides = new MasterOverrides(_root, AppContext.BaseDirectory);
         var root = RepositoryPaths.FindRoot(AppContext.BaseDirectory);
 
-        var before = Rows(GuardianBalance.BuildMasterJson(overrides.Read(root, GuardianBalance.ConfigPath, GuardianBalance.DefaultJson)));
+        var before = Rows(Build(overrides.Read(root, GuardianBalance.ConfigPath, GuardianBalance.DefaultJson)));
         Assert.Equal(8000, before[GuardianBalance.RowId(1, 7)].GetProperty("hp").GetInt32());
 
         File.WriteAllText(Path.Combine(_root, "masters_guardian_balance.json"),
-            """[{"id":1,"matchType":1,"baseHp":10000,"hpPercentPerRank":20.0,"baseAttack":6000,"attackPercentPerRank":0.0}]""");
-        var after = Rows(GuardianBalance.BuildMasterJson(overrides.Read(root, GuardianBalance.ConfigPath, GuardianBalance.DefaultJson)));
+            """[{"id":1,"matchType":1,"baseHp":10000,"hpPercentPerRank":20.0,"baseAttack":6000,"attackPercentPerRank":0.0},{"id":2,"matchType":1,"baseHp":3000,"hpPercentPerRank":0.0,"baseAttack":6000,"attackPercentPerRank":0.0}]""");
+        var after = Rows(Build(overrides.Read(root, GuardianBalance.ConfigPath, GuardianBalance.DefaultJson)));
 
-        Assert.Equal(10000, after[1].GetProperty("hp").GetInt32());
+        Assert.Equal(10000, after[GuardianBalance.RowId(1, 1)].GetProperty("hp").GetInt32());
         Assert.Equal(12000, after[GuardianBalance.RowId(1, 2)].GetProperty("hp").GetInt32()); // C+
         Assert.Equal(22000, after[GuardianBalance.RowId(1, 7)].GetProperty("hp").GetInt32());
     }
@@ -94,7 +108,7 @@ public sealed class GuardianBalanceTests : IDisposable
     {
         var root = RepositoryPaths.FindRoot(AppContext.BaseDirectory);
         var file = File.ReadAllText(Path.Combine(root, GuardianBalance.ConfigPath));
-        Assert.Equal(GuardianBalance.BuildMasterJson(GuardianBalance.DefaultJson), GuardianBalance.BuildMasterJson(file));
+        Assert.Equal(Build(GuardianBalance.DefaultJson), Build(file));
     }
 }
 
@@ -111,13 +125,13 @@ public sealed class GuardianRoomRankTests
     }
 
     [Fact]
-    public void Every_member_gets_the_same_key_regardless_of_who_asks()
+    public void Every_member_gets_the_same_rank_regardless_of_who_asks()
     {
         var roster = new[] { ("1001", 0), ("1002", 0), ("1003", 0), ("900", 3) };
         var keys = new[] { 1001L, 1002L, 1003L }
-            .Select(asker => GuardianBalance.RowRankKey(GuardianBalance.BallProfile, GuardianBalance.RoomRank(roster, Load, Load(asker))))
+            .Select(asker => GuardianBalance.RoomRank(roster, Load, Load(asker)))
             .Distinct().ToList();
-        Assert.Equal([108], keys);
+        Assert.Equal([8], keys);
     }
 
     [Fact]
@@ -129,12 +143,14 @@ public sealed class GuardianRoomRankTests
     }
 
     [Fact]
-    public void Every_key_the_server_can_send_has_a_served_row()
+    public void Every_rank_the_server_can_send_has_a_served_row_for_every_rule()
     {
-        using var doc = JsonDocument.Parse(GuardianBalance.BuildMasterJson(GuardianBalance.DefaultJson));
-        var served = doc.RootElement.EnumerateArray().Select(r => r.GetProperty("rank").GetInt32()).ToHashSet();
-        foreach (var profile in new[] { 1, 2, 3 })
-            for (var rank = -5; rank <= 25; rank++)
-                Assert.Contains(GuardianBalance.RowRankKey(profile, rank), served);
+        var rules = new[] { (1, 1), (3, 3), (4, 3), (7, 1) };
+        using var doc = JsonDocument.Parse(GuardianBalance.BuildMasterJson(GuardianBalance.DefaultJson, rules));
+        var served = doc.RootElement.EnumerateArray()
+            .Select(r => (r.GetProperty("matchType").GetInt32(), r.GetProperty("rank").GetInt32())).ToHashSet();
+        foreach (var (ruleId, _) in rules)
+            for (var rank = GuardianBalance.MinRank; rank <= GuardianBalance.MaxRank; rank++)
+                Assert.Contains((ruleId, rank), served);
     }
 }

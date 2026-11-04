@@ -13,10 +13,13 @@ namespace KickFlight.BootstrapApi;
 ///
 /// Profiles: 1 = Crystal Scramble turret, 2 = Rapid Ball goal guardian, 3 = Gym mannequin.
 ///
-/// The client picks its row with a predicate on GuardianParameter.rank. To keep (profile, rank) unique under a
-/// rank-only comparison, row.rank is a key: (profile - 1) * 100 + ladderRank (profile 1 keeps the plain ladder
-/// rank). /battle/start sends the same key as guardianParameter.rank. Row ids stay stable: rank C of a profile
-/// keeps the profile id (1, 2, 3), every other rank is profile * 1000 + rank.
+/// The client picks its row with a patched predicate: row.MatchType == the controller's BattleRuleId AND
+/// row.Rank == GuardianRank. So rows are generated per (battle rule id, ladder rank): row.matchType holds the rule id
+/// (the profile follows the rule's battleRuleType: 3 = Rapid Ball goal guardian, otherwise Crystal turret) and
+/// row.rank is the plain ladder rank, because /battle/start sends that same plain rank (0..16) and the client also
+/// renders it as the "Guardian Rank" league icon at battle start. Row id = ruleId * 100 + rank.
+/// The Gym profile (3) is no longer selectable per battle (the client cannot tell it apart); its row stays editable
+/// but unused.
 /// </summary>
 public static class GuardianBalance
 {
@@ -45,11 +48,8 @@ public static class GuardianBalance
         return (int)Math.Max(0m, Math.Round(value, MidpointRounding.AwayFromZero));
     }
 
-    public static int RowRankKey(int profile, int rank) =>
-        (profile - 1) * 100 + Math.Clamp(rank, MinRank, MaxRank);
-
-    public static int RowId(int profile, int rank) =>
-        rank == RankC ? profile : profile * 1000 + rank;
+    public static int RowId(int battleRuleId, int rank) =>
+        battleRuleId * 100 + Math.Clamp(rank, MinRank, MaxRank);
 
     /// <summary>
     /// The one ladder rank every client of a room uses: the LOWEST stored rank among its human players. Bots are
@@ -67,29 +67,34 @@ public static class GuardianBalance
         return Math.Clamp(ranks.Count == 0 ? fallback : ranks.Min(), MinRank, MaxRank);
     }
 
-    /// <summary>Expands the balance rows into the GuardianParameter master JSON (rank C of profile 1 first).</summary>
-    public static string BuildMasterJson(string balanceJson)
+    /// <summary>
+    /// Expands the balance rows into the GuardianParameter master JSON: one row per (battle rule id, rank 0..16),
+    /// matchType = rule id, rank = ladder rank, hp/attack from the profile of the rule's battleRuleType.
+    /// </summary>
+    public static string BuildMasterJson(string balanceJson, IEnumerable<(int RuleId, int RuleType)> rules)
     {
-        var rows = new List<Dictionary<string, object>>();
+        var profiles = new Dictionary<int, (double Hp, double HpPct, double Atk, double AtkPct)>();
         using var document = JsonDocument.Parse(balanceJson);
-        foreach (var profile in document.RootElement.EnumerateArray().OrderBy(p => p.GetProperty("id").GetInt32()))
+        foreach (var profile in document.RootElement.EnumerateArray())
         {
-            var id = profile.GetProperty("id").GetInt32();
-            var matchType = profile.TryGetProperty("matchType", out var mt) ? mt.GetInt32() : 1;
-            var baseHp = profile.GetProperty("baseHp").GetDouble();
-            var hpPct = profile.GetProperty("hpPercentPerRank").GetDouble();
-            var baseAtk = profile.GetProperty("baseAttack").GetDouble();
-            var atkPct = profile.GetProperty("attackPercentPerRank").GetDouble();
-            var ranks = new[] { RankC }.Concat(Enumerable.Range(MinRank, MaxRank - MinRank + 1).Where(r => r != RankC));
-            foreach (var rank in ranks)
+            profiles[profile.GetProperty("id").GetInt32()] = (
+                profile.GetProperty("baseHp").GetDouble(), profile.GetProperty("hpPercentPerRank").GetDouble(),
+                profile.GetProperty("baseAttack").GetDouble(), profile.GetProperty("attackPercentPerRank").GetDouble());
+        }
+
+        var rows = new List<Dictionary<string, object>>();
+        foreach (var (ruleId, ruleType) in rules.OrderBy(r => r.RuleId))
+        {
+            if (!profiles.TryGetValue(ProfileFor(false, ruleType), out var p)) continue;
+            for (var rank = MinRank; rank <= MaxRank; rank++)
             {
                 rows.Add(new Dictionary<string, object>
                 {
-                    ["id"] = RowId(id, rank),
-                    ["matchType"] = matchType,
-                    ["rank"] = RowRankKey(id, rank),
-                    ["hp"] = Scale(baseHp, hpPct, rank),
-                    ["attack"] = Scale(baseAtk, atkPct, rank)
+                    ["id"] = RowId(ruleId, rank),
+                    ["matchType"] = ruleId,
+                    ["rank"] = rank,
+                    ["hp"] = Scale(p.Hp, p.HpPct, rank),
+                    ["attack"] = Scale(p.Atk, p.AtkPct, rank)
                 });
             }
         }

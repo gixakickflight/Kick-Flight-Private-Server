@@ -1153,23 +1153,28 @@ NATIVE_PATCHES: dict[str, list[dict[str, object]]] = {
         },
         {
             # The stock GuardianParameter row predicate is `row.Rank == GuardianRank && row.MatchType ==
-            # ArchiveData.BattleRuleInfo.MatchType`; BattleRuleInfo is null at that point. The server sends the row key
-            # as /battle/start guardianParameter.rank (CallbackBattleStartSuccess stores it with set_GuardianRank, field
-            # MatchingControllerBase+0x24) and serves one GuardianParameter row per key (GuardianBalance.cs), so the
-            # predicate only compares ranks: `return row->Rank(+0x18) == this->GuardianRank(+0x24)` (a leaf: no bl, no
-            # x30 use, no flags assumed). Find returns null (the caller's cbz skips hp/attack) when no row matches.
-            # The 8-byte entry stub only branches to the predicate (the body at 0x13ED89C is the bat-bomb cave host).
-            "description": "NormalMatchingController.<CallbackBattleStartSuccess>b__46_0 (GuardianParameter predicate) entry -> b rank predicate cave (0x13ED958)",
+            # ArchiveData.BattleRuleInfo.MatchType`; BattleRuleInfo is null at that point. /battle/start sends the plain
+            # ladder rank (0..16: the same number the battle-start "Guardian Rank" widget turns into a league icon,
+            # thumbnail_league_<n>) as guardianParameter.rank (stored by set_GuardianRank, MatchingControllerBase+0x24).
+            # The mode is told apart by the controller's own BattleRuleId (NormalMatchingController+0x38, the rule the
+            # client posted to /battle/start): the server serves one GuardianParameter row per (battle rule id, rank)
+            # with row.MatchType = rule id (GuardianBalance.cs). Predicate: row.MatchType(+0x14)==this.BattleRuleId &&
+            # row.Rank(+0x18)==this.GuardianRank, as one 64-bit compare of the adjacent row fields. A leaf: no bl, no
+            # x30/stack use; only x8-x10 and the flags are clobbered. Find returns null (the caller's cbz skips
+            # hp/attack) when no row matches.
+            # The 8-byte entry stub loads GuardianRank (x8) and branches to the cave (the body at 0x13ED89C is the
+            # bat-bomb cave host).
+            "description": "NormalMatchingController.<CallbackBattleStartSuccess>b__46_0 (GuardianParameter predicate) entry -> ldr w8,[x0,#0x24]; b rank+rule predicate cave (0x13ED958)",
             "offset": 0x13ED894,
             "expected": bytes.fromhex("f50f1df8f44f01a9"),
-            "replacement": bytes.fromhex("310000141f2003d5"),  # b #0x13ED958; nop
+            "replacement": bytes.fromhex("08244 0b930000014".replace(" ", "")),  # ldr w8,[x0,#0x24]; b #0x13ED958
         },
         {
-            "description": "cave: GuardianParameter predicate = (row.Rank == this.GuardianRank) (dead tail of NormalMatchingController.<CallbackBattleStartSuccess>b__46_0; 20 B)",
+            "description": "cave: GuardianParameter predicate = (row.MatchType == this.BattleRuleId && row.Rank == this.GuardianRank) (dead tail of NormalMatchingController.<CallbackBattleStartSuccess>b__46_0; 24 B)",
             "offset": 0x13ED958,
-            "expected": bytes.fromhex("e1031faa1f1d7894f40300aa540000b5219af897"),
-            # ldr w8,[x0,#0x24]; ldr w9,[x1,#0x18]; cmp w9,w8; cset w0,eq; ret
-            "replacement": bytes.fromhex("082440b9291840b93f01086be0179f1ac0035fd6"),
+            "expected": bytes.fromhex("e1031faa1f1d7894f40300aa540000b5219af897e00314aa"),
+            # ldur x9,[x1,#0x14]; ldr w10,[x0,#0x38]; eor x9,x9,x8,lsl #32; cmp x9,x10; cset w0,eq; ret
+            "replacement": bytes.fromhex("294041f80a3840b9298108ca3f010aebe0179f1ac0035fd6"),
         },
         {
             "description": "bypass null button crash in TitleView.SetAllButtonActive",
