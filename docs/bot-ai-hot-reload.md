@@ -1,7 +1,7 @@
 # Bot AI Hot-Reload System & Operations Guide
 
 ## Overview
-The bot AI hot-reload system exposes native bot AI behavioral parameters (motivation weights, deposit thresholds, dash/skill intervals, lock-on) via a server-managed JSON configuration file (`config/bot_ai_profiles.json`) validated against `config/bot_ai_profiles.schema.json`. It replaces hardcoded policy dictionaries in `KickFlight.BootstrapApi` with zero-downtime, thread-safe dynamic configuration without requiring APK rebuilds.
+The bot AI hot-reload system exposes native bot AI behavioral parameters (motivation weights, deposit thresholds, dash/skill intervals, lock-on) via the otomo config namespace `kf.bot_ai_profiles` (see section 2; validated by `BotAiConfigurationValidator`, mirrored by `config/bot_ai_profiles.schema.json`). It replaces hardcoded policy dictionaries in `KickFlight.BootstrapApi` with zero-downtime, thread-safe dynamic configuration without requiring APK rebuilds.
 
 ---
 
@@ -17,43 +17,38 @@ The bot AI hot-reload system exposes native bot AI behavioral parameters (motiva
 
 ---
 
-## 2. Configuration & Persistence Architecture
+## 2. Where the tuning lives: otomo
 
-- **Durable Override Path:** `.local/masters-overrides/bot_ai_profiles.json` (resolves relative to repo root, `AppContext.BaseDirectory`, content root, or `KF_BOT_AI_PROFILES_PATH`).
-  - Survives CI rsync deployments because `.local/` is excluded from deploy rsync and mounted into the container at `../.local:/srv/repo/.local:ro`.
-  - Is safely ignored by generic master table loaders (`MasterOverrides.cs`) and WebUI table exports because it does not match the `masters_*.json` naming convention.
-- **Seed Fallback Path:** `config/bot_ai_profiles.json` (resolves relative to repo root, `AppContext.BaseDirectory`, content root, or `KF_BOT_AI_SEED_PATH`).
-  - Tracked in git, ships baseline defaults, and is **never** overwritten by default balance panel operations.
-- **Startup Resolution Hierarchy (`BotAiProfileProvider`):**
-  1. Valid durable override file (`.local/masters-overrides/bot_ai_profiles.json` or `KF_BOT_AI_PROFILES_PATH`).
-  2. Valid seed fallback file (`config/bot_ai_profiles.json` or `KF_BOT_AI_SEED_PATH`).
-  3. Builtin hardcoded defaults (`BotAiDefaults`).
-- **Validation Rules (`BotAiConfigurationValidator`):**
-  - **Strict Schema:** Unknown/unmapped fields at root, profile, motivations, or interval objects are rejected.
-  - **3x13 Coverage:** All 3 modes and 13 profile keys must be present (exactly 39 entries).
-  - **Identity:** `kickerId` must strictly match the assigned profile kicker (e.g. carrier = 8, Owlbert = 5, Yuyan = 10).
-  - **Rank:** Must equal `13`.
-  - **Motivations:** Clamped to `[0..100]`.
-  - **Score to Deposit:** Integer $\ge 1$.
-  - **Low HP Threshold:** Finite float $\in [0.0..1.0]$.
-  - **Intervals:** Finite positive floats ($> 0.0$).
-  - **Heuristic Fields:** Extra heuristic fields present in existing masters (`negativeCorrection`, `positiveCorrection`, `minMeasureAccuracy`, `maxMeasureAccuracy`, `changeAttributeInterval`) are automatically preserved from base row templates during master generation.
+Bot AI tuning is the otomo config namespace **`kf.bot_ai_profiles`**. Operators edit it in otomo's admin UI and publish a
+release; the adapter follows the release, the same way it follows `session.rank` and the `kf.masters.*` tables. The
+tenant's copy of the document and its schema are `kf/tenant/documents/` and `kf/tenant/documents-schemas/` in the
+`kf-otomo` fork (publish with the tenant publisher to the `staging` channel). The document's shape is exactly the
+old file's: `{"$schema", "version", "profiles": [...]}`.
+
+- **Adapter setting:** the namespace must be listed in `Otomo:Masters:Documents` (`appsettings.json` has it). A server
+  that sets `Otomo__*` by environment only (kf-staging, content root `/srv/repo`, no appsettings) adds
+  `Otomo__Masters__Documents__1: kf.bot_ai_profiles` (index 1 after `session.rank` at 0). If the release does not
+  carry the namespace, `OtomoMasters` refuses to start, as it does for `session.rank`.
+- **Reload:** `BotAiProfileProvider` subscribes to `OtomoMasters.Updated`. A release whose document differs from the
+  last one seen is validated and swapped in atomically; a release that did not change it does nothing.
+- **Validation** (`BotAiConfigurationValidator`, unchanged): strict fields, 3 modes by 13 archetypes or 14 kickers,
+  `kickerId` matching the profile, rank 13, motivations 0..100, `scoreToDeposit` >= 1, low HP threshold 0..1, intervals
+  finite and positive. A document that fails keeps the **last good profiles** and logs **Error**. If there is no good
+  document at startup, the provider serves the hardcoded `BotAiDefaults` and logs Error.
+- **Local runs only:** with `Otomo:Masters` disabled there is no release, so the provider reads `config/bot_ai_profiles.json`
+  (or `KF_BOT_AI_PROFILES_PATH`) once at startup, and `Reload()` re-reads it. There is no file watcher, no durable
+  override directory and no seed hierarchy; the file and `config/bot_ai_profiles.schema.json` stay in the repository only as
+  that fallback and as the schema the validator mirrors.
+- **Removed:** the `FileSystemWatcher`, `.local/masters-overrides/bot_ai_profiles.json`, `KF_BOT_AI_SEED_PATH`, and the balance
+  tool's `/api/bot-ai/profiles` routes. The tool (`tools/balance/`) still edits the master tables; it no longer touches bot AI.
 
 ---
 
-## 3. Hot-Reload & Read-Only Mount Support
+## 3. Fault tolerance
 
-- **Target Hot-Reload:** A `FileSystemWatcher` monitors the durable override target (`.local/masters-overrides/bot_ai_profiles.json`) for `Changed`, `Created`, `Renamed`, and `Deleted` events with a 250ms debounce window.
-- **Missing Parent Directories & Read-Only Layout:**
-  - Even if the durable file or its directory (`.local/masters-overrides`) does not exist at startup, the provider watches the target.
-  - Because container layouts mount `.local` read-only (`../.local:/srv/repo/.local:ro`), the API never attempts to create parent directories.
-  - When target directories are absent, the watcher monitors the nearest existing ancestor directory with `IncludeSubdirectories = true` and event filtering.
-  - When the external host or balance panel creates `.local/masters-overrides/bot_ai_profiles.json`, the watcher detects the creation and automatically reloads.
-- **Atomic Swap:** Successfully validated configurations are compiled into an immutable `BotAiProfileSnapshot` backed by `FrozenDictionary` and atomically swapped via reference exchange.
-- **Fault Tolerance:**
-  - **Startup Missing:** Falls back to seed file, then builtin hardcoded defaults (`BotAiDefaults`), logging appropriate diagnostics.
-  - **Reload Invalid/Deleted:** Retains the last active valid snapshot without downtime or crash, logging an error.
-  - **Atomic Renames:** Supported by watching creation, modification, rename, and directory events.
+- **Reload invalid:** the last active snapshot keeps serving; the validation errors are logged at Error.
+- **Release without the namespace:** `OtomoMasters` rejects the whole bundle and the server keeps what it had.
+- **Atomic swap:** a valid document is compiled into an immutable `BotAiProfileSnapshot` (`FrozenDictionary`) and swapped by reference.
 
 ---
 

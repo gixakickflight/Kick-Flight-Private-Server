@@ -65,6 +65,17 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
     // The document the bundle carries. A test can replace it to prove the adapter reads thresholds from the release.
     public string LadderDocument { get; set; } = DefaultLadderDocument();
 
+    // The kf.bot_ai_profiles document the release carries: the tenant fork's own document, copied in as
+    // Fixtures/kf.bot_ai_profiles.json. A test replaces it to publish "a new release"; null leaves it out of the bundle.
+    public string? BotAiDocument { get; set; } = DefaultBotAiDocument();
+
+    // The release id the bundle names. A test that publishes sets a new one, as otomo would.
+    public string Release { get; set; } = "test-release";
+
+    public static string DefaultBotAiDocument() => File.ReadAllText(Path.Combine(
+        KickFlight.BootstrapApi.RepositoryPaths.FindRoot(AppContext.BaseDirectory),
+        "tests", "KickFlight.BootstrapApi.Tests", "Fixtures", "kf.bot_ai_profiles.json"));
+
     // Per account, so a test that breaks one player's rank service does not break the tests running beside it: the
     // award for this player answers 503 and applies nothing (the call is still logged), and the rank reads for this
     // player (player plane and internal) answer 503.
@@ -496,8 +507,9 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
             {
                 void Add(string name, string text) => tar.WriteEntry(new PaxTarEntry(TarEntryType.RegularFile, name)
                     { DataStream = new MemoryStream(Encoding.UTF8.GetBytes(text)) });
-                Add("manifest.json", "{\"release\":\"test-release\"}");
+                Add("manifest.json", "{\"release\":\"" + Release + "\"}");
                 Add("config/session.rank.json", LadderDocument);
+                if (BotAiDocument is { } botAi) Add("config/kf.bot_ai_profiles.json", botAi);
                 // The tenant's staging release carries every master table as kf.masters.<table> = {"rows": [...]}. The
                 // fake serves the repository's own config/masters_*.json files in that envelope, so a host that follows
                 // it serves what the files hold unless a test changes a table here (ReplaceMasterRows).
@@ -505,7 +517,7 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
             }
             var bytes = buffer.ToArray();
             context.Response.Headers["Digest"] = "sha-256=" + Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
-            context.Response.Headers["X-Otomo-Release"] = "test-release";
+            context.Response.Headers["X-Otomo-Release"] = Release;
             context.Response.Headers["X-Otomo-Channel"] = channel;
             return Results.Bytes(bytes, "application/gzip");
         });

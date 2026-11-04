@@ -1,4 +1,7 @@
 # Balance WebUI (`tools/balance/`)
+> **Bot AI profiles are not edited here any more.** They are the otomo config namespace `kf.bot_ai_profiles`, edited in
+> otomo's admin UI (see `docs/bot-ai-hot-reload.md`). The `/api/bot-ai/profiles` routes and the Bot AI tab button were
+> removed; this tool still edits the master tables.
 
 A small local web tool to edit the Kick-Flight combat master tables (`masters_*.json`) per kicker and
 per disc, with the kicker/disc icon, name and (discs) description next to the numbers, plus

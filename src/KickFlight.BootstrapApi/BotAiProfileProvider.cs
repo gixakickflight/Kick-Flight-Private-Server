@@ -4,173 +4,72 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
+using KickFlight.BootstrapApi.Otomo;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
+/// <summary>
+/// Bot AI tuning. It is game data an operator edits in otomo's admin UI as the published config namespace
+/// <c>kf.bot_ai_profiles</c>; this provider follows the release through <see cref="OtomoMasters"/> (the namespace must be
+/// listed in Otomo:Masters:Documents) and swaps in the new profiles when the release changes, the way the BattleRank
+/// master follows <c>session.rank</c>. A document that fails validation is logged at Error and the last good profiles
+/// keep serving.
+/// </summary>
 public sealed class BotAiProfileProvider : IBotAiProfileProvider
 {
+    public const string Namespace = "kf.bot_ai_profiles";
+
+    // Local runs only (Otomo:Masters disabled): the tracked file, or this path.
     public const string ConfigPathEnvVar = "KF_BOT_AI_PROFILES_PATH";
-    public const string SeedPathEnvVar = "KF_BOT_AI_SEED_PATH";
-    public const string DefaultRelativeDurableDir = ".local/masters-overrides";
-    public const string DefaultRelativeSeedDir = "config";
     public const string ConfigFileName = "bot_ai_profiles.json";
-    public const int DefaultDebounceMilliseconds = 250;
 
     private readonly ILogger<BotAiProfileProvider> _logger;
-    private readonly string _resolvedDurablePath;
-    private readonly string? _resolvedSeedPath;
-    private readonly string _targetDirectory;
-    private readonly string _targetFileName;
-    private readonly bool _targetDirectoryExistedAtStart;
-    private readonly FileSystemWatcher? _watcher;
-    private readonly Timer _debounceTimer;
+    private readonly OtomoMasters? _masters;
+    private readonly string _filePath;
     private readonly object _reloadLock = new();
 
     private BotAiProfileSnapshot _currentSnapshot;
+    private string? _lastDocument;
     private bool _isUsingHardcodedFallback;
     private bool _disposed;
 
     public BotAiProfileSnapshot CurrentSnapshot => Volatile.Read(ref _currentSnapshot);
-    public string ResolvedConfigPath => _resolvedDurablePath;
-    public string? ResolvedSeedPath => _resolvedSeedPath;
+    public string Source => CurrentSnapshot.SourcePath;
     public bool IsUsingHardcodedFallback => _isUsingHardcodedFallback;
 
     public event Action<BotAiProfileSnapshot>? ProfilesReloaded;
 
+    /// <param name="masters">The release client. When it is enabled the profiles come from the release; otherwise (a
+    /// local run with no otomo) from the file.</param>
     public BotAiProfileProvider(
+        OtomoMasters? masters = null,
         IWebHostEnvironment? environment = null,
         ILogger<BotAiProfileProvider>? logger = null,
         string? configPath = null,
-        string? contentRoot = null,
-        bool enableWatcher = true,
-        int debounceMs = DefaultDebounceMilliseconds,
-        string? seedPath = null)
+        string? contentRoot = null)
     {
         _logger = logger ?? NullLogger<BotAiProfileProvider>.Instance;
-        var effectiveContentRoot = contentRoot ?? environment?.ContentRootPath;
+        _masters = masters is { Enabled: true } ? masters : null;
+        _filePath = ResolveConfigPath(configPath, contentRoot ?? environment?.ContentRootPath);
 
-        _resolvedDurablePath = ResolveDurablePath(configPath, effectiveContentRoot);
+        _currentSnapshot = BotAiDefaults.CreateDefaultSnapshot(_masters is null ? _filePath : "hardcoded-defaults");
+        _isUsingHardcodedFallback = true;
 
-        // When configPath is passed explicitly via constructor parameter (e.g. in targeted tests),
-        // only use an explicit seedPath. In server mode (configPath is null), resolve seed automatically.
-        if (!string.IsNullOrWhiteSpace(configPath))
+        if (_masters is not null)
         {
-            _resolvedSeedPath = !string.IsNullOrWhiteSpace(seedPath)
-                ? (Path.IsPathRooted(seedPath) ? Path.GetFullPath(seedPath) : Path.GetFullPath(Path.Combine(ResolveBaseRoot(effectiveContentRoot), seedPath)))
-                : null;
-        }
-        else
-        {
-            _resolvedSeedPath = ResolveSeedPath(seedPath, effectiveContentRoot);
+            _masters.Updated += OnReleaseUpdated;
         }
 
-        _targetDirectory = Path.GetFullPath(Path.GetDirectoryName(_resolvedDurablePath) ?? AppContext.BaseDirectory);
-        _targetFileName = Path.GetFileName(_resolvedDurablePath);
-        _targetDirectoryExistedAtStart = Directory.Exists(_targetDirectory);
-
-        _currentSnapshot = null!;
-        _debounceTimer = new Timer(OnDebounceElapsed, null, Timeout.Infinite, Timeout.Infinite);
-
-        // Initial load hierarchy:
-        // 1. Valid durable override (.local/masters-overrides/bot_ai_profiles.json)
-        // 2. Valid seed fallback (config/bot_ai_profiles.json)
-        // 3. Builtin hardcoded defaults (BotAiDefaults)
-        bool loaded = false;
-        if (File.Exists(_resolvedDurablePath))
+        if (_masters is not null && _masters.Source == "none")
         {
-            loaded = TryLoadFromDisk(_resolvedDurablePath, isInitial: true, out var overrideSnapshot);
-            if (loaded && overrideSnapshot is not null)
-            {
-                _currentSnapshot = overrideSnapshot;
-                _isUsingHardcodedFallback = false;
-                _logger.LogInformation(
-                    "Bot AI profiles successfully loaded on startup from durable override (version {Version}, {Count} policies) at '{Path}'.",
-                    overrideSnapshot.Version, overrideSnapshot.AllPolicies.Count, _resolvedDurablePath);
-            }
+            // Built before the first fetch: OtomoMasters raises Updated when it has the release, and that loads the profiles.
+            _logger.LogInformation("Bot AI profiles: waiting for the first {Namespace} release; the hardcoded defaults serve until then.", Namespace);
         }
-
-        if (!loaded && _resolvedSeedPath is not null && File.Exists(_resolvedSeedPath))
+        else if (!TryApply(force: true, out _))
         {
-            loaded = TryLoadFromDisk(_resolvedSeedPath, isInitial: true, out var seedSnapshot);
-            if (loaded && seedSnapshot is not null)
-            {
-                _currentSnapshot = seedSnapshot;
-                _isUsingHardcodedFallback = false;
-                _logger.LogInformation(
-                    "Bot AI profiles successfully loaded on startup from seed fallback (version {Version}, {Count} policies) at '{Path}'. Target durable path is '{DurablePath}'.",
-                    seedSnapshot.Version, seedSnapshot.AllPolicies.Count, _resolvedSeedPath, _resolvedDurablePath);
-            }
-        }
-
-        if (!loaded)
-        {
-            _currentSnapshot = BotAiDefaults.CreateDefaultSnapshot(_resolvedDurablePath);
-            _isUsingHardcodedFallback = true;
-            _logger.LogWarning(
-                "Bot AI configuration at durable '{DurablePath}' and seed '{SeedPath}' was missing or invalid on startup. Initialized with hardcoded defaults.",
-                _resolvedDurablePath, _resolvedSeedPath ?? "(none)");
-        }
-
-        // Initialize file watcher targeting durable path (even if absent).
-        // Never requires write access to create directories if missing (supports read-only mounts).
-        if (enableWatcher)
-        {
-            try
-            {
-                string watchRoot;
-                bool includeSubdirs;
-                string filter;
-
-                if (_targetDirectoryExistedAtStart)
-                {
-                    watchRoot = _targetDirectory;
-                    includeSubdirs = false;
-                    filter = _targetFileName;
-                }
-                else
-                {
-                    // Find nearest existing ancestor directory
-                    var cur = new DirectoryInfo(_targetDirectory);
-                    while (cur != null && !cur.Exists)
-                    {
-                        cur = cur.Parent;
-                    }
-
-                    if (cur != null && cur.Exists)
-                    {
-                        watchRoot = cur.FullName;
-                        includeSubdirs = true;
-                        filter = "*";
-                    }
-                    else
-                    {
-                        watchRoot = effectiveContentRoot ?? AppContext.BaseDirectory;
-                        includeSubdirs = true;
-                        filter = "*";
-                    }
-                }
-
-                if (Directory.Exists(watchRoot))
-                {
-                    _watcher = new FileSystemWatcher(watchRoot)
-                    {
-                        Filter = filter,
-                        NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.Size | NotifyFilters.CreationTime,
-                        IncludeSubdirectories = includeSubdirs,
-                        EnableRaisingEvents = true
-                    };
-
-                    _watcher.Changed += OnFileSystemEvent;
-                    _watcher.Created += OnFileSystemEvent;
-                    _watcher.Deleted += OnFileSystemEvent;
-                    _watcher.Renamed += OnFileRenamed;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to initialize FileSystemWatcher for '{Path}'. Hot reload via filesystem events may be unavailable.", _resolvedDurablePath);
-            }
+            _logger.LogWarning("Bot AI profiles could not be loaded from {Source} on startup; serving the hardcoded defaults.",
+                _masters is null ? _filePath : Namespace);
         }
     }
 
@@ -234,234 +133,102 @@ public sealed class BotAiProfileProvider : IBotAiProfileProvider
         return AppContext.BaseDirectory;
     }
 
-    public static string ResolveDurablePath(string? explicitPath, string? contentRoot)
+    public static string ResolveConfigPath(string? explicitPath, string? contentRoot)
     {
-        if (!string.IsNullOrWhiteSpace(explicitPath))
-        {
-            return Path.IsPathRooted(explicitPath)
-                ? Path.GetFullPath(explicitPath)
-                : Path.GetFullPath(Path.Combine(ResolveBaseRoot(contentRoot), explicitPath));
-        }
-
-        var envPath = Environment.GetEnvironmentVariable(ConfigPathEnvVar);
-        if (!string.IsNullOrWhiteSpace(envPath))
-        {
-            return Path.IsPathRooted(envPath)
-                ? Path.GetFullPath(envPath)
-                : Path.GetFullPath(Path.Combine(ResolveBaseRoot(contentRoot), envPath));
-        }
-
+        var path = !string.IsNullOrWhiteSpace(explicitPath) ? explicitPath : Environment.GetEnvironmentVariable(ConfigPathEnvVar);
         var root = ResolveBaseRoot(contentRoot);
-        return Path.GetFullPath(Path.Combine(root, ".local", "masters-overrides", ConfigFileName));
+        return string.IsNullOrWhiteSpace(path)
+            ? Path.GetFullPath(Path.Combine(root, "config", ConfigFileName))
+            : Path.IsPathRooted(path) ? Path.GetFullPath(path) : Path.GetFullPath(Path.Combine(root, path));
     }
 
-    public static string? ResolveSeedPath(string? explicitSeedPath, string? contentRoot)
+    // The release moved. A release that did not touch this document is the common case, and it must not rebuild the
+    // KickerAiParameter master (and so change the client's master version) for nothing.
+    private void OnReleaseUpdated() => TryApply(force: false, out _);
+
+    public bool Reload() => TryApply(force: true, out _);
+
+    // Reads the current document, validates it and swaps the snapshot. Any failure leaves the snapshot as it was.
+    private bool TryApply(bool force, out BotAiProfileSnapshot? applied)
     {
-        if (!string.IsNullOrWhiteSpace(explicitSeedPath))
-        {
-            return Path.IsPathRooted(explicitSeedPath)
-                ? Path.GetFullPath(explicitSeedPath)
-                : Path.GetFullPath(Path.Combine(ResolveBaseRoot(contentRoot), explicitSeedPath));
-        }
-
-        var envSeed = Environment.GetEnvironmentVariable(SeedPathEnvVar);
-        if (!string.IsNullOrWhiteSpace(envSeed))
-        {
-            return Path.IsPathRooted(envSeed)
-                ? Path.GetFullPath(envSeed)
-                : Path.GetFullPath(Path.Combine(ResolveBaseRoot(contentRoot), envSeed));
-        }
-
-        var root = ResolveBaseRoot(contentRoot);
-        var inConfig = Path.Combine(root, "config", ConfigFileName);
-        if (File.Exists(inConfig)) return Path.GetFullPath(inConfig);
-
-        var inRoot = Path.Combine(root, ConfigFileName);
-        if (File.Exists(inRoot)) return Path.GetFullPath(inRoot);
-
-        return Path.GetFullPath(inConfig);
-    }
-
-    public static string ResolvePath(string? explicitPath, string? contentRoot) =>
-        ResolveDurablePath(explicitPath, contentRoot);
-
-    private bool IsRelevantEvent(string? fullPath, string? name)
-    {
-        if (string.IsNullOrWhiteSpace(fullPath)) return false;
-
-        try
-        {
-            var fullNorm = Path.GetFullPath(fullPath);
-            if (string.Equals(fullNorm, _resolvedDurablePath, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            var fileName = Path.GetFileName(fullPath);
-            if (string.Equals(fileName, _targetFileName, StringComparison.OrdinalIgnoreCase))
-            {
-                var dir = Path.GetDirectoryName(fullNorm);
-                if (string.Equals(dir, _targetDirectory, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-
-            if (!_targetDirectoryExistedAtStart && File.Exists(_resolvedDurablePath))
-            {
-                if (fullNorm.StartsWith(_targetDirectory, StringComparison.OrdinalIgnoreCase) ||
-                    _targetDirectory.StartsWith(fullNorm, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-        }
-        catch
-        {
-            // Ignore path evaluation errors
-        }
-
-        return false;
-    }
-
-    private void OnFileSystemEvent(object sender, FileSystemEventArgs e)
-    {
-        try
-        {
-            if (IsRelevantEvent(e.FullPath, e.Name))
-            {
-                ScheduleDebounce();
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Error checking filesystem event on '{Path}'.", e.FullPath);
-        }
-    }
-
-    private void OnFileRenamed(object sender, RenamedEventArgs e)
-    {
-        try
-        {
-            if (IsRelevantEvent(e.FullPath, e.Name) || IsRelevantEvent(e.OldFullPath, e.OldName))
-            {
-                ScheduleDebounce();
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Error checking rename event on '{Path}'.", e.FullPath);
-        }
-    }
-
-    private void ScheduleDebounce()
-    {
-        if (_disposed) return;
-        try
-        {
-            _debounceTimer.Change(DefaultDebounceMilliseconds, Timeout.Infinite);
-        }
-        catch (ObjectDisposedException) { }
-    }
-
-    private void OnDebounceElapsed(object? state)
-    {
-        if (_disposed) return;
-        Reload();
-    }
-
-    public bool Reload()
-    {
+        applied = null;
         lock (_reloadLock)
         {
             if (_disposed) return false;
 
-            var loaded = TryLoadFromDisk(_resolvedDurablePath, isInitial: false, out var snapshot);
-            if (loaded && snapshot is not null)
+            string source;
+            string? content;
+            if (_masters is not null)
             {
-                Interlocked.Exchange(ref _currentSnapshot, snapshot);
-                _isUsingHardcodedFallback = false;
-                _logger.LogInformation(
-                    "Bot AI profiles hot-reloaded successfully from durable override (version {Version}, {Count} policies) from '{Path}'.",
-                    snapshot.Version, snapshot.AllPolicies.Count, _resolvedDurablePath);
-
-                if (ProfilesReloaded is not null)
+                source = $"otomo:{Namespace}@{_masters.Source}";
+                if (!_masters.TryGetDocument(Namespace, out content))
                 {
-                    foreach (Action<BotAiProfileSnapshot> handler in ProfilesReloaded.GetInvocationList())
-                    {
-                        try
-                        {
-                            handler(snapshot);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "Error occurred in ProfilesReloaded handler '{HandlerMethod}'.", handler.Method.Name);
-                        }
-                    }
+                    _logger.LogError(
+                        "Bot AI profiles: the release carries no {Namespace} document. Add it to Otomo:Masters:Documents and publish it; keeping the current profiles ({Current}).",
+                        Namespace, CurrentSnapshot.SourcePath);
+                    return false;
                 }
-
-                return true;
+            }
+            else
+            {
+                // Local runs only: with Otomo:Masters disabled there is no release, so the tracked file is read once.
+                source = _filePath;
+                content = ReadFile(_filePath);
+                if (content is null) return false;
             }
 
-            // Reload failed, file deleted, or invalid: RETAIN active valid snapshot
-            _logger.LogWarning(
-                "Bot AI profiles reload failed or file deleted/invalid; retaining last active valid snapshot (version {Version}) from '{Path}'.",
-                CurrentSnapshot.Version, CurrentSnapshot.SourcePath);
-            return false;
+            if (!force && string.Equals(content, _lastDocument, StringComparison.Ordinal)) return false;
+            _lastDocument = content;
+
+            var validation = BotAiConfigurationValidator.Validate(content);
+            if (!validation.IsValid)
+            {
+                _logger.LogError(
+                    "Bot AI profiles from {Source} failed validation; keeping the last good profiles ({Current}). Errors: {Errors}",
+                    source, CurrentSnapshot.SourcePath, string.Join("; ", validation.Errors));
+                return false;
+            }
+
+            var snapshot = validation.ToSnapshot(source);
+            Interlocked.Exchange(ref _currentSnapshot, snapshot);
+            _isUsingHardcodedFallback = false;
+            applied = snapshot;
+            _logger.LogInformation("Bot AI profiles loaded from {Source} (version {Version}, {Count} policies).",
+                source, snapshot.Version, snapshot.AllPolicies.Count);
+
+            if (ProfilesReloaded is not null)
+            {
+                foreach (Action<BotAiProfileSnapshot> handler in ProfilesReloaded.GetInvocationList())
+                {
+                    try
+                    {
+                        handler(snapshot);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error occurred in ProfilesReloaded handler '{HandlerMethod}'.", handler.Method.Name);
+                    }
+                }
+            }
+            return true;
         }
     }
 
-    private bool TryLoadFromDisk(string path, bool isInitial, out BotAiProfileSnapshot? snapshot)
+    private string? ReadFile(string path)
     {
-        snapshot = null;
-
-        if (!File.Exists(path))
+        try
         {
-            if (!isInitial)
-            {
-                _logger.LogWarning("Bot AI configuration file '{Path}' does not exist on reload; retaining last valid snapshot.", path);
-            }
-            return false;
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var reader = new StreamReader(stream);
+            var text = reader.ReadToEnd();
+            if (!string.IsNullOrWhiteSpace(text)) return text;
+            _logger.LogError("Bot AI profiles file '{Path}' is empty.", path);
         }
-
-        string? content = null;
-        for (int attempt = 0; attempt < 3; attempt++)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            try
-            {
-                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                using var reader = new StreamReader(stream);
-                content = reader.ReadToEnd();
-                break;
-            }
-            catch (IOException) when (attempt < 2)
-            {
-                Thread.Sleep(20);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to read configuration file at '{Path}' (attempt {Attempt}).", path, attempt + 1);
-                return false;
-            }
+            _logger.LogError("Bot AI profiles file '{Path}' cannot be read: {Error}", path, ex.Message);
         }
-
-        if (string.IsNullOrWhiteSpace(content))
-        {
-            _logger.LogWarning("Configuration file at '{Path}' was empty.", path);
-            return false;
-        }
-
-        var validationResult = BotAiConfigurationValidator.Validate(content);
-        if (!validationResult.IsValid)
-        {
-            _logger.LogError(
-                "Bot AI configuration validation failed for '{Path}'. Errors: {Errors}",
-                path, string.Join("; ", validationResult.Errors));
-            return false;
-        }
-
-        snapshot = validationResult.ToSnapshot(path);
-        return true;
+        return null;
     }
 
     public AiRolePolicy? GetPolicy(int modeIndex, int profileIndex) => CurrentSnapshot.GetPolicy(modeIndex, profileIndex);
@@ -476,30 +243,7 @@ public sealed class BotAiProfileProvider : IBotAiProfileProvider
 
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
-
-        if (_watcher is not null)
-        {
-            try
-            {
-                _watcher.EnableRaisingEvents = false;
-                _watcher.Changed -= OnFileSystemEvent;
-                _watcher.Created -= OnFileSystemEvent;
-                _watcher.Deleted -= OnFileSystemEvent;
-                _watcher.Renamed -= OnFileRenamed;
-                _watcher.Dispose();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Error disposing FileSystemWatcher.");
-            }
-        }
-
-        try
-        {
-            _debounceTimer.Dispose();
-        }
-        catch { }
+        if (_masters is not null) _masters.Updated -= OnReleaseUpdated;
+        lock (_reloadLock) _disposed = true;
     }
 }

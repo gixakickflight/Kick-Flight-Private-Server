@@ -276,6 +276,7 @@ public static class OtomoTestEnvironment
         Environment.SetEnvironmentVariable("Otomo__Masters__Key", FakeOtomoSocial.ServiceKey);
         Environment.SetEnvironmentVariable("Otomo__Masters__Refresh", "00:00:00");
         Environment.SetEnvironmentVariable("Otomo__Masters__Documents__0", "session.rank");
+        Environment.SetEnvironmentVariable("Otomo__Masters__Documents__1", "kf.bot_ai_profiles");
         Environment.SetEnvironmentVariable("Otomo__Masters__CacheDir",
             Path.Combine(Path.GetTempPath(), "kf-test-masters-" + Guid.NewGuid().ToString("N")));
     }
