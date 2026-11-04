@@ -57,7 +57,8 @@ public sealed record SessionRankAward(
     [property: JsonPropertyName("rule_type")] string RuleType,
     [property: JsonPropertyName("points")] int Points,
     [property: JsonPropertyName("tier")] string? Tier,
-    [property: JsonPropertyName("applied")] bool Applied);
+    [property: JsonPropertyName("applied")] bool Applied,
+    [property: JsonPropertyName("outcome")] string? Outcome = null);
 
 // The adapter's only view of battle points.
 public interface IOtomoRank
@@ -71,8 +72,9 @@ public interface IOtomoRank
     // Another player's standing, on the internal plane, by otomo player id.
     Task<IReadOnlyList<SessionRankEntry>> GetPlayerAsync(string otomoPlayerId, CancellationToken cancellationToken);
 
-    // Awards `delta` session points to a player on one rule type. Idempotent by `key` per player and rule type, so a
-    // retry of the same battle can be sent again safely. Session floors points at 0.
-    Task<SessionRankAward> AwardAsync(string otomoPlayerId, string ruleType, int delta, string key,
+    // Awards a declared outcome ("win", "loss") to a player on one rule type; what it is worth, and the floor and ceiling
+    // it is clamped to, are the published session.rank policy. Idempotent by `key` per player and rule type, so a retry
+    // of the same battle can be sent again safely. An outcome the policy does not declare is refused (400 unknown_outcome).
+    Task<SessionRankAward> AwardAsync(string otomoPlayerId, string ruleType, string outcome, string key,
         CancellationToken cancellationToken);
 }

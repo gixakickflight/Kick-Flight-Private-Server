@@ -36,32 +36,42 @@ public sealed class OtomoRankTests
     }
 
     [Fact]
-    public async Task An_award_is_idempotent_by_key_and_session_floors_points_at_zero()
+    public async Task An_award_by_outcome_is_idempotent_by_key_and_session_clamps_at_the_floor_and_ceiling()
     {
+        // Stale: it awarded raw deltas (+50, -20) from 0 and floored at 0. An award now names a declared outcome, a
+        // new player starts at start_points (200), and session clamps to the ladder's floor (200) and ceiling (7500).
         using var client = NewClient();
         var player = NewAccount();
 
-        var first = await client.AwardAsync(player, "flag_flight", 50, "battle:e1:" + player, CancellationToken.None);
+        var first = await client.AwardAsync(player, "flag_flight", "win", "battle:e1:" + player, CancellationToken.None);
         Assert.True(first.Applied);
-        Assert.Equal(50, first.Points);
+        Assert.Equal("win", first.Outcome);
+        Assert.Equal(250, first.Points);
         Assert.Equal("rank_1", first.Tier);
 
-        var repeat = await client.AwardAsync(player, "flag_flight", 50, "battle:e1:" + player, CancellationToken.None);
+        var repeat = await client.AwardAsync(player, "flag_flight", "win", "battle:e1:" + player, CancellationToken.None);
         Assert.False(repeat.Applied);
-        Assert.Equal(50, repeat.Points);
+        Assert.Equal(250, repeat.Points);
 
         // The key is per player and rule type: the same key on another rule type is a different award.
-        var other = await client.AwardAsync(player, "rapid_ball", 50, "battle:e1:" + player, CancellationToken.None);
+        var other = await client.AwardAsync(player, "rapid_ball", "win", "battle:e1:" + player, CancellationToken.None);
         Assert.True(other.Applied);
 
-        var down = await client.AwardAsync(player, "flag_flight", -20, "battle:e2:" + player, CancellationToken.None);
-        Assert.Equal(30, down.Points);
-        var floor = await client.AwardAsync(player, "flag_flight", -20, "battle:e3:" + player, CancellationToken.None);
-        Assert.Equal(10, floor.Points);
-        var floored = await client.AwardAsync(player, "flag_flight", -20, "battle:e4:" + player, CancellationToken.None);
-        Assert.Equal(0, floored.Points);
-        var stillZero = await client.AwardAsync(player, "flag_flight", -20, "battle:e5:" + player, CancellationToken.None);
-        Assert.Equal(0, stillZero.Points);
+        var down = await client.AwardAsync(player, "flag_flight", "loss", "battle:e2:" + player, CancellationToken.None);
+        Assert.Equal(230, down.Points);
+        var floor = await client.AwardAsync(player, "flag_flight", "loss", "battle:e3:" + player, CancellationToken.None);
+        Assert.Equal(210, floor.Points);
+        var floored = await client.AwardAsync(player, "flag_flight", "loss", "battle:e4:" + player, CancellationToken.None);
+        Assert.Equal(200, floored.Points);
+        var stillAtFloor = await client.AwardAsync(player, "flag_flight", "loss", "battle:e5:" + player, CancellationToken.None);
+        Assert.Equal(200, stillAtFloor.Points);
+
+        // The ceiling clamps the other way.
+        var rich = NewAccount();
+        OtomoTestEnvironment.Social.SeedRank(rich, "flag_flight", 7480);
+        var capped = await client.AwardAsync(rich, "flag_flight", "win", "battle:e1:" + rich, CancellationToken.None);
+        Assert.Equal(7500, capped.Points);
+        Assert.Equal("rank_16", capped.Tier);
     }
 
     [Fact]
@@ -69,15 +79,15 @@ public sealed class OtomoRankTests
     {
         using var client = NewClient();
         var player = NewAccount();
-        await client.AwardAsync(player, "crystal_scramble", 700, "k1", CancellationToken.None);
+        OtomoTestEnvironment.Social.SeedRank(player, "crystal_scramble", 900);
 
         var ranks = await client.GetPlayerAsync(player, CancellationToken.None);
         Assert.Equal(["crystal_scramble", "flag_flight", "rapid_ball"], ranks.Select(rank => rank.RuleType).Order().ToArray());
-        Assert.Equal(700, ranks.Single(rank => rank.RuleType == "crystal_scramble").Points);
+        Assert.Equal(900, ranks.Single(rank => rank.RuleType == "crystal_scramble").Points);
         Assert.Equal("rank_3", ranks.Single(rank => rank.RuleType == "crystal_scramble").Tier);
         Assert.All(ranks.Where(rank => rank.RuleType != "crystal_scramble"), rank =>
         {
-            Assert.Equal(0, rank.Points);
+            Assert.Equal(200, rank.Points); // no row reads as start_points
             Assert.Equal("rank_1", rank.Tier);
         });
 
@@ -99,25 +109,31 @@ public sealed class OtomoRankTests
         Assert.Equal("player_not_found", unknown.Code);
 
         var rule = await Assert.ThrowsAsync<OtomoRankException>(() =>
-            client.AwardAsync(NewAccount(), "no_such_rule", 50, "k", CancellationToken.None));
+            client.AwardAsync(NewAccount(), "no_such_rule", "win", "k", CancellationToken.None));
         Assert.Equal(OtomoRankFailure.Refused, rule.Failure);
         Assert.Equal("unknown_rule_type", rule.Code);
+
+        var outcome = await Assert.ThrowsAsync<OtomoRankException>(() =>
+            client.AwardAsync(NewAccount(), "flag_flight", "draw", "k", CancellationToken.None));
+        Assert.Equal(OtomoRankFailure.Refused, outcome.Failure);
+        Assert.Equal(400, outcome.StatusCode);
+        Assert.Equal("unknown_outcome", outcome.Code);
 
         var player = NewAccount();
         OtomoTestEnvironment.Social.SetAwardsUnavailable(player, true);
         var down = await Assert.ThrowsAsync<OtomoRankException>(() =>
-            client.AwardAsync(player, "flag_flight", 50, "k", CancellationToken.None));
+            client.AwardAsync(player, "flag_flight", "win", "k", CancellationToken.None));
         Assert.Equal(OtomoRankFailure.Unavailable, down.Failure);
 
         using var wrongKey = NewClient(options => options.ServiceKey = "not-the-key");
         var refused = await Assert.ThrowsAsync<OtomoRankException>(() =>
-            wrongKey.AwardAsync(NewAccount(), "flag_flight", 50, "k", CancellationToken.None));
+            wrongKey.AwardAsync(NewAccount(), "flag_flight", "win", "k", CancellationToken.None));
         Assert.Equal(OtomoRankFailure.Refused, refused.Failure);
         Assert.Equal(401, refused.StatusCode);
 
         using var noKey = NewClient(options => options.ServiceKey = "");
         var disabled = await Assert.ThrowsAsync<OtomoRankException>(() =>
-            noKey.AwardAsync(NewAccount(), "flag_flight", 50, "k", CancellationToken.None));
+            noKey.AwardAsync(NewAccount(), "flag_flight", "win", "k", CancellationToken.None));
         Assert.Equal(OtomoRankFailure.Disabled, disabled.Failure);
 
         using var off = NewClient(options => options.Enabled = false);
@@ -126,17 +142,14 @@ public sealed class OtomoRankTests
 
         using var unreachable = NewClient(options => options.InternalBaseUrl = "http://127.0.0.1:1");
         var gone = await Assert.ThrowsAsync<OtomoRankException>(() =>
-            unreachable.AwardAsync(NewAccount(), "flag_flight", 50, "k", CancellationToken.None));
+            unreachable.AwardAsync(NewAccount(), "flag_flight", "win", "k", CancellationToken.None));
         Assert.Equal(OtomoRankFailure.Unavailable, gone.Failure);
     }
 
     [Fact]
-    public void Units_translate_in_one_place_and_a_tier_key_is_rank_N()
+    public void A_tier_key_is_rank_N_and_nothing_else_is_translated()
     {
-        Assert.Equal(200, RankTranslation.ClientPoints(0));
-        Assert.Equal(7500, RankTranslation.ClientPoints(7300));
-        Assert.Equal(50, RankTranslation.WinDelta);
-        Assert.Equal(-20, RankTranslation.LossDelta);
+        // Stale: it asserted the +200 offset and the 50 / -20 deltas, which are no longer the adapter's.
         Assert.Equal(1, RankTranslation.RankNumber("rank_1"));
         Assert.Equal(16, RankTranslation.RankNumber("rank_16"));
         Assert.Null(RankTranslation.RankNumber("7"));
@@ -153,9 +166,10 @@ public sealed class OtomoRankTests
         Assert.Equal(["crystal_scramble", "flag_flight", "rapid_ball"], ladder.RuleTypes);
         Assert.Equal(Enumerable.Range(1, 16), ladder.Ranks);
 
-        // min_points + 200 for every tier, identical to the table the adapter used to carry by hand.
+        // Each tier's min_points as published, with no offset, is the table the adapter used to carry by hand.
         int[] retail = [200, 500, 900, 1400, 1900, 2400, 2900, 3400, 3900, 4400, 4900, 5400, 5900, 6400, 6900, 7500];
-        Assert.Equal(retail, ladder.Ranks.Select(ladder.ClientTotalBattlePoint).ToArray());
+        Assert.Equal(retail, ladder.Ranks.Select(ladder.MinPoints).ToArray());
+        Assert.Equal(200, ladder.StartPoints);
 
         using var master = JsonDocument.Parse(DemoSessionApi.BuildBattleRankMasterJson(ladder));
         var rows = master.RootElement.EnumerateArray().ToArray();
@@ -164,13 +178,14 @@ public sealed class OtomoRankTests
         Assert.Equal(retail, rows.Skip(1).Select(row => row.GetProperty("totalBattlePoint").GetInt32()).ToArray());
 
         // The thresholds drive the progress read as well.
-        Assert.Equal(300, ladder.RemainingToNextTier(1100)); // 900 -> 1400 is rank 3 -> 4; 1100 client = 900 session
+        Assert.Equal(300, ladder.RemainingToNextTier(1100)); // 900 -> 1400 is rank 3 -> 4
         Assert.Equal(1, ladder.RemainingToNextTier(499));
         Assert.Equal(0, ladder.RemainingToNextTier(7500));
         Assert.Equal(0, ladder.RemainingToNextTier(9000));
         Assert.Equal(3, ladder.RankFor(900));
+        Assert.Equal(2, ladder.RankFor(899));
         Assert.Equal(16, ladder.RankFor(100_000));
-        Assert.Equal(1, ladder.RankFor(0));
+        Assert.Equal(1, ladder.RankFor(0)); // below the first tier is still the lowest tier
     }
 
     [Fact]

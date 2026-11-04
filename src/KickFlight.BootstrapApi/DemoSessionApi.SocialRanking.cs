@@ -385,7 +385,7 @@ public sealed partial class DemoSessionApi
         var resultRows = BuildRankingRows(board.Rows, state.PlayerId, followedIds, ladder);
         var self = BuildOwnRankingRow(state, board.You, ladder);
         // Client points still to go to the next published tier (0 at the top, and for a caller not on the board).
-        var nextReward = ladder.RemainingToNextTier(RankTranslation.ClientPoints(board.You?.Points ?? 0));
+        var nextReward = ladder.RemainingToNextTier(board.You?.Points ?? 0);
 
         if (path == "/ranking/region")
         {
@@ -456,7 +456,7 @@ public sealed partial class DemoSessionApi
                 languageCode = "",
                 followStatus = FollowStatus(followedIds, callerId, link.PlayerId),
                 rank = RankOfTier(row.Tier, row.Points, ladder),
-                battlePoint = RankTranslation.ClientPoints(row.Points),
+                battlePoint = row.Points,
                 number = row.Position,
                 percentile = 0.0
             });
@@ -481,7 +481,7 @@ public sealed partial class DemoSessionApi
                 languageCode = "",
                 followStatus = 0,
                 rank = RankOfTier(you.Tier, you.Points, ladder),
-                battlePoint = RankTranslation.ClientPoints(you.Points),
+                battlePoint = you.Points,
                 number = (int)Math.Clamp(you.Position, 0, int.MaxValue),
                 percentile = 0.0
             });
@@ -490,13 +490,13 @@ public sealed partial class DemoSessionApi
     // rank_<N>, where N is that number. The published tier thresholds are the check on it: a key the ladder does not
     // name is a disagreement between session and the release, said out loud, and the rank is then the one the
     // thresholds give the row's points rather than a guess.
-    private int RankOfTier(string? tier, int sessionPoints, RankLadder ladder)
+    private int RankOfTier(string? tier, int points, RankLadder ladder)
     {
         var rank = RankTranslation.RankNumber(tier);
         if (rank is { } named && ladder.HasRank(named)) return named;
-        var fromPoints = ladder.RankFor(sessionPoints);
+        var fromPoints = ladder.RankFor(points);
         _logger.LogError("Ranking tier '{Tier}' is not a tier of the published ladder; {Points} points place it at rank {Rank}",
-            tier, sessionPoints, fromPoints);
+            tier, points, fromPoints);
         return fromPoints;
     }
 

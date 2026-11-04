@@ -34,8 +34,8 @@ public sealed partial class DemoSessionApi : IDisposable
     private readonly IBotAiProfileProvider _botAiProfiles;
     private const string AccessToken = "demo-access-token-0000000000000000000000000000";
 
-    // Rank is session's (DemoSessionApi.Rank.cs): points, tiers and the ladder are read from otomo, and the adapter only
-    // translates units (Otomo/RankTranslation.cs).
+    // Rank is session's (DemoSessionApi.Rank.cs): points, tiers, outcomes and the ladder are read from otomo, and the adapter only
+    // parses the tier key (Otomo/RankTranslation.cs).
 
     // Onboarding status: TutorialUtil.IsTutorial is literally "tutorialProgressStatus != 207".
     //
@@ -3020,8 +3020,8 @@ public sealed partial class DemoSessionApi : IDisposable
             // The master client uploads the replay because of this flag (GameManager.CallbackBattleEndSuccess ->
             // ArchiveData.set_IsUploadReplayData). Everything else is unchanged.
             replayUploadFlag = true,
-            // The same delta /battle/result persisted, so the reward screen and the stored rank agree.
-            battlePoint = RankTranslation.WinDelta,
+            // The battle's rank change is /battle/result's, from session; this fixture response carries none.
+            battlePoint = 0,
             exp = 800,
             kickPoint = 200,
             jetCoin = 1000

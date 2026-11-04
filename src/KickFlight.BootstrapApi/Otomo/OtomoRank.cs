@@ -83,13 +83,13 @@ public sealed class OtomoRank : IOtomoRank, IOtomoProfile, IDisposable
         return ranks.Ranks ?? [];
     }
 
-    public async Task<SessionRankAward> AwardAsync(string otomoPlayerId, string ruleType, int delta, string key,
+    public async Task<SessionRankAward> AwardAsync(string otomoPlayerId, string ruleType, string outcome, string key,
         CancellationToken cancellationToken)
     {
         var serviceKey = RequireServiceKey("a rank award");
         var url = Under(_internalBase, "internal/session/rank/awards");
         return await CallAsync<SessionRankAward>(url, HttpMethod.Post,
-            new { player_id = otomoPlayerId, rule_type = ruleType, delta, key }, null, serviceKey, "rank award",
+            new { player_id = otomoPlayerId, rule_type = ruleType, outcome, key }, null, serviceKey, "rank award",
             cancellationToken).ConfigureAwait(false);
     }
 
