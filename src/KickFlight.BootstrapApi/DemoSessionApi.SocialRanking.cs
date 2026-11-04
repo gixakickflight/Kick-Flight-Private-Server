@@ -405,21 +405,24 @@ public sealed partial class DemoSessionApi
     }
 
     // A player's name is otomo's too. The social and ranking screens show session's display_name, so a rename is
-    // written through with PATCH /api/player/session/me. Nothing from the answer is kept.
+    // written through with PATCH /api/player/session/me, and session's `names` rules (length, pattern, reserved,
+    // unique, cooldown) decide whether it is allowed. Nothing from the answer is kept.
     //
-    // Best effort on purpose: the name is already saved here, and a session that cannot be reached must not refuse a
-    // player their own name. What that costs is a board that shows the old name until the next rename, which is
-    // logged rather than silent.
-    // The name goes to session first, and session's `names` rules decide whether it is allowed. A refusal (400
-    // invalid_display_name, 429 inside a rename cooldown, ...) is "rejected" and is all this method maps; session being
-    // down or off is not a verdict on the name, so it is logged and the name is kept here until the next rename.
-    private async Task<string?> RenameAtSessionAsync(KfIdentityTicket ticket, string name, string path,
-        CancellationToken cancellationToken)
+    // It fails closed: a refusal is the client's name-rule error (2005; 409 name_taken says "already used"), and a
+    // session that is off or cannot be reached is the 503 social contract. Either way the caller must NOT save the
+    // name, because a name session has not checked can be a duplicate session refuses later. There is no deferred
+    // retry. Returns null only when session accepted the name.
+    private async Task<IResult?> RenameAtSessionAsync(HttpContext context, byte[] key, KfIdentityTicket ticket,
+        SessionState state, string name, string path)
     {
-        if (!_social.Enabled) return null;
+        if (!_social.Enabled)
+        {
+            return SocialUnavailable(context, path, new OtomoSocialException(OtomoSocialFailure.Disabled,
+                "Otomo:Social:Enabled is false: a name cannot be checked or saved"));
+        }
         try
         {
-            await _social.RenameAsync(await PlayerTokenAsync(ticket, cancellationToken), name, cancellationToken);
+            await _social.RenameAsync(await PlayerTokenAsync(ticket, context.RequestAborted), name, context.RequestAborted);
             return null;
         }
         catch (OtomoSocialException exception) when (exception.Failure == OtomoSocialFailure.Refused)
@@ -427,14 +430,14 @@ public sealed partial class DemoSessionApi
             _logger.LogInformation("{Path}: session refused the name of {PlayerId}: {Status} {Code}", path,
                 ticket.OtomoPlayerId, exception.StatusCode, exception.Code);
             // 409 name_taken is another player holding the name; every other refusal is a rule the name broke.
-            return exception.StatusCode == 409 || exception.Code == "name_taken" ? "taken" : "rejected";
+            var reason = exception.StatusCode == 409 || exception.Code == "name_taken" ? "taken" : "rejected";
+            _logger.LogInformation("Rejected the name submitted by player {PlayerId}: {Reason} ({Length} code units)",
+                state.PlayerId, reason, name.Length);
+            return NameRejected(context, key, reason);
         }
         catch (Exception exception) when (exception is OtomoIdentityException or OtomoSocialException)
         {
-            _logger.LogWarning(
-                "{Path}: the name of {PlayerId} could not be checked or saved at session ({Error}); the ranking board keeps " +
-                "showing the old name until the next rename", path, ticket.OtomoPlayerId, exception.Message);
-            return null;
+            return SocialUnavailable(context, path, exception);
         }
     }
 

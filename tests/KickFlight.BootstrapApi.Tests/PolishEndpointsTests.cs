@@ -712,7 +712,7 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    [InlineData("12345678901234")] // 14 code units: one past the tenant's names.max_length of 13
+    [InlineData("123456789012345")] // 15 code units: one past the tenant's names.max_length of 14
     public async Task Tutorial_end_rejects_a_name_the_rules_do_not_allow(string name)
     {
         var session = await CreateSessionAsync();
@@ -770,17 +770,56 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
     }
 
     [Fact]
-    public async Task A_name_of_13_characters_is_accepted_and_one_of_14_is_refused()
+    public async Task A_name_of_14_characters_is_accepted_and_one_of_15_is_refused()
     {
-        var thirteen = "Kf" + Guid.NewGuid().ToString("N")[..11];
-        Assert.Equal(13, thirteen.Length);
+        var fourteen = "Kf" + Guid.NewGuid().ToString("N")[..12];
+        Assert.Equal(14, fourteen.Length);
         var session = await CreateSessionAsync();
-        using var accepted = await RawPostAsync(session, "/tutorial/end", new { name = thirteen });
+        using var accepted = await RawPostAsync(session, "/tutorial/end", new { name = fourteen });
         Assert.Equal("0", accepted.Headers.GetValues("x-app-status-code").Single());
-        Assert.Equal(thirteen, ReadUserState(session).GetProperty("UserName").GetString());
+        Assert.Equal(fourteen, ReadUserState(session).GetProperty("UserName").GetString());
 
-        using var refused = await RawPostAsync(await CreateSessionAsync(), "/tutorial/end", new { name = thirteen + "x" });
+        using var refused = await RawPostAsync(await CreateSessionAsync(), "/tutorial/end", new { name = fourteen + "x" });
         Assert.Equal("2005", refused.Headers.GetValues("x-app-status-code").Single());
+    }
+
+    private string OtomoAccountOf(DemoSession session) =>
+        _factory.Services.GetRequiredService<KickFlight.BootstrapApi.PlayerStore.IPlayerStore>()
+            .FindOtomoPlayer(long.Parse(session.UserId))!.OtomoPlayerId;
+
+    [Fact]
+    public async Task Naming_with_session_down_is_a_503_and_the_name_is_not_saved()
+    {
+        var session = await CreateSessionAsync();
+        var account = OtomoAccountOf(session);
+        OtomoTestEnvironment.Social.SetRenamesUnavailable(account, true);
+        try
+        {
+            using var response = await RawPostAsync(session, "/tutorial/end", new { name = NewName() });
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+            Assert.Equal("1", response.Headers.GetValues("x-app-status-code").Single());
+            Assert.Equal("", ReadUserState(session).GetProperty("UserName").GetString());
+            Assert.Equal(206, (await PostAsync(session, "/startup/index", null)).GetProperty("tutorialProgressStatus").GetInt32());
+        }
+        finally { OtomoTestEnvironment.Social.SetRenamesUnavailable(account, false); }
+    }
+
+    [Fact]
+    public async Task Renaming_with_session_down_is_a_503_and_the_name_is_unchanged()
+    {
+        var session = await CreateSessionAsync();
+        var name = NewName();
+        await PostAsync(session, "/tutorial/end", new { name });
+        var account = OtomoAccountOf(session);
+        OtomoTestEnvironment.Social.SetRenamesUnavailable(account, true);
+        try
+        {
+            using var response = await RawPostAsync(session, "/user/change", new { name = NewName() });
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+            Assert.Equal("1", response.Headers.GetValues("x-app-status-code").Single());
+            Assert.Equal(name, ReadUserState(session).GetProperty("UserName").GetString());
+        }
+        finally { OtomoTestEnvironment.Social.SetRenamesUnavailable(account, false); }
     }
 
     [Fact]

@@ -84,6 +84,9 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
 
     public void SetAwardsUnavailable(string accountId, bool down) => _awardsDown[accountId] = down;
 
+    private readonly ConcurrentDictionary<string, bool> _renamesDown = new(StringComparer.Ordinal);
+    public void SetRenamesUnavailable(string accountId, bool down) => _renamesDown[accountId] = down;
+
     public void SetRankReadsUnavailable(string accountId, bool down) => _readsDown[accountId] = down;
 
     public static string DefaultLadderDocument() => JsonSerializer.Serialize(new
@@ -220,6 +223,8 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
             var account = Identify(context, out var failure);
             if (account is null) return failure!;
 
+            if (_renamesDown.GetValueOrDefault(account.PlayerId))
+                return Error(context, StatusCodes.Status503ServiceUnavailable, "unavailable", "session is down");
             using var body = await JsonDocument.ParseAsync(context.Request.Body);
             var name = body.RootElement.TryGetProperty("display_name", out var nameProp)
                 ? (nameProp.GetString() ?? "").Trim()

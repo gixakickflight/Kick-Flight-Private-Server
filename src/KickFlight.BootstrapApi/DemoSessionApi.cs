@@ -2311,13 +2311,7 @@ public sealed partial class DemoSessionApi : IDisposable
 
         // What a name may be - its length, its characters, whether it is unique, how often it changes - is session's
         // `names` rules, published by the tenant. The adapter asks session and maps a refusal to the client's error.
-        var rejection = await RenameAtSessionAsync(ticket, name, "/tutorial/end", context.RequestAborted);
-        if (rejection is not null)
-        {
-            _logger.LogInformation("Rejected the name submitted by player {PlayerId}: {Reason} ({Length} code units)",
-                state.PlayerId, rejection, name.Length);
-            return NameRejected(context, key, rejection);
-        }
+        if (await RenameAtSessionAsync(context, key, ticket, state, name, "/tutorial/end") is { } refused) return refused;
 
         state.UserName = name;
         state.TutorialProgress = TutorialStatusComplete;
