@@ -58,7 +58,10 @@ public static class OpsReports
             clean = Outcome(OpsStatusRules.Clean),
             partial = Outcome(OpsStatusRules.Partial),
             abandoned = Outcome(OpsStatusRules.Abandoned),
+            // neverStarted is the legacy bucket (rows stored before the split); failure metrics use startFailed only.
             neverStarted = Outcome(OpsStatusRules.NeverStarted),
+            startFailed = Outcome(OpsStatusRules.StartFailed),
+            queueCancelled = Outcome(OpsStatusRules.QueueCancelled),
             custom = battles.Count(b => b.Custom),
             entries = participants.Count,
             players = participants.Count(p => p.StartAt is not null),
@@ -186,7 +189,7 @@ public static class OpsReports
     };
 
     private static bool IsProblem(BattleRow battle, IReadOnlyList<ParticipantRow> people) =>
-        battle.Outcome is OpsStatusRules.Partial or OpsStatusRules.Abandoned
+        battle.Outcome is OpsStatusRules.Partial or OpsStatusRules.Abandoned or OpsStatusRules.StartFailed
         || people.Any(p => p.ReconnectBegins > 0 || p.ExceptionCount > 0
                            || OpsStatusRules.IsDisconnected(p.Status) || p.Status == OpsStatusRules.Left
                            || p.Status.StartsWith(OpsStatusRules.MatchingFailedPrefix, StringComparison.Ordinal)
@@ -226,11 +229,13 @@ public static class OpsReports
             .Select(g => new
             {
                 key = g.Key,
-                matches = g.Count(b => b.Outcome != OpsStatusRules.NeverStarted && (b.Outcome is not null || b.FirstStartAt is not null)),
+                matches = g.Count(b => !OpsStatusRules.IsNeverStartedFamily(b.Outcome) && (b.Outcome is not null || b.FirstStartAt is not null)),
                 clean = g.Count(b => b.Outcome == OpsStatusRules.Clean),
                 partial = g.Count(b => b.Outcome == OpsStatusRules.Partial),
                 abandoned = g.Count(b => b.Outcome == OpsStatusRules.Abandoned),
-                neverStarted = g.Count(b => b.Outcome == OpsStatusRules.NeverStarted)
+                neverStarted = g.Count(b => b.Outcome == OpsStatusRules.NeverStarted),
+                startFailed = g.Count(b => b.Outcome == OpsStatusRules.StartFailed),
+                queueCancelled = g.Count(b => b.Outcome == OpsStatusRules.QueueCancelled)
             })
             .OrderByDescending(row => row.matches)
             .Take(BreakdownLimit)

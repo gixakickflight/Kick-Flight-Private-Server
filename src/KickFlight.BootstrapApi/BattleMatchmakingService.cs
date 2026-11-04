@@ -172,6 +172,26 @@ public sealed class BattleMatchmakingService
         }
     }
 
+    /// <summary>
+    /// Re-attaches a user to the team lobby their existing battle entry belongs to (client /battle/teamRejoin after a
+    /// reconnect). Null when the entry is unknown, owned by someone else, or its team no longer exists.
+    /// </summary>
+    public TeamMemberEntry? RejoinTeam(string battleEntryId, string userId)
+    {
+        lock (_teamLock)
+        {
+            if (string.IsNullOrEmpty(battleEntryId)
+                || !_entriesByBattleEntryId.TryGetValue(battleEntryId, out var entry)
+                || entry.UserId != userId
+                || entry.PartyId is not { } teamId
+                || !_teamsById.TryGetValue(teamId, out var team)
+                || !team.MembersByUserId.TryGetValue(userId, out var member)
+                || member.BattleEntryId != battleEntryId)
+                return null;
+            return new TeamMemberEntry(member.BattleEntryId, member.TicketId, team.MatchmakingTeamId);
+        }
+    }
+
     public bool StartTeam(string teamId, string hostUserId, IReadOnlyCollection<string> userIds)
     {
         lock (_teamLock)
@@ -624,6 +644,24 @@ public sealed class BattleMatchmakingService
         }
 
         FinalizeRoom(room);
+    }
+
+    /// <summary>True while the user has a ticket that is not yet in a finalized room (push recipient filtering).</summary>
+    public bool IsUserQueued(string userId)
+    {
+        if (string.IsNullOrEmpty(userId)) return false;
+        var cutoff = DateTime.UtcNow.AddMinutes(-10);
+        lock (_matchLock)
+        {
+            foreach (var entry in _entriesByBattleEntryId.Values)
+            {
+                if (entry.UserId != userId || entry.CreatedAt < cutoff) continue;
+                var ticketId = entry.TicketId;
+                if (_roomsByBattleId.Values.Any(room => room.IsFinalized && room.AssignedTicketIds.Contains(ticketId))) continue;
+                return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>

@@ -110,8 +110,8 @@ services:
       # Commit being deployed (scripts/deploy-vps-ci.sh exports it from the workflow's GITHUB_SHA). Every API start
       # records it in the ops telemetry's server_runs table; the Health tab's default window is "this release".
       KF_RELEASE_SHA: ${KF_RELEASE_SHA:-unknown}
-      # 2.11.6 Android minimum; iOS remains on its separately verified 2.11.3 minimum.
-      ClientUpdate__MinimumVersion: "2.11.6"
+      # 2.11.7 Android minimum; iOS remains on its separately verified 2.11.3 minimum.
+      ClientUpdate__MinimumVersion: "2.11.7"
       ClientUpdate__IosMinimumVersion: "2.11.3"
       PlayerStore__ConnectionString: Host=postgres;Port=5432;Database=kickflight;Username=kickflight;Password=${KF_DB_PASSWORD:?Set KF_DB_PASSWORD in the root .env}
       PhotonServer__Enabled: "true"
@@ -127,6 +127,8 @@ services:
       # In-game chat is otomo's (services/chat): the adapter translates the client's websocket and write onto it and
       # stores nothing. Set Otomo__Chat__Enabled, Otomo__Chat__BaseUrl (its internal listener, :8081) and
       # Otomo__Chat__ServiceKeyFile (chat_adapter.key) to turn it on.
+      Push__Enabled: "true"
+      Push__CredentialsPath: /srv/repo/.local/secrets/fcm-service-account.json
     volumes:
       - ../config:/srv/repo/config:ro
       - ../content:/srv/repo/content:ro

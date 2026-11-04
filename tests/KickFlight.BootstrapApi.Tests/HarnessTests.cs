@@ -472,7 +472,7 @@ public sealed class HarnessTests : IClassFixture<ServerTestHostFixture>
         // The policy this pins is that production code never proxies to the defunct upstream, which is why it is
         // strict about the symbol rather than about where a request would go. The exceptions are the otomo
         // clients - identity, masters, economy, chat, session (the follow relation, the ranking board and
-        // battle points, docs/OTOMO_SOCIAL_DISCS.md) and patch (recorded replays, docs/REPLAYS.md): otomo is a service this project runs, and none of it can be delegated without
+        // battle points, docs/OTOMO_SOCIAL_DISCS.md) and patch (recorded replays, docs/REPLAYS.md) - plus the FCM push sender: otomo is a service this project runs, and none of it can be delegated without
         // an outbound call. Every other file stays forbidden, and this list stays this short.
         var exempt = new[]
         {
@@ -482,7 +482,9 @@ public sealed class HarnessTests : IClassFixture<ServerTestHostFixture>
             Path.Combine("src", "KickFlight.BootstrapApi", "Otomo", "OtomoSocial.cs"),
             Path.Combine("src", "KickFlight.BootstrapApi", "Otomo", "OtomoRank.cs"),
             Path.Combine("src", "KickFlight.BootstrapApi", "Otomo", "OtomoChat.cs"),
-            Path.Combine("src", "KickFlight.BootstrapApi", "Otomo", "OtomoRecordings.cs")
+            Path.Combine("src", "KickFlight.BootstrapApi", "Otomo", "OtomoRecordings.cs"),
+            // The FCM push sender calls Google's FCM/OAuth endpoints, never an upstream Kick-Flight/Grenge API.
+            Path.Combine("src", "KickFlight.BootstrapApi", "Push", "FcmSender.cs")
         };
         foreach (var file in sourceFiles)
         {

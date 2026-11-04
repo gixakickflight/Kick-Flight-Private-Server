@@ -20,6 +20,12 @@ public sealed class SessionState
     // (see the tutorialProgressStatus handling in BuildStartupJson) - so it must not be defaulted here.
     public string UserName { get; set; } = "";
     public int KickerId { get; set; } = 1;
+    // FCM registration token the client reported through POST /push/register, used for the "someone is searching
+    // ranked" push (Push/). Null until the client registers; cleared when FCM reports it dead or another player
+    // registers the same token (one device, one account). Never log it in full.
+    public string? PushToken { get; set; }
+    public DateTime? PushTokenUpdatedAtUtc { get; set; }
+    public string? PushPlatform { get; set; }
     // Badges are not in this document. What a player owns is the honor:* items of their economy inventory, what they
     // show is their session display slot, and what counts toward the next one is economy's tracks (DemoSessionApi.Badges.cs).
     // A save written before that move still carries honors, counters and login days; they are ignored on read and gone

@@ -101,6 +101,58 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
         Assert.Equal(gearId, FindCostume(discarded, costumeId).GetProperty("gearId2").GetInt32());
     }
 
+    [Fact]
+    public async Task Team_join_and_rejoin_return_the_asset_list_the_client_feeds_into_a_list_ctor()
+    {
+        var host = await CreateSessionAsync();
+        var guest = await CreateSessionAsync();
+        foreach (var session in new[] { host, guest })
+        {
+            session.Client.DefaultRequestHeaders.Add("x-app-asset-platform", "3");
+            session.Client.DefaultRequestHeaders.Add("x-app-asset-revision", "27");
+        }
+        var created = await PostAsync(host, "/battle/teamCreate", new
+        {
+            battleRuleId = 1,
+            code = "7311",
+            userPingList = Array.Empty<object>()
+        });
+        var teamId = created.GetProperty("matchmakingTeamId").GetString()!;
+        var joined = await PostAsync(guest, "/battle/teamJoin", new
+        {
+            matchmakingTeamId = teamId,
+            userPingList = Array.Empty<object>()
+        });
+        var joinAsset = Assert.Single(joined.GetProperty("assetList").EnumerateArray());
+        Assert.Equal(3, joinAsset.GetProperty("platform").GetInt32());
+        Assert.Equal(27, joinAsset.GetProperty("revision").GetInt32());
+
+        foreach (var (session, response) in new[] { (host, created), (guest, joined) })
+        {
+            var rejoined = await PostAsync(session, "/battle/teamRejoin", new
+            {
+                battleEntryId = response.GetProperty("battleEntryId").GetString(),
+                userPingList = Array.Empty<object>()
+            });
+            Assert.Equal(response.GetProperty("battleEntryId").GetString(), rejoined.GetProperty("battleEntryId").GetString());
+            Assert.Equal(teamId, rejoined.GetProperty("matchmakingTeamId").GetString());
+            Assert.Equal(response.GetProperty("battleEntryTicketId").GetString(), rejoined.GetProperty("battleEntryTicketId").GetString());
+            var asset = Assert.Single(rejoined.GetProperty("assetList").EnumerateArray());
+            Assert.Equal(27, asset.GetProperty("revision").GetInt32());
+            Assert.Equal(JsonValueKind.Array, rejoined.GetProperty("campaignList").ValueKind);
+        }
+
+        // Someone else's entry (or an unknown one) is a failed rejoin, never a success with a null assetList.
+        using var stranger = await RawPostAsync(guest, "/battle/teamRejoin", new
+        {
+            battleEntryId = created.GetProperty("battleEntryId").GetString(),
+            userPingList = Array.Empty<object>()
+        });
+        Assert.Equal("1", stranger.Headers.GetValues("x-app-status-code").Single());
+        using var unknown = await RawPostAsync(host, "/battle/teamRejoin", new { battleEntryId = "nope", userPingList = Array.Empty<object>() });
+        Assert.Equal("1", unknown.Headers.GetValues("x-app-status-code").Single());
+    }
+
     [Theory]
     [InlineData(1, 0)] // regular and the app revision observed in the runtime request
     [InlineData(4, 27)] // ranked BattleRule row and a nonzero asset revision

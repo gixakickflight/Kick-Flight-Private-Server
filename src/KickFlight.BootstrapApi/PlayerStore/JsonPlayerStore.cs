@@ -227,6 +227,18 @@ public sealed class JsonPlayerStore : IPlayerStore
         }
     }
 
+    public IReadOnlyList<PushRegistration> ListPushRegistrations()
+    {
+        var result = new List<PushRegistration>();
+        foreach (var file in Directory.EnumerateFiles(_usersDirectory, "*.json"))
+        {
+            if (!long.TryParse(Path.GetFileNameWithoutExtension(file), out var id)) continue;
+            var state = TryLoad(id);
+            if (!string.IsNullOrEmpty(state?.PushToken)) result.Add(new PushRegistration(id, state.PushToken));
+        }
+        return result;
+    }
+
     public void Save(SessionState state, string? uuid = null)
     {
         if (state.PlayerId == 0)

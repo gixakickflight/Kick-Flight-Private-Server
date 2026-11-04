@@ -9,6 +9,7 @@ using System.Threading;
 using KickFlight.BootstrapApi.Ops;
 using KickFlight.BootstrapApi.Otomo;
 using KickFlight.BootstrapApi.PlayerStore;
+using KickFlight.BootstrapApi.Push;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 
@@ -156,9 +157,19 @@ public sealed partial class DemoSessionApi : IDisposable
         IConfiguration configuration, MaintenanceState maintenance, ClientUpdateState clientUpdate,
         TimeProvider timeProvider, OpsTelemetryService ops, IOptions<HarnessOptions> harnessOptions,
         IOptions<OtomoSocialOptions> socialOptions, OtomoMasters otomoMasters,
-        ChatService chat, IBotAiProfileProvider? botAiProfiles = null)
+        ChatService chat, IBotAiProfileProvider? botAiProfiles = null,
+        PushTokenService? pushTokens = null, RankedSearchNotifier? rankedNotifier = null)
     {
         _chat = chat;
+        _pushTokens = pushTokens;
+        _rankedNotifier = rankedNotifier;
+        if (pushTokens is not null)
+        {
+            _pushThrottle = new PushRegisterThrottle(timeProvider);
+            // The in-memory state of a signed-in player, so a token write is not overwritten by that player's
+            // next whole-document save.
+            pushTokens.LiveStates = id => _statesByPlayer.TryGetValue(id, out var live) ? [live] : [];
+        }
         _logger = logger;
         _ops = ops;
         _matchmaking = matchmaking;
@@ -1142,6 +1153,9 @@ public sealed partial class DemoSessionApi : IDisposable
         // to a running match by client address + device, to flag a silent drop as a probable crash + relaunch.
         if (path == "/boot/index") _ops.RecordBoot(OpsClientInfo.FromRequest(context));
 
+        // Unauthenticated and exempt from the update/maintenance gates: the client's FCM hook has no session.
+        if (path == "/push/register") return await HandlePushRegisterAsync(context);
+
         // An out-of-date client is stopped here, before auth and before any other handler: /boot/index is served
         // from a fixture, so a gate inside this method is what catches it. The admin and health routes are mapped
         // outside this catch-all, so they never reach here.
@@ -1330,6 +1344,11 @@ public sealed partial class DemoSessionApi : IDisposable
         if (path == "/battle/teamJoin")
         {
             return await HandleTeamJoinAsync(context, ticket, state, key);
+        }
+
+        if (path == "/battle/teamRejoin")
+        {
+            return await HandleTeamRejoinAsync(context, state, key);
         }
 
         if (path == "/battle/teamEntry")
@@ -2418,6 +2437,10 @@ public sealed partial class DemoSessionApi : IDisposable
             battleEntryId = entry.BattleEntryId,
             matchmakingTeamId = entry.MatchmakingTeamId,
             battleEntryTicketId = entry.TicketId,
+            // BattleTeamJoinResponseData has no assetList; the client's DirectTeamMatchingInfo.AssetList stays null
+            // for joins, and RejoinTeamDirect later feeds it to a List ctor. Emitting it here is harmless and kept
+            // in step with teamCreate.
+            assetList = BuildApplicationAssetList(context.Request),
             campaignList = Array.Empty<object>()
         };
 
@@ -2427,6 +2450,40 @@ public sealed partial class DemoSessionApi : IDisposable
         _ops.RecordEntry(state.UserId, entry.BattleEntryId, entry.TicketId, joinedRule?.BattleRuleId ?? 0, joinedRule?.MatchType,
             state.KickerId, state.KickerCostumeId, IsDiagClient(context), OpsClientInfo.FromRequest(context));
         _logger.LogInformation("User {UserId} joined team {TeamId}", state.UserId, teamId);
+        return BinaryJson(JsonSerializer.Serialize(response), key);
+    }
+
+    /// <summary>
+    /// /battle/teamRejoin: request {battleEntryId, userPingList}; response BattleTeamRejoinResponseData
+    /// {battleEntryId, matchmakingTeamId, battleEntryTicketId, assetList, campaignList}. Echoes the caller's existing
+    /// team entry; an unknown entry/team is a status error (client CallbackTeamRejoinFailed) instead of the old
+    /// catch-all {} that left assetList null and crashed RejoinTeamDirect.
+    /// </summary>
+    private async Task<IResult?> HandleTeamRejoinAsync(HttpContext context, SessionState state, byte[] key)
+    {
+        using var request = await ReadTeamRequestAsync(context, state, key);
+        if (request is null
+            || !TryReadString(request.RootElement, "battleEntryId", out var battleEntryId)
+            || string.IsNullOrWhiteSpace(battleEntryId))
+        {
+            return StatusError(context, key);
+        }
+
+        var entry = _matchmaking.RejoinTeam(battleEntryId, state.UserId);
+        if (entry is null) return StatusError(context, key);
+
+        var response = new
+        {
+            battleEntryId = entry.BattleEntryId,
+            matchmakingTeamId = entry.MatchmakingTeamId,
+            battleEntryTicketId = entry.TicketId,
+            assetList = BuildApplicationAssetList(context.Request),
+            campaignList = Array.Empty<object>()
+        };
+
+        context.Response.Headers["x-app-status-code"] = "0";
+        context.Response.Headers["x-kickflight-fixture"] = "dynamic-battle-team-rejoin";
+        _logger.LogInformation("User {UserId} rejoined team {TeamId}", state.UserId, entry.MatchmakingTeamId);
         return BinaryJson(JsonSerializer.Serialize(response), key);
     }
 
@@ -2630,6 +2687,11 @@ public sealed partial class DemoSessionApi : IDisposable
         _ops.RecordEntry(state.UserId, battleEntryId, ticketId, battleRuleId, ruleMetadata.MatchType,
             state.KickerId, state.KickerCostumeId, IsDiagClient(context), OpsClientInfo.FromRequest(context));
         _logger.LogInformation("Handled /battle/entry for {UserId}: ticket={TicketId}", state.UserId, ticketId);
+        if (RankedModeRotation.IsRankedRule(battleRuleId))
+        {
+            // Fire-and-forget: never delays or fails the entry response.
+            _rankedNotifier?.NotifyInBackground(state.PlayerId, id => _matchmaking.IsUserQueued(id.ToString()), LastActivityOf);
+        }
         return BinaryJson(JsonSerializer.Serialize(resp), key);
     }
 

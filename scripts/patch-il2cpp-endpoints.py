@@ -2722,6 +2722,32 @@ NATIVE_PATCHES: dict[str, list[dict[str, object]]] = {
     {"description": "cave: error report C (HandleLog type 4 -> SetAnalysisException) + B (SetAnalysisException -> RegisterGetRegionFailed) (dead body of ExceptionHandler.getMessageParts)", "offset": 0x30e1cdc, "expected": bytes.fromhex("f65702a9f44f03a9fd7b04a9fd030191d4af00d088ee7939f30301aae8000037489d00d008fd41f9000140b942208497e803003288ee3939e89c00d0087145f9e1030032000140f9d8268597f40300aa540000b52fc98497881a40b9a8000035a2cc8497e1031faae2031faa05c984974807805288420079730000b5e0031faa24c98497e2031f32e00313aae10314aae3031f2ae4031faa2975b297f50300aa550000b51bc98497a81a40b91f09007181080054289c00d008b140f9e1031f32000140f9b9268597f40300aaf7031faab882009199820091a81a40b9ff0208eba300005481cc8497e1031faae2031faae4c88497167b77f8760000b5e0031faa04c98497e00316aae1031faa1a6bb297f60300aa740000b4b60000b50d000014e0031faafbc88497560100b4880240f9e00316aa"), "replacement": bytes.fromhex("a89c00f008d147f9000140f9200400b4a4fbe097e00300b4f30300aa68464039a8030035684e40391f410071620300542800805268460039e0031faa113aac97f60300aae10315aae20316aae30314aae4031faab387b297a00100b4081040b91f112771ad000054e1031f2a82388152e3031faa9c49b297e10300aae00313aa22008052e3031faa2ca49b977f460039d5ffff17d4ffff17d3ffff17a89c00f008d147f9000140f9e00300b47dfbe097a00300b4094440390a480091490000340a4c0091480140391f410071c20200540805001148010039e10313aae2031faac89d00b0087943f9000140f9af55b297f30300aa289d00b0083146f9000140f9200100b467fbe097e00000b4e10313aae2031faafd7b42a9f44f41a9f657c3a871c79c17fd7b42a9f44f41a9f657c3a8c0035fd6")},
     {"description": "ExceptionHandler.HandleLog `mov x1, x21` (type 4) -> b error-report cave C", "offset": 0x30e1c28, "expected": bytes.fromhex("e10315aa"), "replacement": bytes.fromhex("2d000014")},
     {"description": "CrashReportManager.SetAnalysisException `adrp x8, \"[Analysis]\"` -> b error-report cave B", "offset": 0x17caebc, "expected": bytes.fromhex("88660190"), "replacement": bytes.fromhex("af5b6414")},
+        # 2.11.7 RemoveDebuff NRE (520 prod events). ConditionEffectController.RemoveDebuff (0x17C429C) loads
+        # this+0x20 (_paramCondEffectCtr, only set by the ctor 0x17C2E80 when the owner is a PlayerCharacter) into x21 and
+        # `cbnz x21,0x17C42E4` (unchanged) continues into ParameterConditionEffectController.RemoveDebuff; the fall-through
+        # `mov x0,xzr; bl NRE-helper` (0x17C42DC/E0) is reached ONLY when x21 == 0, i.e. it always threw. The first
+        # instruction of that dead-end is rewritten to `b 0x17C4304`, the generic fallback already used by the non-debuff
+        # path (`cbz w8,0x17C4304` at 0x17C42D0): w1=type, tail-calls RemoveEffect(type,false) 0x17C3AAC (never touches
+        # +0x20). Only a plain `mov` is overwritten (the bl NRE stays as unreachable code), so no rule-4 waiver is needed;
+        # PlayerCharacter owners (human and AI bots) keep the original cbnz-taken path bit for bit.
+        {
+            "description": "ConditionEffectController.RemoveDebuff: null _paramCondEffectCtr falls back to RemoveEffect(type,false) instead of NRE",
+            "offset": 0x17C42DC,
+            "expected": bytes.fromhex("e0031faa"),  # mov x0,xzr
+            "replacement": bytes.fromhex("0a000014"),  # b 0x17C4304
+        },
+        # 2.11.7 Google Play Games sign-in off. APP_ID 421182863000 belongs to the original game, so under our signing
+        # cert GMS raises the "fatal developer error" (zzf). GooglePlayGameService.OnSignIn (0x18E5BA0, only caller of
+        # PlayGamesPlatform.Authenticate) builds the closure (x19) then InitializeInstance/Activate/Authenticate. At
+        # 0x18E5CB0 (4 plain non-branch instrs, x19 = closure still live, x29/x30/x19-x21 saved by the prologue) we call
+        # closure.<OnSignIn>b__0(false) (0x18E5DB4: skips GetIdToken, invokes callback(false)) and jump to the original
+        # epilogue 0x18E5D2C. Our own server login never depends on GPGS; callers just see "sign-in failed".
+        {
+            "description": "GooglePlayGameService.OnSignIn: skip PlayGames init/Authenticate, report callback(false)",
+            "offset": 0x18E5CB0,
+            "expected": bytes.fromhex("e10342ade20fc03de0030091e1031faa"),
+            "replacement": bytes.fromhex("e00313aae1031f2a3f0000941c000014"),
+        },
         *_attack_interval_patches(),
         # Diagnostics: KF_DIAG=1 installs the full KFDIAG probe set (regions relocated out of LoadDeckSummonModel on
         # 2026-09-20 so disc pets still load); KF_RESULT_DIAG=1 installs only the isolated ResultManager/ResultScene

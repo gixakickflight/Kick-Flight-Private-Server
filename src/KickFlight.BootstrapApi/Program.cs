@@ -93,6 +93,7 @@ builder.Services.AddSingleton<IOtomoChat>(services => OtomoChat.Create(
     services.GetRequiredService<IOptions<OtomoChatOptions>>(),
     services.GetRequiredService<ILogger<OtomoChat>>()));
 builder.Services.AddSingleton<IChatSenders, ChatSenders>();
+KickFlight.BootstrapApi.Push.PushServiceCollectionExtensions.AddRankedPush(builder.Services, builder.Configuration);
 builder.Services.AddSingleton<ChatService>();
 builder.Services.AddSingleton<DemoSessionApi>();
 builder.Services.AddGrpc();
@@ -196,7 +197,7 @@ IResult ServeApk(string fileName)
         : Results.Json(new { error = "apk-not-built", expected = path }, statusCode: 404);
 }
 app.MapGet("/apk", () => ServeApk("KickFlight-2.11.0-current-patches.apk"));
-app.MapGet("/apk/remote", () => ServeApk("KickFlight-2.11.6-remote.apk"));
+app.MapGet("/apk/remote", () => ServeApk("KickFlight-2.11.705-remote.apk"));
 app.MapGet("/apk/diag", () => ServeApk("KickFlight-2.11.0-DIAG.apk"));
 app.MapGet("/apk/diag-remote", () => ServeApk("KickFlight-2.11.0-DIAG-remote.apk"));
 // Merged patch set (offline combat + Photon 2-player, scripts/patch-il2cpp-endpoints.py since 46f9392), built by
