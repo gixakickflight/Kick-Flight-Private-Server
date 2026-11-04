@@ -42,6 +42,22 @@ public sealed partial class FakeOtomoSocial
         lock (_lock) return new Dictionary<string, string>(account.Display);
     }
 
+    // Puts an item in an account's slot directly (not through the ownership check), for a test that needs another player
+    // to be showing something.
+    public void SeedDisplay(string accountId, string slot, string item)
+    {
+        var account = Ensure(accountId);
+        lock (_lock) account.Display[slot] = item;
+    }
+
+    // session.rules `names` of the Kick-Flight tenant (kf-otomo session.rules.json): 1 to 10 characters, none of them a
+    // control character, a zero-width joiner or beyond the BMP. Applied after trimming, as session applies it.
+    public const int NameMaxLength = 10;
+
+    public static bool NameAllowed(string trimmed) =>
+        trimmed.Length >= 1 && trimmed.Length <= NameMaxLength
+        && !trimmed.Any(c => char.IsControl(c) || c == '\u200d' || char.IsSurrogate(c));
+
     private void MapDisplay()
     {
         _app.MapGet("/api/player/session/display", (HttpContext context) =>

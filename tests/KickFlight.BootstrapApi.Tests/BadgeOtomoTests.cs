@@ -160,15 +160,15 @@ public sealed class BadgeOtomoTests : IDisposable
     }
 
     [Fact]
-    public async Task Startup_reports_the_login_day_once_per_utc_day_under_the_day_as_key_and_claims_what_it_reached()
+    public async Task Startup_reports_the_login_day_once_per_utc_day_under_the_day_as_key_and_lists_what_the_report_paid()
     {
         var player = await NewPlayerAsync(NewHost());
-        // The tenant's login-day track stands at its first target when today's fact has been counted.
-        _economy.SeedBadgeTrack(player.Account, "badge.login_days", 30, (30, "badge.6010101"));
+        // The tenant's login-day track crosses its first target on today's fact: economy pays it inside the report.
+        _economy.QueueAutoClaim(player.Account, "login.day", "badge.login_days", 0, 30, "badge.6010101");
 
         var before = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var first = await OkAsync(player, "/startup/index");
-        await OkAsync(player, "/startup/index");
+        var second = await OkAsync(player, "/startup/index");
         var after = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
         var reports = _economy.FactReports.Where(fact => fact.PlayerId == player.Account && fact.Fact == "login.day").ToArray();
@@ -179,23 +179,35 @@ public sealed class BadgeOtomoTests : IDisposable
         Assert.False(reports[0].Replayed);
         Assert.True(reports[1].Replayed); // the same day again is economy's replay: login days count days, not startups
 
-        // The rung was reached, the adapter claimed it on the player's plane, and the answer lists the new badge.
-        Assert.Contains(6010101, Honors(first));
-        var newFlag = first.GetProperty("userHonorList").EnumerateArray()
+        // The badge the first report paid is new in the first answer, and is only owned in the second: a replay is not news.
+        bool NewFlag(JsonElement startup) => startup.GetProperty("userHonorList").EnumerateArray()
             .Single(row => row.GetProperty("honorId").GetInt32() == 6010101).GetProperty("newFlag").GetBoolean();
-        Assert.True(newFlag);
+        Assert.True(NewFlag(first));
+        Assert.False(NewFlag(second));
         Assert.Equal(1, _economy.ItemsOf(player.Account, "honor:6010101"));
-        var claims = _economy.Requests.Where(call => call.Path == "/api/player/economy/tasks/claim"
-            && call.Body is not null && call.Body.Contains("badge.login_days")).ToArray();
-        Assert.Single(claims);
-        Assert.StartsWith("Bearer ", claims[0].Authorization);
+
+        // The adapter claims nothing: no sweep, no player-plane claim, no read of the tasks to find a rung.
+        Assert.DoesNotContain(_economy.Requests, call => call.Path == "/api/player/economy/tasks/claim");
     }
 
     [Fact]
-    public async Task Naming_the_player_reports_the_registration_fact_and_pays_the_rung_it_reached()
+    public async Task A_step_economy_refused_to_pay_is_not_shown_as_owned_and_does_not_fail_the_screen()
     {
         var player = await NewPlayerAsync(NewHost());
-        _economy.SeedBadgeTrack(player.Account, "badge.registration", 1, (1, "badge.6010001"));
+        _economy.QueueAutoClaim(player.Account, "login.day", "badge.login_days", 0, 30, "badge.6010101", refusedWith: "budget_exceeded");
+
+        var startup = await OkAsync(player, "/startup/index");
+
+        Assert.Equal(new[] { 6010000 }, Honors(startup));
+        Assert.Equal(0, _economy.ItemsOf(player.Account, "honor:6010101"));
+        Assert.Single(_economy.FactReports, fact => fact.PlayerId == player.Account && fact.Fact == "login.day");
+    }
+
+    [Fact]
+    public async Task Naming_the_player_reports_the_registration_fact_and_lists_the_step_it_paid()
+    {
+        var player = await NewPlayerAsync(NewHost());
+        _economy.QueueAutoClaim(player.Account, "registration.completed", "badge.registration", 0, 1, "badge.6010001");
 
         await OkAsync(player, "/tutorial/end", new { name = "Badger" });
 
@@ -203,6 +215,41 @@ public sealed class BadgeOtomoTests : IDisposable
         Assert.Equal("badge-registration", fact.Key);
         Assert.Empty(fact.Fields.EnumerateObject());
         Assert.Contains(6010001, Honors(await OkAsync(player, "/startup/index")));
+    }
+
+    [Fact]
+    public async Task Another_players_equipped_badge_is_session_display_honor_on_their_card()
+    {
+        var host = NewHost();
+        var player = await NewPlayerAsync(host);
+        var other = await NewPlayerAsync(host);
+        await OkAsync(other, "/user/change", new { name = "Showoff" });
+        _session.SeedDisplay(other.Account, "honor", "honor:6010501");
+
+        var card = (await OkAsync(player, "/user/search", new { displayUserId = long.Parse(other.UserId) })).GetProperty("userProfile");
+
+        Assert.Equal(other.UserId, card.GetProperty("userId").GetString());
+        Assert.Equal(6010501, card.GetProperty("honorId").GetInt32());
+        // A player showing nothing shows the default.
+        var plain = await NewPlayerAsync(host);
+        await OkAsync(plain, "/user/change", new { name = "Plain" });
+        var plainCard = (await OkAsync(player, "/user/search", new { displayUserId = long.Parse(plain.UserId) })).GetProperty("userProfile");
+        Assert.Equal(6010000, plainCard.GetProperty("honorId").GetInt32());
+    }
+
+    [Theory]
+    [InlineData("12345678901")]       // 11 characters: one past what session's names rules allow
+    [InlineData("a\u200db")]          // a zero-width joiner
+    [InlineData("tab\there")]         // a control character
+    public async Task A_name_session_refuses_is_answered_in_the_name_rule_error_and_not_kept(string name)
+    {
+        var player = await NewPlayerAsync(NewHost());
+
+        var (status, code, _) = await PostAsync(player, "/tutorial/end", new { name });
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal("2005", code); // the one code the client maps to its name-rule popup
+        Assert.Equal(206, (await OkAsync(player, "/startup/index")).GetProperty("tutorialProgressStatus").GetInt32());
     }
 
     [Fact]

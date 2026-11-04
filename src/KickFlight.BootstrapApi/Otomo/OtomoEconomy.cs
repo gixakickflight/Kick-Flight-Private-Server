@@ -172,34 +172,6 @@ public sealed class OtomoEconomy : IOtomoEconomy, IDisposable
                    "economy answered the fact report with an empty body");
     }
 
-    // POST /internal/economy/progress/gauge. Same plane and key. A gauge is set, so the body carries `value` and
-    // never `delta`: economy refuses the wrong route's field rather than ignoring it.
-    public async Task<EconomyProgress> ReportGaugeAsync(EconomyGaugeReport report, CancellationToken cancellationToken)
-    {
-        if (!Enabled) throw Disabled();
-        var key = ReadServiceKey();
-        if (!_options.ProgressEnabled || string.IsNullOrEmpty(key) || _internalBase is null)
-        {
-            throw new OtomoEconomyException(OtomoEconomyFailure.Disabled,
-                "the gauge report is off: set Otomo:Economy:ProgressEnabled and a gameserver service key");
-        }
-
-        var payload = new Dictionary<string, object?>
-        {
-            ["player_id"] = report.PlayerId,
-            ["counter"] = report.Counter,
-            ["value"] = report.Value,
-            ["key"] = report.Key,
-            ["reason"] = report.Reason,
-            ["ref"] = report.Reference
-        };
-        var element = await SendAsync(new Uri(_internalBase, "internal/economy/progress/gauge"), HttpMethod.Post,
-            payload, bearer: null, serviceKey: key, operation: "gauge", cancellationToken).ConfigureAwait(false);
-        return element.Deserialize<EconomyProgress>(JsonOptions)
-               ?? throw new OtomoEconomyException(OtomoEconomyFailure.Unavailable,
-                   "economy answered the gauge report with an empty body");
-    }
-
     // POST /internal/economy/grants. The same plane, key and switch as the progress report: one trust decision,
     // stated once. The body names a class and never an amount; economy refuses an `amount` field outright.
     public async Task<EconomyGrantResult> GrantAsync(EconomyGrantRequest grant, CancellationToken cancellationToken)

@@ -223,9 +223,9 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
             var name = body.RootElement.TryGetProperty("display_name", out var nameProp)
                 ? (nameProp.GetString() ?? "").Trim()
                 : "";
-            if (name.Length == 0)
+            if (!NameAllowed(name))
             {
-                return Error(context, StatusCodes.Status400BadRequest, "validation_failed", "display_name is required");
+                return Error(context, StatusCodes.Status400BadRequest, "invalid_display_name", "display_name is not allowed by the names rules");
             }
             lock (_lock) account.DisplayName = name;
             return Results.Json(new

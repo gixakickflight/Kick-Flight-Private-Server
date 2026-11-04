@@ -690,12 +690,11 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
         Assert.Equal(206, (await PostAsync(session, "/startup/index", null)).GetProperty("tutorialProgressStatus").GetInt32());
 
         var name = NewName();
-        // The registration badge's track stands at its target when the name is accepted (the tenant's track counts the
-        // registration.completed fact; this fake does not evaluate tracks, so the test sets the result), and the adapter
-        // claims the rung with the player's own token.
+        // The registration badge is what the inventory holds once economy has paid it (the report that pays it is walked
+        // in BadgeOtomoTests, with the internal plane on; this host has it off), and nothing else makes it owned.
         var account = _factory.Services.GetRequiredService<KickFlight.BootstrapApi.PlayerStore.IPlayerStore>()
             .FindOtomoPlayer(long.Parse(session.UserId))!.OtomoPlayerId;
-        OtomoTestEnvironment.Economy.SeedBadgeTrack(account, "badge.registration", 1, (1, "badge.6010001"));
+        OtomoTestEnvironment.Economy.Seed(account, items: [("honor:6010001", 1)]);
         await PostAsync(session, "/tutorial/end", new { name });
 
         // The client re-issues /startup/index the moment the name is accepted, so that reply is what has to agree.

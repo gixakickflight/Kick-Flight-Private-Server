@@ -371,16 +371,53 @@ public sealed partial class FakeOtomoEconomy : IAsyncDisposable
         {
             var (account, failure) = await IdentifyAsync(context);
             if (account is null) return failure;
-            return TasksOf(account);
+            return Results.Json(new
+            {
+                player_id = account,
+                tracks = new[]
+                {
+                    new
+                    {
+                        // A served mission (EconomyMissions: 102 / task 10201) with its one step reached and not
+                        // claimed, so a test can see both the row and the badge it lights.
+                        track_id = "mission.daily.win",
+                        counter = "battle.win",
+                        period = "d04:2026-10-28",
+                        value = 1L,
+                        best = 1L,
+                        mode = "cumulative",
+                        repeat = false,
+                        steps = new[]
+                        {
+                            new { step = 0, target = 1L, @class = "mission.daily.win.1", reached = true, claimed = false, claimable = true }
+                        },
+                        repetition = 0
+                    },
+                    // A badge track as the service lists it: auto_claim, so its steps are paid by the report and read claimed.
+                    new
+                    {
+                        track_id = "badge.login_days",
+                        counter = "",
+                        period = "all",
+                        value = 30L,
+                        best = 30L,
+                        mode = "cumulative",
+                        repeat = false,
+                        steps = new[]
+                        {
+                            new { step = 0, target = 30L, @class = "badge.6010101", reached = true, claimed = true, claimable = false }
+                        },
+                        repetition = 0
+                    }
+                }
+            });
         });
 
         _app.MapPost("/api/player/economy/tasks/claim", async (HttpContext context) =>
         {
             var (account, failure) = await IdentifyAsync(context);
             if (account is null) return failure;
-            using var reader = new StreamReader(context.Request.Body, Encoding.UTF8, detectEncodingFromByteOrderMarks: false,
-                leaveOpen: true);
-            return ClaimTrack(context, account, await reader.ReadToEndAsync());
+            return Error(context, StatusCodes.Status409Conflict, "not_claimable", "track not claimable");
         });
 
         MapBadges();
@@ -880,7 +917,5 @@ public sealed partial class FakeOtomoEconomy : IAsyncDisposable
         public Dictionary<string, long> Items { get; } = new(StringComparer.Ordinal);
         // item id -> the level of that possession, which is attrs.level on the real service's row.
         public Dictionary<string, long> Levels { get; } = new(StringComparer.Ordinal);
-        // Tracks the tests seeded, and the progress of the declared gauge tracks (FakeOtomoEconomy.Badges.cs).
-        public Dictionary<string, BadgeTrack> Tracks { get; } = new(StringComparer.Ordinal);
     }
 }

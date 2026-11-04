@@ -31,7 +31,9 @@ public sealed record SessionPlayerProfile(
     [property: JsonPropertyName("display_name")] string? DisplayName,
     [property: JsonPropertyName("discriminator")] int Discriminator,
     [property: JsonPropertyName("named")] bool Named,
-    [property: JsonPropertyName("ext")] JsonElement? Ext);
+    [property: JsonPropertyName("ext")] JsonElement? Ext,
+    // The item the player shows in each display slot, {slot: item_id}; `{}` when nothing is equipped.
+    [property: JsonPropertyName("display")] Dictionary<string, string>? Display = null);
 
 // POST /internal/session/players/ext: the value after the write, and whether this call changed it. `applied` is false
 // for a replay of a key already applied, which is a success.

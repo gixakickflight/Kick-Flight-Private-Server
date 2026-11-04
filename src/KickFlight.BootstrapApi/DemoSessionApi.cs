@@ -2305,7 +2305,10 @@ public sealed partial class DemoSessionApi : IDisposable
             return StatusError(context, key);
         }
 
-        var rejection = NameRejection(state, name);
+        // What a name may be - its length, its characters, how often it changes - is session's `names` rules, published
+        // by the tenant. The adapter asks session and maps a refusal to the client's error; the one thing it still
+        // decides is that two players of this game do not share a bare name (the client draws no tag).
+        var rejection = NameTaken(state, name) ? "taken" : await RenameAtSessionAsync(ticket, name, "/tutorial/end", context.RequestAborted);
         if (rejection is not null)
         {
             _logger.LogInformation("Rejected the name submitted by player {PlayerId}: {Reason} ({Length} code units)",
@@ -2317,27 +2320,14 @@ public sealed partial class DemoSessionApi : IDisposable
         state.TutorialProgress = TutorialStatusComplete;
         SaveUserState(state);
         await RecordBadgeRegistrationAsync(ticket, context.RequestAborted);
-        await PublishNameAsync(ticket, state, "/tutorial/end", context.RequestAborted);
         _logger.LogInformation("Player {PlayerId} chose the name {UserName:l}", state.PlayerId, name);
         return OkJson(context, key, "{}");
     }
 
-    // The client caps typing at 10 UTF-16 code units and truncates with Substring(0, 10) on end-edit, so 10 is the
-    // limit here too: the server must never reject a name the client let the player type. Surrogates and the
-    // zero-width joiner would let a name render as something other than what it compares as, and a control
-    // character would break the single line the name is drawn on.
-    private const int NameMaxLength = 10;
-
-    private string? NameRejection(SessionState state, string name)
-    {
-        if (name.Length == 0) return "empty";
-        if (name.Length > NameMaxLength) return "too-long";
-        if (name.Any(char.IsSurrogate)) return "surrogate";
-        if (name.Contains('‍')) return "zero-width-joiner";
-        if (name.Any(char.IsControl)) return "control-character";
-        if (_playerStore.IsNameTaken(name, state.PlayerId)) return "taken";
-        return null;
-    }
+    // The client caps typing at 10 characters, no surrogates, no zero-width joiner and no control characters, and the
+    // tenant's session.rules `names` say exactly that (kf-otomo kf/tenant/namespaces/session.rules.json), so the adapter
+    // holds none of it. What stays here is uniqueness of the bare name, which session's name#tag does not provide.
+    private bool NameTaken(SessionState state, string name) => name.Length > 0 && _playerStore.IsNameTaken(name, state.PlayerId);
 
     // A rejection is HTTP 200 carrying a non-zero x-app-status-code: the code, not the HTTP status, is what the
     // client reads as the failure signal. Only 2005 opens its name-rule popup - the canned text lives in the
@@ -2357,8 +2347,6 @@ public sealed partial class DemoSessionApi : IDisposable
                 title = "Invalid name",
                 message = reason switch
                 {
-                    "empty" => "Enter a name.",
-                    "too-long" => $"Names cannot be longer than {NameMaxLength} characters.",
                     "taken" => "That name is already used by another player.",
                     _ => "That name cannot be used."
                 }

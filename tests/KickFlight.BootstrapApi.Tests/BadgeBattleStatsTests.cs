@@ -342,13 +342,19 @@ public sealed class BadgeBattleStatsTests
         var (_, stolen) = await PostAsync(client, other, "/battle/result", Result(entryId, 5, 9, 1));
         Assert.True(stolen.RootElement.TryGetProperty("userExp", out _));
         Assert.DoesNotContain(economy.FactReports, fact => fact.Key == key);
-        Assert.DoesNotContain(economy.GaugeReports, gauge => gauge.Key.EndsWith(entryId, StringComparison.Ordinal));
 
+        // This battle crosses a step of an auto_claim badge track: economy pays it inside the report and says so.
+        economy.QueueAutoClaim(playerAccount, "battle.result", "badge.kicker_wins.1", 0, 3, "badge.6011501");
         var (firstRaw, first) = await PostAsync(client, player, "/battle/result", Result(entryId, 5, 9, 1));
         var keys = first.RootElement.EnumerateObject().Select(p => p.Name).ToArray();
         foreach (var expected in new[] { "userExp", "userBattleRank", "beforeUserBattleRank", "receivedUserHonorList",
                      "battleCount", "battleWinCount", "matchmakingTeamId" })
             Assert.Contains(expected, keys);
+
+        var received = Assert.Single(first.RootElement.GetProperty("receivedUserHonorList").EnumerateArray());
+        Assert.Equal(6011501, received.GetProperty("honorId").GetInt32());
+        Assert.True(received.GetProperty("newFlag").GetBoolean());
+        Assert.Equal(1, economy.ItemsOf(playerAccount, "honor:6011501"));
 
         // One fact for the verified battle, under the entry, with the fields the tenant declares and the numbers the
         // evaluator bounded.
@@ -373,17 +379,17 @@ public sealed class BadgeBattleStatsTests
         Assert.True(fields.GetProperty("rank_after").GetInt32() >= 0);
         Assert.DoesNotContain(economy.FactReports, fact => fact.PlayerId == otherAccount && fact.Key == key);
 
-        // The win streak is a gauge the adapter sets from economy's own present value: 0 -> 1 on a win.
-        var gauge = Assert.Single(economy.GaugeReports, g => g.Key == $"badge-streak:{entryId}");
-        Assert.Equal($"badge.streak.{context.BattleRuleType}", gauge.Counter);
-        Assert.Equal(1, gauge.Value);
+        // The win streak is the tenant's `streak` measure over this same fact: the adapter reads nothing back, sets nothing
+        // and claims nothing.
+        Assert.DoesNotContain(economy.Requests, call => call.Path.EndsWith("/progress/gauge", StringComparison.Ordinal)
+            || call.Path.EndsWith("/tasks/claim", StringComparison.Ordinal));
+        Assert.DoesNotContain(economy.Requests, call => call.Path == "/api/player/economy/tasks" && call.Method == "GET");
 
         // The client retries with different numbers: economy answers its first report, nothing is counted twice.
         var (retryRaw, _) = await PostAsync(client, player, "/battle/result", Result(entryId, 50, 9, 1));
         Assert.Equal(5, Assert.Single(economy.FactReports, fact => fact.Key == key && !fact.Replayed)
             .Fields.GetProperty("kills").GetInt64());
         Assert.Contains(economy.FactReports, fact => fact.Key == key && fact.Replayed);
-        Assert.Equal((1L, 1L), economy.GaugeOf(playerAccount, $"badge.streak.{context.BattleRuleType}"));
         using (var a = JsonDocument.Parse(firstRaw))
         using (var b = JsonDocument.Parse(retryRaw))
             Assert.Equal(
@@ -392,37 +398,6 @@ public sealed class BadgeBattleStatsTests
 
         cancel.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => task);
-
-        // A second battle, lost: the streak is where economy holds it (1) and the loss sets it to 0, while the peak stays.
-        var (_, secondEntry) = await PostAsync(client, player, "/battle/entry", JsonSerializer.Serialize(new { battleRuleId = ruleId }));
-        var secondId = secondEntry.RootElement.GetProperty("battleEntryId").GetString()!;
-        using var secondCancel = new CancellationTokenSource();
-        var secondWriter = new Writer();
-        var secondTask = matchmaking.StreamAssignmentsAsync(
-            secondEntry.RootElement.GetProperty("battleEntryTicketId").GetString()!, secondWriter, secondCancel.Token);
-        await secondWriter.Final.WaitAsync(TimeSpan.FromSeconds(5));
-        var secondContext = matchmaking.GetBadgeBattleContext(secondId)!;
-        await PostAsync(client, player, "/battle/result", JsonSerializer.Serialize(new Dictionary<string, object>
-        {
-            ["battleEntryId"] = secondId,
-            ["killCount"] = 0,
-            ["teamScoreList"] = new[]
-            {
-                new { teamType = secondContext.OwnTeamType!.Value, score = 1 },
-                new { teamType = 1 - secondContext.OwnTeamType!.Value, score = 9 }
-            },
-            ["userScoreList"] = new[]
-            {
-                new { userId = player.PlayerId, score = 1, mvpFlag = false, aiFlag = false, breakawayFlag = false, badConnectionFlag = false }
-            }
-        }));
-        var lost = Assert.Single(economy.FactReports, fact => fact.Key == $"badge-battle:{secondId}");
-        Assert.False(lost.Fields.GetProperty("won").GetBoolean());
-        Assert.Equal("loss", lost.Fields.GetProperty("outcome").GetString());
-        Assert.Equal(0, Assert.Single(economy.GaugeReports, g => g.Key == $"badge-streak:{secondId}").Value);
-        Assert.Equal((0L, 1L), economy.GaugeOf(playerAccount, $"badge.streak.{secondContext.BattleRuleType}"));
-        secondCancel.Cancel();
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => secondTask);
     }
 
     // A like is a fact about the player who received it, reported under their account and keyed by the (battle, liker)
