@@ -6,7 +6,8 @@ using Microsoft.AspNetCore.Http;
 
 namespace KickFlight.BootstrapApi.Tests;
 
-// The ext half of the session fake: a player's loadout, as services/session serves it.
+// The ext half of the session fake: a player's ext, as services/session serves it. (The loadout - decks, costume gears,
+// the active deck - is session's Loadout, FakeOtomoSocial.Loadout.cs, and is not in ext.)
 //
 //   GET  /api/player/session/me                  the caller's own card, ext included (player token)
 //   GET  /internal/session/players/{player_id}   another player's card: name, discriminator, named, ext (service key);
@@ -15,13 +16,13 @@ namespace KickFlight.BootstrapApi.Tests;
 //                                                ext.session.player schema, idempotent by key per player, 400 invalid_ext
 //                                                naming the field, 404 player_not_found
 //
-// The schema below is what the KF tenant publishes TODAY (decks, costume_gears) plus the two fields this change needs
-// (active_deck, pending_gear), whose JSON Schema is written out in the change's report. additionalProperties is false,
-// so a field the adapter invents is a 400 here exactly as it is on the real service.
+// The schema below is what the KF tenant publishes for ext.session.player: pending_gear only. additionalProperties is
+// false, so a field the adapter invents (or a deck written to ext after the move) is a 400 here exactly as it is on the
+// real service.
 public sealed partial class FakeOtomoSocial
 {
     // The fields the schema declares, for a test that wants to assert nothing outside it is ever written.
-    public static readonly string[] ExtFields = ["decks", "costume_gears", "active_deck", "pending_gear"];
+    public static readonly string[] ExtFields = ["pending_gear"];
 
     private readonly Dictionary<(string PlayerId, string Key), JsonObject> _extWrites = [];
     private readonly ConcurrentQueue<ExtWriteCall> _extLog = new();
@@ -153,8 +154,8 @@ public sealed partial class FakeOtomoSocial
         });
     }
 
-    // ext.session.player as the tenant publishes it plus this change's two fields. Returns the message session's 400
-    // names the field with, or null when the value follows the schema.
+    // ext.session.player as the tenant publishes it. Returns the message session's 400 names the field with, or null when
+    // the value follows the schema.
     public static string? ValidateExt(JsonElement ext)
     {
         foreach (var property in ext.EnumerateObject())
@@ -162,37 +163,6 @@ public sealed partial class FakeOtomoSocial
             var path = "/" + property.Name;
             switch (property.Name)
             {
-                case "decks":
-                    if (property.Value.ValueKind != JsonValueKind.Object) return $"ext: {path} must be an object";
-                    foreach (var deck in property.Value.EnumerateObject())
-                    {
-                        if (!int.TryParse(deck.Name, out var number) || number is < 1 or > 999)
-                            return $"ext: {path}/{deck.Name} is not a deck number from 1 to 999";
-                        if (deck.Value.ValueKind != JsonValueKind.Array)
-                            return $"ext: {path}/{deck.Name} must be an array";
-                        var discs = deck.Value.EnumerateArray().ToList();
-                        if (discs.Count > 8) return $"ext: {path}/{deck.Name} has more than 8 discs";
-                        if (discs.Any(disc => !disc.TryGetInt64(out var id) || id < 1))
-                            return $"ext: {path}/{deck.Name} holds a disc id that is not a positive integer";
-                        if (discs.Select(disc => disc.GetInt64()).Distinct().Count() != discs.Count)
-                            return $"ext: {path}/{deck.Name} repeats a disc";
-                    }
-                    break;
-                case "costume_gears":
-                    if (property.Value.ValueKind != JsonValueKind.Object) return $"ext: {path} must be an object";
-                    foreach (var costume in property.Value.EnumerateObject())
-                    {
-                        if (!long.TryParse(costume.Name, out var costumeId) || costumeId < 1)
-                            return $"ext: {path}/{costume.Name} is not a costume id";
-                        if (costume.Value.ValueKind != JsonValueKind.Array || costume.Value.GetArrayLength() != 3 ||
-                            costume.Value.EnumerateArray().Any(gear => !gear.TryGetInt64(out var id) || id < 0))
-                            return $"ext: {path}/{costume.Name} must be exactly 3 integers >= 0";
-                    }
-                    break;
-                case "active_deck":
-                    if (!property.Value.TryGetInt64(out var active) || active is < 1 or > 999)
-                        return $"ext: {path} must be an integer from 1 to 999";
-                    break;
                 case "pending_gear":
                     if (property.Value.ValueKind != JsonValueKind.Object) return $"ext: {path} must be an object";
                     foreach (var field in property.Value.EnumerateObject())

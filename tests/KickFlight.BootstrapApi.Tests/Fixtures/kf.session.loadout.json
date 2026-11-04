@@ -1,0 +1,403 @@
+{
+  "active_version": 1,
+  "ready_policy": "free",
+  "versions": {
+    "1": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "Kick-Flight loadout, version 1",
+      "type": "object",
+      "required": [
+        "schema_version",
+        "decks",
+        "costume_gears",
+        "active_deck"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "decks": {
+          "type": "object",
+          "description": "Deck number (\"1\" to \"16\") -> the disc ids in it, in slot order. The client uses five decks.",
+          "maxProperties": 16,
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^([1-9]|1[0-6])$"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "maxItems": 8,
+            "uniqueItems": true
+          }
+        },
+        "costume_gears": {
+          "type": "object",
+          "description": "Costume row id -> its three gear slots (0 = empty), the shape the client reads back as gearId1..3.",
+          "maxProperties": 256,
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{0,9}$"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "minItems": 3,
+            "maxItems": 3
+          }
+        },
+        "active_deck": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16,
+          "description": "The deck number the player fights with; it must be a key of decks (the allOf below)."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "active_deck": {
+                "const": 1
+              }
+            },
+            "required": [
+              "active_deck"
+            ]
+          },
+          "then": {
+            "properties": {
+              "decks": {
+                "required": [
+                  "1"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "active_deck": {
+                "const": 2
+              }
+            },
+            "required": [
+              "active_deck"
+            ]
+          },
+          "then": {
+            "properties": {
+              "decks": {
+                "required": [
+                  "2"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "active_deck": {
+                "const": 3
+              }
+            },
+            "required": [
+              "active_deck"
+            ]
+          },
+          "then": {
+            "properties": {
+              "decks": {
+                "required": [
+                  "3"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "active_deck": {
+                "const": 4
+              }
+            },
+            "required": [
+              "active_deck"
+            ]
+          },
+          "then": {
+            "properties": {
+              "decks": {
+                "required": [
+                  "4"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "active_deck": {
+                "const": 5
+              }
+            },
+            "required": [
+              "active_deck"
+            ]
+          },
+          "then": {
+            "properties": {
+              "decks": {
+                "required": [
+                  "5"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "active_deck": {
+                "const": 6
+              }
+            },
+            "required": [
+              "active_deck"
+            ]
+          },
+          "then": {
+            "properties": {
+              "decks": {
+                "required": [
+                  "6"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "active_deck": {
+                "const": 7
+              }
+            },
+            "required": [
+              "active_deck"
+            ]
+          },
+          "then": {
+            "properties": {
+              "decks": {
+                "required": [
+                  "7"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "active_deck": {
+                "const": 8
+              }
+            },
+            "required": [
+              "active_deck"
+            ]
+          },
+          "then": {
+            "properties": {
+              "decks": {
+                "required": [
+                  "8"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "active_deck": {
+                "const": 9
+              }
+            },
+            "required": [
+              "active_deck"
+            ]
+          },
+          "then": {
+            "properties": {
+              "decks": {
+                "required": [
+                  "9"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "active_deck": {
+                "const": 10
+              }
+            },
+            "required": [
+              "active_deck"
+            ]
+          },
+          "then": {
+            "properties": {
+              "decks": {
+                "required": [
+                  "10"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "active_deck": {
+                "const": 11
+              }
+            },
+            "required": [
+              "active_deck"
+            ]
+          },
+          "then": {
+            "properties": {
+              "decks": {
+                "required": [
+                  "11"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "active_deck": {
+                "const": 12
+              }
+            },
+            "required": [
+              "active_deck"
+            ]
+          },
+          "then": {
+            "properties": {
+              "decks": {
+                "required": [
+                  "12"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "active_deck": {
+                "const": 13
+              }
+            },
+            "required": [
+              "active_deck"
+            ]
+          },
+          "then": {
+            "properties": {
+              "decks": {
+                "required": [
+                  "13"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "active_deck": {
+                "const": 14
+              }
+            },
+            "required": [
+              "active_deck"
+            ]
+          },
+          "then": {
+            "properties": {
+              "decks": {
+                "required": [
+                  "14"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "active_deck": {
+                "const": 15
+              }
+            },
+            "required": [
+              "active_deck"
+            ]
+          },
+          "then": {
+            "properties": {
+              "decks": {
+                "required": [
+                  "15"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "active_deck": {
+                "const": 16
+              }
+            },
+            "required": [
+              "active_deck"
+            ]
+          },
+          "then": {
+            "properties": {
+              "decks": {
+                "required": [
+                  "16"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

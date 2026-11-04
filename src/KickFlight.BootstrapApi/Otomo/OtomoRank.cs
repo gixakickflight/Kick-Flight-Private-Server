@@ -129,6 +129,68 @@ public sealed class OtomoRank : IOtomoRank, IOtomoProfile, IDisposable
         return map;
     }
 
+    // GET /api/player/session/loadout: the caller's own loadout. 404 loadout_not_found is "not saved yet", not a failure.
+    public async Task<SessionLoadout?> GetOwnLoadoutAsync(string accessToken, CancellationToken cancellationToken)
+    {
+        var reply = await SendReplyAsync(Under(_playerBase, "api/player/session/loadout"), HttpMethod.Get, null,
+            accessToken, null, "own loadout", cancellationToken,
+            accept: (status, code) => status == 404 && code == "loadout_not_found").ConfigureAwait(false);
+        return reply.Status == 404 ? null : ToLoadout(reply.Body, "own loadout");
+    }
+
+    // PUT /api/player/session/loadout with If-Match. A 200 is Saved, a 409 revision_conflict is Current (the body's
+    // `current`), a 422 invalid_loadout is Issues. Session's other 409s (schema_version_outdated, loadout_locked) and
+    // every other status are exceptions: they are not something a re-read fixes.
+    public async Task<SessionLoadoutWrite> PutOwnLoadoutAsync(string accessToken, JsonObject document,
+        int expectedRevision, CancellationToken cancellationToken)
+    {
+        var headers = new Dictionary<string, string> { ["If-Match"] = "\"" + expectedRevision + "\"" };
+        var reply = await SendReplyAsync(Under(_playerBase, "api/player/session/loadout"), HttpMethod.Put, document,
+            accessToken, null, "loadout save", cancellationToken, headers,
+            accept: (status, code) => (status == 409 && code == "revision_conflict") ||
+                                      (status == 422 && code == "invalid_loadout")).ConfigureAwait(false);
+        switch (reply.Status)
+        {
+            case 409:
+                if (reply.Body.ValueKind == JsonValueKind.Object && reply.Body.TryGetProperty("current", out var current) &&
+                    current.ValueKind == JsonValueKind.Object)
+                    return new SessionLoadoutWrite(null, ToLoadout(current, "loadout conflict"), null);
+                throw new OtomoRankException(OtomoRankFailure.Unavailable,
+                    "session answered a loadout conflict without the current loadout", 409, "revision_conflict");
+            case 422:
+                var issues = new List<SessionLoadoutIssue>();
+                if (reply.Body.ValueKind == JsonValueKind.Object && reply.Body.TryGetProperty("issues", out var list) &&
+                    list.ValueKind == JsonValueKind.Array)
+                    issues = list.Deserialize<List<SessionLoadoutIssue>>(JsonOptions) ?? [];
+                return new SessionLoadoutWrite(null, null, issues);
+            default:
+                return new SessionLoadoutWrite(ToLoadout(reply.Body, "loadout save"), null, null);
+        }
+    }
+
+    // GET /internal/session/players/{player_id}/loadout: another player's loadout, the body of that player's own GET.
+    public async Task<SessionLoadout?> GetPlayerLoadoutAsync(string otomoPlayerId, CancellationToken cancellationToken)
+    {
+        var key = RequireServiceKey("another player's loadout");
+        var reply = await SendReplyAsync(
+            Under(_internalBase, $"internal/session/players/{Uri.EscapeDataString(otomoPlayerId)}/loadout"),
+            HttpMethod.Get, null, null, key, "player loadout", cancellationToken,
+            accept: (status, code) => status == 404 && code == "loadout_not_found").ConfigureAwait(false);
+        return reply.Status == 404 ? null : ToLoadout(reply.Body, "player loadout");
+    }
+
+    // The document carries its own revision (session writes the stored one into every document it returns).
+    private static SessionLoadout ToLoadout(JsonElement body, string operation)
+    {
+        if (body.ValueKind != JsonValueKind.Object || !body.TryGetProperty("revision", out var revision) ||
+            !revision.TryGetInt32(out var number) || number < 0)
+        {
+            throw new OtomoRankException(OtomoRankFailure.Unavailable,
+                $"session answered {operation} with a document that names no revision");
+        }
+        return new SessionLoadout(number, body);
+    }
+
     // GET /internal/session/players/{player_id}: another player's card (name, discriminator, ext).
     public Task<SessionPlayerProfile> GetPlayerProfileAsync(string otomoPlayerId, CancellationToken cancellationToken)
     {
@@ -173,7 +235,17 @@ public sealed class OtomoRank : IOtomoRank, IOtomoProfile, IDisposable
     }
 
     private async Task<JsonElement> SendAsync(Uri url, HttpMethod method, object? body, string? accessToken,
-        string? serviceKey, string operation, CancellationToken cancellationToken)
+        string? serviceKey, string operation, CancellationToken cancellationToken) =>
+        (await SendReplyAsync(url, method, body, accessToken, serviceKey, operation, cancellationToken)
+            .ConfigureAwait(false)).Body;
+
+    private sealed record Reply(int Status, JsonElement Body);
+
+    // `accept` names the 4xx answers the caller handles as data (status and error code): their body is returned
+    // instead of thrown. Every other non-2xx is an OtomoRankException, as before.
+    private async Task<Reply> SendReplyAsync(Uri url, HttpMethod method, object? body, string? accessToken,
+        string? serviceKey, string operation, CancellationToken cancellationToken,
+        IReadOnlyDictionary<string, string>? headers = null, Func<int, string?, bool>? accept = null)
     {
         if (!Enabled)
         {
@@ -190,6 +262,8 @@ public sealed class OtomoRank : IOtomoRank, IOtomoProfile, IDisposable
                 if (body is not null) request.Content = JsonContent.Create(body);
                 var bearer = !string.IsNullOrEmpty(serviceKey) ? serviceKey : accessToken;
                 if (!string.IsNullOrEmpty(bearer)) request.Headers.TryAddWithoutValidation("Authorization", "Bearer " + bearer);
+                if (headers is not null)
+                    foreach (var (name, value) in headers) request.Headers.TryAddWithoutValidation(name, value);
                 response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception exception) when (!cancellationToken.IsCancellationRequested &&
@@ -219,7 +293,9 @@ public sealed class OtomoRank : IOtomoRank, IOtomoProfile, IDisposable
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    var code = await ReadErrorCodeAsync(response, cancellationToken).ConfigureAwait(false);
+                    var (code, errorBody) = await ReadErrorAsync(response, cancellationToken).ConfigureAwait(false);
+                    if (accept is not null && accept((int)response.StatusCode, code))
+                        return new Reply((int)response.StatusCode, errorBody);
                     var failure = (int)response.StatusCode >= 500 ? OtomoRankFailure.Unavailable : OtomoRankFailure.Refused;
                     var message = $"otomo session rank {operation} answered {(int)response.StatusCode}{(code is null ? "" : " " + code)}";
                     if (failure == OtomoRankFailure.Unavailable) _logger.LogError("{Message}", message);
@@ -232,7 +308,7 @@ public sealed class OtomoRank : IOtomoRank, IOtomoProfile, IDisposable
                     using var document = await JsonDocument.ParseAsync(
                         await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false),
                         cancellationToken: cancellationToken).ConfigureAwait(false);
-                    return document.RootElement.Clone();
+                    return new Reply((int)response.StatusCode, document.RootElement.Clone());
                 }
                 catch (JsonException exception)
                 {
@@ -247,8 +323,9 @@ public sealed class OtomoRank : IOtomoRank, IOtomoProfile, IDisposable
     private Task DelayBeforeRetryAsync(CancellationToken cancellationToken) =>
         _options.RetryDelay > TimeSpan.Zero ? Task.Delay(_options.RetryDelay, cancellationToken) : Task.CompletedTask;
 
-    // The COM-5 envelope: {"error":{"code","message","request_id"}}.
-    private static async Task<string?> ReadErrorCodeAsync(HttpResponseMessage response,
+    // The COM-5 envelope: {"error":{"code","message","request_id"}}. The whole body comes back too, because a loadout
+    // 409 carries the current document and a 422 the problems beside the error.
+    private static async Task<(string? Code, JsonElement Body)> ReadErrorAsync(HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
         try
@@ -256,18 +333,20 @@ public sealed class OtomoRank : IOtomoRank, IOtomoProfile, IDisposable
             using var document = await JsonDocument.ParseAsync(
                 await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false),
                 cancellationToken: cancellationToken).ConfigureAwait(false);
-            return document.RootElement.ValueKind == JsonValueKind.Object &&
-                   document.RootElement.TryGetProperty("error", out var error) &&
-                   error.ValueKind == JsonValueKind.Object &&
-                   error.TryGetProperty("code", out var code) &&
-                   code.ValueKind == JsonValueKind.String
-                ? code.GetString()
+            var root = document.RootElement;
+            var code = root.ValueKind == JsonValueKind.Object &&
+                       root.TryGetProperty("error", out var error) &&
+                       error.ValueKind == JsonValueKind.Object &&
+                       error.TryGetProperty("code", out var codeProp) &&
+                       codeProp.ValueKind == JsonValueKind.String
+                ? codeProp.GetString()
                 : null;
+            return (code, root.Clone());
         }
         catch (Exception exception) when (exception is JsonException or HttpRequestException
                                               or NotSupportedException or TaskCanceledException)
         {
-            return null;
+            return (null, default);
         }
     }
 

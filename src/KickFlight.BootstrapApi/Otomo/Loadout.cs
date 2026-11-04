@@ -1,22 +1,24 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace KickFlight.BootstrapApi.Otomo;
 
-// A player's loadout as the adapter uses it, and its translation to and from the `ext` of the player's session card
-// (ext.session.player, published by the KF tenant). The adapter keeps none of it: it is read from session on each request
-// that needs it and written back through session's internal ext route.
+// A player's loadout as the adapter uses it, and its translation to and from session's two stores for it. The adapter
+// keeps none of it: it is read from session on each request that needs it and written back with the player's own token.
 //
-// The ext fields, by name:
+// Session's Loadout (the tenant's session.loadout, schema version 1) holds what the player builds:
 //
-//   decks          { "<deck number>": [disc id, ...] }          the player's decks (<= 8 unique positive disc ids each)
-//   active_deck    integer                                       the deck number the player fights with
-//   costume_gears  { "<costume id>": [gear, gear, gear] }        three gear slots per costume, 0 = empty
-//   pending_gear   { "kicker_id": int, "gear_id": int }          the gear rolled by /gear/create and not yet equipped or
-//                                                                discarded; gear_id 0 means nothing is pending
+//   schema_version  1
+//   decks           { "<deck number>": [disc id, ...] }          the player's decks (<= 8 unique positive disc ids each)
+//   costume_gears   { "<costume id>": [gear, gear, gear] }        three gear slots per costume, 0 = empty
+//   active_deck     integer 1..16                                 the deck number the player fights with; a key of decks
+//   revision        integer                                       session's, on every document it returns (not sent back)
 //
-// `active_deck` and `pending_gear` are not in the schema the tenant published first (only `decks` and `costume_gears`
-// are); the additions are written out in the change's report and the code, tests and fakes assume them.
+// and the server-decided gear roll stays in ext (ext.session.player), because the player does not write it:
+//
+//   pending_gear    { "kicker_id": int, "gear_id": int }          the gear rolled by /gear/create and not yet equipped or
+//                                                                 discarded; gear_id 0 means nothing is pending
 public sealed record GearRoll(int KickerId, int GearId)
 {
     public static GearRoll None { get; } = new(0, 0);
@@ -24,15 +26,14 @@ public sealed record GearRoll(int KickerId, int GearId)
 
 public sealed class Loadout
 {
-    public const string DecksField = "decks";
-    public const string ActiveDeckField = "active_deck";
-    public const string GearSlotsField = "costume_gears";
+    public const int SchemaVersion = 1;
     public const string GearRollField = "pending_gear";
 
     // The fight deck of an account whose active deck names no deck at all: the first starter deck.
     public static readonly IReadOnlyList<int> InitialDeck = [3010001, 3010002, 3010003, 3010004];
 
-    // What a new player starts with (today's defaults, decks 1-5), written once to ext when the first read finds none.
+    // What a new player starts with (today's defaults, decks 1-5), written once with If-Match: 0 when the first read finds
+    // no loadout.
     public static IReadOnlyDictionary<int, List<int>> DefaultDecks() => new Dictionary<int, List<int>>
     {
         [1] = [3010001, 3010002, 3010003, 3010004],
@@ -42,23 +43,31 @@ public sealed class Loadout
         [5] = [3010023, 3010024, 3010029, 3010030]
     };
 
-    public Loadout(int activeDeck, IDictionary<int, List<int>> decks, IDictionary<int, int[]> costumeGears,
-        GearRoll pending, bool hasDecks)
+    public Loadout(int revision, int activeDeck, IDictionary<int, List<int>> decks, IDictionary<int, int[]> costumeGears,
+        GearRoll pending)
     {
+        Revision = revision;
         ActiveDeck = activeDeck;
-        DeckSets = new Dictionary<int, List<int>>(decks);
-        GearsByCostume = new Dictionary<int, int[]>(costumeGears);
+        DeckSets = new Dictionary<int, List<int>>(decks.Select(pair => KeyValuePair.Create(pair.Key, new List<int>(pair.Value))));
+        GearsByCostume = new Dictionary<int, int[]>(costumeGears.Select(pair => KeyValuePair.Create(pair.Key, (int[])pair.Value.Clone())));
         Roll = pending;
-        HasDecks = hasDecks;
     }
 
-    public int ActiveDeck { get; }
+    // The revision session held when this was read: what a save of it names in If-Match. 0 is "never saved".
+    public int Revision { get; }
+    public int ActiveDeck { get; set; }
     public Dictionary<int, List<int>> DeckSets { get; }
     public Dictionary<int, int[]> GearsByCostume { get; }
     public GearRoll Roll { get; }
 
-    // False when the ext carried no `decks` at all, which is a player session has never been told about.
-    public bool HasDecks { get; }
+    // A copy to edit: the original stays what session returned, so a retry can start again from a new read.
+    public Loadout Copy() => new(Revision, ActiveDeck, DeckSets, GearsByCostume, Roll);
+
+    // The loadout of a player who has never saved one, as the starting point of a first save (revision 0).
+    public static Loadout Starter(GearRoll pending) => new(0, 1, DefaultDecks().ToDictionary(), new Dictionary<int, int[]>(), pending);
+
+    // The loadout of another player who has saved none: no decks, so every reader falls back to the initial deck.
+    public static Loadout Empty { get; } = new(0, 1, new Dictionary<int, List<int>>(), new Dictionary<int, int[]>(), GearRoll.None);
 
     // The disc ids of the deck the player fights with. A missing deck is the initial one, never an empty deck.
     public List<int> ActiveDeckDiscs() =>
@@ -74,19 +83,19 @@ public sealed class Loadout
         return slots;
     }
 
-    public static Loadout FromExt(JsonElement? ext)
+    // --- session's documents -----------------------------------------------------------------------------------------
+
+    // A loadout document as session returned it, with the roll from the player's ext (None for another player's).
+    public static Loadout FromSession(SessionLoadout stored, GearRoll pending)
     {
         var decks = new Dictionary<int, List<int>>();
         var gears = new Dictionary<int, int[]>();
         var active = 1;
-        var pending = GearRoll.None;
-        var hasDecks = false;
-
-        if (ext is { ValueKind: JsonValueKind.Object } root)
+        var root = stored.Document;
+        if (root.ValueKind == JsonValueKind.Object)
         {
-            if (root.TryGetProperty(DecksField, out var decksElement) && decksElement.ValueKind == JsonValueKind.Object)
+            if (root.TryGetProperty("decks", out var decksElement) && decksElement.ValueKind == JsonValueKind.Object)
             {
-                hasDecks = true;
                 foreach (var deck in decksElement.EnumerateObject())
                 {
                     if (!int.TryParse(deck.Name, out var number) || deck.Value.ValueKind != JsonValueKind.Array) continue;
@@ -94,9 +103,9 @@ public sealed class Loadout
                         .Select(id => id.GetInt32()).ToList();
                 }
             }
-            if (root.TryGetProperty(ActiveDeckField, out var activeElement) && activeElement.TryGetInt32(out var number1))
+            if (root.TryGetProperty("active_deck", out var activeElement) && activeElement.TryGetInt32(out var number1))
                 active = number1;
-            if (root.TryGetProperty(GearSlotsField, out var gearsElement) && gearsElement.ValueKind == JsonValueKind.Object)
+            if (root.TryGetProperty("costume_gears", out var gearsElement) && gearsElement.ValueKind == JsonValueKind.Object)
             {
                 foreach (var costume in gearsElement.EnumerateObject())
                 {
@@ -111,38 +120,46 @@ public sealed class Loadout
                     gears[costumeId] = slots;
                 }
             }
-            if (root.TryGetProperty(GearRollField, out var pendingElement) && pendingElement.ValueKind == JsonValueKind.Object)
-            {
-                pending = new GearRoll(
-                    pendingElement.TryGetProperty("kicker_id", out var kicker) && kicker.TryGetInt32(out var kickerId) ? kickerId : 0,
-                    pendingElement.TryGetProperty("gear_id", out var gear2) && gear2.TryGetInt32(out var gearId) ? gearId : 0);
-            }
         }
-        return new Loadout(active, decks, gears, pending, hasDecks);
+        return new Loadout(stored.Revision, active, decks, gears, pending);
     }
 
-    // --- ext fragments, for a shallow-merge write ---------------------------------------------------------------------
-
-    public static JsonObject DecksToExt(IEnumerable<KeyValuePair<int, List<int>>> decks)
+    // The document a save sends: the whole loadout, without `revision` (session owns it; the revision travels in If-Match).
+    public JsonObject ToDocument()
     {
-        var result = new JsonObject();
-        foreach (var (number, discs) in decks.OrderBy(pair => pair.Key))
-            result[number.ToString(System.Globalization.CultureInfo.InvariantCulture)] =
+        var decks = new JsonObject();
+        foreach (var (number, discs) in DeckSets.OrderBy(pair => pair.Key))
+            decks[number.ToString(CultureInfo.InvariantCulture)] =
                 new JsonArray(discs.Select(id => (JsonNode?)JsonValue.Create(id)).ToArray());
-        return result;
-    }
-
-    public static JsonObject GearSlotsToExt(IEnumerable<KeyValuePair<int, int[]>> gears)
-    {
-        var result = new JsonObject();
-        foreach (var (costumeId, slots) in gears.OrderBy(pair => pair.Key))
+        var gears = new JsonObject();
+        foreach (var (costumeId, slots) in GearsByCostume.OrderBy(pair => pair.Key))
         {
             var three = new int[3];
             Array.Copy(slots, three, Math.Min(slots.Length, three.Length));
-            result[costumeId.ToString(System.Globalization.CultureInfo.InvariantCulture)] =
+            gears[costumeId.ToString(CultureInfo.InvariantCulture)] =
                 new JsonArray(three.Select(id => (JsonNode?)JsonValue.Create(id)).ToArray());
         }
-        return result;
+        return new JsonObject
+        {
+            ["schema_version"] = SchemaVersion,
+            ["decks"] = decks,
+            ["costume_gears"] = gears,
+            ["active_deck"] = ActiveDeck
+        };
+    }
+
+    // --- the gear roll, which stays in ext ----------------------------------------------------------------------------
+
+    public static GearRoll RollFromExt(JsonElement? ext)
+    {
+        if (ext is { ValueKind: JsonValueKind.Object } root &&
+            root.TryGetProperty(GearRollField, out var pendingElement) && pendingElement.ValueKind == JsonValueKind.Object)
+        {
+            return new GearRoll(
+                pendingElement.TryGetProperty("kicker_id", out var kicker) && kicker.TryGetInt32(out var kickerId) ? kickerId : 0,
+                pendingElement.TryGetProperty("gear_id", out var gear2) && gear2.TryGetInt32(out var gearId) ? gearId : 0);
+        }
+        return GearRoll.None;
     }
 
     public static JsonObject RollToExt(GearRoll pending) => new()

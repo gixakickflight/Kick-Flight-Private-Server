@@ -108,8 +108,8 @@ public sealed partial class DemoSessionApi : IDisposable
     private readonly OtomoSocialOptions _socialOptions;
     // The only source of battle points (see DemoSessionApi.Rank.cs).
     private readonly IOtomoRank _rank;
-    // The only source of a player's loadout - decks, gears, the active deck, a pending gear roll - and of another
-    // player's card (see DemoSessionApi.Loadout.cs).
+    // The only source of a player's loadout - decks, gears, the active deck (session's Loadout) and the pending gear roll
+    // (ext) - and of another player's card and loadout (see DemoSessionApi.Loadout.cs).
     private readonly IOtomoProfile _profile;
     private readonly KfAccessTokenCodec _accessTokens;
     private readonly IPlayerStore _playerStore;
@@ -1544,21 +1544,16 @@ public sealed partial class DemoSessionApi : IDisposable
             return null;
         }
 
-        var ext = new JsonObject();
-        if (activeDeck is { } number) ext[Loadout.ActiveDeckField] = number;
-        if (edited.Count > 0)
+        if (activeDeck is not null || edited.Count > 0)
         {
-            var (own, failure) = await TryReadOwnLoadoutAsync(context, ticket, path);
-            if (own is null) return failure!;
-            var decks = new Dictionary<int, List<int>>(own.Loadout.DeckSets);
-            foreach (var (deckNumber, discs) in edited) decks[deckNumber] = discs;
-            ext[Loadout.DecksField] = Loadout.DecksToExt(decks);
-        }
-
-        if (ext.Count > 0)
-        {
-            var (written, failure) = await TryWriteLoadoutAsync(context, ticket, key, path, "disc-change", ext);
-            if (written is null) return failure;
+            var (own, readFailure) = await TryReadOwnLoadoutAsync(context, ticket, path);
+            if (own is null) return readFailure!;
+            var (saved, failure) = await TryEditLoadoutAsync(context, ticket, key, path, own, loadout =>
+            {
+                if (activeDeck is { } number) loadout.ActiveDeck = number;
+                foreach (var (deckNumber, discs) in edited) loadout.DeckSets[deckNumber] = [.. discs];
+            });
+            if (saved is null) return failure;
         }
         _logger.LogInformation("Disc deck updated: activeDeck={ActiveDeck}, edited decks {Edited}", activeDeck,
             string.Join(",", edited.Keys));
@@ -1866,13 +1861,13 @@ public sealed partial class DemoSessionApi : IDisposable
         }
 
         var gearId = _gearIdList[Random.Shared.Next(_gearIdList.Count)];
-        var (written, failure) = await TryWriteLoadoutAsync(context, ticket, key, path, "gear-create",
-            new JsonObject { [Loadout.GearRollField] = Loadout.RollToExt(new GearRoll(kickerId, gearId)) });
+        var (written, failure) = await TryWriteGearRollAsync(context, ticket, key, path, "gear-create",
+            new GearRoll(kickerId, gearId));
         if (written is null) return failure;
         if (!written.Applied)
         {
             // A retry of a roll session already stored: the gear the player was shown is the one stored, not this roll.
-            var stored = Loadout.FromExt(written.Ext).Roll;
+            var stored = Loadout.RollFromExt(written.Ext);
             if (stored.GearId != 0) gearId = stored.GearId;
         }
 
@@ -1911,15 +1906,16 @@ public sealed partial class DemoSessionApi : IDisposable
             return StatusError(context, key);
         }
 
-        var gears = new Dictionary<int, int[]>(own.Loadout.GearsByCostume);
-        var slots = own.Loadout.GearSlots(costumeId);
-        slots[slotNumber - 1] = gearId;
-        gears[costumeId] = slots;
-        var (written, writeFailure) = await TryWriteLoadoutAsync(context, ticket, key, path, "gear-set", new JsonObject
+        // The gear goes into the loadout first and the roll is cleared after: a failure between the two leaves the gear
+        // equipped and the roll still offered (equipping it again is the same write), never a roll lost without its gear.
+        var (saved, saveFailure) = await TryEditLoadoutAsync(context, ticket, key, path, own, loadout =>
         {
-            [Loadout.GearSlotsField] = Loadout.GearSlotsToExt(gears),
-            [Loadout.GearRollField] = Loadout.RollToExt(GearRoll.None)
+            var slots = loadout.GearSlots(costumeId);
+            slots[slotNumber - 1] = gearId;
+            loadout.GearsByCostume[costumeId] = slots;
         });
+        if (saved is null) return saveFailure;
+        var (written, writeFailure) = await TryWriteGearRollAsync(context, ticket, key, path, "gear-set", GearRoll.None);
         if (written is null) return writeFailure;
 
         context.Response.Headers["x-app-status-code"] = "0";
@@ -1931,8 +1927,8 @@ public sealed partial class DemoSessionApi : IDisposable
     private async Task<IResult?> HandleGearDestroyAsync(HttpContext context, KfIdentityTicket ticket, SessionState state,
         byte[] key)
     {
-        var (written, failure) = await TryWriteLoadoutAsync(context, ticket, key, "/gear/destroy", "gear-destroy",
-            new JsonObject { [Loadout.GearRollField] = Loadout.RollToExt(GearRoll.None) });
+        var (written, failure) = await TryWriteGearRollAsync(context, ticket, key, "/gear/destroy", "gear-destroy",
+            GearRoll.None);
         if (written is null) return failure;
 
         context.Response.Headers["x-app-status-code"] = "0";

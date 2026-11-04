@@ -877,8 +877,8 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
         return document.RootElement.Clone();
     }
 
-    // The loadout is the ext of the player's session card now, so what these assertions cover is what session holds, not a
-    // file this server wrote.
+    // The gear roll is the ext of the player's session card (the decks and costume gears are session's loadout), so what these
+    // assertions cover is what session holds, not a file this server wrote.
     private JsonElement ReadSessionExt(DemoSession session)
     {
         var account = _factory.Services.GetRequiredService<KickFlight.BootstrapApi.PlayerStore.IPlayerStore>()
@@ -890,8 +890,14 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
     private int ReadPendingGearId(DemoSession session) =>
         ReadSessionExt(session).GetProperty("pending_gear").GetProperty("gear_id").GetInt32();
 
-    private int ReadCostumeGearSlot(DemoSession session, int costumeId, int slotNumber) =>
-        ReadSessionExt(session).GetProperty("costume_gears").GetProperty(costumeId.ToString())[slotNumber - 1].GetInt32();
+    // The gear on a costume is the player's loadout, not ext.
+    private int ReadCostumeGearSlot(DemoSession session, int costumeId, int slotNumber)
+    {
+        var account = _factory.Services.GetRequiredService<KickFlight.BootstrapApi.PlayerStore.IPlayerStore>()
+            .FindOtomoPlayer(long.Parse(session.UserId))!.OtomoPlayerId;
+        using var document = JsonDocument.Parse(OtomoTestEnvironment.Social.LoadoutOf(account).Document!);
+        return document.RootElement.GetProperty("costume_gears").GetProperty(costumeId.ToString())[slotNumber - 1].GetInt32();
+    }
 
     // A POST that is allowed to fail: the rejection codes (2005 for a name the client refuses to accept, 401 for a
     // session the server no longer knows) are exactly what these tests are about, so the status header is left to

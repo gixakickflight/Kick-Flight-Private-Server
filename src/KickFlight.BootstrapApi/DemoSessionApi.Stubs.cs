@@ -177,12 +177,20 @@ public sealed partial class DemoSessionApi
         if (local is null) return StatusError(context, key);
         var targetState = _playerStore.TryLoad(local.PlayerId);
         if (targetState is null) return StatusError(context, key);
-        // The name and the decks are session's answer for that player; the kicker, costume and honor are the game rows'.
-        var (record, card, cardFailure) = await ReadTargetCardAsync(context, key, "/user/detail", local);
+        // The name and the decks are session's answer for that player (its card and its loadout); the kicker, costume and honor are the game rows'.
+        var (record, _, cardFailure) = await ReadTargetCardAsync(context, key, "/user/detail", local);
         if (record is null) return cardFailure;
+        var (targetLoadout, loadoutError) = await TryReadPlayerLoadoutAsync(
+            _playerStore.FindOtomoPlayer(local.PlayerId)!.OtomoPlayerId, context.RequestAborted);
+        if (targetLoadout is null)
+        {
+            if (loadoutError is OtomoRankException { Failure: OtomoRankFailure.Refused, Code: "player_not_found" })
+                return StatusError(context, key);
+            return LoadoutUnavailable(context, "/user/detail", loadoutError);
+        }
 
         NormalizeCostume(targetState);
-        if (!TryBuildUserBattleParameterJson(targetState, Loadout.FromExt(card!.Ext), out var battleParameter))
+        if (!TryBuildUserBattleParameterJson(targetState, targetLoadout, out var battleParameter))
             return StatusError(context, key);
 
         var targetProfile = record with
@@ -259,8 +267,7 @@ public sealed partial class DemoSessionApi
     private PlayerProfile? FindProfileByDisplayOrStoredId(long id) =>
         PlayerDisplayIdCodec.Find(id, _playerStore.FindProfile);
 
-    // Another player's card from session: the game row with the name session shows for that player, and the card itself
-    // (its ext carries the decks). A row with no otomo account was never signed in through otomo and has no card, so it is
+    // Another player's card from session: the game row with the name session shows for that player, and the card itself. A row with no otomo account was never signed in through otomo and has no card, so it is
     // a lookup miss; a player session does not know is one too; session not answering is the 503 contract.
     private async Task<(PlayerProfile? Profile, SessionPlayerProfile? Card, IResult? Failure)> ReadTargetCardAsync(
         HttpContext context, byte[] key, string path, PlayerProfile local)

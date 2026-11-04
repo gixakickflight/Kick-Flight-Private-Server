@@ -124,6 +124,7 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
         server.MapRank();
         server.MapFriends();
         server.MapExt();
+        server.MapLoadout();
         server.MapDisplay();
         app.StartAsync().GetAwaiter().GetResult();
 
@@ -627,6 +628,10 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
 
         // The instance-declared fields session holds for this account (ext.session.player); see FakeOtomoSocial.Ext.cs.
         public System.Text.Json.Nodes.JsonObject Ext { get; set; } = new();
+
+        // The player's loadout (session.loadout), as stored without its revision, and the revision; see FakeOtomoSocial.Loadout.cs.
+        public System.Text.Json.Nodes.JsonObject? Loadout { get; set; }
+        public int LoadoutRevision { get; set; }
 
         // The item shown in each display slot, {slot: item_id}; see FakeOtomoSocial.Display.cs.
         public Dictionary<string, string> Display { get; } = new(StringComparer.Ordinal);
