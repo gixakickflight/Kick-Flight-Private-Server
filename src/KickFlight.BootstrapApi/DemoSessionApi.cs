@@ -949,30 +949,13 @@ public sealed partial class DemoSessionApi : IDisposable
             if (string.IsNullOrEmpty(_baseAiParamRows)) return;
 
             var updatedAiRows = ExperimentalAiRoleService.AppendExperimentalRoleAiRows(_baseAiParamRows, snapshot);
-            var newEncrypted = EncryptMaster(updatedAiRows);
 
-            var current = Volatile.Read(ref _masterState);
-            var dict = new Dictionary<string, byte[]>(current.Masters, StringComparer.Ordinal)
-            {
-                ["KickerAiParameter"] = newEncrypted
-            };
-
-            string newMasterVersion;
-            using (var sha = SHA256.Create())
-            {
-                foreach (var kvp in dict.OrderBy(k => k.Key, StringComparer.Ordinal))
-                {
-                    var nameBytes = Encoding.UTF8.GetBytes(kvp.Key);
-                    sha.TransformBlock(nameBytes, 0, nameBytes.Length, null, 0);
-                    sha.TransformBlock(kvp.Value, 0, kvp.Value.Length, null, 0);
-                }
-                sha.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
-                newMasterVersion = "demo-master-" + Convert.ToHexString(sha.Hash!)[..16].ToLowerInvariant();
-            }
-
-            Volatile.Write(ref _masterState, new MasterCatalogState(dict.ToFrozenDictionary(StringComparer.Ordinal), newMasterVersion));
+            // Through _encryptedMasters, the source of every published state: a release that also replaces a table
+            // publishes again from it, and must not publish the profiles that were current before this one.
+            _encryptedMasters["KickerAiParameter"] = EncryptMaster(updatedAiRows);
+            PublishMasterState();
             _logger.LogInformation("Master version {MasterVersion} updated atomically after bot AI profile reload (version {ProfileVersion})",
-                newMasterVersion, snapshot.Version);
+                MasterVersion, snapshot.Version);
         }
     }
 
