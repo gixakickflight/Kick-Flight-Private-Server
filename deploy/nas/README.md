@@ -101,6 +101,20 @@ tar -C /mnt/c/Users/Tanuki/Kick-Flight/kf-localize-build/.local -cf - localize-b
 
 (`scripts/add_weapon_costume_aliases.py` likewise for `weapon-costume-fallbacks`.) Then re-run the release.
 
+## The NAS client (APK)
+
+`deploy/nas/apk/build.sh <host> <tools-dir> [version-name] [version-code]` builds the Android client for this stack
+with the repository's `scripts/build-direct-apk.sh`, in a Linux container (`deploy/nas/apk/Dockerfile`), so it needs
+no Windows toolchain. It writes its own config (API `http://<host>:18080`, Photon `<host>`, update page and chat on the
+same API, push off) and reads nothing from `config/apk-direct-server.production.json`. `<tools-dir>` holds `base.apk`,
+`apktool_3.0.3.jar`, `apksigner.jar` and the keystore; the NAS APKs are signed with `kickflight-local-test`
+(`Kick-Flight-Assets/apk_patch_pipeline/.tools/signing/`), so a new build installs over the previous one with
+`adb install -r` and keeps the app's data. Check the result's endpoints before installing it: the patcher's report
+lists every literal it repointed, and no entry of the APK may contain a VPS address or `kick-flight-fenix`.
+
+The NAS sets no `ClientUpdate__MinimumVersion` (and has no `data/client-update.json`), so it serves every client
+version; the 2.11.7 minimum exists only in the VPS compose.
+
 ## Verifying by hand
 
 ```
