@@ -81,7 +81,7 @@ Nothing host-specific is in the repository: `deploy/.env` holds every address an
 7. `:local` retagged (the previous image stays as `:pre-<sha>`); a `kf-photon` that compose did not create is
    stopped, set to `--restart=no` and renamed `kf-photon-handstarted-<time>` (never removed; its image keeps its
    tag); `docker compose up -d --no-build`; nginx reloaded.
-8. Verify: API running with 0 restarts and "Now listening", no `NOT served`/`Unhandled`/`fail:` in its log;
+8. Verify: API running with 0 restarts and "Now listening", no `NOT served`/`Unhandled` or Error/Critical line in its (JSON) log;
    Luxon running with its UDP listeners; `/health/ready` with only the `/apk/` rows missing; `/health/photon` 200.
 
 ## Generated files (.local)

@@ -313,7 +313,8 @@ done
 echo "api: $(docker inspect -f '{{.Config.Image}} {{.State.Status}} restarts={{.RestartCount}} started={{.State.StartedAt}}' kickflight-api)"
 docker inspect -f '{{.State.Status}} {{.RestartCount}}' kickflight-api | grep -q '^running 0$' || fail=1
 grep -q 'Now listening' "$STAGE/api.log" || { echo "!! the API never logged 'Now listening'"; fail=1; }
-errors="$(grep -E 'NOT served|Unhandled|fail:|crit:' "$STAGE/api.log" | head -5 || true)"
+# The API logs JSON lines; an error is LogLevel Error/Critical (or the plain-text console format's fail:/crit:).
+errors="$(grep -E '"LogLevel":"(Error|Critical)"|NOT served|Unhandled|^(fail|crit):' "$STAGE/api.log" | head -5 || true)"
 if [[ -n "$errors" ]]; then printf '%s\n' "$errors" | cut -c1-240; echo "!! errors in the API log (above)"; fail=1; fi
 if [[ $SKIP_PHOTON != 1 ]]; then
   echo "photon: $(docker inspect -f '{{.Config.Image}} {{.State.Status}} restarts={{.RestartCount}}' kf-photon)"
