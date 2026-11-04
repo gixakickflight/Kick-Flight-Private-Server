@@ -223,16 +223,16 @@ public sealed class OnboardingEndToEndTests : IDisposable
 
     // The disc-upgrade badge fact is the economy advance's answer, and nothing else.
     //
-    // BadgeAwardRules counts a verified disc upgrade. It used to count the adapter's own write to the save's discLevels
-    // key; that key is gone, the level is attrs.level on the disc's possession in economy's inventory, and the fact is
-    // now POST /internal/economy/items/advance's answer. Both halves are asserted here, on the same request and the same
-    // spend: with the advance answering, the counter moves; with the advance unavailable, it does not - so the badge can
+    // The disc-upgrade badge counts a verified level-up. It used to count the adapter's own write to the save's discLevels
+    // key, then a counter in the adapter's badge tables; both are gone. The level is attrs.level on the disc's possession
+    // in economy's inventory, the fact the adapter reports (item.upgraded) is POST /internal/economy/items/advance's
+    // answer, and what it is worth is a tenant track. Both halves are asserted here, on the same request and the same
+    // spend: with the advance answering, the fact is reported; with the advance unavailable, it is not - so the badge can
     // only be riding on economy's answer, not on anything this adapter decided locally.
     [Fact]
     public async Task A_disc_upgrade_counts_for_the_badges_only_when_the_economy_advance_answers_it()
     {
         var host = Host_(ladder: false);
-        var store = host.Services.GetRequiredService<IPlayerStore>();
 
         var session = await CreateSessionAsync(host);
         _economy.Seed(session.Account, balances: [("disc_force", 2000)], items: [("disc:3010003", 5)]);
@@ -251,8 +251,11 @@ public sealed class OnboardingEndToEndTests : IDisposable
         Assert.Contains("level-up-advance:", advance.Body);
         Assert.DoesNotContain("\"key\":\"level-up:", advance.Body);
 
-        var counted = Assert.IsType<SessionState>(store.TryLoad(LinkOf(store, session.Account).PlayerId));
-        Assert.Equal(1, counted.DiscUpgradeCount);
+        var counted = Assert.Single(_economy.FactReports, fact => fact.PlayerId == session.Account && fact.Fact == "item.upgraded");
+        Assert.StartsWith("badge-upgrade:level-up-advance:", counted.Key);
+        Assert.Equal("disc:3010003", counted.Fields.GetProperty("item").GetString());
+        Assert.Equal(3, counted.Fields.GetProperty("level").GetInt64());
+        Assert.False(counted.Replayed);
 
         // The same level-up with the advance refused: the charge still happens, and no badge is counted, because the
         // only thing that can tell the adapter the level moved is the answer that never arrived.
@@ -271,8 +274,7 @@ public sealed class OnboardingEndToEndTests : IDisposable
             _economy.AdvanceUnavailable = false;
         }
 
-        var uncounted = Assert.IsType<SessionState>(store.TryLoad(LinkOf(store, refused.Account).PlayerId));
-        Assert.Equal(0, uncounted.DiscUpgradeCount);
+        Assert.DoesNotContain(_economy.FactReports, fact => fact.PlayerId == refused.Account && fact.Fact == "item.upgraded");
         // And the disc is where it was: a level the adapter could not be told about is not a level it writes itself.
         Assert.Equal(0, _economy.LevelOf(refused.Account, "disc:3010003"));
     }

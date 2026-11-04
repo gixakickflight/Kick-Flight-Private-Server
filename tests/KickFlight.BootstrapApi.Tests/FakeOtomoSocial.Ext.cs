@@ -64,7 +64,9 @@ public sealed partial class FakeOtomoSocial
                     player_id = account.PlayerId,
                     display_name = account.DisplayName,
                     discriminator = account.Discriminator,
-                    ext = JsonNode.Parse(account.Ext.ToJsonString())
+                    ext = JsonNode.Parse(account.Ext.ToJsonString()),
+                    // The same map GET /display serves, so a client has its card in the one call it already makes.
+                    display = new Dictionary<string, string>(account.Display)
                 });
             }
         });
@@ -86,7 +88,9 @@ public sealed partial class FakeOtomoSocial
                     discriminator = account.Discriminator,
                     // Provisional until the player renames, which is what the fake's PATCH /me does.
                     named = !System.Text.RegularExpressions.Regex.IsMatch(account.DisplayName, @"^Player\d{4}$"),
-                    ext = JsonNode.Parse(account.Ext.ToJsonString())
+                    ext = JsonNode.Parse(account.Ext.ToJsonString()),
+                    // What the player shows in each display slot, {slot: item_id}; {} when nothing is equipped.
+                    display = new Dictionary<string, string>(account.Display)
                 });
             }
         });

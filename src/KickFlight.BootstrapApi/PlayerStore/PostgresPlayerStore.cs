@@ -8,9 +8,10 @@ namespace KickFlight.BootstrapApi.PlayerStore;
 //
 // Shape, and why it is not fully normalised: the two things a service actually queries - identity and the
 // display name - are real columns, and the rest of the state is one `state jsonb` document. Currencies moved to
-// otomo's economy (migration 5) and battle points to otomo's session (migration 7). Owned discs and the badge facts are only ever read and
-// written as a whole (the API loads a player, mutates, saves), so normalising them would buy nothing and cost
-// a mapping layer plus the chance of a half-applied save. See deploy/README.md.
+// otomo's economy (migration 5), battle points to otomo's session (migration 7) and badges to economy facts, tracks and
+// items plus a session display slot (migration 9). What is left is read and written as a whole (the API loads a player,
+// mutates, saves), so normalising it would buy nothing and cost a mapping layer plus the chance of a half-applied
+// save. See deploy/README.md.
 //
 // The identity column is otomo's player id, not a device and not a password: this schema holds no account of its
 // own and no session at all (migration 4 dropped the sessions table). `id` is only the numeric handle the KF
@@ -20,7 +21,7 @@ namespace KickFlight.BootstrapApi.PlayerStore;
 // the API once. `schema_meta` records which have been applied, so applying is idempotent and additive.
 public sealed class PostgresPlayerStore : IPlayerStore
 {
-    private const int SchemaVersion = 8;
+    private const int SchemaVersion = 9;
 
     private static readonly (int Version, string Sql)[] Migrations =
     [
@@ -197,6 +198,22 @@ public sealed class PostgresPlayerStore : IPlayerStore
             -- Nothing is copied: no live player data migrates, every player starts fresh on otomo, so there is no
             -- backfill of decks or gears and no compatibility path for an old save's loadout.
             alter table players drop column if exists active_deck_number;
+            """),
+        (9, """
+            -- Badges moved to otomo. What a player has earned is the honor:* items in their economy inventory, the
+            -- progress toward the next one is lifetime tracks fed by facts this adapter reports (battle.result,
+            -- login.day, item.upgraded, like.received, registration.completed), and the badge a player shows is a
+            -- session display slot. The four tables are dropped rather than left to drift, because every read and
+            -- write of them is gone and a table nothing writes is a table something reads by mistake. The `state`
+            -- document keys for honors, counters, login days and the processed-battle ledger simply stop being
+            -- written, and an old document that still carries them is ignored on read.
+            --
+            -- Nothing is copied: no live player data migrates, every player starts fresh on otomo, so there is no
+            -- backfill of counters or honors and no compatibility path for an old save's badges.
+            drop table if exists player_badge_ledger;
+            drop table if exists player_badge_counters;
+            drop table if exists player_badge_streaks;
+            drop table if exists player_honors;
             """)
     ];
 
@@ -397,10 +414,7 @@ public sealed class PostgresPlayerStore : IPlayerStore
     public SessionState? TryLoad(long playerId)
     {
         using var connection = _dataSource.OpenConnection();
-        // One snapshot for the player row and the badge tables, so a concurrent award is seen whole or not at all.
-        using var transaction = connection.BeginTransaction(System.Data.IsolationLevel.RepeatableRead);
         using var command = connection.CreateCommand();
-        command.Transaction = transaction;
         command.CommandText = """
             select display_name, kicker_id, kicker_costume_id, state
             from players where id = $1
@@ -417,11 +431,6 @@ public sealed class PostgresPlayerStore : IPlayerStore
         state.UserName = reader.IsDBNull(0) ? "" : reader.GetString(0);
         state.KickerId = reader.GetInt32(1);
         state.KickerCostumeId = reader.GetInt32(2);
-        reader.Close();
-
-        // The tables are authoritative for badge facts; the document may be older (or newer, if a previous
-        // binary wrote it), so the two are folded together without ever lowering a value.
-        BadgeTableMapping.ApplyTo(state, ReadBadgeTables(connection, transaction, playerId), replaceLedgers: false);
         return state;
     }
 
@@ -458,17 +467,6 @@ public sealed class PostgresPlayerStore : IPlayerStore
         using var connection = _dataSource.OpenConnection();
         using var transaction = connection.BeginTransaction();
 
-        // Badge facts: this whole-document save may come from a stale session, so it can only ever add to the
-        // badge tables (greatest / union), and the document written back is rebuilt from the tables.
-        var stored = LockAndReadDocument(connection, transaction, state.PlayerId);
-        if (stored is null)
-        {
-            _logger.LogWarning("Save for player {PlayerId} matched no row", state.PlayerId);
-            return;
-        }
-        MergeIntoTables(connection, transaction, state.PlayerId, BadgeTableMapping.Flatten(stored), "legacy");
-        MergeIntoTables(connection, transaction, state.PlayerId, BadgeTableMapping.Flatten(state), "save");
-        BadgeTableMapping.ApplyTo(state, ReadBadgeTables(connection, transaction, state.PlayerId), replaceLedgers: true);
         var document = JsonSerializer.Serialize(state);
 
         using var command = connection.CreateCommand();
@@ -495,267 +493,6 @@ public sealed class PostgresPlayerStore : IPlayerStore
             _logger.LogWarning("Save for player {PlayerId} matched no row", state.PlayerId);
         }
         transaction.Commit();
-    }
-
-    // The atomic badge path. Everything below runs in ONE transaction that holds the player's row lock
-    // (select ... for update), so any two writers of the same player - in this process or another API
-    // container - are serialised, and a loser always starts from the winner's committed state.
-    public BadgeMutationResult MutateBadges(
-        long playerId, SessionState? fallback, BadgeLedgerKey? ledger, Func<SessionState, IReadOnlyList<int>?> mutate)
-    {
-        ArgumentNullException.ThrowIfNull(mutate);
-        if (playerId <= 0) return new BadgeMutationResult(false, [], null);
-
-        using var connection = _dataSource.OpenConnection();
-        using var transaction = connection.BeginTransaction();
-
-        var current = LockAndReadDocument(connection, transaction, playerId);
-        if (current is null) return new BadgeMutationResult(false, [], null);
-        current.UserId = playerId.ToString();
-
-        // Fold whatever the document holds (legacy data, or writes of a binary that predates the tables) into
-        // the tables, then work from the tables.
-        MergeIntoTables(connection, transaction, playerId, BadgeTableMapping.Flatten(current), "legacy");
-        BadgeTableMapping.ApplyTo(current, ReadBadgeTables(connection, transaction, playerId), replaceLedgers: true);
-        var before = BadgeTableMapping.Flatten(current);
-
-        if (ledger is not null)
-        {
-            // Claim the key. Losing the insert means this exact mutation was already applied: hand back what it
-            // awarded and change nothing (no second count).
-            using var claim = connection.CreateCommand();
-            claim.Transaction = transaction;
-            claim.CommandText = """
-                insert into player_badge_ledger (player_id, ledger_kind, entry_key, created_at, payload)
-                values ($1, $2, $3, to_timestamp($4), '{"honors":[]}'::jsonb)
-                on conflict (player_id, ledger_kind, entry_key) do nothing
-                """;
-            claim.Parameters.AddWithValue(playerId);
-            claim.Parameters.AddWithValue(ledger.Kind);
-            claim.Parameters.AddWithValue(ledger.Key);
-            claim.Parameters.AddWithValue((double)ledger.NowUnix);
-            if (claim.ExecuteNonQuery() == 0)
-            {
-                using var read = connection.CreateCommand();
-                read.Transaction = transaction;
-                read.CommandText = "select payload::text from player_badge_ledger where player_id = $1 and ledger_kind = $2 and entry_key = $3";
-                read.Parameters.AddWithValue(playerId);
-                read.Parameters.AddWithValue(ledger.Kind);
-                read.Parameters.AddWithValue(ledger.Key);
-                var previous = BadgeTableMapping.DecodePayload(read.ExecuteScalar() as string);
-                transaction.Commit();
-                return new BadgeMutationResult(false, previous, current);
-            }
-        }
-
-        var awarded = mutate(current);
-        if (awarded is null)
-        {
-            transaction.Rollback(); // also releases the ledger claim
-            return new BadgeMutationResult(false, [], current);
-        }
-        if (ledger is not null) BadgeTableMapping.RecordLedgerAwards(current, ledger, awarded);
-        BadgeTableMapping.ApplyTo(current, new BadgeTableSnapshot(), replaceLedgers: false); // normalise
-
-        var after = BadgeTableMapping.Flatten(current);
-        var delta = new BadgeTableSnapshot();
-        foreach (var (key, value) in after.Counters)
-        {
-            var increase = value - before.Counters.GetValueOrDefault(key);
-            if (increase > 0) delta.Counters[key] = increase;
-        }
-        foreach (var (mode, streak) in after.Streaks)
-        {
-            if (!before.Streaks.TryGetValue(mode, out var old)
-                || old.Battles != streak.Battles || old.Current != streak.Current || old.Best != streak.Best)
-                delta.Streaks[mode] = streak;
-        }
-        foreach (var honor in after.Honors) if (!before.Honors.Contains(honor)) delta.Honors.Add(honor);
-        foreach (var (key, entry) in after.Ledger) if (!before.Ledger.ContainsKey(key)) delta.Ledger[key] = entry;
-
-        UpsertCounters(connection, transaction, playerId, delta.Counters, add: true);
-        UpsertStreaks(connection, transaction, playerId, delta.Streaks);
-        InsertHonors(connection, transaction, playerId, delta.Honors, "rule");
-        InsertLedger(connection, transaction, playerId, delta.Ledger);
-        if (ledger is not null)
-        {
-            using var settle = connection.CreateCommand();
-            settle.Transaction = transaction;
-            settle.CommandText = "update player_badge_ledger set payload = $4::jsonb where player_id = $1 and ledger_kind = $2 and entry_key = $3";
-            settle.Parameters.AddWithValue(playerId);
-            settle.Parameters.AddWithValue(ledger.Kind);
-            settle.Parameters.AddWithValue(ledger.Key);
-            settle.Parameters.AddWithValue(BadgeTableMapping.EncodePayload(awarded));
-            settle.ExecuteNonQuery();
-        }
-
-        // Keep the document mirror current, from the tables (never from the possibly bounded in-memory view).
-        BadgeTableMapping.ApplyTo(current, ReadBadgeTables(connection, transaction, playerId), replaceLedgers: true);
-        WriteMirror(connection, transaction, playerId, current);
-        transaction.Commit();
-        return new BadgeMutationResult(true, awarded, current);
-    }
-
-    private SessionState? LockAndReadDocument(NpgsqlConnection connection, NpgsqlTransaction transaction, long playerId)
-    {
-        using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText = "select state::text from players where id = $1 for update";
-        command.Parameters.AddWithValue(playerId);
-        return command.ExecuteScalar() is string json ? DecodeDocument(json) : null;
-    }
-
-    private static void WriteMirror(NpgsqlConnection connection, NpgsqlTransaction transaction, long playerId, SessionState state)
-    {
-        using var full = JsonSerializer.SerializeToDocument(state);
-        var patch = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-        foreach (var name in BadgeTableMapping.MirroredProperties)
-            if (full.RootElement.TryGetProperty(name, out var value)) patch[name] = value;
-
-        using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText = "update players set state = state || $2::jsonb, updated_at = now() where id = $1";
-        command.Parameters.AddWithValue(playerId);
-        command.Parameters.AddWithValue(JsonSerializer.Serialize(patch));
-        command.ExecuteNonQuery();
-    }
-
-    private static BadgeTableSnapshot ReadBadgeTables(NpgsqlConnection connection, NpgsqlTransaction transaction, long playerId)
-    {
-        var snapshot = new BadgeTableSnapshot();
-        using var batch = new NpgsqlBatch(connection, transaction);
-        void Add(string sql)
-        {
-            var command = new NpgsqlBatchCommand(sql);
-            command.Parameters.Add(new NpgsqlParameter { Value = playerId });
-            batch.BatchCommands.Add(command);
-        }
-        Add("select counter_key, value from player_badge_counters where player_id = $1");
-        Add("select streak_key, current_streak, best_streak, battles from player_badge_streaks where player_id = $1");
-        Add("select honor_id from player_honors where player_id = $1");
-        Add($"""
-            (select ledger_kind, entry_key, extract(epoch from created_at)::bigint, payload::text from player_badge_ledger
-              where player_id = $1 and ledger_kind = '{BadgeLedgerKinds.Battle}' order by created_at desc, entry_key limit {BadgeTableMapping.MirroredLedgerRows})
-            union all
-            (select ledger_kind, entry_key, extract(epoch from created_at)::bigint, payload::text from player_badge_ledger
-              where player_id = $1 and ledger_kind = '{BadgeLedgerKinds.Like}' order by created_at desc, entry_key limit {BadgeTableMapping.MirroredLedgerRows})
-            union all
-            (select ledger_kind, entry_key, extract(epoch from created_at)::bigint, payload::text from player_badge_ledger
-              where player_id = $1 and ledger_kind = '{BadgeLedgerKinds.LoginDay}')
-            """);
-
-        using var reader = batch.ExecuteReader();
-        while (reader.Read()) snapshot.Counters[reader.GetString(0)] = reader.GetInt64(1);
-        reader.NextResult();
-        while (reader.Read())
-        {
-            if (int.TryParse(reader.GetString(0), System.Globalization.NumberStyles.Integer,
-                    System.Globalization.CultureInfo.InvariantCulture, out var mode))
-                snapshot.Streaks[mode] = new WinStreakState
-                    { Current = reader.GetInt32(1), Best = reader.GetInt32(2), Battles = reader.GetInt64(3) };
-        }
-        reader.NextResult();
-        while (reader.Read()) snapshot.Honors.Add(reader.GetInt32(0));
-        reader.NextResult();
-        while (reader.Read())
-            snapshot.Ledger[(reader.GetString(0), reader.GetString(1))] =
-                (reader.GetInt64(2), BadgeTableMapping.DecodePayload(reader.IsDBNull(3) ? null : reader.GetString(3)));
-        return snapshot;
-    }
-
-    // Whole-snapshot merge: counters by greatest, streaks by the monotonic battle sequence, honors and ledger
-    // rows by insert-if-absent. Idempotent, and incapable of lowering or removing anything.
-    private static void MergeIntoTables(
-        NpgsqlConnection connection, NpgsqlTransaction transaction, long playerId, BadgeTableSnapshot snapshot, string source)
-    {
-        UpsertCounters(connection, transaction, playerId, snapshot.Counters, add: false);
-        UpsertStreaks(connection, transaction, playerId, snapshot.Streaks);
-        InsertHonors(connection, transaction, playerId, snapshot.Honors, source);
-        InsertLedger(connection, transaction, playerId, snapshot.Ledger);
-    }
-
-    private static void UpsertCounters(
-        NpgsqlConnection connection, NpgsqlTransaction transaction, long playerId, Dictionary<string, long> counters, bool add)
-    {
-        if (counters.Count == 0) return;
-        using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText = $"""
-            insert into player_badge_counters (player_id, counter_key, value)
-            select $1, k, v from unnest($2::text[], $3::bigint[]) as t(k, v)
-            on conflict (player_id, counter_key) do update set
-                value = {(add ? "player_badge_counters.value + excluded.value" : "excluded.value")},
-                updated_at = now()
-            {(add ? "" : "where excluded.value > player_badge_counters.value")}
-            """;
-        command.Parameters.AddWithValue(playerId);
-        command.Parameters.AddWithValue(counters.Keys.ToArray());
-        command.Parameters.AddWithValue(counters.Values.ToArray());
-        command.ExecuteNonQuery();
-    }
-
-    private static void UpsertStreaks(
-        NpgsqlConnection connection, NpgsqlTransaction transaction, long playerId, Dictionary<int, WinStreakState> streaks)
-    {
-        if (streaks.Count == 0) return;
-        using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        // The copy that has seen more battles of the mode holds the live streak; the best is a pure maximum.
-        command.CommandText = """
-            insert into player_badge_streaks (player_id, streak_key, current_streak, best_streak, battles)
-            select $1, k, c, b, n from unnest($2::text[], $3::integer[], $4::integer[], $5::bigint[]) as t(k, c, b, n)
-            on conflict (player_id, streak_key) do update set
-                current_streak = case when excluded.battles > player_badge_streaks.battles
-                                      then excluded.current_streak else player_badge_streaks.current_streak end,
-                best_streak = greatest(player_badge_streaks.best_streak, excluded.best_streak),
-                battles = greatest(player_badge_streaks.battles, excluded.battles),
-                updated_at = now()
-            where excluded.battles > player_badge_streaks.battles or excluded.best_streak > player_badge_streaks.best_streak
-            """;
-        command.Parameters.AddWithValue(playerId);
-        command.Parameters.AddWithValue(streaks.Keys.Select(mode => mode.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToArray());
-        command.Parameters.AddWithValue(streaks.Values.Select(streak => streak.Current).ToArray());
-        command.Parameters.AddWithValue(streaks.Values.Select(streak => streak.Best).ToArray());
-        command.Parameters.AddWithValue(streaks.Values.Select(streak => streak.Battles).ToArray());
-        command.ExecuteNonQuery();
-    }
-
-    private static void InsertHonors(
-        NpgsqlConnection connection, NpgsqlTransaction transaction, long playerId, HashSet<int> honors, string source)
-    {
-        if (honors.Count == 0) return;
-        using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText = """
-            insert into player_honors (player_id, honor_id, source)
-            select $1, h, $3 from unnest($2::integer[]) as t(h)
-            on conflict (player_id, honor_id) do nothing
-            """;
-        command.Parameters.AddWithValue(playerId);
-        command.Parameters.AddWithValue(honors.ToArray());
-        command.Parameters.AddWithValue(source);
-        command.ExecuteNonQuery();
-    }
-
-    private static void InsertLedger(
-        NpgsqlConnection connection, NpgsqlTransaction transaction, long playerId,
-        Dictionary<(string Kind, string Key), (long Unix, List<int> Honors)> ledger)
-    {
-        if (ledger.Count == 0) return;
-        using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText = """
-            insert into player_badge_ledger (player_id, ledger_kind, entry_key, created_at, payload)
-            select $1, kind, entry, case when unix > 0 then to_timestamp(unix) else now() end, body::jsonb
-            from unnest($2::text[], $3::text[], $4::bigint[], $5::text[]) as t(kind, entry, unix, body)
-            on conflict (player_id, ledger_kind, entry_key) do nothing
-            """;
-        command.Parameters.AddWithValue(playerId);
-        command.Parameters.AddWithValue(ledger.Keys.Select(key => key.Kind).ToArray());
-        command.Parameters.AddWithValue(ledger.Keys.Select(key => key.Key).ToArray());
-        command.Parameters.AddWithValue(ledger.Values.Select(value => value.Unix).ToArray());
-        command.Parameters.AddWithValue(ledger.Values.Select(value => BadgeTableMapping.EncodePayload(value.Honors)).ToArray());
-        command.ExecuteNonQuery();
     }
 
     public bool IsNameTaken(string name, long exceptPlayerId)

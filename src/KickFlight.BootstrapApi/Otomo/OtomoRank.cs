@@ -98,6 +98,37 @@ public sealed class OtomoRank : IOtomoRank, IOtomoProfile, IDisposable
         CallAsync<SessionMe>(Under(_playerBase, "api/player/session/me"), HttpMethod.Get, null, accessToken, null,
             "own profile", cancellationToken);
 
+    // GET /api/player/session/display and PUT/DELETE /api/player/session/display/{slot}: the caller's own map, with the
+    // player's own token. Every route answers the whole map.
+    public Task<IReadOnlyDictionary<string, string>> GetDisplayAsync(string accessToken,
+        CancellationToken cancellationToken) =>
+        DisplayAsync(Under(_playerBase, "api/player/session/display"), HttpMethod.Get, null, accessToken,
+            "display", cancellationToken);
+
+    public Task<IReadOnlyDictionary<string, string>> SetDisplayAsync(string accessToken, string slot, string itemId,
+        CancellationToken cancellationToken) =>
+        DisplayAsync(Under(_playerBase, $"api/player/session/display/{Uri.EscapeDataString(slot)}"), HttpMethod.Put,
+            new { item_id = itemId }, accessToken, "display set", cancellationToken);
+
+    public Task<IReadOnlyDictionary<string, string>> ClearDisplayAsync(string accessToken, string slot,
+        CancellationToken cancellationToken) =>
+        DisplayAsync(Under(_playerBase, $"api/player/session/display/{Uri.EscapeDataString(slot)}"),
+            HttpMethod.Delete, null, accessToken, "display clear", cancellationToken);
+
+    private async Task<IReadOnlyDictionary<string, string>> DisplayAsync(Uri url, HttpMethod method, object? body,
+        string accessToken, string operation, CancellationToken cancellationToken)
+    {
+        var element = await SendAsync(url, method, body, accessToken, null, operation, cancellationToken)
+            .ConfigureAwait(false);
+        var map = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (element.ValueKind != JsonValueKind.Object) return map;
+        foreach (var property in element.EnumerateObject())
+        {
+            if (property.Value.ValueKind == JsonValueKind.String) map[property.Name] = property.Value.GetString() ?? "";
+        }
+        return map;
+    }
+
     // GET /internal/session/players/{player_id}: another player's card (name, discriminator, ext).
     public Task<SessionPlayerProfile> GetPlayerProfileAsync(string otomoPlayerId, CancellationToken cancellationToken)
     {

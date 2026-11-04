@@ -233,6 +233,8 @@ public sealed class EconomyPayloads
             var mission = EconomyMissions.ByTrack(track.TrackId);
             if (mission is null)
             {
+                // Badge tracks are not missions: the badge screen reads their items, not the mission masters.
+                if (track.TrackId.StartsWith(DemoSessionApi.BadgeTrackPrefix, StringComparison.Ordinal)) continue;
                 _logger.LogWarning("Economy reports track {Track}, which the mission masters have no row for; not shown",
                     track.TrackId);
                 continue;

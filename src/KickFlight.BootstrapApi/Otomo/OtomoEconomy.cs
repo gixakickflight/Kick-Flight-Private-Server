@@ -144,6 +144,34 @@ public sealed class OtomoEconomy : IOtomoEconomy, IDisposable
                    "economy answered the progress report with an empty body");
     }
 
+    // POST /internal/economy/facts. The same plane, key and switch as the progress report. The body names a fact and
+    // its fields and never a track, an amount or a reward.
+    public async Task<EconomyFact> ReportFactAsync(EconomyFactReport report, CancellationToken cancellationToken)
+    {
+        if (!Enabled) throw Disabled();
+        var key = ReadServiceKey();
+        if (!_options.ProgressEnabled || string.IsNullOrEmpty(key) || _internalBase is null)
+        {
+            throw new OtomoEconomyException(OtomoEconomyFailure.Disabled,
+                "the fact report is off: set Otomo:Economy:ProgressEnabled and a gameserver service key");
+        }
+
+        var payload = new Dictionary<string, object?>
+        {
+            ["player_id"] = report.PlayerId,
+            ["fact"] = report.Fact,
+            ["fields"] = report.Fields,
+            ["key"] = report.Key,
+            ["reason"] = report.Reason,
+            ["ref"] = report.Reference
+        };
+        var element = await SendAsync(new Uri(_internalBase, "internal/economy/facts"), HttpMethod.Post, payload,
+            bearer: null, serviceKey: key, operation: "fact", cancellationToken).ConfigureAwait(false);
+        return element.Deserialize<EconomyFact>(JsonOptions)
+               ?? throw new OtomoEconomyException(OtomoEconomyFailure.Unavailable,
+                   "economy answered the fact report with an empty body");
+    }
+
     // POST /internal/economy/grants. The same plane, key and switch as the progress report: one trust decision,
     // stated once. The body names a class and never an amount; economy refuses an `amount` field outright.
     public async Task<EconomyGrantResult> GrantAsync(EconomyGrantRequest grant, CancellationToken cancellationToken)

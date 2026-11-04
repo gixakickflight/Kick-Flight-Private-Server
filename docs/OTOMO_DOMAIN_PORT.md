@@ -17,7 +17,7 @@ The full state, the owner's decisions and the traps are in the platform fork:
 | Chat | otomo chat (global channel, retention, rate, NG words, stamp ownership) | the `/.ws` protocol and `chatRoomComment/write`; a seq poll relays new messages |
 | Replay | patch recordings, `kicker:<id>` tags, `patch.curated` Featured | the client's encryption of the bytes; a sealed, stateless play URL |
 | Missions | economy tasks | id translation only |
-| Badges | **not yet**: lifetime tracks + badge items with `display_slot` | `BadgeAwardRules`, `player_badge_*`, `player_honors` |
+| Badges | economy facts + lifetime tracks + `honor:<id>` items (`display_slot`), session display slot `honor` | fact reports, the claim sweep, id translation (`docs/OTOMO_BADGES.md`; migration 9 dropped `player_badge_*`, `player_honors`) |
 
 Still local by known gap: kicker/costume on another player's card (no ext field), and `state.UserName` for the onboarding gate,
 `IsNameTaken`, and the caller's own ranking line.

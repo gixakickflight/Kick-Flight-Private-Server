@@ -139,9 +139,10 @@ public sealed partial class DemoSessionApi
         var (cardRanks, cardError) = await TryReadCardRanksAsync(ticket, state, pageRows.Select(row => row.PlayerId),
             context.RequestAborted);
         if (cardRanks is null) return SocialUnavailable(context, path, cardError);
+        var honors = await HonorsOfAsync(ticket, state, pageRows.Select(row => row.PlayerId), context.RequestAborted);
         var profiles = pageRows
             .Select(link => JsonSerializer.Deserialize<JsonElement>(
-                SocialProfileJson(state, ProfileOf(link), 1, false, cardRanks[link.PlayerId])));
+                SocialProfileJson(state, ProfileOf(link), 1, false, cardRanks[link.PlayerId], honors)));
         return OkJson(context, key, JsonSerializer.Serialize(new
         {
             userProfileList = profiles,
@@ -185,10 +186,11 @@ public sealed partial class DemoSessionApi
         var (cardRanks, cardError) = await TryReadCardRanksAsync(ticket, state, pageRows.Select(row => row.PlayerId),
             context.RequestAborted);
         if (cardRanks is null) return SocialUnavailable(context, path, cardError);
+        var honors = await HonorsOfAsync(ticket, state, pageRows.Select(row => row.PlayerId), context.RequestAborted);
         var profiles = pageRows
             .Select(link => JsonSerializer.Deserialize<JsonElement>(
                 SocialProfileJson(state, ProfileOf(link), FollowStatus(followedIds, state.PlayerId, link.PlayerId), false,
-                    cardRanks[link.PlayerId])));
+                    cardRanks[link.PlayerId], honors)));
         return OkJson(context, key, JsonSerializer.Serialize(new
         {
             userProfileList = profiles,
@@ -291,9 +293,10 @@ public sealed partial class DemoSessionApi
         var (cardRanks, cardError) = await TryReadCardRanksAsync(ticket, state, online.Select(row => row.PlayerId),
             context.RequestAborted);
         if (cardRanks is null) return SocialUnavailable(context, path, cardError);
+        var honors = await HonorsOfAsync(ticket, state, online.Select(row => row.PlayerId), context.RequestAborted);
         var profiles = online
             .Select(link => JsonSerializer.Deserialize<JsonElement>(
-                SocialProfileJson(state, ProfileOf(link), 1, false, cardRanks[link.PlayerId])));
+                SocialProfileJson(state, ProfileOf(link), 1, false, cardRanks[link.PlayerId], honors)));
         return OkJson(context, key, JsonSerializer.Serialize(new { userProfileList = profiles }));
     }
 
@@ -303,20 +306,30 @@ public sealed partial class DemoSessionApi
     // Best effort on purpose: the name is already saved here, and a session that cannot be reached must not refuse a
     // player their own name. What that costs is a board that shows the old name until the next rename, which is
     // logged rather than silent.
-    private async Task PublishNameAsync(KfIdentityTicket ticket, SessionState state, string path,
+    // The name goes to session first, and session's `names` rules decide whether it is allowed. A refusal (400
+    // invalid_display_name, 429 inside a rename cooldown, ...) is "rejected" and is all this method maps; session being
+    // down or off is not a verdict on the name, so it is logged and the name is kept here until the next rename.
+    private async Task<string?> RenameAtSessionAsync(KfIdentityTicket ticket, string name, string path,
         CancellationToken cancellationToken)
     {
-        if (!_social.Enabled || string.IsNullOrWhiteSpace(state.UserName)) return;
+        if (!_social.Enabled) return null;
         try
         {
-            await _social.RenameAsync(await PlayerTokenAsync(ticket, cancellationToken), state.UserName,
-                cancellationToken);
+            await _social.RenameAsync(await PlayerTokenAsync(ticket, cancellationToken), name, cancellationToken);
+            return null;
+        }
+        catch (OtomoSocialException exception) when (exception.Failure == OtomoSocialFailure.Refused)
+        {
+            _logger.LogInformation("{Path}: session refused the name of {PlayerId}: {Status} {Code}", path,
+                ticket.OtomoPlayerId, exception.StatusCode, exception.Code);
+            return "rejected";
         }
         catch (Exception exception) when (exception is OtomoIdentityException or OtomoSocialException)
         {
             _logger.LogWarning(
-                "{Path}: the name of user {UserId} was saved here but not in otomo ({Error}); the ranking board keeps " +
-                "showing the old name until the next rename", path, state.UserId, exception.Message);
+                "{Path}: the name of {PlayerId} could not be checked or saved at session ({Error}); the ranking board keeps " +
+                "showing the old name until the next rename", path, ticket.OtomoPlayerId, exception.Message);
+            return null;
         }
     }
 
@@ -382,8 +395,10 @@ public sealed partial class DemoSessionApi
         }
 
         var followedIds = relation.Following.Select(link => link.PlayerId).ToHashSet();
-        var resultRows = BuildRankingRows(board.Rows, state.PlayerId, followedIds, ladder);
-        var self = BuildOwnRankingRow(state, board.You, ladder);
+        var rowPlayers = _playerStore.FindOtomoPlayers(board.Rows.Select(row => row.PlayerId).ToArray()).Select(link => link.PlayerId);
+        var honors = await HonorsOfAsync(ticket, state, rowPlayers.Append(state.PlayerId), context.RequestAborted);
+        var resultRows = BuildRankingRows(board.Rows, state.PlayerId, followedIds, ladder, honors);
+        var self = BuildOwnRankingRow(state, board.You, ladder, honors.GetValueOrDefault(state.PlayerId, BadgeCatalog.DefaultHonorId));
         // Client points still to go to the next published tier (0 at the top, and for a caller not on the board).
         var nextReward = ladder.RemainingToNextTier(board.You?.Points ?? 0);
 
@@ -425,7 +440,7 @@ public sealed partial class DemoSessionApi
     }
 
     private object[] BuildRankingRows(IReadOnlyList<SessionBoardRow> rows, long callerId, HashSet<long> followedIds,
-        RankLadder ladder)
+        RankLadder ladder, IReadOnlyDictionary<long, int> honors)
     {
         if (rows.Count == 0) return [];
 
@@ -450,7 +465,7 @@ public sealed partial class DemoSessionApi
                 userId = link.PlayerId.ToString(),
                 // The name is session's answer for this row.
                 name = row.DisplayName ?? "",
-                honorId = EquippedHonorId(_playerStore.TryLoad(link.PlayerId)),
+                honorId = honors.GetValueOrDefault(link.PlayerId, BadgeCatalog.DefaultHonorId),
                 kickerId = profile?.KickerId ?? DefaultKickerId,
                 kickerCostumeId = profile?.KickerCostumeId ?? DefaultKickerCostumeId,
                 languageCode = "",
@@ -466,16 +481,14 @@ public sealed partial class DemoSessionApi
 
     // The caller's own line. Their name, kicker and costume are this adapter's record of what they chose - the board's
     // `you` carries position, points and tier and nothing else.
-    private string BuildOwnRankingRow(SessionState state, SessionBoardStanding? you, RankLadder ladder) =>
+    private string BuildOwnRankingRow(SessionState state, SessionBoardStanding? you, RankLadder ladder, int equippedHonor) =>
         you is null
             ? NeutralBattleRanking
             : JsonSerializer.Serialize(new
             {
                 userId = state.UserId,
                 name = state.UserName,
-                honorId = BadgeAwardRules.GetOwnedHonorIds(state).Contains(state.HonorId)
-                    ? state.HonorId
-                    : BadgeAwardRules.DefaultHonorId,
+                honorId = equippedHonor,
                 kickerId = state.KickerId,
                 kickerCostumeId = state.KickerCostumeId,
                 languageCode = "",
@@ -514,21 +527,17 @@ public sealed partial class DemoSessionApi
     private static int FollowStatus(HashSet<long> followedIds, long callerId, long targetId) =>
         callerId != targetId && followedIds.Contains(targetId) ? 1 : 0;
 
-    internal static int EquippedHonorId(SessionState? state) => state is not null
-        && BadgeAwardRules.GetOwnedHonorIds(state).Contains(state.HonorId)
-            ? state.HonorId
-            : BadgeAwardRules.DefaultHonorId;
-
+    // `honors` is the badge each player on the screen shows (HonorsOfAsync): the caller's own display slot, and session's
+    // `display.honor` for everyone else. A player not in it shows the default.
     private string SocialProfileJson(SessionState caller, PlayerProfile profile, int followStatus, bool isNew,
-        IReadOnlyList<BattleRankLine> ranks)
+        IReadOnlyList<BattleRankLine> ranks, IReadOnlyDictionary<long, int>? honors = null)
     {
-        var targetState = _playerStore.TryLoad(profile.PlayerId) ?? caller;
         return JsonSerializer.Serialize(new
         {
             userId = profile.PlayerId.ToString(),
             displayUserId = PlayerDisplayIdCodec.ToPublic(profile.PlayerId),
             name = profile.DisplayName,
-            honorId = EquippedHonorId(targetState),
+            honorId = honors?.GetValueOrDefault(profile.PlayerId, BadgeCatalog.DefaultHonorId) ?? BadgeCatalog.DefaultHonorId,
             userFrameList = new[]
             {
                 new { battleRuleType = 1, frameId = 1 },

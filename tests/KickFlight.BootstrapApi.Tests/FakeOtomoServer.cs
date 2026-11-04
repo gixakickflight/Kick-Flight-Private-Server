@@ -214,7 +214,13 @@ public static class OtomoTestEnvironment
 {
     private static readonly Lazy<FakeOtomoServer> LazyServer = new(FakeOtomoServer.Start);
     private static readonly Lazy<FakeOtomoEconomy> LazyEconomy = new(FakeOtomoEconomy.Start);
-    private static readonly Lazy<FakeOtomoSocial> LazySocial = new(FakeOtomoSocial.Start);
+    private static readonly Lazy<FakeOtomoSocial> LazySocial = new(() =>
+    {
+        var social = FakeOtomoSocial.Start();
+        // Ownership is economy's: a display slot is set only for an item the economy fake says the account holds.
+        social.Holds = (player, item) => LazyEconomy.Value.ItemsOf(player, item) > 0;
+        return social;
+    });
     private static readonly Lazy<FakeOtomoRecordings> LazyRecordings = new(FakeOtomoRecordings.Start);
 
     private static readonly Lazy<FakeOtomoChat> LazyChat = new(() =>

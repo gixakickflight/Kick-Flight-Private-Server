@@ -19,7 +19,7 @@ namespace KickFlight.BootstrapApi.Tests;
 //
 // Every request it answers is recorded, which is how a test asserts that a purchase really carried an offer id and an
 // idempotency key rather than the adapter believing it did.
-public sealed class FakeOtomoEconomy : IAsyncDisposable
+public sealed partial class FakeOtomoEconomy : IAsyncDisposable
 {
     private readonly WebApplication _app;
     private readonly ConcurrentDictionary<string, PlayerEconomy> _players = new(StringComparer.Ordinal);
@@ -384,10 +384,28 @@ public sealed class FakeOtomoEconomy : IAsyncDisposable
                         counter = "battle.win",
                         period = "d04:2026-10-28",
                         value = 1L,
+                        best = 1L,
+                        mode = "cumulative",
                         repeat = false,
                         steps = new[]
                         {
                             new { step = 0, target = 1L, @class = "mission.daily.win.1", reached = true, claimed = false, claimable = true }
+                        },
+                        repetition = 0
+                    },
+                    // A badge track as the service lists it: auto_claim, so its steps are paid by the report and read claimed.
+                    new
+                    {
+                        track_id = "badge.login_days",
+                        counter = "",
+                        period = "all",
+                        value = 30L,
+                        best = 30L,
+                        mode = "cumulative",
+                        repeat = false,
+                        steps = new[]
+                        {
+                            new { step = 0, target = 30L, @class = "badge.6010101", reached = true, claimed = true, claimable = false }
                         },
                         repetition = 0
                     }
@@ -401,6 +419,8 @@ public sealed class FakeOtomoEconomy : IAsyncDisposable
             if (account is null) return failure;
             return Error(context, StatusCodes.Status409Conflict, "not_claimable", "track not claimable");
         });
+
+        MapBadges();
 
         // POST /internal/economy/items/advance: one value of one possession moved by a positive amount, up to the
         // ceiling the caller names. Idempotent on `key`, like the other two; it never creates a possession, so an item

@@ -151,7 +151,7 @@ public sealed partial class DemoSessionApi
         var (cardRanks, cardError) = await TryReadCardRanksAsync(ticket, state, [record.PlayerId], context.RequestAborted);
         if (cardRanks is null) return SocialUnavailable(context, "/user/search", cardError);
         var profile = SocialProfileJson(state, record, FollowStatus(followed, state.PlayerId, record.PlayerId), false,
-            cardRanks[record.PlayerId]);
+            cardRanks[record.PlayerId], await HonorsOfAsync(ticket, state, [record.PlayerId], context.RequestAborted));
 
         return OkJson(context, key, $$"""{"userProfile":{{profile}}}""");
     }
@@ -198,7 +198,7 @@ public sealed partial class DemoSessionApi
         var (cardRanks, cardError) = await TryReadCardRanksAsync(ticket, state, [record.PlayerId], context.RequestAborted);
         if (cardRanks is null) return SocialUnavailable(context, "/user/detail", cardError);
         var profile = SocialProfileJson(state, targetProfile, FollowStatus(followed, state.PlayerId, record.PlayerId), false,
-            cardRanks[record.PlayerId]);
+            cardRanks[record.PlayerId], await HonorsOfAsync(ticket, state, [record.PlayerId], context.RequestAborted));
         return OkJson(context, key,
             $$"""{"userProfile":{{profile}},"userBattleParameter":{{battleParameter}},"snsScreenName":""}""");
     }
@@ -214,16 +214,17 @@ public sealed partial class DemoSessionApi
             var root = document.RootElement;
             if (root.TryGetProperty("honorId", out var honorProp))
             {
-                if (!honorProp.TryGetInt32(out var honorId) || !BadgeAwardRules.EquipHonor(state, honorId))
+                if (!honorProp.TryGetInt32(out var honorId)
+                    || !await EquipHonorAsync(ticket, honorId, context.RequestAborted))
                     return StatusError(context, key);
-                SaveUserState(state, allowEquippedHonorChange: true);
             }
             // The DTO names the field "name"; older captures renamed it, so both spellings are accepted.
             if (TryGetString(root, "userName", out var newName) || TryGetString(root, "name", out newName))
             {
+                if (await RenameAtSessionAsync(ticket, newName, "/user/change", context.RequestAborted) is { } rejection)
+                    return NameRejected(context, key, rejection);
                 state.UserName = newName;
                 SaveUserState(state);
-                await PublishNameAsync(ticket, state, "/user/change", context.RequestAborted);
                 _logger.LogInformation("Renamed user {UserId} to {UserName}", state.UserId, newName);
             }
             return OkJson(context, key, "{}");
