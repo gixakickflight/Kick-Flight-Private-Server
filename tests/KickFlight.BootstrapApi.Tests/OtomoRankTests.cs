@@ -91,10 +91,18 @@ public sealed class OtomoRankTests
             Assert.Equal("rank_1", rank.Tier);
         });
 
-        // The player plane carries no id: the subject is the token's, and only played rule types are listed.
+        // The player plane carries no id: the subject is the token's. Like session it lists every rule type the
+        // policy names, and an unplayed one reads start_points (stale: it used to list only the played ones).
         var token = TokenFor(player);
         var own = await client.GetOwnAsync(token, CancellationToken.None);
-        Assert.Equal("crystal_scramble", Assert.Single(own).RuleType);
+        Assert.Equal(["crystal_scramble", "flag_flight", "rapid_ball"], own.Select(rank => rank.RuleType).ToArray());
+        Assert.Equal(900, own.Single(rank => rank.RuleType == "crystal_scramble").Points);
+        Assert.All(own.Where(rank => rank.RuleType != "crystal_scramble"), rank =>
+        {
+            Assert.Equal(200, rank.Points);
+            Assert.Equal("rank_1", rank.Tier);
+            Assert.Null(rank.UpdatedAt);
+        });
     }
 
     [Fact]
@@ -169,7 +177,8 @@ public sealed class OtomoRankTests
         // Each tier's min_points as published, with no offset, is the table the adapter used to carry by hand.
         int[] retail = [200, 500, 900, 1400, 1900, 2400, 2900, 3400, 3900, 4400, 4900, 5400, 5900, 6400, 6900, 7500];
         Assert.Equal(retail, ladder.Ranks.Select(ladder.MinPoints).ToArray());
-        Assert.Equal(200, ladder.StartPoints);
+        Assert.Equal(50, ladder.WinOutcome);
+        Assert.Equal(-20, ladder.Outcomes["loss"]);
 
         using var master = JsonDocument.Parse(DemoSessionApi.BuildBattleRankMasterJson(ladder));
         var rows = master.RootElement.EnumerateArray().ToArray();
@@ -198,6 +207,10 @@ public sealed class OtomoRankTests
         Rejects("""{"tiers":[{"key":"rank_1","min_points":0},{"key":"rank_1","min_points":10}]}""");
         Rejects("""{"tiers":[{"key":"rank_1","min_points":100},{"key":"rank_2","min_points":50}]}""");
         Rejects("""{"tiers":[{"key":"rank_1"}]}""");
+
+        // Policy fields are accepted and ignored; a document without a win outcome has none to show.
+        var noOutcomes = RankLadder.Parse("""{"start_points":1,"floor":1,"ceiling":9,"rules":[],"tiers":[{"key":"rank_1","min_points":1}]}""");
+        Assert.Null(noOutcomes.WinOutcome);
 
         // A ladder with a rank the client has no badge for cannot become a BattleRank master.
         var tooMany = RankLadder.Parse(JsonSerializer.Serialize(new

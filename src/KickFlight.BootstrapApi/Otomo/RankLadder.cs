@@ -13,25 +13,27 @@ namespace KickFlight.BootstrapApi.Otomo;
 //     "tiers": [ {"key": "rank_1", "min_points": 200}, {"key": "rank_2", "min_points": 500}, ... ] }
 //
 // A tier key is always rank_<N>, where N is the client's rank number, and min_points is where the tier begins in
-// battle points. The policy fields (floor, ceiling, outcomes and the rest) are session's and are ignored here, since
-// session applies them; only start_points is read, because the player-plane read leaves out a rule type the caller has
-// not played and that line must show where a new player starts. Anything that does not fit - a key of another shape, a repeated rank, thresholds that do not rise -
+// battle points. The policy fields (start_points, floor, ceiling, rules) are session's and are ignored here, since
+// session applies them. `outcomes` is read for one thing only: /battle/end shows the win outcome's value. Anything that does not fit - a key of another shape, a repeated rank, thresholds that do not rise -
 // makes the whole document unusable (Parse throws), because a ladder partly understood is a ladder invented.
 public sealed class RankLadder
 {
     private readonly SortedDictionary<int, int> _minPointsByRank;
 
-    private RankLadder(IReadOnlyList<string> ruleTypes, int? startPoints, SortedDictionary<int, int> minPointsByRank)
+    private RankLadder(IReadOnlyList<string> ruleTypes, IReadOnlyDictionary<string, int> outcomes, SortedDictionary<int, int> minPointsByRank)
     {
         RuleTypes = ruleTypes;
-        StartPoints = startPoints;
+        Outcomes = outcomes;
         _minPointsByRank = minPointsByRank;
     }
 
     public IReadOnlyList<string> RuleTypes { get; }
 
-    // Where a player with no row stands, as the document declares it. Null when the document does not say.
-    public int? StartPoints { get; }
+    // The named outcomes the document declares and what each is worth. Informational: session applies them.
+    public IReadOnlyDictionary<string, int> Outcomes { get; }
+
+    // What a win is worth as published, or null when the document declares no `win` outcome.
+    public int? WinOutcome => Outcomes.TryGetValue("win", out var win) ? win : null;
 
     // The rank numbers the ladder names, ascending.
     public IEnumerable<int> Ranks => _minPointsByRank.Keys;
@@ -80,9 +82,14 @@ public sealed class RankLadder
             }
         }
 
-        int? startPoints = root.TryGetProperty("start_points", out var start) && start.TryGetInt32(out var startValue)
-            ? startValue
-            : null;
+        var outcomes = new Dictionary<string, int>(StringComparer.Ordinal);
+        if (root.TryGetProperty("outcomes", out var outcomeElement) && outcomeElement.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var outcome in outcomeElement.EnumerateObject())
+            {
+                if (outcome.Value.TryGetInt32(out var delta)) outcomes[outcome.Name] = delta;
+            }
+        }
 
         if (!root.TryGetProperty("tiers", out var tiers) || tiers.ValueKind != JsonValueKind.Array)
             throw new InvalidDataException("session.rank has no tiers array");
@@ -113,6 +120,6 @@ public sealed class RankLadder
             previous = min;
         }
 
-        return new RankLadder(ruleTypes, startPoints, minPoints);
+        return new RankLadder(ruleTypes, outcomes, minPoints);
     }
 }

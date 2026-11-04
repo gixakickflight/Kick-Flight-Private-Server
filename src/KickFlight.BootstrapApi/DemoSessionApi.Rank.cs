@@ -124,7 +124,7 @@ public sealed partial class DemoSessionApi
     // --- reads -----------------------------------------------------------------------------------------------------
 
     // The standing of a player across the client's three ladders, from session's entries. A rule type with no entry
-    // (the player-plane read only promises the ones the caller has played) stands at the ladder's declared start_points.
+    // is session breaking its contract (it reports every rule type, start_points for an unplayed one).
     private IReadOnlyList<BattleRankLine> TranslateRanks(IReadOnlyList<SessionRankEntry> entries)
     {
         var lines = new List<BattleRankLine>(RankedBattleRuleTypes.Length);
@@ -134,26 +134,16 @@ public sealed partial class DemoSessionApi
                 OtomoRankFailure.Refused, $"no session rule type is configured for battle rule type {battleRuleType}");
             var entry = entries.FirstOrDefault(candidate => string.Equals(candidate.RuleType, ruleType, StringComparison.Ordinal));
             lines.Add(entry is null
-                ? NewPlayerLine(battleRuleType)
+                ? throw NoEntry(ruleType)
                 : new BattleRankLine(battleRuleType, entry.Points, TierRank(entry.Tier)));
         }
         return lines;
     }
 
-    // Where a player with no row stands: the start_points the published ladder declares, never a number of our own.
-    private BattleRankLine NewPlayerLine(int battleRuleType)
-    {
-        var standing = NewPlayerStanding();
-        return new BattleRankLine(battleRuleType, standing.BattlePoint, standing.Rank);
-    }
-
-    private BattleRankStanding NewPlayerStanding()
-    {
-        var ladder = RequireLadder();
-        var start = ladder.StartPoints ?? throw new OtomoRankException(OtomoRankFailure.Unavailable,
-            $"the published {RankLadderNamespace} ladder declares no start_points, so a player with no row has no standing");
-        return new BattleRankStanding(start, ladder.RankFor(start));
-    }
+    // Session answers one entry per rule type its policy names, start_points for a player who has not played, so a
+    // missing entry is session breaking its contract: said out loud as an outage, never filled in with a number of ours.
+    private static OtomoRankException NoEntry(string ruleType) =>
+        new(OtomoRankFailure.Unavailable, $"session answered no rank entry for rule type '{ruleType}'");
 
     private static int TierRank(string? tier) =>
         RankTranslation.RankNumber(tier) ?? throw new OtomoRankException(OtomoRankFailure.Unavailable,
@@ -181,7 +171,7 @@ public sealed partial class DemoSessionApi
             {
                 if (id == caller.PlayerId) return (id, Lines: await ReadOwnBattleRanksAsync(ticket, cancellationToken));
                 var link = _playerStore.FindOtomoPlayer(id);
-                if (link is null) return (id, Lines: TranslateRanks([]));
+                if (link is null) return (id, Lines: TranslateRanks([])); // no session account: no standing to show (throws)
                 var entries = await _rank.GetPlayerAsync(link.OtomoPlayerId, cancellationToken);
                 return (id, Lines: TranslateRanks(entries));
             }).ToArray();
@@ -226,7 +216,7 @@ public sealed partial class DemoSessionApi
         var current = await _rank.GetOwnAsync(accessToken, cancellationToken);
         var currentEntry = current.FirstOrDefault(entry => string.Equals(entry.RuleType, ruleType, StringComparison.Ordinal));
         var before = currentEntry is null
-            ? NewPlayerStanding()
+            ? throw NoEntry(ruleType)
             : new BattleRankStanding(currentEntry.Points, TierRank(currentEntry.Tier));
 
         var award = await _rank.AwardAsync(ticket.OtomoPlayerId, ruleType,

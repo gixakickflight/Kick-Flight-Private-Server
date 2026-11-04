@@ -394,7 +394,8 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
     // The player plane's own standing, the internal plane's award and read, and the release bundle.
     private void MapRank()
     {
-        // GET /api/player/session/rank: the caller's own standing, only for the rule types they have played.
+        // GET /api/player/session/rank: the caller's own standing, one entry per rule type the policy names, in its
+        // order; a player with no row reads start_points, the tier for it and updated_at null.
         _app.MapGet("/api/player/session/rank", (HttpContext context) =>
         {
             var account = Identify(context, out var failure);
@@ -402,9 +403,13 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
             if (_readsDown.GetValueOrDefault(account.PlayerId)) return Error(context, StatusCodes.Status503ServiceUnavailable, "unavailable", "rank is down");
             lock (_lock)
             {
-                var ranks = RuleTypes.Where(account.Points.ContainsKey)
-                    .Select(rule => new { rule_type = rule, points = account.Points[rule], tier = TierFor(account.Points[rule]),
-                        updated_at = "2026-10-01T12:00:00Z" }).ToArray();
+                var ranks = RuleTypes.Select(rule =>
+                {
+                    var played = account.Points.TryGetValue(rule, out var held);
+                    var points = played ? held : StartPoints;
+                    return new { rule_type = rule, points, tier = TierFor(points),
+                        updated_at = played ? "2026-10-01T12:00:00Z" : null };
+                }).ToArray();
                 return Results.Json(new { ranks });
             }
         });

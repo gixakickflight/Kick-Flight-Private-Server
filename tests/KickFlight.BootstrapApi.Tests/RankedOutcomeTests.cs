@@ -282,6 +282,20 @@ public sealed class RankedOutcomeTests
     }
 
     [Fact]
+    public async Task Battle_end_shows_the_published_win_outcome_as_battlePoint()
+    {
+        await using var f = Fixture.Create();
+        var player = await AuthAsync(f.Client);
+        using var end = await PostAsync(f.Client, player, "/battle/end", $$"""
+            {"battleId":"battle-end-1","teamScoreList":[{"teamType":0,"score":5,"remainingDistance":2,"lastRemainingDistance":1}],
+             "userScoreList":[{"userId":"{{player.PlayerId}}","score":5,"mvpFlag":true,"breakawayFlag":false,"badConnectionFlag":false,"aiFlag":false}]}
+            """);
+        // The KF ladder publishes outcomes.win = 50; the adapter holds no number of its own for it.
+        Assert.Equal(FakeOtomoSocial.Outcomes["win"], end.RootElement.GetProperty("battlePoint").GetInt32());
+        Assert.Equal(50, end.RootElement.GetProperty("battlePoint").GetInt32());
+    }
+
+    [Fact]
     public async Task A_win_posts_the_outcome_win_and_no_delta()
     {
         await using var f = Fixture.Create();
