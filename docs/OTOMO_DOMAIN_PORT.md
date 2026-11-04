@@ -24,7 +24,7 @@ Still local by known gap: kicker/costume on another player's card (no ext field)
 
 ## The suite
 
-604 tests at 8fca9fd. The 14 known failures, by name, are unchanged since e7470c1: the iOS bundle pair,
+598 tests on feature/otomo-bot-ai. The 13 known failures, by name (the python3 bot-AI save test is deleted with its path): the iOS bundle pair,
 the economy/onboarding fakes, and `HarnessTests.Download_master…`. Run comparisons
 in fresh worktrees: the tests leave saved users under `bin/…/data/users`, which turns two onboarding tests
 red on a re-run. `BattleMatchmakingTests.Each_join_moves_the_deadline…` is wall-clock and fails under load.
