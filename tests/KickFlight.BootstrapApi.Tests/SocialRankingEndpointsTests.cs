@@ -83,12 +83,9 @@ public sealed class SocialRankingEndpointsTests
         Assert.Equal(0, (await PostAsync(alice, "/follow/index", new { page = 0 })).GetProperty("followCount").GetInt32());
 
         // The refusals are session's (a self-follow) or the adapter's own (a numeric id with no otomo account behind it).
-        // The real-friend invitation has no source at all any more.
         await PostAsync(alice, "/follow/add", new { followUserId = alice.UserId }, expectStatusZero: false);
         await PostAsync(alice, "/follow/add", new { followUserId = long.MaxValue.ToString() }, expectStatusZero: false);
         await PostAsync(alice, "/follow/remove", new { followUserId = long.MaxValue.ToString() }, expectStatusZero: false);
-        await PostAsync(alice, "/realFriend/token", null, expectStatusZero: false);
-        await PostAsync(alice, "/realFriend/apply", new { token = "not-a-token" }, expectStatusZero: false);
         await PostAsync(alice, "/user/search", new { displayUserId = long.MaxValue }, expectStatusZero: false);
         Assert.StartsWith("SA", factory.Services.GetRequiredService<IPlayerStore>()
             .FindProfile(aliceId)?.DisplayName ?? "");
@@ -129,6 +126,121 @@ public sealed class SocialRankingEndpointsTests
         await PostAsync(alice, "/follow/add", new { followUserId = carol.UserId });
         Assert.True(_social.IsFollowing(alice.Account, carol.Account));
     }
+
+    // --- real friends: a session friend invitation ----------------------------------------------------------------
+
+    [Fact]
+    public async Task The_real_friend_token_is_the_players_invite_code_and_is_stable()
+    {
+        using var factory = NewFactory();
+        var alice = await CreateSessionAsync(factory);
+        var bob = await CreateSessionAsync(factory);
+
+        var first = (await PostAsync(alice, "/realFriend/token", null)).GetProperty("token").GetString();
+        var again = (await PostAsync(alice, "/realFriend/token", null)).GetProperty("token").GetString();
+        var other = (await PostAsync(bob, "/realFriend/token", null)).GetProperty("token").GetString();
+
+        Assert.False(string.IsNullOrWhiteSpace(first));
+        Assert.Equal(first, again);
+        Assert.NotEqual(first, other);
+        // It is session's code, read with the player's own token: the adapter stores no token.
+        Assert.Contains(_social.Requests, call => call.Method == "GET" && call.Path == "/api/player/session/friends/invite");
+    }
+
+    [Fact]
+    public async Task Applying_a_token_makes_both_players_real_friends_with_follow_status_2()
+    {
+        using var factory = NewFactory();
+        var alice = await CreateSessionAsync(factory);
+        var bob = await CreateSessionAsync(factory);
+        var carol = await CreateSessionAsync(factory);
+        var aliceId = long.Parse(alice.UserId);
+        var bobId = long.Parse(bob.UserId);
+        var carolId = long.Parse(carol.UserId);
+        await PostAsync(alice, "/user/change", new { name = "FrA" + alice.UserId[^4..] });
+        await PostAsync(bob, "/user/change", new { name = "FrB" + bob.UserId[^4..] });
+        await PostAsync(carol, "/user/change", new { name = "FrC" + carol.UserId[^4..] });
+        var token = (await PostAsync(alice, "/realFriend/token", null)).GetProperty("token").GetString();
+
+        // Before: strangers (0), and a follow on its own is 1.
+        Assert.Equal(0, await StatusOfAsync(bob, aliceId));
+        await PostAsync(bob, "/follow/add", new { followUserId = carol.UserId });
+        Assert.Equal(1, await StatusOfAsync(bob, carolId));
+
+        var applied = await PostAsync(bob, "/realFriend/apply", new { token });
+        Assert.Empty(applied.EnumerateObject());
+
+        Assert.True(_social.AreFriends(alice.Account, bob.Account));
+        Assert.Equal(2, await StatusOfAsync(bob, aliceId));
+        Assert.Equal(2, await StatusOfAsync(alice, bobId));
+        // The friend of one is not everyone's, and a follow is still 1.
+        Assert.Equal(0, await StatusOfAsync(carol, aliceId));
+        Assert.Equal(1, await StatusOfAsync(bob, carolId));
+        // A friend who is also followed is a friend (2), on the follow list too.
+        await PostAsync(bob, "/follow/add", new { followUserId = alice.UserId });
+        var following = await PostAsync(bob, "/follow/index", new { page = 0 });
+        var rows = following.GetProperty("userProfileList").EnumerateArray()
+            .ToDictionary(row => row.GetProperty("userId").GetString()!, row => row.GetProperty("followStatus").GetInt32());
+        Assert.Equal(2, rows[alice.UserId]);
+        Assert.Equal(1, rows[carol.UserId]);
+
+        // A retry of the same token (a lost answer) is session's 200 and changes nothing.
+        await PostAsync(bob, "/realFriend/apply", new { token });
+        Assert.True(_social.AreFriends(alice.Account, bob.Account));
+    }
+
+    [Fact]
+    public async Task A_token_session_refuses_is_the_clients_error_and_makes_no_friendship()
+    {
+        using var factory = NewFactory();
+        var alice = await CreateSessionAsync(factory);
+        var bob = await CreateSessionAsync(factory);
+        var carol = await CreateSessionAsync(factory);
+        var aliceToken = (await PostAsync(alice, "/realFriend/token", null)).GetProperty("token").GetString();
+        var carolToken = (await PostAsync(carol, "/realFriend/token", null)).GetProperty("token").GetString();
+
+        // Your own token (400 invalid_target), a token nobody holds (404 invite_not_found), no token at all.
+        await PostAsync(alice, "/realFriend/apply", new { token = aliceToken }, expectStatusZero: false);
+        await PostAsync(bob, "/realFriend/apply", new { token = "not-a-token" }, expectStatusZero: false);
+        await PostAsync(bob, "/realFriend/apply", new { token = "" }, expectStatusZero: false);
+        await PostAsync(bob, "/realFriend/apply", null, expectStatusZero: false);
+        // A block in either direction (403 blocked).
+        _social.BlockEitherWay(carol.Account, bob.Account);
+        await PostAsync(bob, "/realFriend/apply", new { token = carolToken }, expectStatusZero: false);
+
+        Assert.False(_social.AreFriends(alice.Account, alice.Account));
+        Assert.False(_social.AreFriends(bob.Account, carol.Account));
+        Assert.False(_social.AreFriends(bob.Account, alice.Account));
+
+        // Refusals are not an outage: the next valid token still works.
+        await PostAsync(bob, "/realFriend/apply", new { token = aliceToken });
+        Assert.True(_social.AreFriends(bob.Account, alice.Account));
+    }
+
+    [Fact]
+    public async Task With_invitations_turned_off_by_the_tenant_both_routes_are_the_clients_error()
+    {
+        using var factory = NewFactory();
+        var alice = await CreateSessionAsync(factory);
+        var bob = await CreateSessionAsync(factory);
+        var token = (await PostAsync(alice, "/realFriend/token", null)).GetProperty("token").GetString();
+        _social.InvitesEnabled = false;
+        try
+        {
+            await PostAsync(alice, "/realFriend/token", null, expectStatusZero: false);
+            await PostAsync(bob, "/realFriend/apply", new { token }, expectStatusZero: false);
+        }
+        finally
+        {
+            _social.InvitesEnabled = true;
+        }
+        Assert.False(_social.AreFriends(alice.Account, bob.Account));
+    }
+
+    // The followStatus the caller is shown for a player, through the search card.
+    private static async Task<int> StatusOfAsync(DemoSession caller, long targetId) =>
+        (await PostAsync(caller, "/user/search", new { displayUserId = targetId }))
+            .GetProperty("userProfile").GetProperty("followStatus").GetInt32();
 
     [Fact]
     public async Task Names_on_follow_rows_are_the_name_session_answered_for_the_row()

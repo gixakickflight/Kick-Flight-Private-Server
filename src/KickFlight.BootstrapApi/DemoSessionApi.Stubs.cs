@@ -50,16 +50,12 @@ public sealed partial class DemoSessionApi
                 return await HandleFollowerIndexAsync(context, ticket, state, key);
             case "/follower/read":
                 return await HandleFollowerReadAsync(context, state, key);
-            // The real-friend invitation was a token this adapter minted and kept in real_friend_tokens, which
-            // migration 6 dropped. It is not reconstructible: the token was opaque and nothing outside that table ever
-            // knew it, so there is no relation to rebuild from. Session's friend relation is addressed by tag, not by
-            // an invitation, so nothing here can stand in for it. The routes stay registered and answer the game's
-            // error envelope, which the client draws as a dialog instead of a missing screen.
+            // A real friend is a session friendship, made by a friend invitation: the token is the player's own invite code
+            // and applying someone's token redeems it (DemoSessionApi.SocialRanking.cs).
             case "/realFriend/token":
+                return await HandleRealFriendTokenAsync(context, ticket, state, key);
             case "/realFriend/apply":
-                _logger.LogInformation("{Path} for user {UserId}: the friend invitation is not served any more",
-                    path, state.UserId);
-                return StatusError(context, key);
+                return await HandleRealFriendApplyAsync(context, ticket, state, key);
 
             case "/user/search":
                 return await HandleUserSearchStubAsync(context, ticket, state, key);
@@ -147,10 +143,10 @@ public sealed partial class DemoSessionApi
         if (local is null) return StatusError(context, key);
         var (record, _, cardFailure) = await ReadTargetCardAsync(context, key, "/user/search", local);
         if (record is null) return cardFailure;
-        var followed = await ReadFollowedIdsAsync(ticket, "/user/search", context.RequestAborted);
+        var marks = await ReadFollowMarksAsync(ticket, "/user/search", context.RequestAborted);
         var (cardRanks, cardError) = await TryReadCardRanksAsync(ticket, state, [record.PlayerId], context.RequestAborted);
         if (cardRanks is null) return SocialUnavailable(context, "/user/search", cardError);
-        var profile = SocialProfileJson(state, record, FollowStatus(followed, state.PlayerId, record.PlayerId), false,
+        var profile = SocialProfileJson(state, record, marks.StatusOf(state.PlayerId, record.PlayerId), false,
             cardRanks[record.PlayerId], await HonorsOfAsync(ticket, state, [record.PlayerId], context.RequestAborted));
 
         return OkJson(context, key, $$"""{"userProfile":{{profile}}}""");
@@ -194,10 +190,10 @@ public sealed partial class DemoSessionApi
             KickerId = targetState.KickerId,
             KickerCostumeId = targetState.KickerCostumeId
         };
-        var followed = await ReadFollowedIdsAsync(ticket, "/user/detail", context.RequestAborted);
+        var marks = await ReadFollowMarksAsync(ticket, "/user/detail", context.RequestAborted);
         var (cardRanks, cardError) = await TryReadCardRanksAsync(ticket, state, [record.PlayerId], context.RequestAborted);
         if (cardRanks is null) return SocialUnavailable(context, "/user/detail", cardError);
-        var profile = SocialProfileJson(state, targetProfile, FollowStatus(followed, state.PlayerId, record.PlayerId), false,
+        var profile = SocialProfileJson(state, targetProfile, marks.StatusOf(state.PlayerId, record.PlayerId), false,
             cardRanks[record.PlayerId], await HonorsOfAsync(ticket, state, [record.PlayerId], context.RequestAborted));
         return OkJson(context, key,
             $$"""{"userProfile":{{profile}},"userBattleParameter":{{battleParameter}},"snsScreenName":""}""");

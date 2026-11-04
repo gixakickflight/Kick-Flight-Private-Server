@@ -74,6 +74,29 @@ public sealed record SessionFollowCounts(
     [property: JsonPropertyName("followers")] int Followers,
     [property: JsonPropertyName("following")] int Following);
 
+// One entry of GET /api/player/session/friends and the answer to redeeming an invite: a friend (or a pending request in
+// either direction, which the adapter does not read). `status` and the party fields are presence, which the real-friend
+// screen does not draw, so they are not read.
+public sealed record SessionFriend(
+    [property: JsonPropertyName("player_id")] string PlayerId,
+    [property: JsonPropertyName("display_name")] string? DisplayName,
+    [property: JsonPropertyName("discriminator")] int Discriminator,
+    [property: JsonPropertyName("since")] DateTimeOffset? Since);
+
+// GET /api/player/session/friends: `friends` are the accepted ones; `incoming` and `outgoing` are open requests.
+public sealed record SessionFriends(
+    [property: JsonPropertyName("friends")] IReadOnlyList<SessionFriend>? Friends,
+    [property: JsonPropertyName("incoming")] IReadOnlyList<SessionFriend>? Incoming,
+    [property: JsonPropertyName("outgoing")] IReadOnlyList<SessionFriend>? Outgoing);
+
+// GET /api/player/session/friends/invite: the caller's one shareable code. `expires_at` is null unless the tenant's
+// session.rules `invites.ttl_seconds` is set, and an expired code is replaced by a fresh one on the next read.
+public sealed record SessionFriendInvite(
+    [property: JsonPropertyName("code")] string Code,
+    [property: JsonPropertyName("created_at")] DateTimeOffset? CreatedAt,
+    [property: JsonPropertyName("expires_at")] DateTimeOffset? ExpiresAt,
+    [property: JsonPropertyName("redemptions")] int Redemptions);
+
 // One line of GET /api/player/session/rank/board. `tier` is the ladder's own key for the row's points (rank_<N>),
 // `display_name`/`discriminator` are the tag the social screen shows beside it, and `position` is the row's 1-based
 // place on the FULL ladder - the same number whether the board was asked for scope=all or scope=following.
@@ -139,6 +162,18 @@ public interface IOtomoSocial
 
     // Removes the caller's own direction only, and is a no-op when it was not there.
     Task UnfollowAsync(string accessToken, string playerId, CancellationToken cancellationToken);
+
+    // The caller's accepted friends (GET /friends).
+    Task<IReadOnlyList<SessionFriend>> GetFriendsAsync(string accessToken, CancellationToken cancellationToken);
+
+    // The caller's one friend-invite code, made on the first read and stable after (GET /friends/invite). 403
+    // invites_disabled when the tenant's session.rules turns invitations off, 404 profile_not_found.
+    Task<SessionFriendInvite> GetFriendInviteAsync(string accessToken, CancellationToken cancellationToken);
+
+    // Redeems someone's code: the caller and its owner are friends at once (POST /friends/invite/redeem), also when they
+    // already were. 400 invalid_code / invalid_target (your own code), 403 blocked / invites_disabled, 404 invite_not_found
+    // (unknown, malformed, revoked, expired or used up), 409 friend_limit, 429 rate_limit_exceeded.
+    Task<SessionFriend> RedeemFriendInviteAsync(string accessToken, string code, CancellationToken cancellationToken);
 
     // One page of the ranking board, plus the caller's own line. `ruleType` is session's rule-type *name*, which is
     // configured because a session instance publishes the names it keeps. `scope` All is every player; Following is
