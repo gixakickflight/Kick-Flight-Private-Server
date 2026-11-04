@@ -1,0 +1,5 @@
+[
+  {"id":1,"name":"Crystal Scramble guardian","matchType":1,"baseHp":8000,"hpPercentPerRank":0.0,"baseAttack":6000,"attackPercentPerRank":0.0},
+  {"id":2,"name":"Rapid Ball goal guardian","matchType":1,"baseHp":3000,"hpPercentPerRank":0.0,"baseAttack":6000,"attackPercentPerRank":0.0},
+  {"id":3,"name":"Gym guardian","matchType":1,"baseHp":8000,"hpPercentPerRank":0.0,"baseAttack":0,"attackPercentPerRank":0.0}
+]

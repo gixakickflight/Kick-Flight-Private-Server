@@ -1017,6 +1017,48 @@ public sealed class BattleMatchmakingTests
         }
     }
 
+    [Fact]
+    public async Task Roster_shows_each_humans_real_rank_and_equipped_badge_and_bots_keep_rank_13()
+    {
+        var service = CreateService();
+        var (e1, ticket1) = service.RegisterEntry("1000001", "Alpha", 1, 1, 1, [3010001, 3010002, 3010003, 3010004]);
+        var (e2, ticket2) = service.RegisterEntry("1000002", "Bravo", 1, 1, 1, [3010001, 3010002, 3010003, 3010004]);
+        service.SetEntryProfile(e1, _ => 16, 6010005);
+        service.SetEntryProfile(e2, ruleType => ruleType == null ? 9 : 9, 6010000);
+
+        using var c1 = new CancellationTokenSource();
+        using var c2 = new CancellationTokenSource();
+        var w1 = new CollectingWriter(expectedCount: 4, c1);
+        var w2 = new CollectingWriter(expectedCount: 3, c2);
+        var s1 = service.StreamAssignmentsAsync(ticket1, w1, c1.Token);
+        await w1.FirstWrite;
+        var s2 = service.StreamAssignmentsAsync(ticket2, w2, c2.Token);
+        await Task.WhenAll(w1.WaitForExpectedWritesAsync(), w2.WaitForExpectedWritesAsync());
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => s1);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => s2);
+
+        var roster = Roster(w1.Responses[^1].Assignment);
+        var alpha = roster.Single(r => r.GetProperty("userId").GetString() == "1000001");
+        var bravo = roster.Single(r => r.GetProperty("userId").GetString() == "1000002");
+        Assert.Equal(16, alpha.GetProperty("rank").GetInt32());
+        Assert.Equal(6010005, alpha.GetProperty("honorId").GetInt32());
+        Assert.Equal(9, bravo.GetProperty("rank").GetInt32());
+        Assert.Equal(6010000, bravo.GetProperty("honorId").GetInt32());
+        Assert.All(roster.Where(r => r.GetProperty("kickerAiParameterId").GetInt32() > 0),
+            bot => Assert.Equal(13, bot.GetProperty("rank").GetInt32()));
+    }
+
+    [Fact]
+    public void SetEntryProfile_passes_the_entrys_rule_type_and_ignores_unknown_entries()
+    {
+        var service = CreateService();
+        var (entry, _) = service.RegisterEntry("1000001", "Alpha", 1, 1, 1, [3010001, 3010002, 3010003, 3010004], battleRuleType: 3);
+        int? seen = null;
+        service.SetEntryProfile(entry, rule => { seen = rule; return 8; }, 6010000);
+        service.SetEntryProfile("nope", _ => throw new InvalidOperationException(), 1);
+        Assert.Equal(3, seen);
+    }
+
     private static BattleMatchmakingService CreateService(bool fastWindow = true, bool withCatalog = false)
     {
         var photon = new PhotonServerManager(
