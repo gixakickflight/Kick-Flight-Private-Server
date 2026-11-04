@@ -7,33 +7,35 @@ namespace KickFlight.BootstrapApi;
 
 // Capsules: what a battle hands out, and the disc draw that opening one is.
 //
-// A capsule is an economy entitlement (POST /internal/economy/entitlements), and the adapter keeps nothing about it:
+// A capsule is an economy entitlement, and the adapter holds none of its policy. The tenant's documents (kf-otomo,
+// economy.rules) say when one is awarded, which, and how long it waits:
 //
-//   kind        capsule - the one kind the KF tenant declares, with max_open 3: economy refuses a fourth open row, which is
-//               the client's three slots
-//   rule        match.capsule.<type> - the reward class the claim pays (wooden, standard or golden)
-//   available_at  the moment the slot may be opened: the grant time plus the type's unlock timer
-//   source      the battle entry that earned it
-//   meta        what the client draws the slot from: {capsuleId, discCount, slot, openTimeSecond}
-//   key         capsule:<player>:<battle entry>, so a retried battle result creates nothing more
+//   kind        capsule: max_open 3 (the client's three slots), the five match.capsule.* classes, a delay window
+//   trigger     battle.result -> one capsule, drawn by economy from weighted picks (60/30/10 over the types, and the disc
+//               count within a type), each pick with its own delay
+//   class       match.capsule.<type>[.<discs>] pays the type's tokens (capsule_<type>), one per disc the capsule holds
 //
-// The adapter decides only presentation, from EconomyTuning: which type a battle earns (60/30/10), how many discs it
-// holds, and when its slot may be opened. The draw inside the capsule is economy's capsule.<type> pool.
+// What the adapter does is translate:
 //
-//   battle result  one create. A player who already holds three open capsules is refused by economy (409
-//                  entitlement_cap) and the battle hands out nothing - exactly what a full set of slots always meant.
+//   battle result  read, from the one battle.result report (DemoSessionApi.Badges.cs: RecordBadgeBattleAsync), the trigger's answer: minted gives the
+//                  capsule to show; a refusal (entitlement_cap: all slots full) or a skip gives none. It decides nothing.
 //   home           the open entitlements are the slots (GET /internal/economy/entitlements).
 //   open           claim the entitlement (economy pays the class once, refuses before available_at), then one roll of the
-//                  capsule.<type> pool on the player's own token, count = the capsule's disc amount, keyed
-//                  capsule-open:<entry>. The pool costs one capsule_<type> token per draw.
+//                  capsule.<type> pool on the player's own token, as many draws as the claim paid tokens, keyed
+//                  capsule-open:<entitlement>.
+//   immediateOpen  the same, but a capsule not yet due is claimed early at the price the kind declares (economy's
+//                  early_claim: GET .../early_claim for the price, claim with early: true). A kind that offers no early
+//                  claim answers 404 early_claim_not_offered and the plain claim - and its not-yet-due refusal - follows.
+//
+// A trigger's meta is only the fact and trigger (and the fact fields it names, none here), so a slot is not stored anywhere: it is the lowest slot free at the moment the row was made,
+// which is recomputed from the rows' created_at and claimed_at (SlotsOf) and does not move when an older one is opened.
 //
 // Payment, exactly once: nothing is paid when the battle hands the capsule out - an entitlement is a promise, not a
 // payout. The claim pays match.capsule.<type> once, keyed by the entitlement id on economy's side (so a retried or
-// concurrent claim pays once; the second is 409 entitlement_claimed). That class is one token, and a capsule holding more
-// than one disc needs one token per draw, so the remaining discCount - 1 tokens are the same class granted under
-// capsule:<entry>:<n> keys, which replay on a retry. The sum is discCount tokens, each paid once, and the roll spends
-// them. A claim that succeeds and a roll that then fails leaves the row claimed: the open is retried within
-// ClaimedRecoveryWindow, finds the claimed row, and replays the claim and the roll's key.
+// concurrent claim pays once; the second is 409 entitlement_claimed), and the roll spends the tokens it paid. A claim
+// that succeeds and a roll that then fails leaves the row claimed: the open is retried within ClaimedRecoveryWindow,
+// finds the claimed row in its slot, and rolls whatever tokens the claim paid (the roll's own key replays when the roll
+// had in fact happened).
 public sealed partial class DemoSessionApi
 {
     // The tutorial's capsule: TutorialUtil.CAPSULE_ID, opened after OPEN_CAPSULE_DURATION (8) seconds.
@@ -59,7 +61,7 @@ public sealed partial class DemoSessionApi
                 id = capsule.CapsuleId,
                 lotteryId = golden ? 2 : capsule.Type == "standard" ? 1 : 3,
                 name = CultureInfo.InvariantCulture.TextInfo.ToTitleCase(capsule.Type) + " Capsule",
-                openTime = ClockOf(capsule.Unlock),
+                openTime = MasterOpenTime(capsule.Type),
                 lotteryDiscRarityGroupId = golden ? 2 : 1,
                 lotteryDiscDropAmountGroupId = golden ? 2 : 1
             });
@@ -67,9 +69,17 @@ public sealed partial class DemoSessionApi
         return JsonSerializer.Serialize(rows);
     }
 
-    // "HH:mm:ss" with the hours unbounded, which is how the Capsule master writes a timer.
-    private static string ClockOf(TimeSpan span) =>
-        $"{(int)span.TotalHours:00}:{span.Minutes:00}:{span.Seconds:00}";
+    // The Capsule master's openTime column, which the client prints on its capsule information screen. It is the client's
+    // own copy of the timer, not the timer: what a slot waits is the tenant trigger's delay and reaches the client in the
+    // slot's completeDatetime and openTimeSecond. The two are kept equal by hand (see the tenant's README); a capsule
+    // type this does not know is shown as ready.
+    private static string MasterOpenTime(string type) => type switch
+    {
+        "wooden" => "00:15:00",
+        "standard" => "01:00:00",
+        "golden" => "04:00:00",
+        _ => "00:00:00"
+    };
 
     // The entitlement kind the KF tenant declares for capsules, and how long after a claim an open may still find the row
     // (a claim that paid and a roll that failed leave a claimed row nobody lists any more).
@@ -77,71 +87,63 @@ public sealed partial class DemoSessionApi
     private const string CapsuleRulePrefix = "match.capsule.";
     private static readonly TimeSpan ClaimedRecoveryWindow = TimeSpan.FromMinutes(10);
 
-    // One entitlement as the client's slot: which slot, which Capsule master row, how many discs, when it opens.
-    private sealed record CapsuleSlot(int SlotNumber, EconomyEntitlement Row, string Type, int CapsuleId, int DiscCount,
-        int OpenTimeSecond)
+    // One entitlement as the client's slot: which slot, which Capsule master row, when it opens.
+    private sealed record CapsuleSlot(int SlotNumber, EconomyEntitlement Row, string Type, int CapsuleId, int OpenTimeSecond)
     {
         public string EntitlementId => Row.Id;
         public DateTimeOffset UnlockAt => Row.AvailableAt;
-        public string Source => Row.Source ?? "";
+        public bool Claimed => Row.ClaimedAt is not null;
     }
 
-    // The capsule rows among a player's entitlements, oldest first. Other kinds are not ours to show.
-    private async Task<List<EconomyEntitlement>> ListCapsuleRowsAsync(KfIdentityTicket ticket, bool includeClaimed,
+    // The capsule rows among a player's entitlements, oldest first. Other kinds are not ours to show. Claimed rows are
+    // read too: a slot's number depends on what was open when the row was made.
+    private async Task<List<EconomyEntitlement>> ListCapsuleRowsAsync(KfIdentityTicket ticket,
         CancellationToken cancellationToken) =>
-        (await _economy.ListEntitlementsAsync(ticket.OtomoPlayerId, includeClaimed, cancellationToken))
+        (await _economy.ListEntitlementsAsync(ticket.OtomoPlayerId, includeClaimed: true, cancellationToken))
             .Where(row => row.Kind == CapsuleKind && row.Rule.StartsWith(CapsuleRulePrefix, StringComparison.Ordinal))
             .OrderBy(row => row.CreatedAt ?? row.AvailableAt).ThenBy(row => row.Id, StringComparer.Ordinal)
             .ToList();
 
-    // The slots the open rows occupy: a row keeps the slot its meta names, and one whose slot is taken (two battles that
-    // raced) or absent takes the first free one. A row beyond the client's three slots is not shown.
-    private List<CapsuleSlot> SlotsOf(IEnumerable<EconomyEntitlement> openRows)
+    // The slot of every row: the lowest of the client's three that no earlier row still held when this one was made. A row
+    // holds its slot from its creation until it is claimed, so claiming an older capsule moves nothing, and a battle
+    // handed a slot a row has since freed gets that slot. That is what the stored slot number used to be, recomputed from
+    // the timestamps economy keeps instead of kept in meta (a trigger writes none). Rows are oldest first.
+    private List<CapsuleSlot> SlotsOf(IReadOnlyList<EconomyEntitlement> rows)
     {
         var slots = new List<CapsuleSlot>();
-        var taken = new HashSet<int>();
-        var pending = new List<(EconomyEntitlement Row, int Wanted)>();
-        foreach (var row in openRows.Where(row => row.ClaimedAt is null))
-            pending.Add((row, MetaInt(row, "slot")));
-        // Rows that name a free, valid slot first, so a late arrival cannot displace a row that holds its own.
-        foreach (var (row, wanted) in pending)
+        var holding = new List<(int Slot, DateTimeOffset? ReleasedAt)>();
+        foreach (var row in rows)
         {
-            if (wanted is < 1 or > EconomyTuning.CapsuleSlots || !taken.Add(wanted)) continue;
-            if (SlotFor(row, wanted) is { } slot) slots.Add(slot);
-        }
-        foreach (var (row, wanted) in pending)
-        {
-            if (slots.Any(slot => slot.Row.Id == row.Id)) continue;
-            var free = Enumerable.Range(1, EconomyTuning.CapsuleSlots).FirstOrDefault(number => !taken.Contains(number));
-            if (free == 0) break;
-            taken.Add(free);
+            var made = row.CreatedAt ?? row.AvailableAt;
+            holding.RemoveAll(held => held.ReleasedAt is { } released && released <= made);
+            var free = Enumerable.Range(1, EconomyTuning.CapsuleSlots)
+                .FirstOrDefault(number => holding.All(held => held.Slot != number));
+            if (free == 0)
+            {
+                // More open rows than the client has slots: max_open is the tenant's, and it should be 3.
+                _logger.LogWarning("Entitlement {Id} has no free capsule slot; not shown", row.Id);
+                continue;
+            }
+            holding.Add((free, row.ClaimedAt));
             if (SlotFor(row, free) is { } slot) slots.Add(slot);
         }
-        return slots.OrderBy(slot => slot.SlotNumber).ToList();
+        return slots;
     }
 
     private CapsuleSlot? SlotFor(EconomyEntitlement row, int slotNumber)
     {
-        var type = row.Rule[CapsuleRulePrefix.Length..];
+        // The class is match.capsule.<type> or match.capsule.<type>.<discs>: the type is the first segment. The disc count is
+        // not read here - the slot shows none; the open rolls as many draws as the claim paid tokens.
+        var type = row.Rule[CapsuleRulePrefix.Length..].Split('.')[0];
         var tuned = _tuning.FindCapsule(type);
         if (tuned is null)
         {
             _logger.LogWarning("Entitlement {Id} names capsule type '{Type}', which the tuning does not have; not shown", row.Id, type);
             return null;
         }
-        var capsuleId = MetaInt(row, "capsuleId");
-        var discCount = MetaInt(row, "discCount");
-        var openTime = MetaInt(row, "openTimeSecond");
-        return new CapsuleSlot(slotNumber, row, type, capsuleId > 0 ? capsuleId : tuned.CapsuleId,
-            discCount > 0 ? discCount : tuned.MinDiscs,
-            openTime > 0 ? openTime : (int)Math.Max(0, (row.AvailableAt - (row.CreatedAt ?? row.AvailableAt)).TotalSeconds));
+        var openTime = (int)Math.Max(0, Math.Round((row.AvailableAt - (row.CreatedAt ?? row.AvailableAt)).TotalSeconds));
+        return new CapsuleSlot(slotNumber, row, type, tuned.CapsuleId, openTime);
     }
-
-    private static int MetaInt(EconomyEntitlement row, string name) =>
-        row.Meta is { ValueKind: JsonValueKind.Object } meta && meta.TryGetProperty(name, out var value) &&
-        value.TryGetInt32(out var number)
-            ? number
-            : 0;
 
     // ResponseUserCapsule[]: the home's capsule slots, from the open entitlements. With the internal plane off no
     // capsule can have been handed out, so the list is empty; with it on, economy not answering is a 503 and never an
@@ -152,8 +154,8 @@ public sealed partial class DemoSessionApi
         if (!_economy.ProgressEnabled) return ([], null);
         try
         {
-            var rows = await ListCapsuleRowsAsync(ticket, includeClaimed: false, cancellationToken);
-            return (SlotsOf(rows).Select(UserCapsuleRow).ToArray(), null);
+            var rows = await ListCapsuleRowsAsync(ticket, cancellationToken);
+            return (SlotsOf(rows).Where(slot => !slot.Claimed).Select(UserCapsuleRow).ToArray(), null);
         }
         catch (Exception exception) when (exception is OtomoEconomyException or OtomoIdentityException)
         {
@@ -175,126 +177,57 @@ public sealed partial class DemoSessionApi
     };
 
     // The capsule a battle result hands out, or null when it hands out none (no issued entry, the internal plane is off,
-    // all three slots are taken, economy cannot be reached). A retried result answers the capsule the first one handed
-    // out, and a capsule already opened is not handed out again.
-    private async Task<CapsuleSlot?> AwardBattleCapsuleAsync(KfIdentityTicket ticket, SessionState state,
-        string battleEntryId, CancellationToken cancellationToken)
+    // all three slots are taken, economy cannot be reached). The adapter decides nothing: whether
+    // the battle earns a capsule, when it opens and whether the slots are full are the tenant's trigger and kind. A
+    // retried result is economy's replay of the fact, which answers the capsule the first one minted, and a capsule
+    // already opened is not shown again.
+    private async Task<CapsuleSlot?> ShownBattleCapsuleAsync(KfIdentityTicket ticket, SessionState state,
+        string battleEntryId, EconomyFact? fact, CancellationToken cancellationToken)
     {
-        var source = ProgressKeyPart(battleEntryId);
-        if (source.Length == 0 || !_economy.ProgressEnabled) return null;
+        var trigger = fact?.Triggers?.FirstOrDefault(result => result.Kind == CapsuleKind);
+        if (trigger is null) return null;
+        if (!trigger.Minted)
+        {
+            _logger.LogInformation("Battle {Entry} hands user {UserId} no capsule: the trigger {Result} ({Code})",
+                battleEntryId, state.UserId, trigger.Result, trigger.Code);
+            return null;
+        }
 
         try
         {
-            var rows = await ListCapsuleRowsAsync(ticket, includeClaimed: true, cancellationToken);
-            var open = rows.Where(row => row.ClaimedAt is null).ToList();
-            var existing = rows.FirstOrDefault(row => row.Source == source);
-            if (existing is not null) return ShownCapsule(existing, open);
-            if (open.Count >= EconomyTuning.CapsuleSlots)
+            var slot = SlotsOf(await ListCapsuleRowsAsync(ticket, cancellationToken))
+                .FirstOrDefault(candidate => candidate.EntitlementId == trigger.EntitlementId && !candidate.Claimed);
+            if (slot is not null)
             {
-                _logger.LogInformation("Battle {Entry} hands user {UserId} no capsule: all {Slots} slots are full",
-                    battleEntryId, state.UserId, EconomyTuning.CapsuleSlots);
-                return null;
+                _logger.LogInformation("Battle {Entry} handed user {UserId} a {Type} capsule in slot {Slot}, opens at {UnlockAt:u}",
+                    battleEntryId, state.UserId, slot.Type, slot.SlotNumber, slot.UnlockAt);
             }
-
-            var occupied = SlotsOf(open).Select(slot => slot.SlotNumber).ToHashSet();
-            var slotNumber = Enumerable.Range(1, EconomyTuning.CapsuleSlots).First(number => !occupied.Contains(number));
-            var (type, discCount) = _tuning.RollCapsule(Random.Shared);
-            var now = _timeProvider.GetUtcNow();
-            var row = await _economy.CreateEntitlementAsync(new EconomyEntitlementRequest(
-                ticket.OtomoPlayerId, CapsuleKind, type.GrantClass, source, now + type.Unlock,
-                new JsonObject
-                {
-                    ["capsuleId"] = type.CapsuleId,
-                    ["discCount"] = discCount,
-                    ["slot"] = slotNumber,
-                    ["openTimeSecond"] = (int)type.Unlock.TotalSeconds
-                },
-                ProgressKeyPart($"capsule:{ticket.OtomoPlayerId}:{source}")), cancellationToken);
-
-            _logger.LogInformation("Battle {Entry} handed user {UserId} a {Type} capsule ({Discs} discs) in slot {Slot}, opens at {UnlockAt:u}",
-                battleEntryId, state.UserId, type.Type, discCount, slotNumber, row.AvailableAt);
-            return ShownCapsule(row, open);
-        }
-        catch (OtomoEconomyException exception) when (exception.Failure == OtomoEconomyFailure.Refused)
-        {
-            if (exception.Code == "entitlement_cap")
-            {
-                _logger.LogInformation("Battle {Entry} hands user {UserId} no capsule: economy holds {Slots} open already",
-                    battleEntryId, state.UserId, EconomyTuning.CapsuleSlots);
-            }
-            else if (exception.Code == "idempotency_key_reused")
-            {
-                // A concurrent result for the same entry made the row first, with another roll: show that one.
-                try
-                {
-                    var rows = await ListCapsuleRowsAsync(ticket, includeClaimed: true, cancellationToken);
-                    var made = rows.FirstOrDefault(row => row.Source == source);
-                    if (made is not null) return ShownCapsule(made, rows.Where(row => row.ClaimedAt is null).ToList());
-                }
-                catch (Exception inner) when (inner is OtomoEconomyException or OtomoIdentityException)
-                {
-                    _logger.LogWarning("Capsule for battle {Entry} could not be re-read: {Error}", battleEntryId, inner.Message);
-                }
-            }
-            else
-            {
-                _logger.LogError("Economy refused the capsule for battle {Entry} (user {UserId}): {Status} {Code}",
-                    battleEntryId, state.UserId, exception.StatusCode, exception.Code);
-            }
-            return null;
+            return slot;
         }
         catch (Exception exception) when (exception is OtomoEconomyException or OtomoIdentityException)
         {
-            // The battle result is answered without a capsule; the result is retried by the client, and the same entry
-            // key creates it then.
-            _logger.LogWarning("Capsule for battle {Entry} (user {UserId}) not handed out: {Error}", battleEntryId,
-                state.UserId, exception.Message);
+            // The battle result is answered without a capsule; the capsule exists, and the home shows it.
+            _logger.LogWarning("Capsule {Id} for battle {Entry} (user {UserId}) could not be read back: {Error}",
+                trigger.EntitlementId, battleEntryId, state.UserId, exception.Message);
             return null;
         }
     }
 
-    // The slot a row is shown in, or null when it is already opened (a retried result after the player opened it).
-    private CapsuleSlot? ShownCapsule(EconomyEntitlement row, List<EconomyEntitlement> open)
-    {
-        if (row.ClaimedAt is not null) return null;
-        var rows = open.Any(candidate => candidate.Id == row.Id) ? open : [.. open, row];
-        return SlotsOf(rows).FirstOrDefault(slot => slot.Row.Id == row.Id);
-    }
-
     // A capsule the player claimed moments ago and whose roll did not complete: the row is claimed, so no list shows it, but
-    // the open that failed is retried by the client and must find it. Only the newest claimed row of that slot, and only
-    // inside ClaimedRecoveryWindow; the roll's own key replays when the roll had in fact happened.
-    private CapsuleSlot? ClaimedAwaitingRoll(IEnumerable<EconomyEntitlement> rows, int slotNumber)
+    // the open that failed is retried by the client and must find it. Only the claimed row that held that slot, newest
+    // first, and only inside ClaimedRecoveryWindow; the roll's own key replays when the roll had in fact happened.
+    private CapsuleSlot? ClaimedAwaitingRoll(IEnumerable<CapsuleSlot> slots, int slotNumber)
     {
         var cutoff = _timeProvider.GetUtcNow() - ClaimedRecoveryWindow;
-        var row = rows.Where(candidate => candidate.ClaimedAt is { } claimedAt && claimedAt >= cutoff &&
-                                          MetaInt(candidate, "slot") == slotNumber)
-            .OrderByDescending(candidate => candidate.ClaimedAt).FirstOrDefault();
-        return row is null ? null : SlotFor(row, slotNumber);
-    }
-
-    // The remaining tokens of a capsule that holds more than one disc: the claim paid the first, and the class is
-    // granted again for each further draw under its own key, which a retry replays. Throws OtomoEconomyException
-    // (Disabled) when the internal plane is off.
-    private async Task GrantRemainingCapsuleTokensAsync(KfIdentityTicket ticket, CapsuleSlot capsule,
-        CancellationToken cancellationToken)
-    {
-        var type = _tuning.FindCapsule(capsule.Type)
-                   ?? throw new OtomoEconomyException(OtomoEconomyFailure.Refused,
-                       $"capsule type '{capsule.Type}' is not in the tuning");
-        for (var index = 1; index < capsule.DiscCount; index++)
-        {
-            var paid = await GrantClassAsync(ticket, type.GrantClass, $"capsule:{capsule.Source}:{index}",
-                "battle_capsule", capsule.Source, cancellationToken);
-            if (paid is null)
-                throw new OtomoEconomyException(OtomoEconomyFailure.Disabled, "the internal plane is off");
-        }
+        return slots.Where(candidate => candidate.SlotNumber == slotNumber && candidate.Row.ClaimedAt is { } claimedAt &&
+                                        claimedAt >= cutoff)
+            .OrderByDescending(candidate => candidate.Row.ClaimedAt).FirstOrDefault();
     }
 
     // /capsule/open and /capsule/immediateOpen {slotNumber}. Both claim the slot's entitlement, which economy refuses
-    // before its available_at, and then roll the pool once on the tokens the claim paid. immediateOpen used to skip the
-    // timer for free; economy's claim cannot be asked to ignore available_at, so it now opens a capsule only once it is
-    // due, like open (see the report).
+    // before its available_at, and then roll the pool on the tokens the claim paid. immediateOpen asks economy for the
+    // kind's early claim first: a capsule not yet due is opened for the price the kind declares, charged by economy in
+    // the claim's own transaction. A kind that declares no early claim leaves immediateOpen as open: refused until due.
     private async Task<IResult?> HandleCapsuleOpenAsync(HttpContext context, KfIdentityTicket ticket,
         SessionState state, byte[] key, bool immediate)
     {
@@ -321,9 +254,9 @@ public sealed partial class DemoSessionApi
         CapsuleSlot? capsule;
         try
         {
-            var rows = await ListCapsuleRowsAsync(ticket, includeClaimed: true, context.RequestAborted);
-            capsule = SlotsOf(rows).FirstOrDefault(slot => slot.SlotNumber == slotNumber)
-                      ?? ClaimedAwaitingRoll(rows, slotNumber);
+            var slots = SlotsOf(await ListCapsuleRowsAsync(ticket, context.RequestAborted));
+            capsule = slots.FirstOrDefault(slot => slot.SlotNumber == slotNumber && !slot.Claimed)
+                      ?? ClaimedAwaitingRoll(slots, slotNumber);
         }
         catch (Exception ex) when (ex is OtomoEconomyException or OtomoIdentityException)
         {
@@ -341,12 +274,36 @@ public sealed partial class DemoSessionApi
         try
         {
             var playerToken = await PlayerTokenAsync(ticket, context.RequestAborted);
+            var early = false;
+            if (immediate && !capsule.Claimed)
+            {
+                try
+                {
+                    var quote = await _economy.GetEarlyClaimAsync(capsule.EntitlementId, ticket.OtomoPlayerId,
+                        context.RequestAborted);
+                    early = true;
+                    _logger.LogInformation("{Path}: capsule {Id} costs {Cost} to open now", path, capsule.EntitlementId,
+                        string.Join(",", (quote.Cost ?? []).Select(charge => $"{charge.Amount} {charge.Currency}")));
+                }
+                catch (OtomoEconomyException ex) when (ex.Failure == OtomoEconomyFailure.Refused &&
+                                                      ex.Code == "early_claim_not_offered")
+                {
+                    // The kind sells no early claim: this is a plain open, refused by economy until the capsule is due.
+                    _logger.LogInformation("{Path}: the capsule kind offers no early claim; opening as {Open}", path, "/capsule/open");
+                }
+            }
+
+            EconomyEntitlementClaim? claim = null;
             try
             {
-                var claim = await _economy.ClaimEntitlementAsync(capsule.EntitlementId, ticket.OtomoPlayerId,
-                    ProgressKeyPart($"capsule-claim:{capsule.EntitlementId}"), context.RequestAborted);
-                _logger.LogInformation("{Path}: user {UserId} claimed capsule {Id} ({Type}){Replayed}", path, state.UserId,
-                    capsule.EntitlementId, capsule.Type, claim.Applied ? "" : " (payout already made)");
+                claim = await _economy.ClaimEntitlementAsync(capsule.EntitlementId, ticket.OtomoPlayerId,
+                    ProgressKeyPart($"capsule-claim:{capsule.EntitlementId}"), context.RequestAborted, early);
+                _logger.LogInformation("{Path}: user {UserId} claimed capsule {Id} ({Type}){Early}{Replayed}", path, state.UserId,
+                    capsule.EntitlementId, capsule.Type,
+                    claim.Charged is { Count: > 0 } charged
+                        ? " early for " + string.Join(",", charged.Select(charge => $"{charge.Amount} {charge.Currency}"))
+                        : "",
+                    claim.Applied ? "" : " (payout already made)");
             }
             catch (OtomoEconomyException ex) when (ex.Failure == OtomoEconomyFailure.Refused &&
                                                   ex.Code == "entitlement_claimed")
@@ -355,13 +312,31 @@ public sealed partial class DemoSessionApi
                 _logger.LogInformation("{Path}: capsule {Id} was claimed by an earlier attempt; rolling", path,
                     capsule.EntitlementId);
             }
-            await GrantRemainingCapsuleTokensAsync(ticket, capsule, context.RequestAborted);
-            roll = await _economy.RollAsync(playerToken, type.PoolId, capsule.DiscCount,
-                ProgressKeyPart($"capsule-open:{capsule.Source}"), context.RequestAborted);
+
+            // One draw per token the claim paid: the class carries the capsule's disc count. A claim that says what the
+            // wallet holds is read as it is, otherwise the wallet is read; a roll that had already happened is a replay of
+            // its key, whatever count is sent.
+            var tokens = claim?.Balances?.FirstOrDefault(balance => balance.Currency == type.TokenCurrency)?.Balance;
+            if (tokens is null)
+            {
+                var wallet = await ReadPlayerEconomyAsync(ticket, EconomyRead.Balances, path, context.RequestAborted);
+                if (wallet.Snapshot is null) return EconomyUnavailable(context, path, wallet.Error);
+                tokens = wallet.Snapshot.Balances.FirstOrDefault(balance => balance.Currency == type.TokenCurrency)?.Balance;
+            }
+            roll = await _economy.RollAsync(playerToken, type.PoolId, (int)Math.Max(1, tokens ?? 1),
+                ProgressKeyPart($"capsule-open:{capsule.EntitlementId}"), context.RequestAborted);
         }
         catch (OtomoIdentityException ex)
         {
             return EconomyUnavailable(context, path, ex);
+        }
+        catch (OtomoEconomyException ex) when (ex.Failure == OtomoEconomyFailure.Refused && ex.Code == "insufficient_funds")
+        {
+            // The early claim's price is more than the wallet holds. Nothing moved: the charge, the payout and the
+            // claimed flag are one transaction in economy.
+            _logger.LogInformation("{Path} capsule {Id} ({Type}, slot {Slot}) for user {UserId}: not enough to open it early",
+                path, capsule.EntitlementId, capsule.Type, slotNumber, state.UserId);
+            return InsufficientFundsRefused(context, "Capsule", "You do not have enough to open this capsule now.");
         }
         catch (OtomoEconomyException ex) when (ex.Failure == OtomoEconomyFailure.Refused)
         {

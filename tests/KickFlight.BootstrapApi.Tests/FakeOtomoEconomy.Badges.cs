@@ -15,7 +15,7 @@ namespace KickFlight.BootstrapApi.Tests;
 // the answer's `auto_claims` ({track_id, period, step, target, class, result: claimed|refused, code?, items?}). This fake does
 // NOT evaluate tracks from facts - deciding which report counts, what it adds and when a streak continues is the economy's
 // job and is tested there (services/economy/internal/rules). A test says "the next battle.result crosses this step" with
-// QueueAutoClaim, and the fake then answers exactly as the service does: pays the class (a class named badge.<id> grants the
+// QueueAutoClaim, and the fake then answers exactly as the service does (and with the capsule trigger's `triggers`): pays the class (a class named badge.<id> grants the
 // item honor:<id>, as the tenant's generated classes do) or reports a refusal that leaves the step unpaid.
 //
 // The fact schemas below are the ones kf-otomo's economy.tasks declares (kf/tools/gen_badges.py), so an adapter that sends a
@@ -135,10 +135,16 @@ public sealed partial class FakeOtomoEconomy
                     }
                 }
 
-                // `auto_claims` is absent when nothing was paid or refused, exactly as the service answers.
-                return autoClaims.Count == 0
-                    ? Remember(replayKey, new { player_id = playerId, fact, tracks = Array.Empty<object>(), key })
-                    : Remember(replayKey, new { player_id = playerId, fact, tracks = Array.Empty<object>(), key, auto_claims = autoClaims });
+                // The tenant's capsule trigger listens to battle.result; its outcome rides in the same answer as the
+                // auto-claimed steps (FakeOtomoEconomy.Triggers.cs). Both members are absent when empty, as the service answers.
+                var triggers = fact == "battle.result" ? RunCapsuleTrigger(playerId, fact, key) : [];
+                var answer = new Dictionary<string, object?>
+                {
+                    ["player_id"] = playerId, ["fact"] = fact, ["tracks"] = Array.Empty<object>(), ["key"] = key
+                };
+                if (autoClaims.Count > 0) answer["auto_claims"] = autoClaims;
+                if (triggers.Length > 0) answer["triggers"] = triggers;
+                return Remember(replayKey, answer);
             }
         });
     }

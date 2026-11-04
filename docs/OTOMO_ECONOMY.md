@@ -200,8 +200,15 @@ onboarding facts. That is a player's choices - not a balance, a ticket, a disc, 
 `PostgresPlayerStore` migration 4 drops the four currency columns and migration 8 the active-deck column; a save
 document written before them still carries the old keys, which are ignored on read and gone on the next write.
 
-A battle capsule is an economy *entitlement* (kind `capsule`, `max_open` 3, rule `match.capsule.<type>`), claimed when the
-slot is opened (`DemoSessionApi.Capsules.cs`); decks, the active deck, costume gears and a pending gear roll are the `ext`
+A battle capsule is an economy *entitlement* (kind `capsule`), claimed when the slot is opened
+(`DemoSessionApi.Capsules.cs`). Its policy is the tenant's, not the adapter's: kf-otomo `economy.rules` declares the kind
+(`max_open` 3, the five `match.capsule.<type>[.<discs>]` classes, a delay window) and an `entitlement_triggers` entry on
+`battle.result` whose weighted picks draw the capsule (type, disc count and timer) when economy mints it per verified
+battle. The adapter reports the fact (`DemoSessionApi.BattleFact.cs`), reads the trigger's answer for the battle result,
+claims on `/capsule/open` (as many roll draws as the class paid tokens), and on `/capsule/immediateOpen` claims early at
+the kind's `early_claim` price (none is published, so it is a plain claim). It decides nothing about a capsule; the type is
+the first segment of the class name. Slots are recomputed from the rows' created/claimed times, so nothing is stored.
+Decks, the active deck, costume gears and a pending gear roll are the `ext`
 of the player's session card (`DemoSessionApi.Loadout.cs`).
 
 ## Tests

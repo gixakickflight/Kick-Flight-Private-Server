@@ -293,11 +293,26 @@ public sealed record EconomyProgress(
 public sealed record EconomyProgressReport(string PlayerId, string Counter, long Delta, string Key,
     string Reason, string Reference);
 
-// POST /internal/economy/facts: a declared fact and its typed fields. Economy's tracks decide which reports count and
-// what each adds; this carries no amount and no reward. `Fields` are the JSON values of the fact's declared fields -
+// POST /internal/economy/facts: a declared fact and its typed fields. Economy's tracks and entitlement triggers decide what
+// a report is worth; this carries no amount and no reward. `Fields` are the JSON values of the fact's declared fields -
 // the schema is closed both ways, so every declared field is present and no other.
 public sealed record EconomyFactReport(string PlayerId, string Fact, IReadOnlyDictionary<string, object?> Fields,
     string Key, string Reason, string Reference);
+
+// What one `entitlement_triggers` entry listening to the fact did: `minted` (with the row's id, class and due time),
+// `skipped` (`Code` says why: when_not_met or no_pick_matched) or `refused` (`Code` is the guard's error code, such as
+// entitlement_cap). A refusal does not fail the report.
+public sealed record EconomyTriggerResult(
+    [property: JsonPropertyName("index")] int Index,
+    [property: JsonPropertyName("kind")] string Kind,
+    [property: JsonPropertyName("result")] string Result,
+    [property: JsonPropertyName("entitlement_id")] string? EntitlementId,
+    [property: JsonPropertyName("class")] string? Class,
+    [property: JsonPropertyName("available_at")] DateTimeOffset? AvailableAt,
+    [property: JsonPropertyName("code")] string? Code)
+{
+    public bool Minted => Result == "minted" && !string.IsNullOrEmpty(EntitlementId);
+}
 
 public sealed record EconomyFact(
     [property: JsonPropertyName("player_id")] string PlayerId,
@@ -307,7 +322,8 @@ public sealed record EconomyFact(
     [property: JsonPropertyName("replayed")] bool Replayed,
     // The steps of `auto_claim` tracks this report paid (result "claimed", with the items it granted) or had refused
     // (result "refused", with a code, and the step stays claimable). Absent when there were none.
-    [property: JsonPropertyName("auto_claims")] IReadOnlyList<EconomyAutoClaim>? AutoClaims = null);
+    [property: JsonPropertyName("auto_claims")] IReadOnlyList<EconomyAutoClaim>? AutoClaims = null,
+    [property: JsonPropertyName("triggers")] IReadOnlyList<EconomyTriggerResult>? Triggers = null);
 
 public sealed record EconomyAutoClaim(
     [property: JsonPropertyName("track_id")] string TrackId,
@@ -342,7 +358,20 @@ public sealed record EconomyEntitlements(
 // raced, or one that crashed after paying): the class is paid once per entitlement whatever the caller's key.
 public sealed record EconomyEntitlementClaim(
     [property: JsonPropertyName("applied")] bool Applied,
-    [property: JsonPropertyName("balances")] IReadOnlyList<EconomyBalance>? Balances);
+    [property: JsonPropertyName("balances")] IReadOnlyList<EconomyBalance>? Balances,
+    [property: JsonPropertyName("early")] bool Early = false,
+    [property: JsonPropertyName("charged")] IReadOnlyList<EconomyCharge>? Charged = null);
+
+// A currency amount the early claim took from the wallet.
+public sealed record EconomyCharge(
+    [property: JsonPropertyName("currency")] string Currency,
+    [property: JsonPropertyName("amount")] long Amount);
+
+// GET /internal/economy/entitlements/{id}/early_claim: what claiming that row now would cost. `Cost` is empty once the row
+// is due.
+public sealed record EconomyEarlyClaimQuote(
+    [property: JsonPropertyName("cost")] IReadOnlyList<EconomyCharge>? Cost,
+    [property: JsonPropertyName("available_at")] DateTimeOffset? AvailableAt);
 
 // One entitlement to record. `Rule` is a reward class (never an amount), `Kind` one the deployment declares, `Key` the
 // caller's name for this create: the same key for the same player answers the row it already made.
@@ -405,9 +434,10 @@ public interface IOtomoEconomy
     // not configured, which a caller treats as "nothing to do", not as a failure.
     Task<EconomyProgress> ReportProgressAsync(EconomyProgressReport report, CancellationToken cancellationToken);
 
-    // Reports one declared fact on the internal plane (POST /internal/economy/facts). Keyed, so a retry counts once.
-    // Same switch and key as the progress report; Disabled when either is missing. Refused 400 unknown_fact /
-    // unknown_fact_field / missing_fact_field / invalid_fact_field for a report the tenant's documents do not declare.
+    // Reports one declared fact on the internal plane (POST /internal/economy/facts). Keyed, so a retry counts once. Same
+    // switch and key as the progress report; Disabled when either is missing. The answer lists what each entitlement
+    // trigger listening to the fact did. Refused 400 unknown_fact / unknown_fact_field / missing_fact_field /
+    // invalid_fact_field for a report the tenant's documents do not declare.
     Task<EconomyFact> ReportFactAsync(EconomyFactReport report, CancellationToken cancellationToken);
 
     // Pays one configured class on the internal plane: a battle's capsule token, a tutorial step's disc or skin.
@@ -436,7 +466,14 @@ public interface IOtomoEconomy
         CancellationToken cancellationToken);
 
     // Pays the row's reward class, once (POST /internal/economy/entitlements/{id}/claim). Refused 409 entitlement_not_ready
-    // before `available_at`, 409 entitlement_claimed when the row was already claimed, 404 entitlement_not_found.
+    // before `available_at`, 409 entitlement_claimed when the row was already claimed, 404 entitlement_not_found. With
+    // `early` a row not yet due is charged the kind's early_claim price in the same transaction (409 insufficient_funds
+    // when the wallet cannot pay; 409 entitlement_not_ready still for a kind that offers no early claim).
     Task<EconomyEntitlementClaim> ClaimEntitlementAsync(string entitlementId, string playerId, string key,
+        CancellationToken cancellationToken, bool early = false);
+
+    // What claiming the row now would cost (GET /internal/economy/entitlements/{id}/early_claim?player_id=). Refused 404
+    // early_claim_not_offered for a kind that declares no early_claim.
+    Task<EconomyEarlyClaimQuote> GetEarlyClaimAsync(string entitlementId, string playerId,
         CancellationToken cancellationToken);
 }
