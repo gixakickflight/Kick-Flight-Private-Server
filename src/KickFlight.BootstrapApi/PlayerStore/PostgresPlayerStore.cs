@@ -495,17 +495,6 @@ public sealed class PostgresPlayerStore : IPlayerStore
         transaction.Commit();
     }
 
-    public bool IsNameTaken(string name, long exceptPlayerId)
-    {
-        using var connection = _dataSource.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText =
-            "select exists (select 1 from players where lower(display_name) = lower($1) and id <> $2)";
-        command.Parameters.AddWithValue(name);
-        command.Parameters.AddWithValue(exceptPlayerId);
-        return Convert.ToBoolean(command.ExecuteScalar());
-    }
-
     public PlayerProfile? FindProfile(long playerId)
     {
         using var connection = _dataSource.OpenConnection();

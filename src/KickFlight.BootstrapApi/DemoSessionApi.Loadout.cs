@@ -88,7 +88,7 @@ public sealed partial class DemoSessionApi
     }
 
     // The name a request serves for the caller: session's display_name when this request already read the card and the
-    // player has chosen a name, else the adapter's own. The local copy is what the name-uniqueness check, the onboarding
+    // player has chosen a name, else the adapter's own. The local copy is what the onboarding
     // gate (HasName) and the requests that never read the card still use.
     private static string OwnName(SessionState state, OwnLoadout? own) =>
         state.HasName && !string.IsNullOrWhiteSpace(own?.DisplayName) ? own!.DisplayName! : CurrentUserName(state);

@@ -50,11 +50,6 @@ public interface IPlayerStore
     // device's refresh family lives in otomo, so there is nothing to persist and migration 4 drops the sessions
     // table. JsonPlayerStore still has its file-backed map for local runs, but no caller reaches it.
 
-    // Whether another player already goes by this name. Case-insensitive, because a name is how a player is
-    // identified on the ranking and profile screens, where "Tanuki" and "tanuki" reading as two people is a bug
-    // rather than a feature. `exceptPlayerId` is the caller, so re-submitting one's own name is not a clash.
-    bool IsNameTaken(string name, long exceptPlayerId);
-
     // Profiles: the name, kicker and costume a card or a ranking row shows for a row the adapter already has. This is
     // not the social relation - it is the presentation a player chose here - and it is looked up by the numeric id
     // the client speaks. A row with no persisted profile answers null rather than a fabricated identity.

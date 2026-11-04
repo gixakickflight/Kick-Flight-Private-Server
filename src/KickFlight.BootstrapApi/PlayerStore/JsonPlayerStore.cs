@@ -329,31 +329,4 @@ public sealed class JsonPlayerStore : IPlayerStore
 
     private static PlayerProfile ProfileFromState(long playerId, SessionState state) =>
         new(playerId, state.UserName, state.KickerId, state.KickerCostumeId);
-
-    // A directory scan, which is the honest way to answer this against files: the deployment, where the answer
-    // has to be fast and exact, uses the unique index the Postgres store queries instead.
-    public bool IsNameTaken(string name, long exceptPlayerId)
-    {
-        foreach (var file in Directory.EnumerateFiles(_usersDirectory, "*.json"))
-        {
-            if (!long.TryParse(Path.GetFileNameWithoutExtension(file), out var playerId)) continue; // skips the identity index
-            if (playerId == exceptPlayerId) continue;
-            try
-            {
-                using var document = JsonDocument.Parse(File.ReadAllText(file));
-                if (document.RootElement.TryGetProperty(nameof(SessionState.UserName), out var prop)
-                    && prop.ValueKind == JsonValueKind.String
-                    && string.Equals(prop.GetString(), name, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-            catch (JsonException ex)
-            {
-                // An unreadable save must not block someone else's onboarding.
-                _logger.LogWarning("Skipping unreadable save {File} while checking names: {Error}", file, ex.Message);
-            }
-        }
-        return false;
-    }
 }

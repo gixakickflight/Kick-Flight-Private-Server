@@ -712,7 +712,7 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    [InlineData("12345678901")] // 11 code units: one past what the client's own field allows to be typed
+    [InlineData("12345678901234")] // 14 code units: one past the tenant's names.max_length of 13
     public async Task Tutorial_end_rejects_a_name_the_rules_do_not_allow(string name)
     {
         var session = await CreateSessionAsync();
@@ -742,6 +742,45 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
         // an encrypted body parsed to an empty code and sent the player to the generic network error unnamed.
         using var error = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Equal("2005", error.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task Tutorial_end_rejects_a_case_variant_of_a_name_another_player_has()
+    {
+        var name = NewName();
+        await PostAsync(await CreateSessionAsync(), "/tutorial/end", new { name });
+
+        using var response = await RawPostAsync(await CreateSessionAsync(), "/tutorial/end", new { name = name.ToUpperInvariant() });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("2005", response.Headers.GetValues("x-app-status-code").Single());
+        using var error = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Contains("already used", error.RootElement.GetProperty("error").GetProperty("message").GetString());
+    }
+
+    [Fact]
+    public async Task A_player_may_resubmit_their_own_name()
+    {
+        var session = await CreateSessionAsync();
+        var name = NewName();
+        await PostAsync(session, "/tutorial/end", new { name });
+
+        using var response = await RawPostAsync(session, "/user/change", new { name });
+        Assert.Equal("0", response.Headers.GetValues("x-app-status-code").Single());
+        Assert.Equal(name, ReadUserState(session).GetProperty("UserName").GetString());
+    }
+
+    [Fact]
+    public async Task A_name_of_13_characters_is_accepted_and_one_of_14_is_refused()
+    {
+        var thirteen = "Kf" + Guid.NewGuid().ToString("N")[..11];
+        Assert.Equal(13, thirteen.Length);
+        var session = await CreateSessionAsync();
+        using var accepted = await RawPostAsync(session, "/tutorial/end", new { name = thirteen });
+        Assert.Equal("0", accepted.Headers.GetValues("x-app-status-code").Single());
+        Assert.Equal(thirteen, ReadUserState(session).GetProperty("UserName").GetString());
+
+        using var refused = await RawPostAsync(await CreateSessionAsync(), "/tutorial/end", new { name = thirteen + "x" });
+        Assert.Equal("2005", refused.Headers.GetValues("x-app-status-code").Single());
     }
 
     [Fact]

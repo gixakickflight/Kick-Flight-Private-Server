@@ -238,7 +238,7 @@ public sealed class BadgeOtomoTests : IDisposable
     }
 
     [Theory]
-    [InlineData("12345678901")]       // 11 characters: one past what session's names rules allow
+    [InlineData("12345678901234")]    // 14 characters: one past the 13 session's names rules allow
     [InlineData("a\u200db")]          // a zero-width joiner
     [InlineData("tab\there")]         // a control character
     public async Task A_name_session_refuses_is_answered_in_the_name_rule_error_and_not_kept(string name)

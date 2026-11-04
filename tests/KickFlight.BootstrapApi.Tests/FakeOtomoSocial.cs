@@ -228,7 +228,15 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
             {
                 return Error(context, StatusCodes.Status400BadRequest, "invalid_display_name", "display_name is not allowed by the names rules");
             }
-            lock (_lock) account.DisplayName = name;
+            lock (_lock)
+            {
+                if (NameUnique && _accounts.Values.Any(other => !ReferenceEquals(other, account)
+                        && NameKey(other.DisplayName) == NameKey(name)))
+                {
+                    return Error(context, StatusCodes.Status409Conflict, "name_taken", "another player holds this name");
+                }
+                account.DisplayName = name;
+            }
             return Results.Json(new
             {
                 player_id = account.PlayerId,

@@ -50,9 +50,14 @@ public sealed partial class FakeOtomoSocial
         lock (_lock) account.Display[slot] = item;
     }
 
-    // session.rules `names` of the Kick-Flight tenant (kf-otomo session.rules.json): 1 to 10 characters, none of them a
-    // control character, a zero-width joiner or beyond the BMP. Applied after trimming, as session applies it.
-    public const int NameMaxLength = 10;
+    // session.rules `names` of the Kick-Flight tenant (kf-otomo session.rules.json): 1 to 13 characters, none of them a
+    // control character, a zero-width joiner or beyond the BMP, and unique among players (case-insensitive, NFC).
+    // Applied after trimming, as session applies it.
+    public const int NameMaxLength = 13;
+    public const bool NameUnique = true;
+
+    // The comparison key session uses for `unique`: NFC, then case-folded.
+    public static string NameKey(string name) => name.Normalize(System.Text.NormalizationForm.FormC).ToLowerInvariant();
 
     public static bool NameAllowed(string trimmed) =>
         trimmed.Length >= 1 && trimmed.Length <= NameMaxLength

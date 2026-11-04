@@ -426,7 +426,8 @@ public sealed partial class DemoSessionApi
         {
             _logger.LogInformation("{Path}: session refused the name of {PlayerId}: {Status} {Code}", path,
                 ticket.OtomoPlayerId, exception.StatusCode, exception.Code);
-            return "rejected";
+            // 409 name_taken is another player holding the name; every other refusal is a rule the name broke.
+            return exception.StatusCode == 409 || exception.Code == "name_taken" ? "taken" : "rejected";
         }
         catch (Exception exception) when (exception is OtomoIdentityException or OtomoSocialException)
         {
