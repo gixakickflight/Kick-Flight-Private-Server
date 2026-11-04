@@ -2,61 +2,67 @@ using System.Text.Json;
 
 namespace KickFlight.BootstrapApi.Otomo;
 
-// The ladder session publishes as the `session.rank` document, in session units. This adapter does not hardcode it:
+// The ladder session publishes as the `session.rank` document, in the client's own units. This adapter does not hardcode it:
 // the thresholds below are read from the release bundle through OtomoMasters (Otomo:Masters:Documents), and when the
 // document is not there nothing is served in its place.
 //
 // The document, as this parser reads it:
 //
 //   { "rule_types": ["crystal_scramble", "flag_flight", "rapid_ball"],
-//     "tiers": [ {"key": "rank_1", "min_points": 0}, {"key": "rank_2", "min_points": 300}, ... ] }
+//     "start_points": 200, "floor": 200, "ceiling": 7500, "outcomes": {"win": 50, "loss": -20},
+//     "tiers": [ {"key": "rank_1", "min_points": 200}, {"key": "rank_2", "min_points": 500}, ... ] }
 //
 // A tier key is always rank_<N>, where N is the client's rank number, and min_points is where the tier begins in
-// session points. Anything that does not fit - a key of another shape, a repeated rank, thresholds that do not rise -
+// battle points. The policy fields (start_points, floor, ceiling, rules) are session's and are ignored here, since
+// session applies them. `outcomes` is read for one thing only: /battle/end shows the win outcome's value. Anything that does not fit - a key of another shape, a repeated rank, thresholds that do not rise -
 // makes the whole document unusable (Parse throws), because a ladder partly understood is a ladder invented.
 public sealed class RankLadder
 {
     private readonly SortedDictionary<int, int> _minPointsByRank;
 
-    private RankLadder(IReadOnlyList<string> ruleTypes, SortedDictionary<int, int> minPointsByRank)
+    private RankLadder(IReadOnlyList<string> ruleTypes, IReadOnlyDictionary<string, int> outcomes, SortedDictionary<int, int> minPointsByRank)
     {
         RuleTypes = ruleTypes;
+        Outcomes = outcomes;
         _minPointsByRank = minPointsByRank;
     }
 
     public IReadOnlyList<string> RuleTypes { get; }
+
+    // The named outcomes the document declares and what each is worth. Informational: session applies them.
+    public IReadOnlyDictionary<string, int> Outcomes { get; }
+
+    // What a win is worth as published, or null when the document declares no `win` outcome.
+    public int? WinOutcome => Outcomes.TryGetValue("win", out var win) ? win : null;
 
     // The rank numbers the ladder names, ascending.
     public IEnumerable<int> Ranks => _minPointsByRank.Keys;
 
     public bool HasRank(int rank) => _minPointsByRank.ContainsKey(rank);
 
-    // Where a tier begins, in the client's units (session min_points + RankTranslation.ClientPointsOffset). This is the
-    // BattleRank master's totalBattlePoint column.
-    public int ClientTotalBattlePoint(int rank) =>
-        RankTranslation.ClientPoints(_minPointsByRank[rank]);
+    // Where a tier begins. This is the BattleRank master's totalBattlePoint column, as published.
+    public int MinPoints(int rank) => _minPointsByRank[rank];
 
-    // The rank a session point total reaches: the highest tier whose threshold it has passed, or the lowest tier.
-    public int RankFor(int sessionPoints)
+    // The rank a point total reaches: the highest tier whose threshold it has passed, or the lowest tier.
+    public int RankFor(int points)
     {
         var rank = _minPointsByRank.Keys.First();
         foreach (var (candidate, minPoints) in _minPointsByRank)
         {
-            if (minPoints <= sessionPoints) rank = candidate;
+            if (minPoints <= points) rank = candidate;
             else break;
         }
         return rank;
     }
 
-    // Client battle points still needed to reach the next tier, or 0 at the top of the ladder.
-    public int RemainingToNextTier(int clientBattlePoints)
+    // Battle points still needed to reach the next tier, or 0 at the top of the ladder.
+    public int RemainingToNextTier(int battlePoints)
     {
         var next = _minPointsByRank.Values
-            .Select(RankTranslation.ClientPoints)
-            .Where(total => total > clientBattlePoints)
-            .DefaultIfEmpty(clientBattlePoints)
+            .Where(total => total > battlePoints)
+            .DefaultIfEmpty(battlePoints)
             .Min();
-        return Math.Max(0, next - clientBattlePoints);
+        return Math.Max(0, next - battlePoints);
     }
 
     public static RankLadder Parse(string json)
@@ -73,6 +79,15 @@ public sealed class RankLadder
             {
                 if (rule.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(rule.GetString()))
                     ruleTypes.Add(rule.GetString()!);
+            }
+        }
+
+        var outcomes = new Dictionary<string, int>(StringComparer.Ordinal);
+        if (root.TryGetProperty("outcomes", out var outcomeElement) && outcomeElement.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var outcome in outcomeElement.EnumerateObject())
+            {
+                if (outcome.Value.TryGetInt32(out var delta)) outcomes[outcome.Name] = delta;
             }
         }
 
@@ -105,6 +120,6 @@ public sealed class RankLadder
             previous = min;
         }
 
-        return new RankLadder(ruleTypes, minPoints);
+        return new RankLadder(ruleTypes, outcomes, minPoints);
     }
 }

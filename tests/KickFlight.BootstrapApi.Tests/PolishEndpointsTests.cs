@@ -35,9 +35,9 @@ public sealed class PolishEndpointsFixture : IDisposable
 [Collection("Matchmaking static state")]
 public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
 {
-    // A player session has no points for: 0 session points is 200 client points, at the lowest published tier (rank 1).
+    // A player session has no points for: the ladder's start_points (200), at the lowest published tier (rank 1).
     private const int NewPlayerRank = 1;
-    private static readonly int NewPlayerBattlePoint = KickFlight.BootstrapApi.Otomo.RankTranslation.ClientPoints(0);
+    private static readonly int NewPlayerBattlePoint = FakeOtomoSocial.StartPoints;
 
     private const string Host = "kickflight-api.grenge.jp";
     private const string CommonCode = "1a837b9ee2ae11a07a0f529a4cd4b61c";
@@ -357,8 +357,9 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
         Assert.Equal("S⁺9", rows[^1].GetProperty("name").GetString());
 
         // The values the retail-shaped table has always carried (the pre-otomo literal), now built from the published
-        // session.rank tiers as min_points + 200 with rank 0 at 0. Asserting them here is what proves the unit
-        // translation is lossless for the ladder rank_1@0 .. rank_16@7300.
+        // session.rank tiers' min_points as they are (the tenant publishes the client's units), with rank 0 at 0.
+        // Asserting them here is what proves there is no offset between the ladder rank_1@200 .. rank_16@7500 and
+        // the served master.
         int[] retailTotals = [0, 200, 500, 900, 1400, 1900, 2400, 2900, 3400, 3900, 4400, 4900, 5400, 5900, 6400, 6900, 7500];
         Assert.Equal(retailTotals, rows.Select(row => row.GetProperty("totalBattlePoint").GetInt32()).ToArray());
         string[] retailNames = ["D", "C", "C⁺", "B", "B⁺", "A", "A⁺", "S", "S⁺1", "S⁺2", "S⁺3", "S⁺4", "S⁺5", "S⁺6", "S⁺7", "S⁺8", "S⁺9"];

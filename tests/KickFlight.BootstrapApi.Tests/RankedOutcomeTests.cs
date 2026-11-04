@@ -20,7 +20,8 @@ namespace KickFlight.BootstrapApi.Tests;
 /// <summary>
 /// Ranked progression follows the validated team outcome; solo/team follows PartyId at entry. The points are session's:
 /// a result is an award posted to the (fake) session service, and the response is the standing read before it and the
-/// answer to it, in the client's units (session points + 200).
+/// answer to it. Session's points are the client's battle points as they are (the tenant's ladder is in the client's
+/// units), and a result names an outcome, never a delta.
 /// </summary>
 [Collection("Matchmaking static state")]
 public sealed class RankedOutcomeTests
@@ -31,11 +32,12 @@ public sealed class RankedOutcomeTests
 
     private sealed record Session(string Token, byte[] Key, long PlayerId);
 
-    // A new player: 0 session points is 200 client points at rank 1 (the lowest published tier).
-    private const int StartBattlePoint = 200;
+    // A new player stands at the ladder's start_points (200), at rank 1. The win and loss values are the fake's
+    // published outcomes; the adapter itself knows neither.
+    private const int StartBattlePoint = FakeOtomoSocial.StartPoints;
     private const int StartRank = 1;
-    private const int WinBattlePoint = RankTranslation.WinDelta;
-    private const int LoseBattlePoint = -RankTranslation.LossDelta;
+    private static readonly int WinBattlePoint = FakeOtomoSocial.Outcomes["win"];
+    private static readonly int LoseBattlePoint = -FakeOtomoSocial.Outcomes["loss"];
 
     private static readonly string[] SessionRuleTypes = ["crystal_scramble", "flag_flight", "rapid_ball"];
 
@@ -106,9 +108,9 @@ public sealed class RankedOutcomeTests
         /// <summary>The otomo account behind a player's game row.</summary>
         public string AccountOf(Session player) => Store.FindOtomoPlayer(player.PlayerId)!.OtomoPlayerId;
 
-        /// <summary>The player's battle points as session holds them, shown in the client's units.</summary>
+        /// <summary>The player's battle points as session holds them (the same number the client is shown).</summary>
         public int ClientPoints(Session player, int battleRuleType) =>
-            RankTranslation.ClientPoints(OtomoTestEnvironment.Social.PointsOf(AccountOf(player), SessionRuleTypes[battleRuleType - 1]));
+            OtomoTestEnvironment.Social.PointsOf(AccountOf(player), SessionRuleTypes[battleRuleType - 1]);
 
         private readonly List<(Task Task, CancellationTokenSource Cancel)> _streams = [];
 
@@ -196,7 +198,7 @@ public sealed class RankedOutcomeTests
             return doc;
         }
 
-        // Win: +50.
+        // Win: the published win outcome.
         var (win, winCtx) = await f.EnterAsync(player);
         var team = winCtx.OwnTeamType!.Value;
         var ruleType = winCtx.BattleRuleType!.Value;
@@ -216,7 +218,7 @@ public sealed class RankedOutcomeTests
         Assert.Equal(start + WinBattlePoint, f.ClientPoints(player, ruleType));
         var afterWin = start + WinBattlePoint;
 
-        // Loss: -20, and the response reflects the real before/after.
+        // Loss: the published loss outcome, and the response reflects the real before/after.
         var (loss, lossCtx) = await f.EnterAsync(player);
         using (var response = await Post(loss, Result(loss, player.PlayerId, lossCtx.OwnTeamType!.Value, 1, 9)))
         {
@@ -265,29 +267,59 @@ public sealed class RankedOutcomeTests
         var award = Assert.Single(OtomoTestEnvironment.Social.Awards, call => call.PlayerId == account);
         Assert.Equal($"battle:{win}:{account}", award.Key);
         Assert.Equal(ruleName, award.RuleType);
-        Assert.Equal(RankTranslation.WinDelta, award.Delta);
+        Assert.Equal("win", award.Outcome);
 
         // The same battle again: answered from the entry's cache, so nothing more is posted (and were it posted, the
         // key is the same, which session applies once).
         using (await PostAsync(f.Client, player, "/battle/result", Result(win, player.PlayerId, team, 9, 1))) { }
         Assert.Single(OtomoTestEnvironment.Social.Awards, call => call.PlayerId == account);
 
-        // A loss is -20 under its own entry's key.
+        // A loss is the outcome "loss" under its own entry's key.
         var (loss, lossCtx) = await f.EnterAsync(player);
         using (await PostAsync(f.Client, player, "/battle/result", Result(loss, player.PlayerId, lossCtx.OwnTeamType!.Value, 1, 9))) { }
         var lossAward = OtomoTestEnvironment.Social.Awards.Single(call => call.PlayerId == account && call.Key == $"battle:{loss}:{account}");
-        Assert.Equal(RankTranslation.LossDelta, lossAward.Delta);
+        Assert.Equal("loss", lossAward.Outcome);
     }
 
     [Fact]
-    public async Task A_loss_at_zero_session_points_stays_at_the_floor()
+    public async Task Battle_end_shows_the_published_win_outcome_as_battlePoint()
+    {
+        await using var f = Fixture.Create();
+        var player = await AuthAsync(f.Client);
+        using var end = await PostAsync(f.Client, player, "/battle/end", $$"""
+            {"battleId":"battle-end-1","teamScoreList":[{"teamType":0,"score":5,"remainingDistance":2,"lastRemainingDistance":1}],
+             "userScoreList":[{"userId":"{{player.PlayerId}}","score":5,"mvpFlag":true,"breakawayFlag":false,"badConnectionFlag":false,"aiFlag":false}]}
+            """);
+        // The KF ladder publishes outcomes.win = 50; the adapter holds no number of its own for it.
+        Assert.Equal(FakeOtomoSocial.Outcomes["win"], end.RootElement.GetProperty("battlePoint").GetInt32());
+        Assert.Equal(50, end.RootElement.GetProperty("battlePoint").GetInt32());
+    }
+
+    [Fact]
+    public async Task A_win_posts_the_outcome_win_and_no_delta()
+    {
+        await using var f = Fixture.Create();
+        var player = await AuthAsync(f.Client);
+        var account = f.AccountOf(player);
+        var (win, ctx) = await f.EnterAsync(player);
+        using (await PostAsync(f.Client, player, "/battle/result", Result(win, player.PlayerId, ctx.OwnTeamType!.Value, 9, 1))) { }
+
+        var award = Assert.Single(OtomoTestEnvironment.Social.Awards, call => call.PlayerId == account);
+        using var sent = JsonDocument.Parse(award.RawBody);
+        Assert.Equal("win", sent.RootElement.GetProperty("outcome").GetString());
+        Assert.False(sent.RootElement.TryGetProperty("delta", out _));
+        Assert.Null(award.Delta);
+    }
+
+    [Fact]
+    public async Task A_loss_at_the_floor_of_200_stays_at_200()
     {
         await using var f = Fixture.Create();
         var player = await AuthAsync(f.Client);
         var (loss, ctx) = await f.EnterAsync(player);
         using var response = await PostAsync(f.Client, player, "/battle/result",
             Result(loss, player.PlayerId, ctx.OwnTeamType!.Value, 1, 9));
-        // Session floors points at 0, which is the client's 200: KF's old floor, preserved by the offset.
+        // A new player stands at start_points, which is also the ladder's floor (200): session clamps, the adapter does not.
         Assert.Equal((StartBattlePoint, StartRank), Rank(response.RootElement, "beforeUserBattleRank"));
         Assert.Equal((StartBattlePoint, StartRank), Rank(response.RootElement, "userBattleRank"));
         Assert.Equal(StartBattlePoint, f.ClientPoints(player, ctx.BattleRuleType!.Value));

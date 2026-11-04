@@ -311,7 +311,7 @@ public sealed class RankedModeRotationTests
         {
             Assert.Equal(ranked.RootElement.GetRawText(), replay.RootElement.GetRawText());
             Assert.Equal(afterRank.GetProperty("battlePoint").GetInt32(),
-                RankTranslation.ClientPoints(OtomoTestEnvironment.Social.PointsOf(account, "crystal_scramble")));
+                OtomoTestEnvironment.Social.PointsOf(account, "crystal_scramble"));
         }
 
         var flagRankedEntryId = await Enter(player, RankedModeRotation.FlagRuleId);

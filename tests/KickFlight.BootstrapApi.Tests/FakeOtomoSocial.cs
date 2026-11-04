@@ -19,11 +19,12 @@ namespace KickFlight.BootstrapApi.Tests;
 // the target's player id; an account that has never renamed keeps a provisional name, which is what the real service
 // does too (POST /me/init assigns "Player####").
 //
-// The ladder is the published session.rank one (session units): rule types crystal_scramble / flag_flight /
-// rapid_ball, and tiers rank_1@0 ... rank_16@7300. Besides the player plane this fake serves
+// The ladder is Kick-Flight's published session.rank, in the client's own units: rule types crystal_scramble /
+// flag_flight / rapid_ball, start_points 200, floor 200, ceiling 7500, outcomes win +50 / loss -20, and tiers
+// rank_1@200 ... rank_16@7500. Besides the player plane this fake serves
 //
 //   * the internal plane (service key): POST /internal/session/rank/awards, idempotent by key per player and rule
-//     type with points floored at 0, and GET /internal/session/rank/players/{id} with every rule type present;
+//     type, by a declared outcome (400 unknown_outcome otherwise) with points clamped to floor..ceiling, and GET /internal/session/rank/players/{id} with every rule type present;
 //   * the release bundle (GET /internal/config/channels/{channel}/bundle) carrying config/session.rank.json, which is
 //     how the adapter reads the tier thresholds.
 //
@@ -37,12 +38,17 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
     private readonly HashSet<(string Blocker, string Blocked)> _blocks = [];
     private readonly Dictionary<(string PlayerId, string RuleType, string Key), SessionAward> _awards = [];
 
-    // session.rank, as published (session units).
+    // session.rank, as Kick-Flight's tenant publishes it: policy and tiers in the client's own units.
     public static readonly string[] RuleTypes = ["crystal_scramble", "flag_flight", "rapid_ball"];
+    public const int StartPoints = 200;
+    public const int Floor = 200;
+    public const int Ceiling = 7500;
+    public static readonly IReadOnlyDictionary<string, int> Outcomes =
+        new Dictionary<string, int> { ["win"] = 50, ["loss"] = -20 };
     public static readonly int[] TierMinPoints =
-        [0, 300, 700, 1200, 1700, 2200, 2700, 3200, 3700, 4200, 4700, 5200, 5700, 6200, 6700, 7300];
+        [200, 500, 900, 1400, 1900, 2400, 2900, 3400, 3900, 4400, 4900, 5400, 5900, 6400, 6900, 7500];
 
-    // "rank_<N>" for the highest tier whose threshold the points reach.
+    // "rank_<N>" for the highest tier whose threshold the points reach (rank_1 below the first, as session reports).
     public static string TierFor(int points)
     {
         var tier = 1;
@@ -72,6 +78,10 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
     public static string DefaultLadderDocument() => JsonSerializer.Serialize(new
     {
         rule_types = RuleTypes,
+        start_points = StartPoints,
+        floor = Floor,
+        ceiling = Ceiling,
+        outcomes = Outcomes,
         tiers = TierMinPoints.Select((min, index) => new { key = "rank_" + (index + 1), min_points = min }).ToArray()
     });
 
@@ -135,11 +145,11 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
         lock (_lock) account.Points[ruleType] = points;
     }
 
-    // The points session holds for an account on a ladder (0 when it has none).
+    // The points session holds for an account on a ladder (start_points when it has no row).
     public int PointsOf(string accountId, string ruleType)
     {
         var account = Ensure(accountId);
-        lock (_lock) return account.Points.GetValueOrDefault(ruleType);
+        lock (_lock) return account.Points.GetValueOrDefault(ruleType, StartPoints);
     }
 
     // The awards session accepted a request for (whether or not the key was new), in arrival order.
@@ -365,7 +375,7 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
                     };
                 }).ToArray();
 
-                var ownPoints = account.Points.GetValueOrDefault(ruleType);
+                var ownPoints = account.Points.GetValueOrDefault(ruleType, StartPoints);
                 var position = Array.FindIndex(ordered, entry => entry.Row.PlayerId == account.PlayerId) + 1;
                 return Results.Json(new
                 {
@@ -384,7 +394,8 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
     // The player plane's own standing, the internal plane's award and read, and the release bundle.
     private void MapRank()
     {
-        // GET /api/player/session/rank: the caller's own standing, only for the rule types they have played.
+        // GET /api/player/session/rank: the caller's own standing, one entry per rule type the policy names, in its
+        // order; a player with no row reads start_points, the tier for it and updated_at null.
         _app.MapGet("/api/player/session/rank", (HttpContext context) =>
         {
             var account = Identify(context, out var failure);
@@ -392,14 +403,18 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
             if (_readsDown.GetValueOrDefault(account.PlayerId)) return Error(context, StatusCodes.Status503ServiceUnavailable, "unavailable", "rank is down");
             lock (_lock)
             {
-                var ranks = RuleTypes.Where(account.Points.ContainsKey)
-                    .Select(rule => new { rule_type = rule, points = account.Points[rule], tier = TierFor(account.Points[rule]),
-                        updated_at = "2026-10-01T12:00:00Z" }).ToArray();
+                var ranks = RuleTypes.Select(rule =>
+                {
+                    var played = account.Points.TryGetValue(rule, out var held);
+                    var points = played ? held : StartPoints;
+                    return new { rule_type = rule, points, tier = TierFor(points),
+                        updated_at = played ? "2026-10-01T12:00:00Z" : null };
+                }).ToArray();
                 return Results.Json(new { ranks });
             }
         });
 
-        // GET /internal/session/rank/players/{id}: every rule type present, 0 points at the lowest tier when none.
+        // GET /internal/session/rank/players/{id}: every rule type present, start_points when there is no row.
         _app.MapGet("/internal/session/rank/players/{playerId}", (HttpContext context, string playerId) =>
         {
             if (!Service(context, out var failure)) return failure!;
@@ -411,48 +426,58 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
             {
                 var ranks = RuleTypes.Select(rule =>
                 {
-                    var points = account.Points.GetValueOrDefault(rule);
+                    var points = account.Points.GetValueOrDefault(rule, StartPoints);
                     return new { rule_type = rule, points, tier = TierFor(points) };
                 }).ToArray();
                 return Results.Json(new { player_id = account.PlayerId, ranks });
             }
         });
 
-        // POST /internal/session/rank/awards {player_id, rule_type, delta, key}: idempotent by key per player and rule
-        // type; points floor at 0; the answer carries the standing after the (first) application.
+        // POST /internal/session/rank/awards {player_id, rule_type, key, outcome | delta}: idempotent by key per player
+        // and rule type. An `outcome` is a name the published policy declares (400 unknown_outcome otherwise) and is
+        // worth that policy's delta; points are clamped to [floor, ceiling]. The answer echoes the outcome and carries
+        // the standing after the (first) application.
         _app.MapPost("/internal/session/rank/awards", async (HttpContext context) =>
         {
             if (!Service(context, out var failure)) return failure!;
-            using var body = await JsonDocument.ParseAsync(context.Request.Body);
+            using var reader = new StreamReader(context.Request.Body);
+            var raw = await reader.ReadToEndAsync();
+            using var body = JsonDocument.Parse(raw);
 
             var root = body.RootElement;
             var playerId = root.TryGetProperty("player_id", out var playerProp) ? playerProp.GetString() ?? "" : "";
             var ruleType = root.TryGetProperty("rule_type", out var ruleProp) ? ruleProp.GetString() ?? "" : "";
             var key = root.TryGetProperty("key", out var keyProp) ? keyProp.GetString() ?? "" : "";
-            if (playerId.Length == 0 || key.Length == 0 || !root.TryGetProperty("delta", out var deltaProp) ||
-                !deltaProp.TryGetInt32(out var delta))
-                return Error(context, StatusCodes.Status400BadRequest, "validation_failed", "player_id, delta and key are required");
+            var outcome = root.TryGetProperty("outcome", out var outcomeProp) && outcomeProp.ValueKind == JsonValueKind.String
+                ? outcomeProp.GetString()
+                : null;
+            var hasDelta = root.TryGetProperty("delta", out var deltaProp) && deltaProp.TryGetInt32(out _);
+            if (playerId.Length == 0 || key.Length == 0 || (outcome is null && !hasDelta))
+                return Error(context, StatusCodes.Status400BadRequest, "validation_failed", "player_id, key and an outcome (or a delta) are required");
             if (!RuleTypes.Contains(ruleType))
                 return Error(context, StatusCodes.Status400BadRequest, "unknown_rule_type", "no rank is kept for that rule type");
             if (playerId.StartsWith("ghost-", StringComparison.Ordinal))
                 return Error(context, StatusCodes.Status404NotFound, "player_not_found", "no such player");
+            if (outcome is not null && !Outcomes.ContainsKey(outcome))
+                return Error(context, StatusCodes.Status400BadRequest, "unknown_outcome", "the ladder declares no such outcome");
+            var delta = outcome is not null ? Outcomes[outcome] : deltaProp.GetInt32();
 
             var account = Ensure(playerId);
             lock (_lock)
             {
-                _awardLog.Enqueue(new AwardCall(playerId, ruleType, delta, key));
+                _awardLog.Enqueue(new AwardCall(playerId, ruleType, outcome, hasDelta ? deltaProp.GetInt32() : null, key, raw));
                 if (_awardsDown.GetValueOrDefault(playerId))
                     return Error(context, StatusCodes.Status503ServiceUnavailable, "unavailable", "awards are down");
                 if (_awards.TryGetValue((playerId, ruleType, key), out _))
                 {
-                    var current = account.Points.GetValueOrDefault(ruleType);
+                    var current = account.Points.GetValueOrDefault(ruleType, StartPoints);
                     return Results.Json(new { player_id = playerId, rule_type = ruleType, points = current,
-                        tier = TierFor(current), applied = false });
+                        tier = TierFor(current), applied = false, outcome });
                 }
-                var points = Math.Max(0, account.Points.GetValueOrDefault(ruleType) + delta);
+                var points = Math.Clamp(account.Points.GetValueOrDefault(ruleType, StartPoints) + delta, Floor, Ceiling);
                 account.Points[ruleType] = points;
                 _awards[(playerId, ruleType, key)] = new SessionAward(delta, points);
-                return Results.Json(new { player_id = playerId, rule_type = ruleType, points, tier = TierFor(points), applied = true });
+                return Results.Json(new { player_id = playerId, rule_type = ruleType, points, tier = TierFor(points), applied = true, outcome });
             }
         });
 
@@ -585,7 +610,7 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
 
     private sealed record BoardRow(string PlayerId, int Points);
 
-    public sealed record AwardCall(string PlayerId, string RuleType, int Delta, string Key);
+    public sealed record AwardCall(string PlayerId, string RuleType, string? Outcome, int? Delta, string Key, string RawBody);
 
     private sealed record SessionAward(int Delta, int PointsAfter);
 }

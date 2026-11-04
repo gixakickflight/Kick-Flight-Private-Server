@@ -161,13 +161,13 @@ public sealed class SocialRankingEndpointsTests
         var store = factory.Services.GetRequiredService<IPlayerStore>();
         var aliceId = long.Parse(alice.UserId);
         var bobId = long.Parse(bob.UserId);
-        // The ladder is session's, in session points: the client's battle points are those + 200, and its rank is the N
-        // of the tier key rank_<N> (900 -> rank_3, 3300 -> rank_8, 2300 -> rank_6). The fake is shared by the suite, so
+        // The ladder is session's, in the client's own units: battle points are session's points as they are, and the
+        // rank is the N of the tier key rank_<N> (1100 -> rank_3, 3500 -> rank_8, 2500 -> rank_6). The fake is shared by the suite, so
         // the board starts empty for this test's three players.
         _social.ResetBoards();
-        _social.SeedRank(alice.Account, "crystal_scramble", 900);
-        _social.SeedRank(bob.Account, "crystal_scramble", 3300);
-        _social.SeedRank(carol.Account, "crystal_scramble", 2300);
+        _social.SeedRank(alice.Account, "crystal_scramble", 1100);
+        _social.SeedRank(bob.Account, "crystal_scramble", 3500);
+        _social.SeedRank(carol.Account, "crystal_scramble", 2500);
         await PostAsync(alice, "/follow/add", new { followUserId = bob.UserId });
 
         var world = await PostAsync(alice, "/ranking/index", new { battleRuleId = 1 });
@@ -180,7 +180,7 @@ public sealed class SocialRankingEndpointsTests
         Assert.StartsWith("Rank Bob ", world.GetProperty("battleRankingList")[0].GetProperty("name").GetString());
         Assert.Equal(3, world.GetProperty("battleRanking").GetProperty("rank").GetInt32());
         Assert.Equal(1100, world.GetProperty("battleRanking").GetProperty("battlePoint").GetInt32());
-        // 1100 client points is rank 3; the next published tier (rank_4 at 1200 session points) starts at 1400.
+        // 1100 points is rank 3; the next published tier (rank_4) starts at 1400.
         Assert.Equal(300, world.GetProperty("nextRewardRemainingBattlePoint").GetInt32());
         var ownPosition = world.GetProperty("battleRanking").GetProperty("number").GetInt32();
         Assert.Equal(3, ownPosition);
@@ -283,8 +283,8 @@ public sealed class SocialRankingEndpointsTests
         };
 
         string[] RuleTypeNames = ["crystal_scramble", "flag_flight", "rapid_ball"];
-        // Session points; the client is shown those + 200.
-        static int Client(int sessionPoints) => sessionPoints + 200;
+        // Session's points are the client's battle points as they are.
+        static int Client(int points) => points;
         foreach (var mode in expectedModes)
         {
             Assert.Equal(mode.ruleId, RankedModeRotation.RuleIdAt(clock.GetUtcNow()));

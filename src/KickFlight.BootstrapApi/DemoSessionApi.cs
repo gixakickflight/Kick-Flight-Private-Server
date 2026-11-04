@@ -34,8 +34,8 @@ public sealed partial class DemoSessionApi : IDisposable
     private readonly IBotAiProfileProvider _botAiProfiles;
     private const string AccessToken = "demo-access-token-0000000000000000000000000000";
 
-    // Rank is session's (DemoSessionApi.Rank.cs): points, tiers and the ladder are read from otomo, and the adapter only
-    // translates units (Otomo/RankTranslation.cs).
+    // Rank is session's (DemoSessionApi.Rank.cs): points, tiers, outcomes and the ladder are read from otomo, and the adapter only
+    // parses the tier key (Otomo/RankTranslation.cs).
 
     // Onboarding status: TutorialUtil.IsTutorial is literally "tutorialProgressStatus != 207".
     //
@@ -3003,6 +3003,21 @@ public sealed partial class DemoSessionApi : IDisposable
         return BinaryJson(JsonSerializer.Serialize(resp), key);
     }
 
+    private int _missingWinOutcomeLogged;
+
+    // The `win` outcome of the published ladder; 0 (logged once) when the document is missing or declares none.
+    private int PublishedWinBattlePoint()
+    {
+        if (CurrentLadder()?.WinOutcome is { } win) return win;
+        if (Interlocked.Exchange(ref _missingWinOutcomeLogged, 1) == 0)
+        {
+            _logger.LogWarning(
+                "The published {Namespace} ladder declares no 'win' outcome, so /battle/end shows battlePoint 0",
+                RankLadderNamespace);
+        }
+        return 0;
+    }
+
     private async Task<IResult?> HandleBattleEndAsync(HttpContext context, SessionState state, byte[] key)
     {
         // The battle pays nothing here. What a finished battle is worth is economy's - a counter reported by
@@ -3020,8 +3035,8 @@ public sealed partial class DemoSessionApi : IDisposable
             // The master client uploads the replay because of this flag (GameManager.CallbackBattleEndSuccess ->
             // ArchiveData.set_IsUploadReplayData). Everything else is unchanged.
             replayUploadFlag = true,
-            // The same delta /battle/result persisted, so the reward screen and the stored rank agree.
-            battlePoint = RankTranslation.WinDelta,
+            // What the published ladder says a win is worth, where this used to be a constant.
+            battlePoint = PublishedWinBattlePoint(),
             exp = 800,
             kickPoint = 200,
             jetCoin = 1000

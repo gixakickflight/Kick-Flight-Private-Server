@@ -9,8 +9,9 @@ namespace KickFlight.BootstrapApi;
 //
 // None of it is kept here. A player's points and tier are session's (IOtomoRank), the ladder they sit on is the
 // published session.rank document (read through OtomoMasters, never typed in here), and this file only translates:
-// the client speaks battle points that start at 200 and a rank number, session speaks points that start at 0 and a
-// tier key rank_<N> (Otomo/RankTranslation.cs is the one place the two scales meet).
+// the tenant publishes its ladder in the client's own units (start, floor, ceiling, outcomes and tiers), so the points
+// session holds are the battle points the client reads, and the only wire translation left is the tier key rank_<N>
+// to a rank number (Otomo/RankTranslation.cs).
 //
 // Three rules hold throughout, all of them "nothing is invented":
 //
@@ -18,6 +19,7 @@ namespace KickFlight.BootstrapApi;
 //   * A ladder the release did not publish is an outage too. There is no built-in ladder to fall back on.
 //   * An award session did not accept is never dropped: the battle result is answered 503, and the client's retry
 //     carries the same award key, which session applies once.
+//   * The adapter names an outcome ("win" or "loss"), never a number: what an outcome is worth is the published policy.
 public sealed partial class DemoSessionApi
 {
     // The namespace the ladder is published under in the release bundle (Otomo:Masters:Documents).
@@ -64,7 +66,7 @@ public sealed partial class DemoSessionApi
         CurrentLadder() ?? throw new OtomoRankException(OtomoRankFailure.Unavailable,
             $"the published {RankLadderNamespace} ladder is not available, and this server holds no ladder of its own");
 
-    // The BattleRank master from the published tiers: totalBattlePoint is each tier's min_points + 200, rank 0 stays 0.
+    // The BattleRank master from the published tiers: totalBattlePoint is each tier's min_points, rank 0 stays 0.
     // The ladder must name exactly the ranks 1..16 the client has badges for; one that does not is refused rather than
     // reshaped, because a served master that disagrees with the badges renders a bar past its end.
     internal static string BuildBattleRankMasterJson(RankLadder ladder)
@@ -80,7 +82,7 @@ public sealed partial class DemoSessionApi
         var rows = new StringBuilder("[");
         for (var rank = 0; rank < BattleRankNames.Length; rank++)
         {
-            var total = rank == 0 ? 0 : ladder.ClientTotalBattlePoint(rank);
+            var total = rank == 0 ? 0 : ladder.MinPoints(rank);
             if (rank > 0) rows.Append(',');
             rows.Append("{\"id\":").Append(rank + 1)
                 .Append(",\"name\":\"").Append(BattleRankNames[rank]).Append('"')
@@ -122,7 +124,7 @@ public sealed partial class DemoSessionApi
     // --- reads -----------------------------------------------------------------------------------------------------
 
     // The standing of a player across the client's three ladders, from session's entries. A rule type with no entry
-    // (the player-plane read only promises the ones the caller has played) is 0 points at the ladder's lowest tier.
+    // is session breaking its contract (it reports every rule type, start_points for an unplayed one).
     private IReadOnlyList<BattleRankLine> TranslateRanks(IReadOnlyList<SessionRankEntry> entries)
     {
         var lines = new List<BattleRankLine>(RankedBattleRuleTypes.Length);
@@ -132,11 +134,16 @@ public sealed partial class DemoSessionApi
                 OtomoRankFailure.Refused, $"no session rule type is configured for battle rule type {battleRuleType}");
             var entry = entries.FirstOrDefault(candidate => string.Equals(candidate.RuleType, ruleType, StringComparison.Ordinal));
             lines.Add(entry is null
-                ? new BattleRankLine(battleRuleType, RankTranslation.ClientPoints(0), RequireLadder().RankFor(0))
-                : new BattleRankLine(battleRuleType, RankTranslation.ClientPoints(entry.Points), TierRank(entry.Tier)));
+                ? throw NoEntry(ruleType)
+                : new BattleRankLine(battleRuleType, entry.Points, TierRank(entry.Tier)));
         }
         return lines;
     }
+
+    // Session answers one entry per rule type its policy names, start_points for a player who has not played, so a
+    // missing entry is session breaking its contract: said out loud as an outage, never filled in with a number of ours.
+    private static OtomoRankException NoEntry(string ruleType) =>
+        new(OtomoRankFailure.Unavailable, $"session answered no rank entry for rule type '{ruleType}'");
 
     private static int TierRank(string? tier) =>
         RankTranslation.RankNumber(tier) ?? throw new OtomoRankException(OtomoRankFailure.Unavailable,
@@ -164,7 +171,7 @@ public sealed partial class DemoSessionApi
             {
                 if (id == caller.PlayerId) return (id, Lines: await ReadOwnBattleRanksAsync(ticket, cancellationToken));
                 var link = _playerStore.FindOtomoPlayer(id);
-                if (link is null) return (id, Lines: TranslateRanks([]));
+                if (link is null) return (id, Lines: TranslateRanks([])); // no session account: no standing to show (throws)
                 var entries = await _rank.GetPlayerAsync(link.OtomoPlayerId, cancellationToken);
                 return (id, Lines: TranslateRanks(entries));
             }).ToArray();
@@ -209,13 +216,13 @@ public sealed partial class DemoSessionApi
         var current = await _rank.GetOwnAsync(accessToken, cancellationToken);
         var currentEntry = current.FirstOrDefault(entry => string.Equals(entry.RuleType, ruleType, StringComparison.Ordinal));
         var before = currentEntry is null
-            ? new BattleRankStanding(RankTranslation.ClientPoints(0), RequireLadder().RankFor(0))
-            : new BattleRankStanding(RankTranslation.ClientPoints(currentEntry.Points), TierRank(currentEntry.Tier));
+            ? throw NoEntry(ruleType)
+            : new BattleRankStanding(currentEntry.Points, TierRank(currentEntry.Tier));
 
         var award = await _rank.AwardAsync(ticket.OtomoPlayerId, ruleType,
-            won.Value ? RankTranslation.WinDelta : RankTranslation.LossDelta,
+            won.Value ? "win" : "loss",
             $"battle:{battleEntryId}:{ticket.OtomoPlayerId}", cancellationToken);
-        var after = new BattleRankStanding(RankTranslation.ClientPoints(award.Points), TierRank(award.Tier));
+        var after = new BattleRankStanding(award.Points, TierRank(award.Tier));
 
         if (!award.Applied)
         {
