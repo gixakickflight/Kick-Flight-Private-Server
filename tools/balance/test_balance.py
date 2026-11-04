@@ -660,6 +660,37 @@ def main():
         status2, _ = request("/api/table/disc", "POST", {"rows": core + [dict(core[0], id=99999999)]})
         check("core table still refuses add/delete", status2 == 400, "status %s" % status2)
 
+        # -- guardian_balance (Guardianes tab): same table API, extra validation -----
+        status, guardians = request("/api/table/guardian_balance")
+        check("guardian_balance is readable", status == 200 and isinstance(guardians, list) and len(guardians) == 3,
+              "status %s" % status)
+        if status == 200 and guardians:
+            tuned = [dict(g) for g in guardians]
+            tuned[0]["baseHp"] = 9000
+            tuned[0]["hpPercentPerRank"] = 10
+            tuned[0]["attackPercentPerRank"] = 2.5
+            status, result = request("/api/table/guardian_balance", "POST", {"rows": tuned})
+            check("guardian_balance accepts valid edits (int pct coerced to float)",
+                  status == 200 and result and result.get("ok") is True, "status %s body %s" % (status, result))
+            status, saved = request("/api/table/guardian_balance")
+            check("guardian_balance edits round-trip",
+                  saved and saved[0]["baseHp"] == 9000 and saved[0]["hpPercentPerRank"] == 10.0 and
+                  saved[0]["attackPercentPerRank"] == 2.5, "status %s" % status)
+            negative = [dict(g) for g in guardians]
+            negative[1]["baseHp"] = -1
+            status, _ = request("/api/table/guardian_balance", "POST", {"rows": negative})
+            check("guardian_balance rejects a negative base HP", status == 400, "status %s" % status)
+            negative = [dict(g) for g in guardians]
+            negative[0]["hpPercentPerRank"] = -5
+            status, _ = request("/api/table/guardian_balance", "POST", {"rows": negative})
+            check("guardian_balance rejects a negative percentage", status == 400, "status %s" % status)
+            fractional = [dict(g) for g in guardians]
+            fractional[0]["baseAttack"] = 100.5
+            status, _ = request("/api/table/guardian_balance", "POST", {"rows": fractional})
+            check("guardian_balance rejects a fractional base attack", status == 400, "status %s" % status)
+            status, _ = request("/api/table/guardian_balance", "POST", {"rows": guardians[:2]})
+            check("guardian_balance refuses removing a profile", status == 400, "status %s" % status)
+
         # -- apply ----------------------------------------------------------------
         APPLIED_MARKER.unlink(missing_ok=True)
         status, applied = request("/api/apply", "POST")

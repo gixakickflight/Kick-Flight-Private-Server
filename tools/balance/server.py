@@ -591,6 +591,49 @@ def validate_new_row(table, posted, problems):
     return out if ok else None
 
 
+GUARDIAN_TABLE = "guardian_balance"
+GUARDIAN_INT_FIELDS = ("baseHp", "baseAttack")
+GUARDIAN_PCT_FIELDS = ("hpPercentPerRank", "attackPercentPerRank")
+GUARDIAN_MAX_BASE = 2000000
+GUARDIAN_MAX_PCT = 1000.0
+
+
+def normalize_guardian_rows(rows, problems=None):
+    """Guardian profile rows: percentage columns are always floats, so 0 and 0.0 both round-trip."""
+    out = []
+    for row in rows:
+        if not isinstance(row, dict):
+            out.append(row)
+            continue
+        row = dict(row)
+        for key in GUARDIAN_PCT_FIELDS:
+            value = row.get(key)
+            if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value):
+                row[key] = float(value)
+        out.append(row)
+    return out
+
+
+def validate_guardian_rows(rows):
+    """Messages for guardian profile rows: non-negative numbers, integer base HP/attack, sane caps."""
+    messages = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        where = "row %s" % (row.get("id"),)
+        for key in GUARDIAN_INT_FIELDS + GUARDIAN_PCT_FIELDS:
+            value = row.get(key)
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+                continue   # type errors are reported by the generic validator
+            if value < 0:
+                messages.append("%s field %r: must not be negative" % (where, key))
+            elif key in GUARDIAN_INT_FIELDS and value > GUARDIAN_MAX_BASE:
+                messages.append("%s field %r: must be at most %d" % (where, key, GUARDIAN_MAX_BASE))
+            elif key in GUARDIAN_PCT_FIELDS and value > GUARDIAN_MAX_PCT:
+                messages.append("%s field %r: must be at most %s" % (where, key, GUARDIAN_MAX_PCT))
+    return messages
+
+
 def validate_rows(table, current_rows, posted_rows):
     """(rows to write, None) or (None, [messages]) - never a partial result.
 
@@ -2314,7 +2357,16 @@ class BalanceHandler(BaseHTTPRequestHandler):
                 self.send_error_json(500, "masters_%s.json is not a JSON array" % name)
                 return
 
-            rows, messages = validate_rows(name, current_rows, payload["rows"])
+            posted_rows = payload["rows"]
+            if name == GUARDIAN_TABLE:
+                current_rows = normalize_guardian_rows(current_rows)
+                if isinstance(posted_rows, list):
+                    posted_rows = normalize_guardian_rows(posted_rows)
+                    guardian_problems = validate_guardian_rows(posted_rows)
+                    if guardian_problems:
+                        self.send_error_json(400, "; ".join(guardian_problems))
+                        return
+            rows, messages = validate_rows(name, current_rows, posted_rows)
             if rows is None:
                 self.send_error_json(400, "; ".join(messages))
                 return
