@@ -497,12 +497,12 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
         Assert.Equal(publicOwnId, home.GetProperty("userPlayer").GetProperty("displayUserId").GetInt64());
 
         var otherSession = await CreateSessionAsync();
-        await PostAsync(otherSession, "/user/change", new { name = "Persisted Search Profile" });
+        await PostAsync(otherSession, "/user/change", new { name = "Persisted1" });
         var otherId = long.Parse(otherSession.UserId);
         var other = (await PostAsync(session, "/user/search", new { displayUserId = otherId })).GetProperty("userProfile");
         Assert.Equal(otherSession.UserId, other.GetProperty("userId").GetString());
         Assert.Equal(PlayerDisplayIdCodec.ToPublic(otherId), other.GetProperty("displayUserId").GetInt64());
-        Assert.Equal("Persisted Search Profile", other.GetProperty("name").GetString());
+        Assert.Equal("Persisted1", other.GetProperty("name").GetString());
         await PostAsync(session, "/user/search", new { displayUserId = 9999999 }, expectStatusZero: false);
     }
 

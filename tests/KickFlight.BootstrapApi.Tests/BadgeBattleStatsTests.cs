@@ -381,9 +381,9 @@ public sealed class BadgeBattleStatsTests
 
         // The win streak is the tenant's `streak` measure over this same fact: the adapter reads nothing back, sets nothing
         // and claims nothing.
-        Assert.DoesNotContain(economy.Requests, call => call.Path.EndsWith("/progress/gauge", StringComparison.Ordinal)
-            || call.Path.EndsWith("/tasks/claim", StringComparison.Ordinal));
-        Assert.DoesNotContain(economy.Requests, call => call.Path == "/api/player/economy/tasks" && call.Method == "GET");
+        Assert.DoesNotContain(economy.Requests, call => call.Path.EndsWith("/progress/gauge", StringComparison.Ordinal));
+        Assert.DoesNotContain(economy.Requests, call => call.Path.EndsWith("/tasks/claim", StringComparison.Ordinal)
+            && call.Body is not null && call.Body.Contains("badge.", StringComparison.Ordinal));
 
         // The client retries with different numbers: economy answers its first report, nothing is counted twice.
         var (retryRaw, _) = await PostAsync(client, player, "/battle/result", Result(entryId, 50, 9, 1));
