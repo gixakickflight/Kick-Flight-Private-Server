@@ -61,6 +61,37 @@ public sealed class LoadoutSessionTests : IClassFixture<ServerTestHostFixture>
         Assert.Equal(5, home.GetProperty("userDiscDeckList").GetArrayLength());
     }
 
+    // Session has no profile for an account until the account calls POST /me/init, and its own-card read answers 404
+    // profile_not_found until then. A brand-new player must still get past the title screen: the sign-in makes the
+    // profile, so the startup's loadout read finds it.
+    [Fact]
+    public async Task A_brand_new_account_gets_its_session_profile_at_sign_in_and_passes_startup()
+    {
+        var player = await CreateSessionAsync();
+        Assert.True(_session.HasProfile(player.Account));
+
+        using var response = await RawPostAsync(player, "/startup/index", null);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("0", response.Headers.GetValues("x-app-status-code").Single());
+        Assert.Equal(1, _session.LoadoutOf(player.Account).Revision);
+    }
+
+    // POST /me/init is idempotent, so every sign-in makes it; a second one leaves the profile (and its name) as it was.
+    [Fact]
+    public async Task Signing_in_again_keeps_the_session_profile_and_its_name()
+    {
+        var player = await CreateSessionAsync();
+        _session.SeedName(player.Account, "Renamed");
+        var before = _session.ProfileInits;
+
+        var again = await SignInAsync(player.Uuid);
+        Assert.Equal(player.Account, again.Account);
+        Assert.Equal(before + 1, _session.ProfileInits);
+        Assert.Equal("Renamed", _session.Ensure(player.Account).DisplayName);
+        using var response = await RawPostAsync(again, "/startup/index", null);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
     [Fact]
     public async Task A_concurrent_first_save_is_a_409_and_the_loser_just_reads_what_won()
     {
@@ -344,11 +375,12 @@ public sealed class LoadoutSessionTests : IClassFixture<ServerTestHostFixture>
 
     // --- plumbing ---------------------------------------------------------------------------------------------
 
-    private async Task<DemoSession> CreateSessionAsync()
+    private Task<DemoSession> CreateSessionAsync() => SignInAsync(Guid.NewGuid().ToString("N"));
+
+    private async Task<DemoSession> SignInAsync(string uuid)
     {
         var client = _factory.CreateClient();
         var key = Encoding.ASCII.GetBytes("0123456789abcdef0123456789abcdef");
-        var uuid = Guid.NewGuid().ToString("N");
         var payload = JsonSerializer.Serialize(new { hash = Encoding.ASCII.GetString(key), uuid });
         using var request = new HttpRequestMessage(HttpMethod.Post, "/auth/index")
         {
@@ -360,7 +392,7 @@ public sealed class LoadoutSessionTests : IClassFixture<ServerTestHostFixture>
         client.DefaultRequestHeaders.Add("x-app-access-token", response.Headers.GetValues("x-app-access-token").Single());
         var account = OtomoTestEnvironment.Server.AccountFor(OtomoDeviceId.FromDeviceUuid(uuid));
         Assert.False(string.IsNullOrEmpty(account));
-        return new DemoSession(client, key, response.Headers.GetValues("x-app-user-id").Single(), account!);
+        return new DemoSession(client, key, response.Headers.GetValues("x-app-user-id").Single(), account!, uuid);
     }
 
     private static HttpRequestMessage Request(DemoSession session, string path, object? body, string? cacheId)
@@ -389,5 +421,5 @@ public sealed class LoadoutSessionTests : IClassFixture<ServerTestHostFixture>
         return document.RootElement.Clone();
     }
 
-    private sealed record DemoSession(HttpClient Client, byte[] Key, string UserId, string Account);
+    private sealed record DemoSession(HttpClient Client, byte[] Key, string UserId, string Account, string Uuid = "");
 }

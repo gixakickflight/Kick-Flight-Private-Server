@@ -2238,6 +2238,23 @@ public sealed partial class DemoSessionApi : IDisposable
                 return IdentityUnavailable(context, "/auth/index", exception, uuid);
             }
 
+            // Session holds no profile for an account until the account asks for one (POST /me/init), and every read
+            // of the player's own card - the loadout, the display slots, the startup - answers 404 profile_not_found
+            // until then. Made on every sign-in because it is idempotent: the first creates the profile with
+            // session's provisional name, every later one just answers it. A failure is session's to report, so the
+            // sign-in fails closed rather than handing out a token every later request would be refused with.
+            if (_profile.Enabled)
+            {
+                try
+                {
+                    await _profile.InitOwnProfileAsync(session.AccessToken, context.RequestAborted);
+                }
+                catch (OtomoRankException exception)
+                {
+                    return SessionProfileUnavailable(context, "/auth/index", exception);
+                }
+            }
+
             var state = _statesByPlayer.GetOrAdd(playerId, GetOrCreateUserState);
 
             // No name is invented here. An empty name is what puts the client on the name-entry window; a

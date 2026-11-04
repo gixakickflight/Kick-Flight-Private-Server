@@ -93,6 +93,11 @@ public sealed class OtomoRank : IOtomoRank, IOtomoProfile, IDisposable
             cancellationToken).ConfigureAwait(false);
     }
 
+    // POST /api/player/session/me/init: the caller's profile, created on the first call (empty body, always 200).
+    public Task<SessionMe> InitOwnProfileAsync(string accessToken, CancellationToken cancellationToken) =>
+        CallAsync<SessionMe>(Under(_playerBase, "api/player/session/me/init"), HttpMethod.Post, null, accessToken, null,
+            "own profile init", cancellationToken);
+
     // GET /api/player/session/me: the caller's own card and ext, with the player's own token.
     public Task<SessionMe> GetOwnProfileAsync(string accessToken, CancellationToken cancellationToken) =>
         CallAsync<SessionMe>(Under(_playerBase, "api/player/session/me"), HttpMethod.Get, null, accessToken, null,

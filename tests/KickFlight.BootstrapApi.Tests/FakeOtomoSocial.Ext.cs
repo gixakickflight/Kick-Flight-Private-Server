@@ -47,15 +47,41 @@ public sealed partial class FakeOtomoSocial
         lock (_lock) account.Ext = JsonNode.Parse(extJson)!.AsObject();
     }
 
+    // How many POST /me/init calls reached the fake.
+    public int ProfileInits { get; private set; }
+
     // The ext routes (read and write) of this account answer 503 and change nothing.
     public void SetExtUnavailable(string accountId, bool down) => _extDown[accountId] = down;
 
     private void MapExt()
     {
+        // POST /api/player/session/me/init: the caller's profile, created on the first call; 200 every time.
+        _app.MapPost("/api/player/session/me/init", (HttpContext context) =>
+        {
+            var account = Identify(context, out var failure);
+            if (account is null) return failure!;
+            if (_extDown.GetValueOrDefault(account.PlayerId))
+                return Error(context, StatusCodes.Status503ServiceUnavailable, "unavailable", "session is down");
+            lock (_lock)
+            {
+                account.HasProfile = true;
+                ProfileInits++;
+                return Results.Json(new
+                {
+                    player_id = account.PlayerId,
+                    display_name = account.DisplayName,
+                    discriminator = account.Discriminator,
+                    ext = JsonNode.Parse(account.Ext.ToJsonString()),
+                    display = new Dictionary<string, string>(account.Display)
+                });
+            }
+        });
+
         _app.MapGet("/api/player/session/me", (HttpContext context) =>
         {
             var account = Identify(context, out var failure);
             if (account is null) return failure!;
+            if (!account.HasProfile) return ProfileNotFound(context);
             if (_extDown.GetValueOrDefault(account.PlayerId))
                 return Error(context, StatusCodes.Status503ServiceUnavailable, "unavailable", "session is down");
             lock (_lock)

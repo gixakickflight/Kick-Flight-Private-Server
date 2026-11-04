@@ -210,6 +210,16 @@ public sealed partial class DemoSessionApi
 
     // A read or write of the loadout that session could not answer: the game's error contract, 503, and never an
     // invented loadout. Mirrors SocialUnavailable, which is the same situation for the follow relation.
+    // The player's own session profile could not be made (POST /me/init at sign-in): the same 503 contract as a
+    // loadout that cannot be read, because nothing after the sign-in can be served without it.
+    private IResult SessionProfileUnavailable(HttpContext context, string path, OtomoRankException failure)
+    {
+        _logger.LogError("Refusing {Path}: session profile {Reason} ({Detail})", path, failure.Failure, failure.Message);
+        context.Response.Headers["x-app-status-code"] = "1";
+        return Results.Json(new { error = "session-unavailable", reason = failure.Failure.ToString() },
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+
     private IResult LoadoutUnavailable(HttpContext context, string path, Exception? failure)
     {
         var reason = failure switch
