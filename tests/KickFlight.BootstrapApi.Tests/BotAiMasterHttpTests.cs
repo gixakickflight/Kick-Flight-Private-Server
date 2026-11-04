@@ -9,8 +9,10 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 using KickFlight.BootstrapApi;
+using KickFlight.BootstrapApi.Otomo;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,7 +22,8 @@ using Xunit;
 public class BotAiMasterHttpTests : IDisposable
 {
     private readonly string _tempDir;
-    private readonly string _configFilePath;
+    private readonly FakeOtomoSocial _otomo = OtomoTestEnvironment.Social;
+    private int _release;
     private readonly WebApplicationFactory<Program> _factory;
     private readonly HttpClient _client;
     private readonly string _commonCode = "1a837b9ee2ae11a07a0f529a4cd4b61c";
@@ -33,13 +36,6 @@ public class BotAiMasterHttpTests : IDisposable
 
         _tempDir = Path.Combine(Path.GetTempPath(), "bot-ai-http-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(_tempDir, "config"));
-        _configFilePath = Path.Combine(_tempDir, "config", "bot_ai_profiles.json");
-
-        var repoRoot = RepositoryPaths.FindRoot(AppContext.BaseDirectory);
-        var sourceConfig = Path.Combine(repoRoot, "config", "bot_ai_profiles.json");
-        File.Copy(sourceConfig, _configFilePath);
-
-        Environment.SetEnvironmentVariable(BotAiProfileProvider.ConfigPathEnvVar, _configFilePath);
 
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
@@ -51,7 +47,9 @@ public class BotAiMasterHttpTests : IDisposable
     public void Dispose()
     {
         Environment.SetEnvironmentVariable(ExperimentalAiRoleService.EnvFlagName, null);
-        Environment.SetEnvironmentVariable(BotAiProfileProvider.ConfigPathEnvVar, null);
+        // The fake release is shared by every host in this process: put the document it carries back.
+        _otomo.BotAiDocument = FakeOtomoSocial.DefaultBotAiDocument();
+        _otomo.Release = "test-release";
         _client.Dispose();
         _factory.Dispose();
         try
@@ -62,6 +60,15 @@ public class BotAiMasterHttpTests : IDisposable
             }
         }
         catch { }
+    }
+
+    // The bot AI tuning is the kf.bot_ai_profiles document of the release: publish another document the way an
+    // operator does in otomo's admin UI, and let the host's masters client pick it up. False when the host kept what it had.
+    private async Task<bool> PublishBotAiAsync(string document)
+    {
+        _otomo.BotAiDocument = document;
+        _otomo.Release = "bot-ai-http-" + Interlocked.Increment(ref _release);
+        return await _factory.Services.GetRequiredService<OtomoMasters>().RefreshAsync(CancellationToken.None);
     }
 
     private async Task<string> AuthenticateAsync()
@@ -132,16 +139,12 @@ public class BotAiMasterHttpTests : IDisposable
         var row15_v1 = rows1.First(r => r?["id"]?.GetValue<int>() == 15)!;
         Assert.Equal(90, row15_v1["scoreMotivation"]?.GetValue<int>());
 
-        // 3. Update configuration: change Ana carrier scoreMotivation to 45
-        var configNode = JsonNode.Parse(File.ReadAllText(_configFilePath))!;
+        // 3. Publish a release that changes Ana carrier scoreMotivation to 45
+        var configNode = JsonNode.Parse(FakeOtomoSocial.DefaultBotAiDocument())!;
         configNode["version"] = 2;
         configNode["profiles"]![0]!["motivations"]!["score"] = 45;
-        File.WriteAllText(_configFilePath, configNode.ToJsonString());
-
-        // Trigger reload on the provider
-        var provider = _factory.Services.GetRequiredService<IBotAiProfileProvider>();
-        var reloaded = provider.Reload();
-        Assert.True(reloaded);
+        Assert.True(await PublishBotAiAsync(configNode.ToJsonString()));
+        Assert.Equal(2, _factory.Services.GetRequiredService<IBotAiProfileProvider>().CurrentSnapshot.Version);
 
         // 4. Request /download/master again
         using var masterReq2 = new HttpRequestMessage(HttpMethod.Post, "/download/master")
@@ -206,12 +209,10 @@ public class BotAiMasterHttpTests : IDisposable
             while (!cts.Token.IsCancellationRequested)
             {
                 ver++;
-                var configNode = JsonNode.Parse(File.ReadAllText(_configFilePath))!;
+                var configNode = JsonNode.Parse(FakeOtomoSocial.DefaultBotAiDocument())!;
                 configNode["version"] = ver;
                 configNode["profiles"]![0]!["motivations"]!["score"] = 40 + (ver % 50);
-                File.WriteAllText(_configFilePath, configNode.ToJsonString());
-
-                provider.Reload();
+                await PublishBotAiAsync(configNode.ToJsonString()).ConfigureAwait(false);
                 await Task.Delay(25, cts.Token).ConfigureAwait(false);
             }
         }, cts.Token);
@@ -282,9 +283,7 @@ public class BotAiMasterHttpTests : IDisposable
 
         // 3. Test Invalid Retention under HTTP
         var invalidConfig = "{ this is invalid json syntax";
-        File.WriteAllText(_configFilePath, invalidConfig);
-
-        var reloadFailed = provider.Reload();
+        var reloadFailed = await PublishBotAiAsync(invalidConfig);
         Assert.False(reloadFailed);
 
         // Download master should still serve last active valid master without failure

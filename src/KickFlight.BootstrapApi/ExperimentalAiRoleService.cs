@@ -171,7 +171,7 @@ public static class ExperimentalAiRoleService
         return -1;
     }
 
-    private static IBotAiProfileProvider _currentProvider = new BotAiProfileProvider(enableWatcher: false);
+    private static IBotAiProfileProvider _currentProvider = new BotAiProfileProvider();
 
     public static IBotAiProfileProvider CurrentProvider
     {

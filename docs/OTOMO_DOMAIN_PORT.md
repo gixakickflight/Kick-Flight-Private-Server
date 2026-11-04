@@ -19,13 +19,12 @@ The full state, the owner's decisions and the traps are in the platform fork:
 | Missions | economy tasks | id translation only |
 | Badges | **not yet**: lifetime tracks + badge items with `display_slot` | `BadgeAwardRules`, `player_badge_*`, `player_honors` |
 
-Still local by known gap: kicker/costume on another player's card (no ext field), `config/bot_ai_profiles.json`
-(live's tuning, a file until it has an otomo namespace), and `state.UserName` for the onboarding gate,
+Still local by known gap: kicker/costume on another player's card (no ext field), and `state.UserName` for the onboarding gate,
 `IsNameTaken`, and the caller's own ranking line.
 
 ## The suite
 
-604 tests at 8fca9fd. The 14 known failures, by name, are unchanged since e7470c1: the iOS bundle pair,
-the python3 bot-AI save, the economy/onboarding fakes, and `HarnessTests.Download_master…`. Run comparisons
+598 tests on feature/otomo-bot-ai. The 13 known failures, by name (the python3 bot-AI save test is deleted with its path): the iOS bundle pair,
+the economy/onboarding fakes, and `HarnessTests.Download_master…`. Run comparisons
 in fresh worktrees: the tests leave saved users under `bin/…/data/users`, which turns two onboarding tests
 red on a re-run. `BattleMatchmakingTests.Each_join_moves_the_deadline…` is wall-clock and fails under load.

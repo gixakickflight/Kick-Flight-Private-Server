@@ -695,14 +695,7 @@ public sealed partial class DemoSessionApi : IDisposable
         var aiDeckJson = MasterJson("KickerAiDiscDeck", contentRoot, "config/masters_kicker_ai_disc_deck.json", "[]");
         var pingThresholdJson = MasterJson("MatchmakingPingThreshold", contentRoot, "config/masters_matchmaking_ping_threshold.json", "[]");
 
-        var aiParamRows = AppendGymAiRows(aiParamJson);
-        _baseAiParamRows = aiParamRows;
-        if (ExperimentalAiRoleService.IsEnabled)
-        {
-            var snapshot = _botAiProfiles.CurrentSnapshot;
-            aiParamRows = ExperimentalAiRoleService.AppendExperimentalRoleAiRows(aiParamRows, snapshot);
-        }
-        _encryptedMasters["KickerAiParameter"] = EncryptMaster(aiParamRows);
+        _encryptedMasters["KickerAiParameter"] = EncryptMaster(BuildKickerAiParameterRows(aiParamJson));
         _encryptedMasters["KickerAiDisc"] = EncryptMaster(aiDiscJson);
         _encryptedMasters["KickerAiDiscDeck"] = EncryptMaster(aiDeckJson);
         _encryptedMasters["MatchmakingPingThreshold"] = EncryptMaster(pingThresholdJson);
@@ -877,6 +870,17 @@ public sealed partial class DemoSessionApi : IDisposable
             _otomoMasters.Enabled ? _otomoMasters.Source : "none");
     }
 
+    // The KickerAiParameter master as served: the table, the gym rows and, with the experimental roles on, the rows the
+    // current bot AI profiles define. Remembers the table with the gym rows so a profiles reload can redo the last step.
+    private string BuildKickerAiParameterRows(string tableJson)
+    {
+        var rows = AppendGymAiRows(tableJson);
+        _baseAiParamRows = rows;
+        return ExperimentalAiRoleService.IsEnabled
+            ? ExperimentalAiRoleService.AppendExperimentalRoleAiRows(rows, _botAiProfiles.CurrentSnapshot)
+            : rows;
+    }
+
     // One master table's JSON, from wherever it now lives.
     //
     // A table named in Otomo:Masters:Tables comes from the release this server follows and from nowhere else: if
@@ -902,7 +906,10 @@ public sealed partial class DemoSessionApi : IDisposable
             foreach (var masterName in _encryptedMasters.Keys.ToList())
             {
                 if (!_otomoMasters.Owns(masterName) || !_otomoMasters.TryGetTable(masterName, out var json)) continue;
-                _encryptedMasters[masterName] = EncryptMaster(ApplyObscuredOffsets(masterName, json));
+                // KickerAiParameter is the table the bot AI profiles (kf.bot_ai_profiles, the same release) are added to.
+                _encryptedMasters[masterName] = EncryptMaster(masterName == "KickerAiParameter"
+                    ? BuildKickerAiParameterRows(json)
+                    : ApplyObscuredOffsets(masterName, json));
                 applied.Add(masterName);
             }
             // The ladder is a document of the same release, not a table, so a publish that moves a tier moves the
@@ -942,30 +949,13 @@ public sealed partial class DemoSessionApi : IDisposable
             if (string.IsNullOrEmpty(_baseAiParamRows)) return;
 
             var updatedAiRows = ExperimentalAiRoleService.AppendExperimentalRoleAiRows(_baseAiParamRows, snapshot);
-            var newEncrypted = EncryptMaster(updatedAiRows);
 
-            var current = Volatile.Read(ref _masterState);
-            var dict = new Dictionary<string, byte[]>(current.Masters, StringComparer.Ordinal)
-            {
-                ["KickerAiParameter"] = newEncrypted
-            };
-
-            string newMasterVersion;
-            using (var sha = SHA256.Create())
-            {
-                foreach (var kvp in dict.OrderBy(k => k.Key, StringComparer.Ordinal))
-                {
-                    var nameBytes = Encoding.UTF8.GetBytes(kvp.Key);
-                    sha.TransformBlock(nameBytes, 0, nameBytes.Length, null, 0);
-                    sha.TransformBlock(kvp.Value, 0, kvp.Value.Length, null, 0);
-                }
-                sha.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
-                newMasterVersion = "demo-master-" + Convert.ToHexString(sha.Hash!)[..16].ToLowerInvariant();
-            }
-
-            Volatile.Write(ref _masterState, new MasterCatalogState(dict.ToFrozenDictionary(StringComparer.Ordinal), newMasterVersion));
+            // Through _encryptedMasters, the source of every published state: a release that also replaces a table
+            // publishes again from it, and must not publish the profiles that were current before this one.
+            _encryptedMasters["KickerAiParameter"] = EncryptMaster(updatedAiRows);
+            PublishMasterState();
             _logger.LogInformation("Master version {MasterVersion} updated atomically after bot AI profile reload (version {ProfileVersion})",
-                newMasterVersion, snapshot.Version);
+                MasterVersion, snapshot.Version);
         }
     }
 

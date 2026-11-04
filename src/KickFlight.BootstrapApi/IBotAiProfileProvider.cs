@@ -14,14 +14,10 @@ public interface IBotAiProfileProvider : IDisposable
     BotAiProfileSnapshot CurrentSnapshot { get; }
 
     /// <summary>
-    /// Resolved absolute path to bot_ai_profiles.json.
+    /// Where the current profiles came from: the otomo release ("otomo:kf.bot_ai_profiles@..."), the local file when
+    /// Otomo:Masters is disabled, or "hardcoded-defaults".
     /// </summary>
-    string ResolvedConfigPath { get; }
-
-    /// <summary>
-    /// Resolved absolute path to the seed fallback config/bot_ai_profiles.json, if found.
-    /// </summary>
-    string? ResolvedSeedPath { get; }
+    string Source { get; }
 
     /// <summary>
     /// True if the provider is currently serving hardcoded defaults because the config file
@@ -38,7 +34,7 @@ public interface IBotAiProfileProvider : IDisposable
     IReadOnlyList<AiRolePolicy> GetAllPolicies();
 
     /// <summary>
-    /// Manually triggers a reload of the configuration file.
+    /// Re-reads the current document (the release's, or the local file when Otomo:Masters is disabled) now.
     /// </summary>
     bool Reload();
 
