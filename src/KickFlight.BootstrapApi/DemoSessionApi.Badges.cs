@@ -93,52 +93,71 @@ public sealed partial class DemoSessionApi
     // `countReplays` is false for a report whose answer a replay would repeat as news (a second startup the same day).
     private async Task<IReadOnlyList<int>> ReportBadgeFactAsync(string otomoPlayerId, string fact,
         IReadOnlyDictionary<string, object?> fields, string key, string reason, string reference, bool countReplays,
+        CancellationToken cancellationToken) =>
+        HonorsOf(await SendFactAsync(otomoPlayerId, fact, fields, key, reason, reference, cancellationToken),
+            otomoPlayerId, countReplays);
+
+    // The report itself, and the whole answer: auto-claimed badge steps (`auto_claims`) and the entitlements the tenant's
+    // triggers minted (`triggers`) are read from the same answer by whoever asked. Null when the report is off or failed.
+    private async Task<EconomyFact?> SendFactAsync(string otomoPlayerId, string fact,
+        IReadOnlyDictionary<string, object?> fields, string key, string reason, string reference,
         CancellationToken cancellationToken)
     {
         if (!_economy.ProgressEnabled)
         {
             _logger.LogDebug("Badge fact {Fact} for {Reference} not reported: Otomo:Economy:ProgressEnabled is off", fact, reference);
-            return [];
+            return null;
         }
         try
         {
-            var answer = await _economy.ReportFactAsync(new EconomyFactReport(otomoPlayerId, fact, fields, key, reason,
+            return await _economy.ReportFactAsync(new EconomyFactReport(otomoPlayerId, fact, fields, key, reason,
                 ProgressKeyPart(reference)), cancellationToken);
-            var granted = new List<int>();
-            foreach (var claim in answer.AutoClaims ?? [])
-            {
-                if (claim.Result != "claimed")
-                {
-                    _logger.LogWarning("Badge step {Track}#{Step} ({Class}) for {PlayerId} was refused at payment: {Code}",
-                        claim.TrackId, claim.Step, claim.Class, otomoPlayerId, claim.Code);
-                    continue;
-                }
-                foreach (var move in claim.Items ?? [])
-                {
-                    if (TryHonorId(move.Item, out var honorId) && !granted.Contains(honorId)) granted.Add(honorId);
-                }
-            }
-            if (answer.Replayed && !countReplays) return [];
-            if (granted.Count > 0)
-                _logger.LogInformation("Player {PlayerId} was paid badges {Honors}", otomoPlayerId, string.Join(",", granted));
-            return granted;
         }
         catch (Exception exception) when (exception is OtomoEconomyException or HttpRequestException)
         {
             _logger.LogWarning("Badge fact {Fact} ({Key}) was not reported: {Error}", fact, key, exception.Message);
-            return [];
+            return null;
         }
     }
 
-    // The battle's badge fact. `rankedRuleType`/`rankAfter` are the battle rule type and the rank after it for a ranked
+    // The honors an answer's auto-claimed steps granted.
+    private IReadOnlyList<int> HonorsOf(EconomyFact? answer, string otomoPlayerId, bool countReplays)
+    {
+        if (answer is null) return [];
+        var granted = new List<int>();
+        foreach (var claim in answer.AutoClaims ?? [])
+        {
+            if (claim.Result != "claimed")
+            {
+                _logger.LogWarning("Badge step {Track}#{Step} ({Class}) for {PlayerId} was refused at payment: {Code}",
+                    claim.TrackId, claim.Step, claim.Class, otomoPlayerId, claim.Code);
+                continue;
+            }
+            foreach (var move in claim.Items ?? [])
+            {
+                if (TryHonorId(move.Item, out var honorId) && !granted.Contains(honorId)) granted.Add(honorId);
+            }
+        }
+        if (answer.Replayed && !countReplays) return [];
+        if (granted.Count > 0)
+            _logger.LogInformation("Player {PlayerId} was paid badges {Honors}", otomoPlayerId, string.Join(",", granted));
+        return granted;
+    }
+
+    // The battle's fact, reported ONCE per battle entry (key badge-battle:<entry>) with every field the tenant declares. Its
+    // one answer serves two readers: the badges its auto_claim steps paid, and the capsule its entitlement trigger minted
+    // (DemoSessionApi.Capsules.cs). `rankedRuleType`/`rankAfter` are the battle rule type and the rank after it for a ranked
     // battle, 0 and -1 otherwise. The win streak is the tenant's `streak` measure over this same fact: nothing is read back
     // or set here.
-    private Task<IReadOnlyList<int>> RecordBadgeBattleAsync(KfIdentityTicket ticket, string battleEntryId,
-        BadgeBattleStatReport report, int battleRuleType, int rankedRuleType, int rankAfter,
-        CancellationToken cancellationToken) =>
-        ReportBadgeFactAsync(ticket.OtomoPlayerId, BattleFact,
+    private async Task<(IReadOnlyList<int> Honors, EconomyFact? Fact)> RecordBadgeBattleAsync(KfIdentityTicket ticket,
+        string battleEntryId, BadgeBattleStatReport report, int battleRuleType, int rankedRuleType, int rankAfter,
+        CancellationToken cancellationToken)
+    {
+        var answer = await SendFactAsync(ticket.OtomoPlayerId, BattleFact,
             BattleFields(report, battleRuleType, rankedRuleType, rankAfter), FactKey("badge-battle", battleEntryId),
-            "battle_result", battleEntryId, countReplays: true, cancellationToken);
+            "battle_result", battleEntryId, cancellationToken);
+        return (HonorsOf(answer, ticket.OtomoPlayerId, countReplays: true), answer);
+    }
 
     // The day is the key, so a second startup the same UTC day counts nothing and "login days" is a count of days.
     private Task<IReadOnlyList<int>> RecordBadgeLoginDayAsync(KfIdentityTicket ticket, DateTimeOffset now,

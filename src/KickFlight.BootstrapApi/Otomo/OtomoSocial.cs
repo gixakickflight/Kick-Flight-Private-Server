@@ -107,6 +107,24 @@ public sealed class OtomoSocial : IOtomoSocial, IDisposable
             "unfollow", cancellationToken, allowEmptyBody: true).ConfigureAwait(false);
     }
 
+    public async Task<IReadOnlyList<SessionFriend>> GetFriendsAsync(string accessToken, CancellationToken cancellationToken)
+    {
+        var list = await CallAsync<SessionFriends>(Player("friends"), HttpMethod.Get, null, accessToken, "friends",
+            cancellationToken).ConfigureAwait(false);
+        return list.Friends ?? [];
+    }
+
+    public Task<SessionFriendInvite> GetFriendInviteAsync(string accessToken, CancellationToken cancellationToken) =>
+        CallAsync<SessionFriendInvite>(Player("friends/invite"), HttpMethod.Get, null, accessToken, "friend invite",
+            cancellationToken);
+
+    // A retry of a redeem is a 200 that changes nothing (session: "a retry is a 200"), so the resend SendAsync does on a
+    // 5xx or a lost answer cannot make a second friendship.
+    public Task<SessionFriend> RedeemFriendInviteAsync(string accessToken, string code,
+        CancellationToken cancellationToken) =>
+        CallAsync<SessionFriend>(Player("friends/invite/redeem"), HttpMethod.Post, new { code }, accessToken,
+            "friend invite redeem", cancellationToken);
+
     public Task<SessionRankBoard> GetRankBoardAsync(string accessToken, string ruleType, int limit, int offset,
         BoardScope scope, CancellationToken cancellationToken)
     {

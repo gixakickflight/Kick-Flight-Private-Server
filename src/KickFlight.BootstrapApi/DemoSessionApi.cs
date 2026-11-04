@@ -1778,11 +1778,15 @@ public sealed partial class DemoSessionApi : IDisposable
     // without D2C-decoding. 2502 (GoodsUnreceivable) is not one of the codes NetworkManager.OpenErrorWindowOnFailed
     // (0x31B7F98) special-cases, so the dialog prints this title and message. 2002-2004 would not do: that function
     // replaces their text with the localized name-rule messages.
-    private static IResult BuildupRefused(HttpContext context, string message)
+    private static IResult BuildupRefused(HttpContext context, string message) =>
+        InsufficientFundsRefused(context, "Disc level-up", message);
+
+    // The same answer for any spend the wallet cannot cover (an early capsule open is one): the title names the screen.
+    private static IResult InsufficientFundsRefused(HttpContext context, string title, string message)
     {
         const string code = "2502";
         context.Response.Headers["x-app-status-code"] = code;
-        var body = JsonSerializer.Serialize(new { error = new { code, title = "Disc level-up", message } });
+        var body = JsonSerializer.Serialize(new { error = new { code, title, message } });
         return Results.Text(body, "application/json", Encoding.UTF8, StatusCodes.Status200OK);
     }
 
@@ -2927,22 +2931,20 @@ public sealed partial class DemoSessionApi : IDisposable
         }
         // The battle goes to economy as a declared fact, once per verified battle (keyed by the entry); the tenant's
         // tracks decide what it earns, and the rungs it reached are claimed here so the result can say so.
-        var receivedHonors = ownedEntry is null || statReport is null
-            ? Array.Empty<int>()
-            : (await RecordBadgeBattleAsync(ticket, battleEntryId, statReport, battleRuleType,
-                applyProgression ? battleRuleType : 0, applyProgression ? after.Rank : -1,
-                context.RequestAborted)).ToArray();
+        var battleHonors = ownedEntry is null || statReport is null
+            ? (Honors: (IReadOnlyList<int>)[], Fact: (EconomyFact?)null)
+            : await RecordBadgeBattleAsync(ticket, battleEntryId, statReport, battleRuleType,
+                applyProgression ? battleRuleType : 0, applyProgression ? after.Rank : -1, context.RequestAborted);
+        var receivedHonors = battleHonors.Honors.ToArray();
 
         // The battle's counters go to economy as facts, before the client is told the battle is over: what they
         // are worth is a track's step, claimed later on the player's own plane.
         await ReportBattleProgressAsync(ticket, battleEntryId, won: applyProgression, killCount, mvp,
             context.RequestAborted);
 
-        // A capsule, for a battle this server issued to this player (DemoSessionApi.Capsules.cs). Keyed by the
-        // entry, so a retried result shows the same capsule and pays nothing more.
-        var capsule = ownedEntry is null
-            ? null
-            : await AwardBattleCapsuleAsync(ticket, state, battleEntryId, context.RequestAborted);
+        // A capsule, for a battle this server issued to this player (DemoSessionApi.Capsules.cs): the battle fact's
+        // entitlement trigger mints it. Keyed by the entry, so a retried result shows the same capsule.
+        var capsule = await ShownBattleCapsuleAsync(ticket, state, battleEntryId, battleHonors.Fact, context.RequestAborted);
         var missionProgress = await ReadMissionProgressAfterBattleAsync(ticket, state, context.RequestAborted);
 
         var rank = new { battleRuleType, battlePoint = after.BattlePoint, rank = after.Rank };

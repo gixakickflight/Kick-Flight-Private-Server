@@ -119,6 +119,7 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
         var server = new FakeOtomoSocial(app, "");
         server.Map();
         server.MapRank();
+        server.MapFriends();
         server.MapExt();
         server.MapDisplay();
         app.StartAsync().GetAwaiter().GetResult();

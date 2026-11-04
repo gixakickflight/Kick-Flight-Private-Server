@@ -307,15 +307,32 @@ public sealed class OtomoEconomy : IOtomoEconomy, IDisposable
     // POST /internal/economy/entitlements/{id}/claim. The retry in SendAsync resends the same key; the payout is keyed by
     // the entitlement id on economy's side, so a repeated claim never pays twice (it answers 409 entitlement_claimed).
     public async Task<EconomyEntitlementClaim> ClaimEntitlementAsync(string entitlementId, string playerId, string key,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, bool early = false)
     {
         var (baseUri, serviceKey) = InternalPlane("entitlement claims");
         var url = new Uri(baseUri, $"internal/economy/entitlements/{Uri.EscapeDataString(entitlementId)}/claim");
-        var element = await SendAsync(url, HttpMethod.Post, new { player_id = playerId, key }, bearer: null, serviceKey,
+        // `early` is sent only when asked for, so a plain claim's body is what it always was.
+        var payload = new Dictionary<string, object?> { ["player_id"] = playerId, ["key"] = key };
+        if (early) payload["early"] = true;
+        var element = await SendAsync(url, HttpMethod.Post, payload, bearer: null, serviceKey,
             "entitlement claim", cancellationToken).ConfigureAwait(false);
         return element.Deserialize<EconomyEntitlementClaim>(JsonOptions)
                ?? throw new OtomoEconomyException(OtomoEconomyFailure.Unavailable,
                    "economy answered the entitlement claim with an empty body");
+    }
+
+    // GET /internal/economy/entitlements/{id}/early_claim?player_id=. Prices the early claim without charging it.
+    public async Task<EconomyEarlyClaimQuote> GetEarlyClaimAsync(string entitlementId, string playerId,
+        CancellationToken cancellationToken)
+    {
+        var (baseUri, serviceKey) = InternalPlane("entitlement claims");
+        var url = new Uri(baseUri,
+            $"internal/economy/entitlements/{Uri.EscapeDataString(entitlementId)}/early_claim?player_id={Uri.EscapeDataString(playerId)}");
+        var element = await SendAsync(url, HttpMethod.Get, null, bearer: null, serviceKey, "entitlement early claim price",
+            cancellationToken).ConfigureAwait(false);
+        return element.Deserialize<EconomyEarlyClaimQuote>(JsonOptions)
+               ?? throw new OtomoEconomyException(OtomoEconomyFailure.Unavailable,
+                   "economy answered the early claim price with an empty body");
     }
 
     // The internal plane's one gate: the switch, a readable game-server key and a base URL.

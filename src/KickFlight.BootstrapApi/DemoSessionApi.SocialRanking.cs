@@ -19,6 +19,9 @@ namespace KickFlight.BootstrapApi;
 //   * Session's follow relation has no read cursor, so a follower is never "new" - newFlag is false and
 //     newFollowerCount is 0, and /follower/read answers an empty success. The unread mark lived in player_follows and
 //     went with that table (migration 6).
+//   * A real friend is a session friendship made by a friend invitation: /realFriend/token is the player's invite code
+//     (GET /friends/invite), /realFriend/apply redeems someone else's (POST /friends/invite/redeem), and a row's
+//     followStatus is 2 for a player in the caller's session friends, 1 for a follow, 0 otherwise.
 //   * A name on a social or ranking row is the display_name session answered for that row, because a name now lives
 //     there. A row whose account has no
 //     game row here is skipped: the client parses userId as a number, and there is no number to give it for someone
@@ -35,7 +38,21 @@ public sealed partial class DemoSessionApi
 
     // The caller's follow relation as session answered it: the accounts they follow, translated into the rows the
     // client speaks, and the two counts. A null relation is a failure the caller answers 503.
-    private sealed record FollowRelation(IReadOnlyList<SocialRow> Following, SessionFollowCounts Counts);
+    private sealed record FollowRelation(IReadOnlyList<SocialRow> Following, SessionFollowCounts Counts,
+        IReadOnlySet<long> Friends)
+    {
+        public FollowMarks Marks => new(Following.Select(link => link.PlayerId).ToHashSet(), Friends);
+    }
+
+    // What a row's followStatus is drawn from: the players the caller follows and the players they are real friends with
+    // (session's accepted friends). 2 is a real friend, 1 a follow, 0 neither.
+    private sealed record FollowMarks(HashSet<long> Followed, IReadOnlySet<long> Friends)
+    {
+        public static FollowMarks None { get; } = new([], new HashSet<long>());
+
+        public int StatusOf(long callerId, long targetId) =>
+            callerId == targetId ? 0 : Friends.Contains(targetId) ? 2 : Followed.Contains(targetId) ? 1 : 0;
+    }
 
     // One player on a social screen: the id mapping the adapter keeps, and the name session answered for this row.
     private sealed record SocialRow(long PlayerId, string OtomoPlayerId, string? DisplayName);
@@ -62,7 +79,8 @@ public sealed partial class DemoSessionApi
             var accessToken = await PlayerTokenAsync(ticket, cancellationToken);
             var following = await _social.GetFollowingAsync(accessToken, cancellationToken);
             var counts = await _social.GetFollowCountsAsync(accessToken, cancellationToken);
-            return new FollowRelationLoad(new FollowRelation(Translate(following), counts), null);
+            var friends = await ReadFriendIdsAsync(accessToken, cancellationToken);
+            return new FollowRelationLoad(new FollowRelation(Translate(following), counts, friends), null);
         }
         catch (Exception exception) when (exception is OtomoIdentityException or OtomoSocialException)
         {
@@ -71,16 +89,26 @@ public sealed partial class DemoSessionApi
         }
     }
 
-    // The game rows the caller follows, for a screen whose follow marks are decoration (a profile card's button). A
-    // failure here is logged and reads as "follows nobody": the card is still worth drawing, and a 503 on a search box
-    // because the follow service blinked would be the wrong failure.
-    private async Task<HashSet<long>> ReadFollowedIdsAsync(KfIdentityTicket ticket, string path,
+    // The game rows of the caller's accepted session friends (a real friend is a session friendship). An account with no
+    // game row here is dropped, as for a follow.
+    private async Task<IReadOnlySet<long>> ReadFriendIdsAsync(string accessToken, CancellationToken cancellationToken)
+    {
+        var friends = await _social.GetFriendsAsync(accessToken, cancellationToken);
+        return Translate(friends.Select(friend =>
+                new SessionFollow(friend.PlayerId, friend.DisplayName, friend.Discriminator, friend.Since)).ToArray())
+            .Select(link => link.PlayerId).ToHashSet();
+    }
+
+    // The marks of the players the caller follows or is real friends with, for a screen whose follow marks are decoration
+    // (a profile card's button). A failure here is logged and reads as "follows nobody": the card is still worth drawing,
+    // and a 503 on a search box because the follow service blinked would be the wrong failure.
+    private async Task<FollowMarks> ReadFollowMarksAsync(KfIdentityTicket ticket, string path,
         CancellationToken cancellationToken)
     {
         var loaded = await ReadFollowRelationAsync(ticket, path, cancellationToken);
-        if (loaded.Relation is not null) return loaded.Relation.Following.Select(link => link.PlayerId).ToHashSet();
+        if (loaded.Relation is not null) return loaded.Relation.Marks;
         _logger.LogInformation("{Path}: follow marks read as empty, the relation could not be read", path);
-        return [];
+        return FollowMarks.None;
     }
 
     // A session id is otomo's account id; the client speaks this adapter's numeric row. An account with no row here is
@@ -142,7 +170,8 @@ public sealed partial class DemoSessionApi
         var honors = await HonorsOfAsync(ticket, state, pageRows.Select(row => row.PlayerId), context.RequestAborted);
         var profiles = pageRows
             .Select(link => JsonSerializer.Deserialize<JsonElement>(
-                SocialProfileJson(state, ProfileOf(link), 1, false, cardRanks[link.PlayerId], honors)));
+                SocialProfileJson(state, ProfileOf(link), loaded.Relation.Marks.StatusOf(state.PlayerId, link.PlayerId), false,
+                    cardRanks[link.PlayerId], honors)));
         return OkJson(context, key, JsonSerializer.Serialize(new
         {
             userProfileList = profiles,
@@ -169,11 +198,13 @@ public sealed partial class DemoSessionApi
 
         IReadOnlyList<SessionFollow> followers;
         SessionFollowCounts counts;
+        IReadOnlySet<long> friends;
         try
         {
             var accessToken = await PlayerTokenAsync(ticket, context.RequestAborted);
             followers = await _social.GetFollowersAsync(accessToken, context.RequestAborted);
             counts = await _social.GetFollowCountsAsync(accessToken, context.RequestAborted);
+            friends = await ReadFriendIdsAsync(accessToken, context.RequestAborted);
         }
         catch (Exception exception) when (exception is OtomoIdentityException or OtomoSocialException)
         {
@@ -181,7 +212,7 @@ public sealed partial class DemoSessionApi
         }
 
         var translated = Translate(followers);
-        var followedIds = translated.Select(link => link.PlayerId).ToHashSet();
+        var marks = new FollowMarks(translated.Select(link => link.PlayerId).ToHashSet(), friends);
         var pageRows = translated.Skip(page * SocialPageSize).Take(SocialPageSize).ToArray();
         var (cardRanks, cardError) = await TryReadCardRanksAsync(ticket, state, pageRows.Select(row => row.PlayerId),
             context.RequestAborted);
@@ -189,7 +220,7 @@ public sealed partial class DemoSessionApi
         var honors = await HonorsOfAsync(ticket, state, pageRows.Select(row => row.PlayerId), context.RequestAborted);
         var profiles = pageRows
             .Select(link => JsonSerializer.Deserialize<JsonElement>(
-                SocialProfileJson(state, ProfileOf(link), FollowStatus(followedIds, state.PlayerId, link.PlayerId), false,
+                SocialProfileJson(state, ProfileOf(link), marks.StatusOf(state.PlayerId, link.PlayerId), false,
                     cardRanks[link.PlayerId], honors)));
         return OkJson(context, key, JsonSerializer.Serialize(new
         {
@@ -280,6 +311,79 @@ public sealed partial class DemoSessionApi
         }
 
         return OkJson(context, key, "{}");
+    }
+
+    // /realFriend/token: the player's stable token to hand to a friend. It is their session invite code (the one code
+    // session keeps for them, made on the first read), so the adapter stores no token. {token}.
+    private async Task<IResult> HandleRealFriendTokenAsync(HttpContext context, KfIdentityTicket ticket,
+        SessionState state, byte[] key)
+    {
+        const string path = "/realFriend/token";
+        if (!_social.Enabled)
+        {
+            return SocialUnavailable(context, path, new OtomoSocialException(OtomoSocialFailure.Disabled,
+                "Otomo:Social:Enabled is false: this server holds no friend relation"));
+        }
+
+        try
+        {
+            var invite = await _social.GetFriendInviteAsync(await PlayerTokenAsync(ticket, context.RequestAborted),
+                context.RequestAborted);
+            return OkJson(context, key, JsonSerializer.Serialize(new { token = invite.Code }));
+        }
+        catch (OtomoSocialException ex) when (ex.Failure == OtomoSocialFailure.Refused)
+        {
+            // invites_disabled, or a profile session does not have: the game's error dialog.
+            _logger.LogInformation("{Path} for user {UserId} was refused: {Status} {Code}", path, state.UserId,
+                ex.StatusCode, ex.Code);
+            return StatusError(context, key);
+        }
+        catch (Exception exception) when (exception is OtomoIdentityException or OtomoSocialException)
+        {
+            return SocialUnavailable(context, path, exception);
+        }
+    }
+
+    // /realFriend/apply {token}: redeems the owner's invite code, which makes the two real friends at once. Everything
+    // session refuses - an unknown or revoked code (404), your own (400), a block either way or invitations off (403), a
+    // full friend list (409), too many tries (429) - reaches the client as the game's error answer, as it did when this
+    // adapter kept the tokens; the reason is in the log.
+    private async Task<IResult> HandleRealFriendApplyAsync(HttpContext context, KfIdentityTicket ticket,
+        SessionState state, byte[] key)
+    {
+        const string path = "/realFriend/apply";
+        var request = await ReadRequestRootAsync(context, key);
+        if (request is null ||
+            !request.Value.TryGetProperty("token", out var tokenElement) ||
+            tokenElement.ValueKind != JsonValueKind.String ||
+            string.IsNullOrWhiteSpace(tokenElement.GetString()))
+        {
+            return StatusError(context, key);
+        }
+        if (!_social.Enabled)
+        {
+            return SocialUnavailable(context, path, new OtomoSocialException(OtomoSocialFailure.Disabled,
+                "Otomo:Social:Enabled is false: this server holds no friend relation"));
+        }
+
+        try
+        {
+            var friend = await _social.RedeemFriendInviteAsync(await PlayerTokenAsync(ticket, context.RequestAborted),
+                tokenElement.GetString()!, context.RequestAborted);
+            _logger.LogInformation("{Path}: user {UserId} and otomo account {Friend} are real friends", path, state.UserId,
+                friend.PlayerId);
+            return OkJson(context, key, "{}");
+        }
+        catch (OtomoSocialException ex) when (ex.Failure == OtomoSocialFailure.Refused)
+        {
+            _logger.LogInformation("{Path} for user {UserId} was refused: {Status} {Code}", path, state.UserId,
+                ex.StatusCode, ex.Code);
+            return StatusError(context, key);
+        }
+        catch (Exception exception) when (exception is OtomoIdentityException or OtomoSocialException)
+        {
+            return SocialUnavailable(context, path, exception);
+        }
     }
 
     private async Task<IResult> HandleFollowOnlineAsync(HttpContext context, KfIdentityTicket ticket,
@@ -394,10 +498,9 @@ public sealed partial class DemoSessionApi
             return SocialUnavailable(context, path, exception);
         }
 
-        var followedIds = relation.Following.Select(link => link.PlayerId).ToHashSet();
         var rowPlayers = _playerStore.FindOtomoPlayers(board.Rows.Select(row => row.PlayerId).ToArray()).Select(link => link.PlayerId);
         var honors = await HonorsOfAsync(ticket, state, rowPlayers.Append(state.PlayerId), context.RequestAborted);
-        var resultRows = BuildRankingRows(board.Rows, state.PlayerId, followedIds, ladder, honors);
+        var resultRows = BuildRankingRows(board.Rows, state.PlayerId, relation.Marks, ladder, honors);
         var self = BuildOwnRankingRow(state, board.You, ladder, honors.GetValueOrDefault(state.PlayerId, BadgeCatalog.DefaultHonorId));
         // Client points still to go to the next published tier (0 at the top, and for a caller not on the board).
         var nextReward = ladder.RemainingToNextTier(board.You?.Points ?? 0);
@@ -439,7 +542,7 @@ public sealed partial class DemoSessionApi
         return new BoardRead(window.Rows, own.You ?? window.You);
     }
 
-    private object[] BuildRankingRows(IReadOnlyList<SessionBoardRow> rows, long callerId, HashSet<long> followedIds,
+    private object[] BuildRankingRows(IReadOnlyList<SessionBoardRow> rows, long callerId, FollowMarks marks,
         RankLadder ladder, IReadOnlyDictionary<long, int> honors)
     {
         if (rows.Count == 0) return [];
@@ -469,7 +572,7 @@ public sealed partial class DemoSessionApi
                 kickerId = profile?.KickerId ?? DefaultKickerId,
                 kickerCostumeId = profile?.KickerCostumeId ?? DefaultKickerCostumeId,
                 languageCode = "",
-                followStatus = FollowStatus(followedIds, callerId, link.PlayerId),
+                followStatus = marks.StatusOf(callerId, link.PlayerId),
                 rank = RankOfTier(row.Tier, row.Points, ladder),
                 battlePoint = row.Points,
                 number = row.Position,
@@ -521,11 +624,6 @@ public sealed partial class DemoSessionApi
         return new PlayerProfile(row.PlayerId, row.DisplayName ?? "",
             local?.KickerId ?? DefaultKickerId, local?.KickerCostumeId ?? DefaultKickerCostumeId);
     }
-
-    // 1 when the caller follows this player, else 0. A "real friend" was a token this adapter minted and is gone
-    // (migration 6), so nothing here can be 2 any more.
-    private static int FollowStatus(HashSet<long> followedIds, long callerId, long targetId) =>
-        callerId != targetId && followedIds.Contains(targetId) ? 1 : 0;
 
     // `honors` is the badge each player on the screen shows (HonorsOfAsync): the caller's own display slot, and session's
     // `display.honor` for everyone else. A player not in it shows the default.

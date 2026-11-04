@@ -164,6 +164,7 @@ public sealed partial class FakeOtomoEconomy : IAsyncDisposable
 
     private void Map()
     {
+        MapEarlyClaim();
         _app.MapGet("/api/player/economy/wallet", async (HttpContext context) =>
         {
             var (account, failure) = await IdentifyAsync(context);
@@ -610,6 +611,10 @@ public sealed partial class FakeOtomoEconomy : IAsyncDisposable
                 return Error(context, StatusCodes.Status422UnprocessableEntity, "kind_unknown", "the entitlement kind is not declared by this deployment");
             if (!Classes.ContainsKey(rule))
                 return Error(context, StatusCodes.Status422UnprocessableEntity, "class_unknown", "the rule names no configured reward class");
+            if (!CapsuleClasses.Contains(rule))
+                return Error(context, StatusCodes.Status422UnprocessableEntity, "class_not_allowed", "the kind does not pay that class");
+            if (GuardRefusal(availableAt) is { } guard)
+                return Error(context, StatusCodes.Status422UnprocessableEntity, guard, "available_at is outside the kind's delay");
 
             lock (_lock)
             {
@@ -625,7 +630,7 @@ public sealed partial class FakeOtomoEconomy : IAsyncDisposable
                 var created = new Entitlement
                 {
                     Id = Guid.NewGuid().ToString(), PlayerId = playerId, Kind = kind, Rule = rule, Source = source,
-                    AvailableAt = availableAt, Meta = meta, Key = key, CreatedAt = DateTimeOffset.UtcNow, Sequence = rows.Count
+                    AvailableAt = availableAt, Meta = meta, Key = key, CreatedAt = NextStamp(), Sequence = rows.Count
                 };
                 rows.Add(created);
                 return Results.Json(EntitlementJson(created));
@@ -662,8 +667,19 @@ public sealed partial class FakeOtomoEconomy : IAsyncDisposable
                     return Error(context, StatusCodes.Status404NotFound, "entitlement_not_found", "no such entitlement for this player");
                 if (row.ClaimedAt is not null)
                     return Error(context, StatusCodes.Status409Conflict, "entitlement_claimed", "entitlement already claimed");
+                var charged = new List<(string Currency, long Amount)>();
+                var early = root.Value.TryGetProperty("early", out var earlyProp) && earlyProp.ValueKind == JsonValueKind.True;
                 if (DateTimeOffset.UtcNow < row.AvailableAt)
-                    return Error(context, StatusCodes.Status409Conflict, "entitlement_not_ready", $"claimable from {row.AvailableAt:O}");
+                {
+                    if (!early || EarlyClaim is not { } price)
+                        return Error(context, StatusCodes.Status409Conflict, "entitlement_not_ready", $"claimable from {row.AvailableAt:O}");
+                    var wallet = _players.GetOrAdd(playerId, _ => new PlayerEconomy());
+                    var cost = EarlyCost(price, row.AvailableAt);
+                    if (wallet.Balances.GetValueOrDefault(cost.Currency) < cost.Amount)
+                        return Error(context, StatusCodes.Status409Conflict, "insufficient_funds", $"not enough {cost.Currency}");
+                    wallet.Balances[cost.Currency] = wallet.Balances.GetValueOrDefault(cost.Currency) - cost.Amount;
+                    charged.Add(cost);
+                }
 
                 var payoutKey = "entitlement:" + row.Id;
                 var applied = !_internalReplies.ContainsKey(payoutKey);
@@ -679,10 +695,12 @@ public sealed partial class FakeOtomoEconomy : IAsyncDisposable
                     }
                     _internalReplies[payoutKey] = JsonSerializer.SerializeToElement(new { });
                 }
-                row.ClaimedAt = DateTimeOffset.UtcNow;
+                row.ClaimedAt = NextStamp();
                 return Results.Json(new
                 {
                     applied,
+                    early = charged.Count > 0,
+                    charged = charged.Select(cost => new { currency = cost.Currency, amount = cost.Amount }).ToArray(),
                     balances = player.Balances.Select(pair => new { currency = pair.Key, balance = pair.Value }).ToArray(),
                     items = Array.Empty<object>()
                 });
@@ -722,10 +740,10 @@ public sealed partial class FakeOtomoEconomy : IAsyncDisposable
         kind = row.Kind,
         rule = row.Rule,
         source = row.Source,
-        available_at = row.AvailableAt.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'"),
-        claimed_at = row.ClaimedAt?.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'"),
+        available_at = row.AvailableAt.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fffffff'Z'"),
+        claimed_at = row.ClaimedAt?.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fffffff'Z'"),
         meta = row.Meta,
-        created_at = row.CreatedAt.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'")
+        created_at = row.CreatedAt.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fffffff'Z'")
     };
 
     /// <summary>The player's entitlements as economy holds them (claimed ones too), oldest first.</summary>
@@ -812,10 +830,13 @@ public sealed partial class FakeOtomoEconomy : IAsyncDisposable
         ["starter.stamps"] = Enumerable.Range(6051001, 15).Select(id => new Grant(null, "stamp:" + id, 1)).ToArray(),
         ["tutorial.disc"] = [new Grant(null, "disc:3010013", 1)],
         ["tutorial.kicker"] = [new Grant(null, "skin:2010201", 1)],
-        // A battle capsule's class pays one capsule_<type> token (the capsule.<type> pool costs one per draw).
+        // A battle capsule's class is a type and its disc count and pays that many capsule_<type> tokens, one per draw
+        // of the capsule.<type> pool (kf-otomo economy.rules).
         ["match.capsule.wooden"] = [new Grant("capsule_wooden", null, 1)],
-        ["match.capsule.standard"] = [new Grant("capsule_standard", null, 1)],
-        ["match.capsule.golden"] = [new Grant("capsule_golden", null, 1)]
+        ["match.capsule.standard.1"] = [new Grant("capsule_standard", null, 1)],
+        ["match.capsule.standard.2"] = [new Grant("capsule_standard", null, 2)],
+        ["match.capsule.golden.2"] = [new Grant("capsule_golden", null, 2)],
+        ["match.capsule.golden.3"] = [new Grant("capsule_golden", null, 3)]
     };
 
     public const long StarterDiscForce = 300;

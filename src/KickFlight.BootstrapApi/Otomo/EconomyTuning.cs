@@ -1,26 +1,23 @@
-using System.Globalization;
 using System.Text.Json;
 
 namespace KickFlight.BootstrapApi.Otomo;
 
-// The adapter's own numbers about the economy: which capsule a battle hands out, how long it takes to open, how
-// many discs it holds, and what level a disc fights at.
+// The adapter's own numbers about the economy: the client's id for each capsule type, and what level a disc fights at.
 //
-// None of this is a value. A capsule's *contents* are economy's (the capsule.<type> pool), and so is the token that
-// pays for opening it (the match.capsule.<type> class); this file only decides which of the three a battle earns and
-// when the slot may be opened, which is game presentation the economy has no opinion on. That is why it is a file
-// the adapter reads rather than an economy document.
+// None of this is a value or a rule. When a capsule is awarded, which type and how many discs, and how long it waits are
+// the tenant's documents (economy.rules: the capsule kind and its weighted entitlement trigger), and its contents are
+// economy's capsule.<type> pool. What stays here is a translation: type -> the client's Capsule master id.
 //
 // The file is economy-tuning.json (Otomo:Economy:TuningFile, resolved against the repository root). The published
 // values are also the defaults below, so a deployment without the file behaves exactly as the published one; a file
-// that is present but unreadable is logged as an error and the defaults are used, because refusing every battle
-// result over a capsule timer would be the wrong failure.
+// that is present but unreadable is logged as an error and the defaults are used. A file written for an earlier shape
+// may still carry "weight", "unlock" and "discs" per capsule: they are ignored, the tenant's documents own them now.
 //
 //   {
 //     "capsules": [
-//       { "type": "wooden",   "capsuleId": 5010003, "weight": 60, "unlock": "00:15:00", "discs": { "min": 1, "max": 1 } },
-//       { "type": "standard", "capsuleId": 5010001, "weight": 30, "unlock": "01:00:00", "discs": { "min": 1, "max": 2 } },
-//       { "type": "golden",   "capsuleId": 5010002, "weight": 10, "unlock": "04:00:00", "discs": { "min": 2, "max": 3 } }
+//       { "type": "wooden",   "capsuleId": 5010003 },
+//       { "type": "standard", "capsuleId": 5010001 },
+//       { "type": "golden",   "capsuleId": 5010002 }
 //     ],
 //     "casualDiscLevel": 5,
 //     "levelsRankedOnly": true,
@@ -34,11 +31,11 @@ public sealed class EconomyTuning
     public const int CapsuleSlots = 3;
 
     // One kind of capsule. Type is the name economy uses for it in three places - the capsule_<type> currency, the
-    // match.capsule.<type> class and the capsule.<type> pool - and CapsuleId is the client's Capsule master row.
-    public sealed record CapsuleType(string Type, int CapsuleId, int Weight, TimeSpan Unlock, int MinDiscs, int MaxDiscs)
+    // match.capsule.<type>[.<discs>] class and the capsule.<type> pool - and CapsuleId is the client's Capsule master row.
+    public sealed record CapsuleType(string Type, int CapsuleId)
     {
-        public string GrantClass => $"match.capsule.{Type}";
         public string PoolId => $"capsule.{Type}";
+        public string TokenCurrency => $"capsule_{Type}";
     }
 
     public IReadOnlyList<CapsuleType> CapsuleTypes { get; }
@@ -57,9 +54,9 @@ public sealed class EconomyTuning
 
     public static EconomyTuning Defaults { get; } = new(
         [
-            new CapsuleType("wooden", 5010003, 60, TimeSpan.FromMinutes(15), 1, 1),
-            new CapsuleType("standard", 5010001, 30, TimeSpan.FromHours(1), 1, 2),
-            new CapsuleType("golden", 5010002, 10, TimeSpan.FromHours(4), 2, 3)
+            new CapsuleType("wooden", 5010003),
+            new CapsuleType("standard", 5010001),
+            new CapsuleType("golden", 5010002)
         ],
         casualDiscLevel: 5,
         levelsRankedOnly: true,
@@ -81,27 +78,6 @@ public sealed class EconomyTuning
 
     // The level a disc of this rarity has before the player has raised it.
     public int StartLevel(int rarityType) => StartLevels.TryGetValue(rarityType, out var level) ? level : 1;
-
-    // A weighted draw over the capsule types, then a disc count inside that type's range. The randomness is this
-    // process's, and that is fine: what is decided here is which token a battle pays, and the token is all economy
-    // ever sees. The draws inside the capsule are economy's own.
-    public (CapsuleType Type, int DiscCount) RollCapsule(Random random)
-    {
-        var total = CapsuleTypes.Sum(capsule => Math.Max(0, capsule.Weight));
-        var pick = total > 0 ? random.Next(total) : 0;
-        var chosen = CapsuleTypes[0];
-        foreach (var capsule in CapsuleTypes)
-        {
-            var weight = Math.Max(0, capsule.Weight);
-            if (pick < weight)
-            {
-                chosen = capsule;
-                break;
-            }
-            pick -= weight;
-        }
-        return (chosen, random.Next(chosen.MinDiscs, chosen.MaxDiscs + 1));
-    }
 
     public static EconomyTuning Load(string? configuredPath, string contentRoot, ILogger logger)
     {
@@ -129,7 +105,7 @@ public sealed class EconomyTuning
             logger.LogInformation(
                 "Economy tuning from {Path}: capsules {Capsules}, casual disc level {Casual}",
                 path,
-                string.Join(", ", tuning.CapsuleTypes.Select(c => $"{c.Type} {c.Weight}% {c.Unlock} {c.MinDiscs}-{c.MaxDiscs}")),
+                string.Join(", ", tuning.CapsuleTypes.Select(c => $"{c.Type}={c.CapsuleId}")),
                 tuning.CasualDiscLevel);
             return tuning;
         }
@@ -142,7 +118,7 @@ public sealed class EconomyTuning
         }
     }
 
-    // Strict on the parts that decide a payout (a capsule must name a type, a client id and a sane range) and lenient
+    // Strict on the parts that decide a payout (a capsule must name a type and a client id) and lenient
     // on the rest, which fall back to the defaults one field at a time.
     public static EconomyTuning Parse(string json, string source)
     {
@@ -161,17 +137,9 @@ public sealed class EconomyTuning
                 var fallback = Defaults.FindCapsule(type);
                 var capsuleId = row.TryGetProperty("capsuleId", out var id) ? id.GetInt32()
                     : fallback?.CapsuleId ?? throw new FormatException($"capsule '{type}' has no capsuleId");
-                var weight = row.GetProperty("weight").GetInt32();
-                var unlock = TimeSpan.Parse(row.GetProperty("unlock").GetString() ?? "", CultureInfo.InvariantCulture);
-                var discs = row.GetProperty("discs");
-                var min = discs.GetProperty("min").GetInt32();
-                var max = discs.GetProperty("max").GetInt32();
-                if (weight < 0 || unlock < TimeSpan.Zero || min < 1 || max < min)
-                    throw new FormatException($"capsule '{type}' has a negative weight or timer, or an empty disc range");
-                parsed.Add(new CapsuleType(type, capsuleId, weight, unlock, min, max));
+                parsed.Add(new CapsuleType(type, capsuleId));
             }
             if (parsed.Count == 0) throw new FormatException("capsules is empty");
-            if (parsed.Sum(capsule => capsule.Weight) <= 0) throw new FormatException("capsule weights sum to zero");
             capsules = parsed;
         }
 
