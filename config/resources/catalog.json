@@ -124,15 +124,15 @@
       "bytes": 149884376
     },
     {
-      "id": "apk-remote-211705",
+      "id": "apk-remote-211706",
       "enabled": true,
       "host": "10.0.2.2",
-      "requestPath": "/apk/KickFlight-2.11.705-remote.apk",
-      "logicalName": "Remote-play APK download (2.11.705)",
-      "description": "Android 2.11.705: same client as 2.11.7, pointed to the new VPS (147.93.138.247). Required update.",
-      "sourcePath": ".local/KickFlight-2.11.705-remote.apk",
+      "requestPath": "/apk/KickFlight-2.11.706-remote.apk",
+      "logicalName": "Remote-play APK download (2.11.706)",
+      "description": "Android 2.11.706: guardian HP and attack scale with the lowest ranked rank in the room, Rapid Ball goal guardian fixed, real ranks and badges in matchmaking, guardian rank icon fixed. Required update; release-key APK gate-verified (startup, login, matchmaking, full battle) on an AVD against the live VPS.",
+      "sourcePath": ".local/KickFlight-2.11.706-remote.apk",
       "contentType": "application/vnd.android.package-archive",
-      "sha256": "8004f13dc799e2f22b29d7aa43a09f069a6a3e6275ce85783d5d77eb0ebd786c",
+      "sha256": "e39a36d441bff816fee3d30cb4598a353473c0287dde533ab2c10c5ae73b9d98",
       "bytes": 149876242
     },
     {
