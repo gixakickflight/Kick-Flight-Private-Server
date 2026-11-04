@@ -598,12 +598,12 @@ jobs:
           }
 
       # Stage the immutable APK before the deployment can activate catalog links or the Android minimum.
-      - name: Stage Android 2.11.7 release APK if configured in catalog
+      - name: Stage Android 2.11.705 release APK if configured in catalog
         id: android_apk
         if: ${{ steps.main_tip.outputs.deployable == 'true' && steps.changes.outputs.deploy == 'true' && steps.changes.outputs.r52_api_only != 'true' && !(github.event_name == 'workflow_dispatch' && inputs.activate_ios_r52_profile) }}
         shell: bash
         env:
-          ANDROID_RELEASE_TAG: android-2.11.7
+          ANDROID_RELEASE_TAG: android-2.11.705
           GH_TOKEN: ${{ github.token }}
           GITHUB_TOKEN: ${{ github.token }}
           VPS_HOST: ${{ vars.VPS_HOST }}
@@ -619,7 +619,7 @@ jobs:
 
           catalog = json.load(open("config/resources/catalog.json", encoding="utf-8"))
           rows = [r for r in catalog.get("resources", [])
-                  if isinstance(r, dict) and r.get("id") == "apk-remote-2117" and r.get("enabled", True)]
+                  if isinstance(r, dict) and r.get("id") == "apk-remote-211705" and r.get("enabled", True)]
           if not rows:
               print("APK_CONFIGURED=false")
               sys.exit(0)
@@ -627,11 +627,11 @@ jobs:
           row = rows[0]
           sha = str(row.get("sha256", "")).strip().lower()
           if not re.fullmatch(r"[0-9a-f]{64}", sha) or set(sha) == {"0"}:
-              sys.exit("apk-remote-2117 sha256 is invalid or placeholder")
+              sys.exit("apk-remote-211705 sha256 is invalid or placeholder")
 
           source_path = row.get("sourcePath", "")
-          if source_path != ".local/KickFlight-2.11.7-remote.apk":
-              sys.exit(f"apk-remote-2117 unexpected sourcePath: {source_path}")
+          if source_path != ".local/KickFlight-2.11.705-remote.apk":
+              sys.exit(f"apk-remote-211705 unexpected sourcePath: {source_path}")
 
           filename = source_path.split("/")[-1]
           print("APK_CONFIGURED=true")
@@ -642,7 +642,7 @@ jobs:
 
           source "$RUNNER_TEMP/android_apk_info.env"
           if [[ "$APK_CONFIGURED" != "true" ]]; then
-            echo "apk-remote-2117 is not configured or enabled in catalog.json; skipping Android artifact staging."
+            echo "apk-remote-211705 is not configured or enabled in catalog.json; skipping Android artifact staging."
             exit 0
           fi
 
@@ -694,7 +694,7 @@ jobs:
 
           echo "Verifying SHA-256 of downloaded APK..."
           echo "$APK_SHA256  $local_apk" | sha256sum --check --status || {
-            echo "Downloaded APK SHA-256 does not match catalog row apk-remote-2117" >&2
+            echo "Downloaded APK SHA-256 does not match catalog row apk-remote-211705" >&2
             rm -f -- "$local_apk"
             exit 1
           }

@@ -18,10 +18,10 @@ class EndpointPreflightTests(unittest.TestCase):
         config_path = ROOT / "config" / "apk-direct-server.production.json"
         self.assertTrue(config_path.is_file(), f"Missing config: {config_path}")
         config = json.loads(config_path.read_text(encoding="utf-8"))
-        self.assertEqual(config["serverBaseUrl"], "http://159.54.134.159:18080")
-        self.assertEqual(config["photonHost"], "159.54.134.159")
-        self.assertEqual(config["versionName"], "2.11.7")
-        self.assertEqual(config["versionCode"], 62)
+        self.assertEqual(config["serverBaseUrl"], "http://147.93.138.247:18080")
+        self.assertEqual(config["photonHost"], "147.93.138.247")
+        self.assertEqual(config["versionName"], "2.11.705")
+        self.assertEqual(config["versionCode"], 63)
         self.assertEqual(
             config["patchFlags"],
             {
@@ -34,7 +34,7 @@ class EndpointPreflightTests(unittest.TestCase):
                 "KF_RESULT_DIAG": "0",
                 "KF_TARGET_FPS": "120",
                 "KF_PUSH": "1",
-                "CHAT_BASE_URL": "http://159.54.134.159:18080?ns={0}",
+                "CHAT_BASE_URL": "http://147.93.138.247:18080?ns={0}",
             },
         )
         self.assertEqual(
@@ -44,13 +44,13 @@ class EndpointPreflightTests(unittest.TestCase):
 
     def test_valid_ip_passes_preflight(self) -> None:
         url, authority, photon = patcher.validate_endpoint_preflight(
-            "http://159.54.134.159:18080",
-            photon_host="159.54.134.159",
+            "http://147.93.138.247:18080",
+            photon_host="147.93.138.247",
             skip_dns_check=False,
         )
-        self.assertEqual(url, "http://159.54.134.159:18080")
-        self.assertEqual(authority, "159.54.134.159:18080")
-        self.assertEqual(photon, "159.54.134.159")
+        self.assertEqual(url, "http://147.93.138.247:18080")
+        self.assertEqual(authority, "147.93.138.247:18080")
+        self.assertEqual(photon, "147.93.138.247")
 
     def test_unresolvable_nxdomain_fails_preflight(self) -> None:
         with self.assertRaises(ValueError) as ctx:
@@ -64,7 +64,7 @@ class EndpointPreflightTests(unittest.TestCase):
     def test_invalid_scheme_fails(self) -> None:
         with self.assertRaises(ValueError) as ctx:
             patcher.validate_endpoint_preflight(
-                "https://159.54.134.159:18080",
+                "https://147.93.138.247:18080",
                 skip_dns_check=True,
             )
         self.assertIn("serverBaseUrl must use http://", str(ctx.exception))
@@ -72,12 +72,12 @@ class EndpointPreflightTests(unittest.TestCase):
     def test_skip_preflight_bypasses_dns_check(self) -> None:
         url, authority, photon = patcher.validate_endpoint_preflight(
             "http://kickflightsg.ddns.net:18080",
-            photon_host="159.54.134.159",
+            photon_host="147.93.138.247",
             skip_dns_check=True,
         )
         self.assertEqual(url, "http://kickflightsg.ddns.net:18080")
         self.assertEqual(authority, "kickflightsg.ddns.net:18080")
-        self.assertEqual(photon, "159.54.134.159")
+        self.assertEqual(photon, "147.93.138.247")
 
 
 if __name__ == "__main__":
