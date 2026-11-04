@@ -137,7 +137,21 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
 
     // The tag session knows an account by, created on first use. Deterministic, so a test can ask for the same
     // discriminator twice without reaching into the fake.
+    // An account with a session profile, as a test seeds one: a player who has signed in before.
     public Account Ensure(string accountId)
+    {
+        var account = EnsureAccount(accountId);
+        lock (_lock) account.HasProfile = true;
+        return account;
+    }
+
+    // Whether session holds a profile for this account (POST /me/init has been made, or a test seeded one).
+    public bool HasProfile(string accountId) =>
+        _accounts.TryGetValue(accountId, out var account) && account.HasProfile;
+
+    // The account behind a token, without a profile: like session, the player plane knows the account from its token,
+    // but its own card does not exist until POST /me/init.
+    private Account EnsureAccount(string accountId)
     {
         var account = _accounts.GetOrAdd(accountId, id => new Account
         {
@@ -223,6 +237,7 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
         {
             var account = Identify(context, out var failure);
             if (account is null) return failure!;
+            if (!account.HasProfile) return ProfileNotFound(context);
 
             if (_renamesDown.GetValueOrDefault(account.PlayerId))
                 return Error(context, StatusCodes.Status503ServiceUnavailable, "unavailable", "session is down");
@@ -602,8 +617,12 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
             return null;
         }
         failure = null;
-        return Ensure(accountId);
+        return EnsureAccount(accountId);
     }
+
+    // GET and PATCH /api/player/session/me answer this until the account has called POST /me/init.
+    private static IResult ProfileNotFound(HttpContext context) =>
+        Error(context, StatusCodes.Status404NotFound, "profile_not_found", "this player has no profile yet");
 
     private static IResult Error(HttpContext context, int status, string code, string message) =>
         Results.Json(new { error = new { code, message, request_id = context.TraceIdentifier } }, statusCode: status);
@@ -625,6 +644,10 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
         public string DisplayName { get; set; } = "";
         public int Discriminator { get; init; }
         public Dictionary<string, int> Points { get; } = new(StringComparer.Ordinal);
+
+        // False until POST /me/init (or a test seeding the account): session's own-card routes answer 404
+        // profile_not_found until then.
+        public bool HasProfile { get; set; }
 
         // The instance-declared fields session holds for this account (ext.session.player); see FakeOtomoSocial.Ext.cs.
         public System.Text.Json.Nodes.JsonObject Ext { get; set; } = new();

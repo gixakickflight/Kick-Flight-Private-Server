@@ -74,6 +74,11 @@ public interface IOtomoProfile
     // The caller's own card, with the player's own access token (the subject is the token's).
     Task<SessionMe> GetOwnProfileAsync(string accessToken, CancellationToken cancellationToken);
 
+    // POST /api/player/session/me/init: creates the caller's profile (with a provisional name session assigns) on the
+    // first call and answers the card on every call, so it is made after every sign-in. Until it has been made once,
+    // every read of the caller's own card is 404 profile_not_found.
+    Task<SessionMe> InitOwnProfileAsync(string accessToken, CancellationToken cancellationToken);
+
     // The caller's own display map ({slot: item_id}, empty when nothing is set), with the player's own token.
     Task<IReadOnlyDictionary<string, string>> GetDisplayAsync(string accessToken, CancellationToken cancellationToken);
 
