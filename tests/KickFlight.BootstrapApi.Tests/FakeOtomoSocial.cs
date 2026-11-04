@@ -84,6 +84,9 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
 
     public void SetAwardsUnavailable(string accountId, bool down) => _awardsDown[accountId] = down;
 
+    private readonly ConcurrentDictionary<string, bool> _renamesDown = new(StringComparer.Ordinal);
+    public void SetRenamesUnavailable(string accountId, bool down) => _renamesDown[accountId] = down;
+
     public void SetRankReadsUnavailable(string accountId, bool down) => _readsDown[accountId] = down;
 
     public static string DefaultLadderDocument() => JsonSerializer.Serialize(new
@@ -220,6 +223,8 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
             var account = Identify(context, out var failure);
             if (account is null) return failure!;
 
+            if (_renamesDown.GetValueOrDefault(account.PlayerId))
+                return Error(context, StatusCodes.Status503ServiceUnavailable, "unavailable", "session is down");
             using var body = await JsonDocument.ParseAsync(context.Request.Body);
             var name = body.RootElement.TryGetProperty("display_name", out var nameProp)
                 ? (nameProp.GetString() ?? "").Trim()
@@ -228,7 +233,15 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
             {
                 return Error(context, StatusCodes.Status400BadRequest, "invalid_display_name", "display_name is not allowed by the names rules");
             }
-            lock (_lock) account.DisplayName = name;
+            lock (_lock)
+            {
+                if (NameUnique && _accounts.Values.Any(other => !ReferenceEquals(other, account)
+                        && NameKey(other.DisplayName) == NameKey(name)))
+                {
+                    return Error(context, StatusCodes.Status409Conflict, "name_taken", "another player holds this name");
+                }
+                account.DisplayName = name;
+            }
             return Results.Json(new
             {
                 player_id = account.PlayerId,

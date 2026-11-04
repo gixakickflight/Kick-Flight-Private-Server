@@ -217,8 +217,8 @@ public sealed partial class DemoSessionApi
             // The DTO names the field "name"; older captures renamed it, so both spellings are accepted.
             if (TryGetString(root, "userName", out var newName) || TryGetString(root, "name", out newName))
             {
-                if (await RenameAtSessionAsync(ticket, newName, "/user/change", context.RequestAborted) is { } rejection)
-                    return NameRejected(context, key, rejection);
+                if (await RenameAtSessionAsync(context, key, ticket, state, newName, "/user/change") is { } refused)
+                    return refused;
                 state.UserName = newName;
                 SaveUserState(state);
                 _logger.LogInformation("Renamed user {UserId} to {UserName}", state.UserId, newName);

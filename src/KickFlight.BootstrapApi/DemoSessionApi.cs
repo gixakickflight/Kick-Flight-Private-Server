@@ -2309,16 +2309,9 @@ public sealed partial class DemoSessionApi : IDisposable
             return StatusError(context, key);
         }
 
-        // What a name may be - its length, its characters, how often it changes - is session's `names` rules, published
-        // by the tenant. The adapter asks session and maps a refusal to the client's error; the one thing it still
-        // decides is that two players of this game do not share a bare name (the client draws no tag).
-        var rejection = NameTaken(state, name) ? "taken" : await RenameAtSessionAsync(ticket, name, "/tutorial/end", context.RequestAborted);
-        if (rejection is not null)
-        {
-            _logger.LogInformation("Rejected the name submitted by player {PlayerId}: {Reason} ({Length} code units)",
-                state.PlayerId, rejection, name.Length);
-            return NameRejected(context, key, rejection);
-        }
+        // What a name may be - its length, its characters, whether it is unique, how often it changes - is session's
+        // `names` rules, published by the tenant. The adapter asks session and maps a refusal to the client's error.
+        if (await RenameAtSessionAsync(context, key, ticket, state, name, "/tutorial/end") is { } refused) return refused;
 
         state.UserName = name;
         state.TutorialProgress = TutorialStatusComplete;
@@ -2327,11 +2320,6 @@ public sealed partial class DemoSessionApi : IDisposable
         _logger.LogInformation("Player {PlayerId} chose the name {UserName:l}", state.PlayerId, name);
         return OkJson(context, key, "{}");
     }
-
-    // The client caps typing at 10 characters, no surrogates, no zero-width joiner and no control characters, and the
-    // tenant's session.rules `names` say exactly that (kf-otomo kf/tenant/namespaces/session.rules.json), so the adapter
-    // holds none of it. What stays here is uniqueness of the bare name, which session's name#tag does not provide.
-    private bool NameTaken(SessionState state, string name) => name.Length > 0 && _playerStore.IsNameTaken(name, state.PlayerId);
 
     // A rejection is HTTP 200 carrying a non-zero x-app-status-code: the code, not the HTTP status, is what the
     // client reads as the failure signal. Only 2005 opens its name-rule popup - the canned text lives in the
