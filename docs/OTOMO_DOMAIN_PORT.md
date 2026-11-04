@@ -12,7 +12,7 @@ The full state, the owner's decisions and the traps are in the platform fork:
 | Rank | session points + the published `session.rank` ladder | unit translation only: +200 offset, `rank_<N>`, the ±50/−20 deltas (`RankTranslation`) |
 | Economy | wallet, inventory, item attrs (disc levels), tasks | the client's DTO shapes |
 | Capsules | economy entitlements, kind `capsule`, `max_open: 3` | slot rendering from the open rows |
-| Loadout | session ext: `decks`, `costume_gears`, `active_deck`, `pending_gear` | nothing (migration 8 dropped `active_deck_number`) |
+| Loadout | session Loadout (`session.loadout`): `decks`, `costume_gears`, `active_deck`; the server-decided gear roll stays in session ext: `pending_gear` | nothing (migration 8 dropped `active_deck_number`) |
 | Masters | 61 `kf.masters.*` tables + `session.rank` from the release channel | nothing; live's balance overrides are published there |
 | Chat | otomo chat (global channel, retention, rate, NG words, stamp ownership) | the `/.ws` protocol and `chatRoomComment/write`; a seq poll relays new messages |
 | Replay | patch recordings, `kicker:<id>` tags, `patch.curated` Featured | the client's encryption of the bytes; a sealed, stateless play URL |

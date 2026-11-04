@@ -17,7 +17,8 @@ namespace KickFlight.BootstrapApi.Otomo;
 // --- the wire types: session's own JSON keys ---------------------------------------------------------------------
 
 // GET /api/player/session/me: the caller's own card. `ext` is the caller's own instance-declared fields
-// (ext.session.player); this adapter reads decks, costume_gears, active_deck and pending_gear from it.
+// (ext.session.player); this adapter reads pending_gear from it. The decks, costume gears and active deck are the
+// player's Loadout (SessionLoadout), not ext.
 public sealed record SessionMe(
     [property: JsonPropertyName("player_id")] string PlayerId,
     [property: JsonPropertyName("display_name")] string? DisplayName,
@@ -34,6 +35,22 @@ public sealed record SessionPlayerProfile(
     [property: JsonPropertyName("ext")] JsonElement? Ext,
     // The item the player shows in each display slot, {slot: item_id}; `{}` when nothing is equipped.
     [property: JsonPropertyName("display")] Dictionary<string, string>? Display = null);
+
+// A player's loadout as session serves it (GET /api/player/session/loadout, GET /internal/session/players/{id}/loadout, and
+// the `current` of a 409): the whole document, which session stamps with its own `revision` (also the ETag). The
+// revision is what the next PUT names in If-Match.
+public sealed record SessionLoadout(int Revision, JsonElement Document);
+
+// One thing wrong with a submitted loadout, as session's 422 names it: an RFC 6901 JSON pointer and a message.
+public sealed record SessionLoadoutIssue(
+    [property: JsonPropertyName("pointer")] string Pointer,
+    [property: JsonPropertyName("message")] string Message);
+
+// The outcome of PUT /api/player/session/loadout. Exactly one member is set: Saved (200, with the new revision),
+// Current (409 revision_conflict: the loadout as it is now, to start again from) or Issues (422 invalid_loadout).
+// Any other refusal or failure is an OtomoRankException.
+public sealed record SessionLoadoutWrite(
+    SessionLoadout? Saved, SessionLoadout? Current, IReadOnlyList<SessionLoadoutIssue>? Issues);
 
 // POST /internal/session/players/ext: the value after the write, and whether this call changed it. `applied` is false
 // for a replay of a key already applied, which is a success.
@@ -67,6 +84,18 @@ public interface IOtomoProfile
     // Clears one slot (clearing an empty one is a success); the answer is the whole map afterwards.
     Task<IReadOnlyDictionary<string, string>> ClearDisplayAsync(string accessToken, string slot,
         CancellationToken cancellationToken);
+
+    // The caller's own loadout, with the player's own token. Null for 404 loadout_not_found (never saved).
+    Task<SessionLoadout?> GetOwnLoadoutAsync(string accessToken, CancellationToken cancellationToken);
+
+    // Replaces the caller's loadout with `document` (schema_version included, revision left out), naming the revision
+    // it was built from in If-Match (0 for a first save), with the player's own token.
+    Task<SessionLoadoutWrite> PutOwnLoadoutAsync(string accessToken, JsonObject document, int expectedRevision,
+        CancellationToken cancellationToken);
+
+    // Another player's loadout, on the internal plane (the same service key as the card). Null for 404
+    // loadout_not_found; Refused 404 player_not_found for a stranger.
+    Task<SessionLoadout?> GetPlayerLoadoutAsync(string otomoPlayerId, CancellationToken cancellationToken);
 
     // Another player's card, on the internal plane, by otomo player id. Refused 404 player_not_found for a stranger.
     Task<SessionPlayerProfile> GetPlayerProfileAsync(string otomoPlayerId, CancellationToken cancellationToken);

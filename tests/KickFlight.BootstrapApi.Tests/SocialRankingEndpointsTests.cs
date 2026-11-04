@@ -301,7 +301,7 @@ public sealed class SocialRankingEndpointsTests
         // Tapping a crown row uses its raw userId string in /user/detail.searchUserId.
         var topUserId = world.GetProperty("battleRankingList")[0].GetProperty("userId").GetString()!;
         var topUserState = Assert.IsType<SessionState>(store.TryLoad(long.Parse(topUserId)));
-        // The deck is session's: a player who never changed it holds the starter decks, written to ext on first read.
+        // The deck is session's: a player who never changed it holds the starter decks, saved to session's loadout on first read.
         var topUserDeck = Loadout.DefaultDecks()[1];
         var detail = await PostAsync(alice, "/user/detail", new { searchUserId = topUserId });
         var detailedProfile = detail.GetProperty("userProfile");
@@ -455,7 +455,7 @@ public sealed class SocialRankingEndpointsTests
         var targetCostumeId = targetState.KickerCostumeId;
         var activeDeck = new[] { 3010005, 3010006, 3010007, 3010008 };
         var targetAccount = store.FindOtomoPlayer(targetId)!.OtomoPlayerId;
-        _social.SeedExt(targetAccount, """{"decks":{"3":[3010005,3010006,3010007,3010008]},"active_deck":3}""");
+        _social.SeedLoadout(targetAccount, """{"schema_version":1,"decks":{"3":[3010005,3010006,3010007,3010008]},"costume_gears":{},"active_deck":3}""");
 
         var detail = await PostAsync(viewer, "/user/detail", new
         {
@@ -479,7 +479,7 @@ public sealed class SocialRankingEndpointsTests
             Assert.True(battle.GetProperty($"discLevel{slot + 1}").GetInt32() > 0);
         }
 
-        _social.SeedExt(targetAccount, """{"decks":{"3":[3010005,3010006,3010007,3010008]},"active_deck":99}""");
+        _social.SeedLoadout(targetAccount, """{"schema_version":1,"decks":{"3":[3010005,3010006,3010007,3010008]},"costume_gears":{},"active_deck":99}""");
         var missingDeckDetail = await PostAsync(viewer, "/user/detail", new
         {
             searchUserId = PlayerDisplayIdCodec.ToPublic(targetId).ToString()
@@ -492,7 +492,7 @@ public sealed class SocialRankingEndpointsTests
 
         // A deck of fewer than four discs (session's schema allows up to eight, and does not allow a 0 placeholder, which
         // is what this case used to store) is completed from the initial deck slot by slot.
-        _social.SeedExt(targetAccount, """{"decks":{"98":[3010005]},"active_deck":98}""");
+        _social.SeedLoadout(targetAccount, """{"schema_version":1,"decks":{"98":[3010005]},"costume_gears":{},"active_deck":98}""");
         var partialDeckDetail = await PostAsync(viewer, "/user/detail", new
         {
             searchUserId = PlayerDisplayIdCodec.ToPublic(targetId).ToString()

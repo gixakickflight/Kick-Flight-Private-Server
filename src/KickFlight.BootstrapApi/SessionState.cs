@@ -29,8 +29,8 @@ public sealed class SessionState
     // client hardcodes for the tutorial's placeholder player (TutorialUtil.KICKER_COSTUME_ID). A fresh
     // account starts on it, and NormalizeCostume repairs a save that still carries an older numbering.
     public int KickerCostumeId { get; set; } = 2010101;
-    // The decks, the active deck, the gear in each costume's slots and a pending gear roll are not in this document:
-    // they are the ext of the player's session card (DemoSessionApi.Loadout.cs, Otomo/Loadout.cs).
+    // The decks, the active deck and the gear in each costume's slots are not in this document: they are the player's
+    // session Loadout, and a pending gear roll is the ext of the session card (DemoSessionApi.Loadout.cs, Otomo/Loadout.cs).
     // The discs this player owns, as main's model holds them (discId -> level/amount). Our economy owns
     // possession, so nothing on this side reads it any more: it stays in the document because main's store and
     // gacha code load and save it, and a merge must not delete a model member its code still touches.

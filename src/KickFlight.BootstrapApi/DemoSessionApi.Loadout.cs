@@ -4,21 +4,29 @@ using KickFlight.BootstrapApi.Otomo;
 
 namespace KickFlight.BootstrapApi;
 
-// A player's loadout - the decks, the active deck, the gear in each costume's slots and a gear roll waiting to be
-// equipped - is not kept here. It is the `ext` of the player's session card (ext.session.player), read on each request that
-// needs it and written back through session's internal ext route.
+// A player's loadout - the decks, the active deck and the gear in each costume's slots - is session's Loadout (the tenant's
+// session.loadout rules, schema version 1), not this server's and not ext. The gear roll waiting to be equipped is the one
+// part the player does not write: it stays in ext (ext.session.player, pending_gear), written by the server.
 //
-//   reads    GET /api/player/session/me with the player's own token: startup, home, the battle entry / team handlers
-//            and every kicker list that shows gear. Another player's card (a friend's deck, a search result's name) is
-//            GET /internal/session/players/{id}.
-//   writes   POST /internal/session/players/ext, merge = true, keyed so a retry writes once: the client's
-//            x-app-response-cache-id when it sent one (a retry carries the same id, as for a gacha draw), else a fresh key.
-//   failure  session down is the 503 contract (LoadoutUnavailable); a value the published schema refuses (a deck of
-//            nine discs, a repeated disc) is a 400 from session and the game's error contract here. No loadout is ever
-//            invented: the one default - a new player's five starter decks - is written to ext, not just assumed.
+//   reads    GET /api/player/session/loadout with the player's own token, and GET /me for the card (name and the roll): startup,
+//            home, the battle entry / team handlers and every kicker list that shows gear. Another player's deck (a friend card)
+//            is GET /internal/session/players/{id}/loadout with the game-server key.
+//   writes   GET -> modify -> PUT /api/player/session/loadout with If-Match: <revision read>, on the player's own token
+//            (/disc/change, /gear/set). A 409 revision_conflict carries the current document: the edit is applied again to
+//            that and sent again, up to LoadoutSaveAttempts times in all. A 422 invalid_loadout is logged with its problems
+//            and is the game's error contract. The default decks of a player with no loadout are saved once with If-Match: 0;
+//            a 409 there means a concurrent first save won, and the loadout is simply read again.
+//   ext      the roll (/gear/create, /gear/destroy, and cleared by /gear/set) is POST /internal/session/players/ext, merge =
+//            true, keyed so a retry writes once: the client's x-app-response-cache-id when it sent one (a retry carries the
+//            same id, as for a gacha draw), else a fresh key.
+//   failure  session down is the 503 contract (LoadoutUnavailable). No loadout is ever invented: the one default - a new
+//            player's five starter decks - is saved to session, not just assumed.
 public sealed partial class DemoSessionApi
 {
-    // What one read of the caller's card gave: the loadout, and the name session shows for the player.
+    // The most times one edit is tried against a loadout that keeps changing under it: the first attempt and two retries.
+    private const int LoadoutSaveAttempts = 3;
+
+    // What one read of the caller's card and loadout gave: the loadout, and the name session shows for the player.
     private sealed record OwnLoadout(Loadout Loadout, string? DisplayName);
 
     // The caller's loadout from session, as a result a handler can turn into a 503.
@@ -35,8 +43,8 @@ public sealed partial class DemoSessionApi
         }
     }
 
-    // GET /me; a player session has no decks for yet gets the starter decks written once, under a key per player, so two
-    // first reads that race write one value. The loadout returned is what session holds after that write.
+    // GET /me for the card and GET /loadout for the decks; a player session has no loadout for yet gets the starter decks
+    // saved once with If-Match: 0, so two first reads that race save one value. The loadout returned is what session holds.
     private async Task<OwnLoadout> ReadOwnLoadoutAsync(KfIdentityTicket ticket, CancellationToken cancellationToken)
     {
         if (!_profile.Enabled)
@@ -45,27 +53,44 @@ public sealed partial class DemoSessionApi
                 "Otomo:Rank:Enabled is false: this server holds no loadout and cannot say what a player's decks are");
         }
 
-        var me = await _profile.GetOwnProfileAsync(await PlayerTokenAsync(ticket, cancellationToken), cancellationToken);
-        var loadout = Loadout.FromExt(me.Ext);
-        if (!loadout.HasDecks)
-        {
-            var starter = new JsonObject { [Loadout.DecksField] = Loadout.DecksToExt(Loadout.DefaultDecks()) };
-            // A merge replaces a field whole, so an active deck the player already chose is left out of the write.
-            if (me.Ext is not { ValueKind: JsonValueKind.Object } held || !held.TryGetProperty(Loadout.ActiveDeckField, out _))
-                starter[Loadout.ActiveDeckField] = 1;
-            var seeded = await _profile.WriteExtAsync(ticket.OtomoPlayerId, starter,
-                $"loadout-default:{ticket.OtomoPlayerId}", merge: true, cancellationToken);
-            _logger.LogInformation("Wrote the starter decks to the session card of player {OtomoPlayerId}{Replayed}",
-                ticket.OtomoPlayerId, seeded.Applied ? "" : " (already written)");
-            loadout = Loadout.FromExt(seeded.Ext);
-            if (!loadout.HasDecks)
-            {
-                throw new OtomoRankException(OtomoRankFailure.Unavailable,
-                    "session accepted the starter decks but its card still carries none");
-            }
-        }
-        return new OwnLoadout(RepairDecks(loadout, ticket.OtomoPlayerId), me.DisplayName);
+        var token = await PlayerTokenAsync(ticket, cancellationToken);
+        var meRead = _profile.GetOwnProfileAsync(token, cancellationToken);
+        var loadoutRead = _profile.GetOwnLoadoutAsync(token, cancellationToken);
+        await Task.WhenAll(meRead, loadoutRead);
+        var me = await meRead;
+        var roll = Loadout.RollFromExt(me.Ext);
+        var stored = await loadoutRead ?? await SaveStarterLoadoutAsync(ticket, token, roll, cancellationToken);
+        return new OwnLoadout(RepairDecks(Loadout.FromSession(stored, roll), ticket.OtomoPlayerId), me.DisplayName);
     }
+
+    private async Task<SessionLoadout> SaveStarterLoadoutAsync(KfIdentityTicket ticket, string token, GearRoll roll,
+        CancellationToken cancellationToken)
+    {
+        var write = await _profile.PutOwnLoadoutAsync(token, Loadout.Starter(roll).ToDocument(), 0, cancellationToken);
+        if (write.Saved is { } saved)
+        {
+            _logger.LogInformation("Saved the starter loadout of player {OtomoPlayerId}", ticket.OtomoPlayerId);
+            return saved;
+        }
+        if (write.Current is not null)
+        {
+            // Another request saved the first loadout between our read and our save: read what it saved.
+            _logger.LogInformation("The starter loadout of player {OtomoPlayerId} was saved by a concurrent request; reading it",
+                ticket.OtomoPlayerId);
+            return await _profile.GetOwnLoadoutAsync(token, cancellationToken)
+                   ?? throw new OtomoRankException(OtomoRankFailure.Unavailable,
+                       "session reported a concurrent first save, but its loadout reads as absent");
+        }
+        _logger.LogError("session refused the starter loadout of player {OtomoPlayerId}: {Problems}", ticket.OtomoPlayerId,
+            DescribeIssues(write.Issues));
+        throw new OtomoRankException(OtomoRankFailure.Unavailable,
+            "session refused the starter loadout; the adapter and the tenant's session.loadout schema disagree");
+    }
+
+    private static string DescribeIssues(IReadOnlyList<SessionLoadoutIssue>? issues) =>
+        issues is null || issues.Count == 0
+            ? "(no problems listed)"
+            : string.Join("; ", issues.Select(issue => $"{(issue.Pointer.Length == 0 ? "(document)" : issue.Pointer)} {issue.Message}"));
 
     // A deck slot pointing at a disc that no longer exists in the disc master makes the client throw in
     // PlayerDeckParameter..ctor and the battle never load, so such a slot reads as a valid disc instead. In memory only:
@@ -98,18 +123,12 @@ public sealed partial class DemoSessionApi
     private static string EntryName(SessionState state, OwnLoadout own) =>
         state.HasName && !string.IsNullOrWhiteSpace(own.DisplayName) ? own.DisplayName! : state.UserName;
 
-    // The key a loadout write is made under. A client retry of one request carries the same x-app-response-cache-id, so
-    // the retry names the same write; without one the key is fresh and only content-idempotent.
-    private string LoadoutKey(HttpContext context, string operation)
-    {
-        var cacheId = ProgressKeyPart(context.Request.Headers["x-app-response-cache-id"].ToString());
-        return cacheId.Length > 0 ? $"loadout:{operation}:{cacheId}" : $"loadout:{operation}:{Guid.NewGuid():N}";
-    }
-
-    // A merge write of some ext fields. Refused (a 4xx from session) is returned as the game's error status; an outage
-    // or a disabled plane is the 503 contract. `written` is the ext as session holds it afterwards.
-    private async Task<(SessionExtWrite? Written, IResult? Failure)> TryWriteLoadoutAsync(HttpContext context,
-        KfIdentityTicket ticket, byte[] key, string path, string operation, JsonObject ext)
+    // Edits the caller's loadout and saves it: GET -> modify -> PUT with If-Match, on the player's own token. `own` is the read
+    // the handler already made. If the loadout changed meanwhile (409 revision_conflict), the edit is applied again to the
+    // document session returned and sent again, LoadoutSaveAttempts times in all; a loadout that never settles is the 503
+    // contract. A 422 is logged with its problems and is the game's error contract; nothing was stored.
+    private async Task<(Loadout? Saved, IResult? Failure)> TryEditLoadoutAsync(HttpContext context,
+        KfIdentityTicket ticket, byte[] key, string path, OwnLoadout own, Action<Loadout> edit)
     {
         try
         {
@@ -118,13 +137,68 @@ public sealed partial class DemoSessionApi
                 throw new OtomoRankException(OtomoRankFailure.Disabled,
                     "Otomo:Rank:Enabled is false: this server cannot store a loadout");
             }
-            var written = await _profile.WriteExtAsync(ticket.OtomoPlayerId, ext, LoadoutKey(context, operation),
+            var token = await PlayerTokenAsync(ticket, context.RequestAborted);
+            var current = own.Loadout;
+            for (var attempt = 1; attempt <= LoadoutSaveAttempts; attempt++)
+            {
+                var edited = current.Copy();
+                edit(edited);
+                var write = await _profile.PutOwnLoadoutAsync(token, edited.ToDocument(), current.Revision,
+                    context.RequestAborted);
+                if (write.Saved is { } saved) return (Loadout.FromSession(saved, current.Roll), null);
+                if (write.Issues is not null)
+                {
+                    _logger.LogWarning("{Path}: session refused the loadout of player {OtomoPlayerId}: {Problems}", path,
+                        ticket.OtomoPlayerId, DescribeIssues(write.Issues));
+                    return (null, StatusError(context, key));
+                }
+                _logger.LogInformation("{Path}: the loadout of player {OtomoPlayerId} moved on from revision {Revision} (attempt {Attempt} of {Attempts})",
+                    path, ticket.OtomoPlayerId, current.Revision, attempt, LoadoutSaveAttempts);
+                current = RepairDecks(Loadout.FromSession(write.Current!, current.Roll), ticket.OtomoPlayerId);
+            }
+            throw new OtomoRankException(OtomoRankFailure.Unavailable,
+                $"the loadout kept changing: {LoadoutSaveAttempts} saves in a row were refused as stale");
+        }
+        catch (OtomoRankException exception) when (exception.Failure == OtomoRankFailure.Refused)
+        {
+            _logger.LogWarning("{Path}: session refused the loadout save for player {OtomoPlayerId}: {Status} {Code} ({Detail})",
+                path, ticket.OtomoPlayerId, exception.StatusCode, exception.Code, exception.Message);
+            return (null, StatusError(context, key));
+        }
+        catch (Exception exception) when (exception is OtomoRankException or OtomoIdentityException)
+        {
+            return (null, LoadoutUnavailable(context, path, exception));
+        }
+    }
+
+    // The key a gear-roll write is made under. A client retry of one request carries the same x-app-response-cache-id, so
+    // the retry names the same write; without one the key is fresh and only content-idempotent.
+    private string LoadoutKey(HttpContext context, string operation)
+    {
+        var cacheId = ProgressKeyPart(context.Request.Headers["x-app-response-cache-id"].ToString());
+        return cacheId.Length > 0 ? $"loadout:{operation}:{cacheId}" : $"loadout:{operation}:{Guid.NewGuid():N}";
+    }
+
+    // A merge write of the gear roll to ext. Refused (a 4xx from session) is returned as the game's error status; an outage
+    // or a disabled plane is the 503 contract. `written` is the ext as session holds it afterwards.
+    private async Task<(SessionExtWrite? Written, IResult? Failure)> TryWriteGearRollAsync(HttpContext context,
+        KfIdentityTicket ticket, byte[] key, string path, string operation, GearRoll roll)
+    {
+        try
+        {
+            if (!_profile.Enabled)
+            {
+                throw new OtomoRankException(OtomoRankFailure.Disabled,
+                    "Otomo:Rank:Enabled is false: this server cannot store a gear roll");
+            }
+            var written = await _profile.WriteExtAsync(ticket.OtomoPlayerId,
+                new JsonObject { [Loadout.GearRollField] = Loadout.RollToExt(roll) }, LoadoutKey(context, operation),
                 merge: true, context.RequestAborted);
             return (written, null);
         }
         catch (OtomoRankException exception) when (exception.Failure == OtomoRankFailure.Refused)
         {
-            _logger.LogWarning("{Path}: session refused the loadout write for player {OtomoPlayerId}: {Status} {Code} ({Detail})",
+            _logger.LogWarning("{Path}: session refused the gear roll write for player {OtomoPlayerId}: {Status} {Code} ({Detail})",
                 path, ticket.OtomoPlayerId, exception.StatusCode, exception.Code, exception.Message);
             return (null, StatusError(context, key));
         }
@@ -152,8 +226,8 @@ public sealed partial class DemoSessionApi
             statusCode: StatusCodes.Status503ServiceUnavailable);
     }
 
-    // Another player's card, on the internal plane: their name and their ext (so their decks). Null with an error when
-    // session cannot answer, which the caller turns into the 503; a player session has no card for is Refused 404.
+    // Another player's card, on the internal plane: their name. Null with an error when session cannot answer, which the
+    // caller turns into the 503; a player session has no card for is Refused 404.
     private async Task<(SessionPlayerProfile? Card, Exception? Error)> TryReadCardAsync(string otomoPlayerId,
         CancellationToken cancellationToken)
     {
@@ -165,6 +239,27 @@ public sealed partial class DemoSessionApi
                     "Otomo:Rank:Enabled is false: this server cannot read another player's card"));
             }
             return (await _profile.GetPlayerProfileAsync(otomoPlayerId, cancellationToken), null);
+        }
+        catch (OtomoRankException exception)
+        {
+            return (null, exception);
+        }
+    }
+
+    // Another player's loadout, on the internal plane: their decks. A player who has saved none has no decks (Loadout.Empty),
+    // which every reader completes from the initial deck; a stranger is Refused 404 player_not_found.
+    private async Task<(Loadout? Loadout, Exception? Error)> TryReadPlayerLoadoutAsync(string otomoPlayerId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!_profile.Enabled)
+            {
+                return (null, new OtomoRankException(OtomoRankFailure.Disabled,
+                    "Otomo:Rank:Enabled is false: this server cannot read another player's loadout"));
+            }
+            var stored = await _profile.GetPlayerLoadoutAsync(otomoPlayerId, cancellationToken);
+            return (stored is null ? Loadout.Empty : Loadout.FromSession(stored, GearRoll.None), null);
         }
         catch (OtomoRankException exception)
         {
