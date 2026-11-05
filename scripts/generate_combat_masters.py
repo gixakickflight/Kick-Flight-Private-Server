@@ -707,7 +707,8 @@ def summon_table(skills: list) -> list:
                          "positionX": 0.0, "positionY": 0.0, "positionZ": 1.5, "seId": 0,
                          "gachaPositionX": 0.0, "gachaPositionY": 0.0, "gachaPositionZ": 0.0,
                          "gachaRotationX": 0.0, "gachaRotationY": 0.0, "gachaRotationZ": 0.0,
-                         "discDetailPositionX": 0.0, "discDetailPositionY": 0.0, "discDetailPositionZ": 0.0,
+                         # disc-detail camera ortho size = PositionZ*0.8; zeros render nothing
+                         "discDetailPositionX": 0.0, "discDetailPositionY": -0.9, "discDetailPositionZ": 2.6,
                          "discDetailRotationX": 0.0, "discDetailRotationY": 0.0, "discDetailRotationZ": 0.0,
                          "middleModelFlag": 0 not in variants.get(n, {0})})
     return rows
