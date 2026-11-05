@@ -111,7 +111,7 @@ La guía [`deploy/VPS.md`](deploy/VPS.md) cubre la VM, reglas de red, la base ex
 
 ### CI/CD
 
-El workflow [`deploy-vps-main.yml`](.github/workflows/deploy-vps-main.yml) despliega únicamente en `push` a `main`. Omite eventos atrasados si el commit ya no es la punta de `main` y serializa los despliegues. Se activa cuando el workflow y sus cambios llegan a `main`; no se ejecuta en pull requests. Tiene además un `workflow_dispatch` con una entrada booleana (`activate_ios_r52_profile`) para el perfil iOS R52. El flujo de trabajo normal es: rama, pull request revisado y merge a `main`, que dispara el despliegue; no se despliega a producción a mano.
+El workflow [`deploy-vps-main.yml`](.github/workflows/deploy-vps-main.yml) despliega únicamente en `push` a `main`. Omite eventos atrasados si el commit ya no es la punta de `main` y serializa los despliegues. Se activa cuando el workflow y sus cambios llegan a `main`; no se ejecuta en pull requests. Tiene además un `workflow_dispatch` con una entrada booleana (`activate_ios_profile`; `activate_ios_r52_profile` queda como alias obsoleto) para activar el perfil iOS fijado en `config/ios-profile-release.json`. El flujo de trabajo normal es: rama, pull request revisado y merge a `main`, que dispara el despliegue; no se despliega a producción a mano.
 
 El despliegue selecciona los servicios según los archivos cambiados: API, Photon, CDN, balance, insignias y Caddy se reconstruyen cuando corresponde; cambios en `deploy/site/` sincronizan la landing; cambios de `config/`, `content/` o generadores marcados fuerzan la reconstrucción de la pila y del árbol CDN. Cambios de Compose, GeoIP o gRPC fuerzan la pila completa. El workflow hace checkout recursivo de submódulos y compila las imágenes en la VM.
 
@@ -153,5 +153,5 @@ Los archivos de trabajo como `.env`, la APK base, el keystore, los bundles grand
 - Despliegue y datos: [`deploy/VPS.md`](deploy/VPS.md), [`deploy/README.md`](deploy/README.md), [`docs/DB_VPS_MIGRATION.md`](docs/DB_VPS_MIGRATION.md), [`docs/OPS_TELEMETRY.md`](docs/OPS_TELEMETRY.md), [`docs/REPLAYS.md`](docs/REPLAYS.md).
 - Photon y partidas: [`docs/PHOTON_SERVER.md`](docs/PHOTON_SERVER.md), [`docs/BOT_MATCHMAKING.md`](docs/BOT_MATCHMAKING.md), [`docs/CUSTOM_BATTLE_PROTOCOL.md`](docs/CUSTOM_BATTLE_PROTOCOL.md).
 - Balance y combate: [`tools/balance/README.md`](tools/balance/README.md), [`docs/COMBAT_MASTERS_FILL_IN.md`](docs/COMBAT_MASTERS_FILL_IN.md), [`docs/DISC_BALANCE_FIX.md`](docs/DISC_BALANCE_FIX.md).
-- iOS: [`docs/IOS_RESOURCE_CATALOG.md`](docs/IOS_RESOURCE_CATALOG.md), [`docs/IOS_R52_PROFILE_RELEASE.md`](docs/IOS_R52_PROFILE_RELEASE.md).
+- iOS: [`docs/IOS_RESOURCE_CATALOG.md`](docs/IOS_RESOURCE_CATALOG.md), [`docs/IOS_PROFILE_RELEASE.md`](docs/IOS_PROFILE_RELEASE.md).
 - Ingeniería inversa: [`scripts/re/README.md`](scripts/re/README.md), [`docs/re-notes/`](docs/re-notes/), [`AGENTS.md`](AGENTS.md).

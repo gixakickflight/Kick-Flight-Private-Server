@@ -16,7 +16,7 @@ no existing table or column touched, no SQL backfill).
 ## Pipeline findings (inspected, nothing modified)
 
 - `.github/workflows/deploy-vps-main.yml`: push to `main` runs `scripts/deploy-vps-ci.sh` over SSH; concurrency group
-  `kick-flight-vps-main`, plus `flock` on the host. `src/` changes set only the `api` component (the R52 API-only allowlist does
+  `kick-flight-vps-main`, plus `flock` on the host. `src/` changes set only the `api` component (the iOS profile API-only allowlist does
   not include `PlayerStore/*`, so this takes the standard API path).
 - `deploy/docker-compose.vps.yml`: exactly ONE `api` container (no replicas). The script builds, then `docker compose up -d --no-deps api`,
   which recreates the container (old stopped, new started). So the "stop all old instances, then start the new binary" order

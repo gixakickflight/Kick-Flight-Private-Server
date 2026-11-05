@@ -14,12 +14,19 @@ public sealed class HarnessOptions
     public string IosResourceManifestPath { get; set; } = Path.Combine(AppContext.BaseDirectory, "catalog-ios-12346.json");
     public string IosBootFixturePath { get; set; } = Path.Combine(AppContext.BaseDirectory, "boot-index-ios-platform-2.json");
     /// <summary>
-    /// Explicitly opts into the offline, test-only R52 iOS profile. The profile is incomplete and has unverified
-    /// reconstructed wire rows; keep this disabled unless an operator explicitly activates it.
+    /// Explicitly opts into the offline, test-only iOS profile (see config/ios-profile-release.json). The profile is
+    /// incomplete and has unverified reconstructed wire rows; keep this disabled unless an operator explicitly activates it.
     /// </summary>
-    public bool EnableIosR52TestProfile { get; set; }
-    /// <summary>Read-only staging root containing the R52 catalog, fixtures, and payload-r7 directory.</summary>
-    public string IosR52TestProfilePath { get; set; } = ".local/ios-resources/12346-r52/profile";
+    public bool EnableIosTestProfile { get; set; }
+    /// <summary>Wire asset version of the staged iOS test profile. Supplied by deployment (0 = not configured).</summary>
+    public int IosTestProfileAssetVersion { get; set; }
+    /// <summary>Current revision of the staged iOS test profile. Supplied by deployment (0 = not configured).</summary>
+    public int IosTestProfileRevision { get; set; }
+    /// <summary>
+    /// Read-only staging root containing the profile catalog, fixtures, and payload-r7 directory. When empty it is
+    /// derived as .local/ios-resources/&lt;assetVersion&gt;-r&lt;revision&gt;/profile.
+    /// </summary>
+    public string IosTestProfilePath { get; set; } = "";
     public string CaptureDirectory { get; set; } = "captures";
     public bool PersistCaptures { get; set; }
     public int MaxCapturedBodyBytes { get; set; } = 65_536;
