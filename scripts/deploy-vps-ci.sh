@@ -786,9 +786,10 @@ import sys
 
 script = pathlib.Path(sys.argv[1])
 spec = importlib.util.spec_from_file_location("stage_ios_profile", script)
-stager = importlib.util.module_from_spec(spec)
 if spec is None or spec.loader is None:
     raise SystemExit("iOS profile protobuf validator is unavailable")
+stager = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = stager
 spec.loader.exec_module(stager)
 stager._validate_database(stager.ProfileSpec(int(sys.argv[3]), int(sys.argv[4])),
                           pathlib.Path(sys.argv[2]).read_bytes(), int(sys.argv[4]))
