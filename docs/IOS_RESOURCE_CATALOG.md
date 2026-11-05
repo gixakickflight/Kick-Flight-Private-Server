@@ -62,3 +62,7 @@ sources and iOS donor payloads, then run `scripts/build-ios-ui-resource-snapshot
 and Android audits, Android resource catalog, conversion report, and output paths. That builder preserves the original
 rows, appends only the 1,383 round-trip-validated UI bundles, and copies the 152 allowlisted raw resources unchanged.
 The report and source/donor audit artifacts are local inputs and are not shipped in the snapshot archive.
+
+## Test profile (revisioned review package)
+
+The revisioned iOS test profile (currently `assetVersion=12346`, revision 52) is pinned in `config/ios-profile-release.json` and is generic: staging, the wire-floor latch, API routing and health derive from the pin. See [IOS_PROFILE_RELEASE.md](IOS_PROFILE_RELEASE.md) for the activation flow and the steps to publish the next profile (for example revision 53).

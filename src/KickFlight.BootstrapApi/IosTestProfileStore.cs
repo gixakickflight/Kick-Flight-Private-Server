@@ -5,26 +5,20 @@ using Microsoft.Extensions.Options;
 
 namespace KickFlight.BootstrapApi;
 
-public sealed record IosR52ListDatabase(
+public sealed record IosProfileListDatabase(
     string Id,
     byte[] Body,
     IReadOnlyDictionary<string, string> Headers);
 
 /// <summary>
-/// Loads the offline, explicitly test-only R52 profile from an isolated read-only staging directory.
+/// Loads the offline, explicitly test-only iOS profile (asset version and revision come from <see cref="HarnessOptions"/>) from an isolated read-only staging directory.
 /// The normal native iOS catalog remains handled by <see cref="ResourceCatalogStore"/>.
 /// </summary>
-public sealed class IosR52TestProfileStore
+public sealed class IosTestProfileStore
 {
-    public const int Revision = 52;
-    public const int PreviousRevision = 51;
-    public const int AssetVersion = 12346;
-    public const int ExpectedResourceRoutes = 3389;
-    public const int ExpectedUpdateRows = 3719;
     public const string CanonicalHost = "kick-flight-fenix.us.ci";
     public const string CdnPrefix = "/ios/cdn/";
     public const string CdnUrlFormat = "https://kick-flight-fenix.us.ci/ios/cdn/{o}";
-    private const string ReportSchema = "r56.bootstrapapi.offline-profile.r52-direct-review.v1";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -37,16 +31,16 @@ public sealed class IosR52TestProfileStore
     private readonly HarnessOptions _options;
     private readonly IWebHostEnvironment _environment;
     private readonly ResourceCatalogStore _resourceCatalogStore;
-    private readonly ILogger<IosR52TestProfileStore> _logger;
+    private readonly ILogger<IosTestProfileStore> _logger;
     private readonly object _gate = new();
-    private IosR52ProfileState? _state;
+    private IosProfileState? _state;
     private string? _fingerprint;
 
-    public IosR52TestProfileStore(
+    public IosTestProfileStore(
         IOptions<HarnessOptions> options,
         IWebHostEnvironment environment,
         ResourceCatalogStore resourceCatalogStore,
-        ILogger<IosR52TestProfileStore> logger)
+        ILogger<IosTestProfileStore> logger)
     {
         _options = options.Value;
         _environment = environment;
@@ -54,7 +48,20 @@ public sealed class IosR52TestProfileStore
         _logger = logger;
     }
 
-    public bool Enabled => _options.EnableIosR52TestProfile;
+    public bool Enabled => _options.EnableIosTestProfile;
+
+    /// <summary>Wire asset version of the profile, from <see cref="HarnessOptions.IosTestProfileAssetVersion"/>.</summary>
+    public int AssetVersion => _options.IosTestProfileAssetVersion;
+
+    /// <summary>Current (latest) revision of the profile, from <see cref="HarnessOptions.IosTestProfileRevision"/>.</summary>
+    public int Revision => _options.IosTestProfileRevision;
+
+    public int PreviousRevision => Revision - 1;
+
+    /// <summary>Health-endpoint profile name, e.g. "r52-test".</summary>
+    public string ProfileName => $"r{Revision}-test";
+
+    private string ReportSchema => $"r56.bootstrapapi.offline-profile.r{Revision}-direct-review.v1";
 
     public bool IsReady
     {
@@ -63,7 +70,7 @@ public sealed class IosR52TestProfileStore
             if (!Enabled) return false;
             var snapshot = GetState();
             return snapshot.Catalog.Present && snapshot.Catalog.Errors.Count == 0 &&
-                   snapshot.Catalog.Resources.Count == ExpectedResourceRoutes &&
+                   snapshot.ResourceRoutes > 0 && snapshot.Catalog.Resources.Count == snapshot.ResourceRoutes &&
                    snapshot.ListDatabases.Count == Revision + 1;
         }
     }
@@ -72,9 +79,9 @@ public sealed class IosR52TestProfileStore
         ? GetState().Catalog
         : new ResourceCatalogSnapshot([], [], Present: false);
 
-    public IosR52ListDatabase? GetListDatabase(int fromRevision)
+    public IosProfileListDatabase? GetListDatabase(int fromRevision)
     {
-        if (!Enabled || fromRevision is < 0 or > Revision) return null;
+        if (!Enabled || fromRevision < 0 || fromRevision > Revision) return null;
         return GetState().ListDatabases.GetValueOrDefault(fromRevision);
     }
 
@@ -89,7 +96,7 @@ public sealed class IosR52TestProfileStore
         return matches.Length == 1 ? matches[0] : null;
     }
 
-    private IosR52ProfileState GetState()
+    private IosProfileState GetState()
     {
         var root = GetProfileRoot();
         var fingerprint = Fingerprint(root);
@@ -100,7 +107,7 @@ public sealed class IosR52TestProfileStore
             if (_state is not null && fingerprint == _fingerprint) return _state;
             _state = Load(root);
             _fingerprint = fingerprint;
-            _logger.LogInformation("Loaded optional R52 iOS test profile: ready={Ready}, resources={ResourceCount}, errors={ErrorCount}",
+            _logger.LogInformation("Loaded optional iOS test profile: ready={Ready}, resources={ResourceCount}, errors={ErrorCount}",
                 _state.Catalog.Present && _state.Catalog.Errors.Count == 0 && _state.ListDatabases.Count == Revision + 1,
                 _state.Catalog.Resources.Count,
                 _state.Catalog.Errors.Count);
@@ -109,12 +116,18 @@ public sealed class IosR52TestProfileStore
     }
 
     private string GetProfileRoot() => Path.GetFullPath(
-        RepositoryPaths.Resolve(_options.IosR52TestProfilePath, _environment.ContentRootPath));
+        RepositoryPaths.Resolve(
+            string.IsNullOrWhiteSpace(_options.IosTestProfilePath)
+                ? $".local/ios-resources/{AssetVersion}-r{Revision}/profile"
+                : _options.IosTestProfilePath,
+            _environment.ContentRootPath));
 
-    private IosR52ProfileState Load(string root)
+    private IosProfileState Load(string root)
     {
+        if (AssetVersion <= 0 || Revision <= 0)
+            return Failed(present: false, "iOS test profile identity is not configured.");
         if (!Directory.Exists(root))
-            return Failed(present: false, "R52 test profile directory is missing.");
+            return Failed(present: false, "iOS test profile directory is missing.");
         try
         {
             var reportPath = ResolveProfileFile(root, "profile-report.json");
@@ -129,17 +142,17 @@ public sealed class IosR52TestProfileStore
             ValidateTitleMinimum(titlePath);
 
             var document = ReadJson<ResourceCatalogDocument>(catalogPath, "resource catalog");
-            if (document.SchemaVersion != 1 || document.Resources.Count != ExpectedResourceRoutes)
-                throw new InvalidDataException("R52 catalog schema or route count is invalid.");
+            if (document.SchemaVersion != 1 || document.Resources.Count != report.ResourceRoutes)
+                throw new InvalidDataException("iOS test profile catalog schema or route count is invalid.");
 
-            var resources = LoadResources(root, document.Resources, report.PayloadBytes);
+            var resources = LoadResources(root, document.Resources, report.ResourceRoutes, report.PayloadBytes);
             var lists = LoadListDatabases(fixtureDirectory, report);
             var snapshot = new ResourceCatalogSnapshot(resources, [], Platform: 9, AssetVersion, Revision, Present: true);
-            return new IosR52ProfileState(snapshot, lists);
+            return new IosProfileState(snapshot, lists, report.ResourceRoutes);
         }
         catch (Exception exception)
         {
-            var error = $"R52 test profile validation failed ({exception.GetType().Name}).";
+            var error = $"iOS test profile validation failed ({exception.GetType().Name}).";
             return Failed(present: true, error);
         }
     }
@@ -147,6 +160,7 @@ public sealed class IosR52TestProfileStore
     private List<ResolvedResource> LoadResources(
         string root,
         IReadOnlyList<ResourceDefinition> definitions,
+        int expectedRoutes,
         long expectedPayloadBytes)
     {
         var errors = new List<string>();
@@ -165,7 +179,7 @@ public sealed class IosR52TestProfileStore
                     !IsSafeCdnPath(definition.RequestPath) ||
                     !definition.SourcePath.StartsWith("payload-r7/", StringComparison.Ordinal) ||
                     !ids.Add(definition.Id) || !routes.Add(definition.RequestPath) || !sourcePaths.Add(definition.SourcePath))
-                    throw new InvalidDataException("R52 catalog row is not unique and constrained to the iOS CDN profile.");
+                    throw new InvalidDataException("iOS test profile catalog row is not unique and constrained to the iOS CDN profile.");
 
                 var resource = _resourceCatalogStore.ResolveProfileResource(definition, root);
                 payloadBytes = checked(payloadBytes + new FileInfo(resource.SourceFile).Length);
@@ -173,18 +187,18 @@ public sealed class IosR52TestProfileStore
             }
             catch (Exception exception)
             {
-                errors.Add($"R52 resource validation failed ({exception.GetType().Name}).");
+                errors.Add($"iOS test profile resource validation failed ({exception.GetType().Name}).");
             }
         }
 
-        if (resources.Count != ExpectedResourceRoutes || payloadBytes != expectedPayloadBytes)
-            errors.Add("R52 payload count or total size does not match the profile report.");
+        if (resources.Count != expectedRoutes || payloadBytes != expectedPayloadBytes)
+            errors.Add("iOS test profile payload count or total size does not match the profile report.");
         if (errors.Count != 0)
-            throw new InvalidDataException("R52 resource catalog validation failed.");
+            throw new InvalidDataException("iOS test profile resource catalog validation failed.");
         return resources;
     }
 
-    private static Dictionary<int, IosR52ListDatabase> LoadListDatabases(string directory, OfflineProfileReport report)
+    private Dictionary<int, IosProfileListDatabase> LoadListDatabases(string directory, OfflineProfileReport report)
     {
         var files = Directory.GetFiles(directory, "*.json", SearchOption.TopDirectoryOnly)
             .Select(Path.GetFileName)
@@ -196,9 +210,9 @@ public sealed class IosR52TestProfileStore
             .Append($"resource-list-{AssetVersion}.json")
             .ToHashSet(StringComparer.Ordinal);
         if (!files.SetEquals(expectedNames) || report.FixtureSha256 is null || !report.FixtureSha256.Keys.ToHashSet(StringComparer.Ordinal).SetEquals(expectedNames))
-            throw new InvalidDataException("R52 fixture set is incomplete or contains unexpected files.");
+            throw new InvalidDataException("iOS test profile fixture set is incomplete or contains unexpected files.");
 
-        var result = new Dictionary<int, IosR52ListDatabase>(Revision + 1);
+        var result = new Dictionary<int, IosProfileListDatabase>(Revision + 1);
         for (var from = 0; from <= Revision; from++)
         {
             var fileName = from == Revision
@@ -206,29 +220,29 @@ public sealed class IosR52TestProfileStore
                 : $"resource-list-{AssetVersion}-from-{from}.json";
             var path = ResolveProfileFile(directory, fileName);
             ValidateFileHash(path, report.FixtureSha256[fileName], fileName);
-            var fixture = ReadJson<FixtureDefinition>(path, "R52 list fixture");
+            var fixture = ReadJson<FixtureDefinition>(path, "iOS test profile list fixture");
             var expectedPath = $"/v1/list/{AssetVersion}/{from}";
             if (!fixture.Enabled || !string.Equals(fixture.Host, CanonicalHost, StringComparison.OrdinalIgnoreCase) ||
                 !string.Equals(fixture.Method, "GET", StringComparison.OrdinalIgnoreCase) ||
                 !string.Equals(fixture.Path, expectedPath, StringComparison.Ordinal) ||
                 fixture.StatusCode != 200 || !string.Equals(fixture.ContentType, "application/x-protobuf", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidDataException("R52 list fixture route or response metadata is invalid.");
+                throw new InvalidDataException("iOS test profile list fixture route or response metadata is invalid.");
 
             var body = fixture.GetBodyBytes();
             var expectedRows = from == Revision ? 0 : report.ServedRows;
             ValidateOctoDatabase(body, expectedRows, report.UrlFormatInFixtures);
-            result.Add(from, new IosR52ListDatabase(fixture.Id, body, fixture.Headers));
+            result.Add(from, new IosProfileListDatabase(fixture.Id, body, fixture.Headers));
         }
         return result;
     }
 
-    private static void ValidateReport(OfflineProfileReport report)
+    private void ValidateReport(OfflineProfileReport report)
     {
         if (!string.Equals(report.Schema, ReportSchema, StringComparison.Ordinal) ||
             report.AssetVersion != AssetVersion || report.Revision != Revision || report.PreviousRevision != PreviousRevision ||
             report.CurrentFixtureRevision != Revision || report.FixtureCount != Revision + 1 ||
-            report.ResourceRoutes != ExpectedResourceRoutes || report.ServedRows != ExpectedUpdateRows ||
-            report.PayloadCount != ExpectedResourceRoutes || report.UnverifiedReconstructedRowIds != 1156 ||
+            report.ResourceRoutes <= 0 || report.ServedRows <= 0 ||
+            report.PayloadCount != report.ResourceRoutes || report.UnverifiedReconstructedRowIds < 0 ||
             !string.Equals(report.CanonicalHost, CanonicalHost, StringComparison.Ordinal) ||
             !string.Equals(report.CdnRequestPrefix, CdnPrefix, StringComparison.Ordinal) ||
             !string.Equals(report.UrlFormatInFixtures, CdnUrlFormat, StringComparison.Ordinal) ||
@@ -236,22 +250,22 @@ public sealed class IosR52TestProfileStore
             !report.UpstreamMustRemainDisabled || !report.NoVpsWrite || !report.NoNetworkRequests || !report.NoServerStarted ||
             report.OriginalshaderPresent != true || report.MobileDiffuseShaderPresent != false ||
             report.ParticleStandardUnlitShaderPresent != false || report.DownloadsShaderCandidatesAdded != false)
-            throw new InvalidDataException("R52 profile report is not the expected test-only, incomplete profile.");
+            throw new InvalidDataException("iOS test profile profile report is not the expected test-only, incomplete profile.");
 
         var expectedRevisions = Enumerable.Range(0, Revision).ToArray();
         if (report.FromRevisions is null || !report.FromRevisions.SequenceEqual(expectedRevisions) ||
             report.FullUpdateFixtureRevisions is null || !report.FullUpdateFixtureRevisions.SequenceEqual(expectedRevisions))
-            throw new InvalidDataException("R52 profile revision window is invalid.");
+            throw new InvalidDataException("iOS test profile profile revision window is invalid.");
         RequireSha256(report.PackageCatalogSha256, "package catalog");
         RequireSha256(report.TitleMinimumSha256, "title minimum");
         RequireSha256(report.FixtureSetSha256, "fixture set");
         RequireSha256(report.PayloadSetSha256, "payload set");
         if (report.FixtureSha256 is null || report.FixtureSha256.Count != Revision + 1 ||
             report.FixtureSha256.Values.Any(value => !IsSha256(value)))
-            throw new InvalidDataException("R52 fixture hash manifest is invalid.");
+            throw new InvalidDataException("iOS test profile fixture hash manifest is invalid.");
     }
 
-    private static void ValidateTitleMinimum(string path)
+    private void ValidateTitleMinimum(string path)
     {
         using var document = JsonDocument.Parse(File.ReadAllBytes(path));
         var root = document.RootElement;
@@ -259,13 +273,13 @@ public sealed class IosR52TestProfileStore
             root.GetProperty("revision").GetInt32() != Revision ||
             root.GetProperty("previousRevision").GetInt32() != PreviousRevision ||
             !string.Equals(root.GetProperty("urlPathFormat").GetString(), CdnPrefix + "{o}", StringComparison.Ordinal))
-            throw new InvalidDataException("R52 title minimum identity or CDN prefix is invalid.");
+            throw new InvalidDataException("iOS test profile title minimum identity or CDN prefix is invalid.");
         var revisions = root.GetProperty("fromRevisions").EnumerateArray().Select(item => item.GetInt32()).ToArray();
         if (!revisions.SequenceEqual(Enumerable.Range(0, Revision)))
-            throw new InvalidDataException("R52 title minimum revision window is invalid.");
+            throw new InvalidDataException("iOS test profile title minimum revision window is invalid.");
     }
 
-    private static void ValidateOctoDatabase(byte[] body, int expectedRows, string? expectedUrlFormat)
+    private void ValidateOctoDatabase(byte[] body, int expectedRows, string? expectedUrlFormat)
     {
         ulong? version = null;
         string? urlFormat = null;
@@ -308,13 +322,13 @@ public sealed class IosR52TestProfileStore
                     index += 4;
                     break;
                 default:
-                    throw new InvalidDataException("R52 list fixture has an unsupported protobuf wire type.");
+                    throw new InvalidDataException("iOS test profile list fixture has an unsupported protobuf wire type.");
             }
         }
 
-        if (fieldOneCount != 1 || version != Revision || fieldFiveCount != 1 ||
+        if (fieldOneCount != 1 || version != (ulong)Revision || fieldFiveCount != 1 ||
             !string.Equals(urlFormat, expectedUrlFormat, StringComparison.Ordinal) || rows != expectedRows)
-            throw new InvalidDataException("R52 list fixture wire version, route, or row count is invalid.");
+            throw new InvalidDataException("iOS test profile list fixture wire version, route, or row count is invalid.");
     }
 
     private static ulong ReadVarint(byte[] data, ref int index)
@@ -328,13 +342,13 @@ public sealed class IosR52TestProfileStore
             if ((next & 0x80) == 0) return value;
             shift += 7;
         }
-        throw new InvalidDataException("R52 list fixture contains an invalid protobuf varint.");
+        throw new InvalidDataException("iOS test profile list fixture contains an invalid protobuf varint.");
     }
 
     private static void EnsureAvailable(byte[] data, int index, int length)
     {
         if (length < 0 || index < 0 || index > data.Length - length)
-            throw new InvalidDataException("R52 list fixture contains a truncated protobuf field.");
+            throw new InvalidDataException("iOS test profile list fixture contains a truncated protobuf field.");
     }
 
     private static bool IsSafeCdnPath(string path)
@@ -351,17 +365,17 @@ public sealed class IosR52TestProfileStore
         using var stream = File.OpenRead(path);
         var actual = Convert.ToHexString(SHA256.HashData(stream));
         if (!string.Equals(actual, expectedHash, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException($"R52 {name} hash does not match its profile report.");
+            throw new InvalidDataException($"iOS test profile {name} hash does not match its profile report.");
     }
 
     private static T ReadJson<T>(string path, string name) =>
         JsonSerializer.Deserialize<T>(File.ReadAllText(path), JsonOptions)
-        ?? throw new InvalidDataException($"R52 {name} is empty.");
+        ?? throw new InvalidDataException($"iOS test profile {name} is empty.");
 
     private static string ResolveProfileFile(string root, string fileName)
     {
         if (fileName.Contains('/') || fileName.Contains('\\') || fileName is "." or "..")
-            throw new InvalidDataException("Invalid R52 profile file name.");
+            throw new InvalidDataException("Invalid iOS test profile file name.");
         return ResolveProfilePath(root, fileName, expectDirectory: false);
     }
 
@@ -371,19 +385,19 @@ public sealed class IosR52TestProfileStore
     private static string ResolveProfilePath(string root, string relativePath, bool expectDirectory = false)
     {
         if (Path.IsPathRooted(relativePath) || relativePath.Contains('\\'))
-            throw new InvalidDataException("R52 profile path must be relative.");
+            throw new InvalidDataException("iOS test profile profile path must be relative.");
         var fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
         if (!Directory.Exists(fullRoot) || (File.GetAttributes(fullRoot) & FileAttributes.ReparsePoint) != 0)
-            throw new InvalidDataException("R52 profile root is missing or is a symbolic link.");
+            throw new InvalidDataException("iOS test profile profile root is missing or is a symbolic link.");
         var fullPath = Path.GetFullPath(Path.Combine(fullRoot, relativePath));
         var relative = Path.GetRelativePath(fullRoot, fullPath);
         if (Path.IsPathRooted(relative) || relative == ".." ||
             relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal))
-            throw new InvalidDataException("R52 profile path escapes its root.");
+            throw new InvalidDataException("iOS test profile profile path escapes its root.");
         if (!(expectDirectory ? Directory.Exists(fullPath) : File.Exists(fullPath)))
-            throw new FileNotFoundException("R52 profile file is missing.");
+            throw new FileNotFoundException("iOS test profile profile file is missing.");
         if ((File.GetAttributes(fullPath) & FileAttributes.ReparsePoint) != 0)
-            throw new InvalidDataException("R52 profile path is a symbolic link.");
+            throw new InvalidDataException("iOS test profile profile path is a symbolic link.");
         return fullPath;
     }
 
@@ -418,21 +432,23 @@ public sealed class IosR52TestProfileStore
     private static string FileFingerprint(string path) =>
         $"{path}:{File.GetLastWriteTimeUtc(path).Ticks}:{new FileInfo(path).Length}";
 
-    private static IosR52ProfileState Failed(bool present, string error) => new(
+    private IosProfileState Failed(bool present, string error) => new(
         new ResourceCatalogSnapshot([], [error], Platform: 9, AssetVersion, Revision, Present: present),
-        new Dictionary<int, IosR52ListDatabase>());
+        new Dictionary<int, IosProfileListDatabase>(),
+        0);
 
     private static bool IsSha256(string? value) =>
         value is { Length: 64 } && value.All(Uri.IsHexDigit);
 
     private static void RequireSha256(string? value, string name)
     {
-        if (!IsSha256(value)) throw new InvalidDataException($"R52 {name} hash is invalid.");
+        if (!IsSha256(value)) throw new InvalidDataException($"iOS test profile {name} hash is invalid.");
     }
 
-    private sealed record IosR52ProfileState(
+    private sealed record IosProfileState(
         ResourceCatalogSnapshot Catalog,
-        IReadOnlyDictionary<int, IosR52ListDatabase> ListDatabases);
+        IReadOnlyDictionary<int, IosProfileListDatabase> ListDatabases,
+        int ResourceRoutes);
 
     private sealed class OfflineProfileReport
     {

@@ -104,9 +104,12 @@ services:
       GrpcPort: "18081"
       KF_REPO_ROOT: /srv/repo
       KF_EXPERIMENTAL_AI_ROLES: ${KF_EXPERIMENTAL_AI_ROLES:-1}
-      # The deploy script latches this to true after R52 is first served; it cannot be switched off later.
-      Harness__EnableIosR52TestProfile: ${KF_IOS_R52_PROFILE_ENABLED:-false}
-      Harness__IosR52TestProfilePath: /srv/repo/.local/ios-resources/12346-r52/profile
+      # The deploy script latches this to true after the iOS test profile is first served; it cannot be switched off
+      # later. Identity (asset version, revision) comes from the latch/pin via scripts/deploy-vps-ci.sh.
+      Harness__EnableIosTestProfile: ${KF_IOS_PROFILE_ENABLED:-false}
+      Harness__IosTestProfileAssetVersion: ${KF_IOS_PROFILE_ASSET_VERSION:-0}
+      Harness__IosTestProfileRevision: ${KF_IOS_PROFILE_REVISION:-0}
+      Harness__IosTestProfilePath: /srv/repo/.local/ios-resources/${KF_IOS_PROFILE_ASSET_VERSION:-0}-r${KF_IOS_PROFILE_REVISION:-0}/profile
       # Commit being deployed (scripts/deploy-vps-ci.sh exports it from the workflow's GITHUB_SHA). Every API start
       # records it in the ops telemetry's server_runs table; the Health tab's default window is "this release".
       KF_RELEASE_SHA: ${KF_RELEASE_SHA:-unknown}
