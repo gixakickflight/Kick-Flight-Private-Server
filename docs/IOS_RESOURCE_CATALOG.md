@@ -50,7 +50,9 @@ renames only after validation; an existing immutable snapshot is accepted only w
 
 The VPS deploy workflow can stage an optional GitHub Release asset named `ios-resource-snapshot.tar.gz` from the same
 repository. Configure both repository variables `IOS_SNAPSHOT_RELEASE_TAG` and `IOS_SNAPSHOT_ARCHIVE_SHA256`; leave
-both empty to skip staging. The workflow downloads only that named asset from the configured repository's release,
+both empty only when no snapshot is needed. If both are empty the workflow reads `catalog-ios-12346.json` and fails fast when any
+row's `sourcePath` is under `.local/ios-resources/` (a snapshot-sourced catalog, currently `12346-r7`), because the API
+release would point at a snapshot that was never staged; with no snapshot-sourced rows it skips. The workflow downloads only that named asset from the configured repository's release,
 checks the pinned SHA-256, transfers it through the existing pinned-host SSH channel, then validates and stages it
 before source sync and any API restart. Staging never rewrites r4 or selects a path by itself. The API source release
 points at r5 only after the archive has staged successfully.

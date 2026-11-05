@@ -66,16 +66,18 @@ jobs:
 
           config = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
           expected = {
-              "schemaVersion": 1, "assetVersion": 12346, "revisionFloor": 52,
-              "testOnly": True, "complete": False,
+              "schemaVersion": 1, "testOnly": True, "complete": False,
               "runtimeContract": "kickflight.ios-r52-test-profile.v1",
           }
           if any(config.get(key) != value for key, value in expected.items()):
               raise SystemExit("R52 release pin does not describe the reviewed test-only profile")
+          for key in ("assetVersion", "revisionFloor"):
+              if type(config.get(key)) is not int or config[key] <= 0:
+                  raise SystemExit(f"R52 release pin has an invalid {key}")
           tag, asset, digest = (config.get("releaseTag"), config.get("assetName"), config.get("archiveSha256"))
           if not isinstance(tag, str) or not re.fullmatch(r"[A-Za-z0-9._-]+", tag):
               raise SystemExit("R52 release tag is invalid")
-          if asset != "ios-r52-profile.tar.gz" or not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+          if not isinstance(asset, str) or not re.fullmatch(r"[A-Za-z0-9._-]+\.tar\.gz", asset) or not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
               raise SystemExit("R52 release asset pin is invalid")
           with open(sys.argv[2], "a", encoding="utf-8") as output:
               output.write(f"tag={tag}\nasset={asset}\nsha256={digest}\n")
@@ -551,8 +553,11 @@ jobs:
               and isinstance(row.get("sourcePath"), str)
               and row["sourcePath"].startswith(".local/ios-resources/")
           }
-          if snapshots in ({"12346-r5"}, {"12346-r6"}, {"12346-r7"}):
-              raise SystemExit("iOS catalog requires IOS_SNAPSHOT_RELEASE_TAG and IOS_SNAPSHOT_ARCHIVE_SHA256")
+          if snapshots:
+              raise SystemExit(
+                  "iOS catalog references snapshot(s) " + ", ".join(sorted(snapshots))
+                  + " under .local/ios-resources/ but IOS_SNAPSHOT_RELEASE_TAG and IOS_SNAPSHOT_ARCHIVE_SHA256 are empty"
+              )
           PY
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             exit 0
@@ -597,13 +602,14 @@ jobs:
             exit 1
           }
 
-      # Stage the immutable APK before the deployment can activate catalog links or the Android minimum.
-      - name: Stage Android 2.11.706 release APK if configured in catalog
+      # Stage immutable APKs before the deployment can activate catalog links or the Android minimum.
+      # Which APKs are staged is data-driven: every enabled catalog row whose id starts with "apk-" and that
+      # declares a GitHub release "releaseTag" (the asset name is the basename of its sourcePath).
+      - name: Stage Android release APKs declared in catalog
         id: android_apk
         if: ${{ steps.main_tip.outputs.deployable == 'true' && steps.changes.outputs.deploy == 'true' && steps.changes.outputs.r52_api_only != 'true' && !(github.event_name == 'workflow_dispatch' && inputs.activate_ios_r52_profile) }}
         shell: bash
         env:
-          ANDROID_RELEASE_TAG: android-2.11.706
           GH_TOKEN: ${{ github.token }}
           GITHUB_TOKEN: ${{ github.token }}
           VPS_HOST: ${{ vars.VPS_HOST }}
@@ -612,37 +618,35 @@ jobs:
           VPS_SSH_PORT: ${{ vars.VPS_SSH_PORT }}
         run: |
           set -euo pipefail
-          python3 - <<'PY' > "$RUNNER_TEMP/android_apk_info.env"
+          apk_rows="$RUNNER_TEMP/android_apk_rows.tsv"
+          python3 - config/resources/catalog.json > "$apk_rows" <<'PY'
           import json
           import re
           import sys
 
-          catalog = json.load(open("config/resources/catalog.json", encoding="utf-8"))
-          rows = [r for r in catalog.get("resources", [])
-                  if isinstance(r, dict) and r.get("id") == "apk-remote-211706" and r.get("enabled", True)]
-          if not rows:
-              print("APK_CONFIGURED=false")
-              sys.exit(0)
-
-          row = rows[0]
-          sha = str(row.get("sha256", "")).strip().lower()
-          if not re.fullmatch(r"[0-9a-f]{64}", sha) or set(sha) == {"0"}:
-              sys.exit("apk-remote-211706 sha256 is invalid or placeholder")
-
-          source_path = row.get("sourcePath", "")
-          if source_path != ".local/KickFlight-2.11.706-remote.apk":
-              sys.exit(f"apk-remote-211706 unexpected sourcePath: {source_path}")
-
-          filename = source_path.split("/")[-1]
-          print("APK_CONFIGURED=true")
-          print(f"APK_SHA256={sha}")
-          print(f"APK_SOURCE_PATH={source_path}")
-          print(f"APK_FILENAME={filename}")
+          catalog = json.load(open(sys.argv[1], encoding="utf-8"))
+          for row in catalog.get("resources", []):
+              if not isinstance(row, dict) or not row.get("enabled", True):
+                  continue
+              row_id = row.get("id")
+              tag = row.get("releaseTag")
+              if not isinstance(row_id, str) or not row_id.startswith("apk-") or tag is None:
+                  continue
+              if not re.fullmatch(r"apk-[A-Za-z0-9._-]+", row_id):
+                  sys.exit(f"{row_id}: unsupported catalog id")
+              if not isinstance(tag, str) or not re.fullmatch(r"[A-Za-z0-9._-]+", tag):
+                  sys.exit(f"{row_id}: releaseTag is invalid")
+              sha = str(row.get("sha256", "")).strip().lower()
+              if not re.fullmatch(r"[0-9a-f]{64}", sha) or set(sha) == {"0"}:
+                  sys.exit(f"{row_id} sha256 is invalid or placeholder")
+              source_path = row.get("sourcePath", "")
+              if not isinstance(source_path, str) or not re.fullmatch(r"\.local/[A-Za-z0-9._-]+\.apk", source_path):
+                  sys.exit(f"{row_id} unexpected sourcePath: {source_path}")
+              print("\t".join((row_id, tag, sha, source_path)))
           PY
 
-          source "$RUNNER_TEMP/android_apk_info.env"
-          if [[ "$APK_CONFIGURED" != "true" ]]; then
-            echo "apk-remote-211706 is not configured or enabled in catalog.json; skipping Android artifact staging."
+          if [[ ! -s "$apk_rows" ]]; then
+            echo "No enabled catalog APK row declares a releaseTag; skipping Android artifact staging."
             exit 0
           fi
 
@@ -662,7 +666,10 @@ jobs:
           scp_opts=(-i "$RUNNER_TEMP/kf-vps-deploy-key" -P "$port" -o BatchMode=yes -o IdentitiesOnly=yes
             -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/kf-vps-known-hosts")
 
-          remote_status=$(ssh "${ssh_opts[@]}" "$remote" bash -s -- "$VPS_APP_DIR" "$APK_SOURCE_PATH" "$APK_SHA256" <<'REMOTE_CHECK'
+          while IFS=$'\t' read -r APK_ROW_ID APK_RELEASE_TAG APK_SHA256 APK_SOURCE_PATH <&3; do
+            APK_FILENAME="${APK_SOURCE_PATH##*/}"
+
+            remote_status=$(ssh "${ssh_opts[@]}" "$remote" bash -s -- "$VPS_APP_DIR" "$APK_SOURCE_PATH" "$APK_SHA256" <<'REMOTE_CHECK'
           set -euo pipefail
           app_dir=$1
           source_path=$2
@@ -676,39 +683,39 @@ jobs:
             echo "mismatch"
           fi
           REMOTE_CHECK
-          )
+            )
 
-          if [[ "$remote_status" == "match" ]]; then
-            echo "Verified $APK_FILENAME already exists on remote VPS with exact SHA-256 ($APK_SHA256); avoiding re-download and re-upload."
-            exit 0
-          elif [[ "$remote_status" == "mismatch" ]]; then
-            echo "ERROR: Conflicting $APK_FILENAME already exists on remote VPS with different SHA-256; refusing to overwrite immutable release artifact." >&2
-            exit 1
-          fi
+            if [[ "$remote_status" == "match" ]]; then
+              echo "Verified $APK_FILENAME already exists on remote VPS with exact SHA-256 ($APK_SHA256); avoiding re-download and re-upload."
+              continue
+            elif [[ "$remote_status" == "mismatch" ]]; then
+              echo "ERROR: Conflicting $APK_FILENAME already exists on remote VPS with different SHA-256; refusing to overwrite immutable release artifact." >&2
+              exit 1
+            fi
 
-          echo "Downloading $APK_FILENAME from release tag $ANDROID_RELEASE_TAG..."
-          gh release download "$ANDROID_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
-            --pattern "$APK_FILENAME" --dir "$RUNNER_TEMP"
-          local_apk="$RUNNER_TEMP/$APK_FILENAME"
-          [[ -f "$local_apk" ]] || { echo "Downloaded APK $local_apk not found" >&2; exit 1; }
+            echo "Downloading $APK_FILENAME from release tag $APK_RELEASE_TAG..."
+            gh release download "$APK_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+              --pattern "$APK_FILENAME" --dir "$RUNNER_TEMP"
+            local_apk="$RUNNER_TEMP/$APK_FILENAME"
+            [[ -f "$local_apk" ]] || { echo "Downloaded APK $local_apk not found" >&2; exit 1; }
 
-          echo "Verifying SHA-256 of downloaded APK..."
-          echo "$APK_SHA256  $local_apk" | sha256sum --check --status || {
-            echo "Downloaded APK SHA-256 does not match catalog row apk-remote-211706" >&2
+            echo "Verifying SHA-256 of downloaded APK..."
+            echo "$APK_SHA256  $local_apk" | sha256sum --check --status || {
+              echo "Downloaded APK SHA-256 does not match catalog row $APK_ROW_ID" >&2
+              rm -f -- "$local_apk"
+              exit 1
+            }
+
+            echo "Running focused artifact validation..."
+            python3 scripts/validate-apk-artifact.py "$local_apk" --expected-sha256 "$APK_SHA256"
+
+            remote_staging="$VPS_APP_DIR/.local/.${APK_FILENAME}.staging-${GITHUB_SHA}"
+            echo "Uploading $APK_FILENAME to temporary staging location on VPS..."
+            scp "${scp_opts[@]}" "$local_apk" "$remote:$remote_staging"
             rm -f -- "$local_apk"
-            exit 1
-          }
 
-          echo "Running focused artifact validation..."
-          python3 scripts/validate-apk-artifact.py "$local_apk" --expected-sha256 "$APK_SHA256"
-
-          remote_staging="$VPS_APP_DIR/.local/.${APK_FILENAME}.staging-${GITHUB_SHA}"
-          echo "Uploading $APK_FILENAME to temporary staging location on VPS..."
-          scp "${scp_opts[@]}" "$local_apk" "$remote:$remote_staging"
-          rm -f -- "$local_apk"
-
-          echo "Atomically installing $APK_FILENAME into $VPS_APP_DIR/.local/ on VPS..."
-          ssh "${ssh_opts[@]}" "$remote" bash -s -- "$VPS_APP_DIR" "$APK_SOURCE_PATH" "$remote_staging" "$APK_SHA256" <<'REMOTE_INSTALL'
+            echo "Atomically installing $APK_FILENAME into $VPS_APP_DIR/.local/ on VPS..."
+            ssh "${ssh_opts[@]}" "$remote" bash -s -- "$VPS_APP_DIR" "$APK_SOURCE_PATH" "$remote_staging" "$APK_SHA256" <<'REMOTE_INSTALL'
           set -euo pipefail
           app_dir=$1
           source_path=$2
@@ -736,6 +743,7 @@ jobs:
           echo "Installed $target on VPS successfully."
           trap - EXIT ERR
           REMOTE_INSTALL
+          done 3< "$apk_rows"
 
       - name: Upload release and deploy selected services on the VPS
         if: steps.main_tip.outputs.deployable == 'true' && steps.changes.outputs.deploy == 'true'

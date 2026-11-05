@@ -133,7 +133,8 @@
       "sourcePath": ".local/KickFlight-2.11.706-remote.apk",
       "contentType": "application/vnd.android.package-archive",
       "sha256": "e39a36d441bff816fee3d30cb4598a353473c0287dde533ab2c10c5ae73b9d98",
-      "bytes": 149876242
+      "bytes": 149876242,
+      "releaseTag": "android-2.11.706"
     },
     {
       "id": "kicker-skin-thumb-001-022-direct",
