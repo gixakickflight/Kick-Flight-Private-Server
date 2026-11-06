@@ -3,7 +3,7 @@
 - Artifact: KickFlight-2.11.800-remote.apk (built as .local/artifacts/KickFlight-2.11.800.apk), 149880469 bytes.
 - APK SHA-256: cf9314122fcbd20e0da639967a832d8ed63911cf2b2af2ae745ae48b35c23541
 - Signing cert SHA-256 (publication key): 81ca6334fd069edbc8756a49fc135c91141eba8265cb64d0510ed9b231b21537
-- aapt: versionName 2.11.800, versionCode 65. Server minimum stays 2.11.706 (System.Version compare: 2.11.800 > 2.11.706; 2.11.8 would have been older, hence 800).
+- aapt: versionName 2.11.800, versionCode 65. Server minimum stays 2.11.706 in the release PR #87, raised to 2.11.800 in the follow-up announcement PR (System.Version compare: 2.11.800 > 2.11.706; 2.11.8 would have been older, hence 800).
 - Build: scripts/build-direct-apk.sh with KF_NATIVE=1 and config/apk-direct-server.production.json flags
   (KF_PHOTON=1, KF_AI_ROLES=1, KF_AI_ROLE_TARGETING=1, KF_AI_ROLE_DEPOSIT=1, KF_DIAG=0, KF_DAMAGE_DIAG=0, KF_RESULT_DIAG=0,
   KF_TARGET_FPS=120, KF_PUSH=1, CHAT_BASE_URL=http://147.93.138.247:18080?ns={0}); server http://147.93.138.247:18080.
