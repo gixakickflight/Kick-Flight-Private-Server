@@ -1,0 +1,194 @@
+[
+ {
+  "id": 1,
+  "battleRuleId": 1,
+  "roleType": 0,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 2,
+  "battleRuleId": 1,
+  "roleType": 1,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 3,
+  "battleRuleId": 1,
+  "roleType": 2,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 4,
+  "battleRuleId": 1,
+  "roleType": 3,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 5,
+  "battleRuleId": 2,
+  "roleType": 0,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 6,
+  "battleRuleId": 2,
+  "roleType": 1,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 7,
+  "battleRuleId": 2,
+  "roleType": 2,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 8,
+  "battleRuleId": 2,
+  "roleType": 3,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 9,
+  "battleRuleId": 3,
+  "roleType": 0,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 10,
+  "battleRuleId": 3,
+  "roleType": 1,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 11,
+  "battleRuleId": 3,
+  "roleType": 2,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 12,
+  "battleRuleId": 3,
+  "roleType": 3,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 13,
+  "battleRuleId": 4,
+  "roleType": 0,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 14,
+  "battleRuleId": 4,
+  "roleType": 1,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 15,
+  "battleRuleId": 4,
+  "roleType": 2,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 16,
+  "battleRuleId": 4,
+  "roleType": 3,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 17,
+  "battleRuleId": 5,
+  "roleType": 0,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 18,
+  "battleRuleId": 5,
+  "roleType": 1,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 19,
+  "battleRuleId": 5,
+  "roleType": 2,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 20,
+  "battleRuleId": 5,
+  "roleType": 3,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 21,
+  "battleRuleId": 6,
+  "roleType": 0,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 22,
+  "battleRuleId": 6,
+  "roleType": 1,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 23,
+  "battleRuleId": 6,
+  "roleType": 2,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 24,
+  "battleRuleId": 6,
+  "roleType": 3,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 25,
+  "battleRuleId": 7,
+  "roleType": 0,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 26,
+  "battleRuleId": 7,
+  "roleType": 1,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 27,
+  "battleRuleId": 7,
+  "roleType": 2,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 28,
+  "battleRuleId": 7,
+  "roleType": 3,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 29,
+  "battleRuleId": 8,
+  "roleType": 0,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 30,
+  "battleRuleId": 8,
+  "roleType": 1,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 31,
+  "battleRuleId": 8,
+  "roleType": 2,
+  "crystalCountSpeedCorrection": 0.0
+ },
+ {
+  "id": 32,
+  "battleRuleId": 8,
+  "roleType": 3,
+  "crystalCountSpeedCorrection": 0.0
+ }
+]

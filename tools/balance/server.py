@@ -634,6 +634,39 @@ def validate_guardian_rows(rows):
     return messages
 
 
+CARRY_PARAM_TABLE = "battle_rule_parameter"        # itemDecelerationMaxCount per rule
+CARRY_ROLE_TABLE = "battle_rule_role_parameter"    # crystalCountSpeedCorrection (% per carried object) per rule x role
+CARRY_TABLES = (CARRY_PARAM_TABLE, CARRY_ROLE_TABLE)
+
+
+def validate_carry_rows(table, current_rows, posted_rows):
+    """Messages for the carry-slowdown tables: percent 0..100, max count >= -1, link columns frozen."""
+    messages = []
+    current_by_id = {row.get("id"): row for row in current_rows if isinstance(row, dict)}
+    for row in posted_rows:
+        if not isinstance(row, dict):
+            continue
+        where = "row %s" % (row.get("id"),)
+        current = current_by_id.get(row.get("id"))
+        if current is not None:
+            for key in ("battleRuleId", "roleType"):
+                if key in current and row.get(key) != current.get(key):
+                    messages.append("%s field %r: cannot be changed" % (where, key))
+        if table == CARRY_ROLE_TABLE:
+            value = row.get("crystalCountSpeedCorrection")
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+                continue   # type errors are reported by the generic validator
+            if value < 0 or value > 100:
+                messages.append("%s field 'crystalCountSpeedCorrection': must be between 0 and 100" % where)
+        elif table == CARRY_PARAM_TABLE:
+            value = row.get("itemDecelerationMaxCount")
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+                continue
+            if value < -1:
+                messages.append("%s field 'itemDecelerationMaxCount': must be -1 (no limit) or greater" % where)
+    return messages
+
+
 def validate_rows(table, current_rows, posted_rows):
     """(rows to write, None) or (None, [messages]) - never a partial result.
 
@@ -2366,6 +2399,11 @@ class BalanceHandler(BaseHTTPRequestHandler):
                     if guardian_problems:
                         self.send_error_json(400, "; ".join(guardian_problems))
                         return
+            if name in CARRY_TABLES and isinstance(posted_rows, list):
+                carry_problems = validate_carry_rows(name, current_rows, posted_rows)
+                if carry_problems:
+                    self.send_error_json(400, "; ".join(carry_problems))
+                    return
             rows, messages = validate_rows(name, current_rows, posted_rows)
             if rows is None:
                 self.send_error_json(400, "; ".join(messages))

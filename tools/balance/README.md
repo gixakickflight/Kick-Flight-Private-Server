@@ -129,8 +129,17 @@ rebinding.
 
 ## What it edits
 
-Left sidebar: **Kickers** (14), **Discs**, **Text**, **Bot AI**, **Latest information**, **Health** and **Maintenance**. A text filter and, for discs,
+Left sidebar: **Kickers** (14), **Discs**, **Text**, **Ralentización**, **Bot AI**, **Latest information**, **Health** and **Maintenance**. A text filter and, for discs,
 rarity/type dropdowns. Every entry shows its icon from `tools/balance/icons/`.
+
+**Ralentización** (tab "Ralentización al cargar objetos") edits `masters_battle_rule_parameter.json`
+(`itemDecelerationMaxCount`, "máximo de objetos que cuentan", -1 = no limit) and
+`masters_battle_rule_role_parameter.json` (`crystalCountSpeedCorrection`, "% de ralentización por objeto",
+0-100, float) through the normal override/backup flow. Rows are grouped by carried object (crystal: rules
+1, 5, 6, 7; ball: 3, 4; flag: 2, 8) with one column per role (`roleType` 0 Speed, 1 Support, 2 Attack, 3 Tank
+= client `RoleType`). Client formula: `n` = carried objects (clamped to the max unless -1), speed x
+`clamp01((100 - % x n) / 100)`. Shipped values: every % = 0 and max = -1, i.e. no slowdown. Saving requires an
+API restart; clients then download the new master. Details: `docs/re-notes/carry-slowdown.md`.
 
 **Bot AI** edits the native bot AI behavioral profiles across all three battle modes (Crystal Scramble,
 Flag Flight, Rapid Ball) and 13 profile roles (39 total profiles):
