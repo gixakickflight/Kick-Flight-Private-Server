@@ -990,10 +990,14 @@ NATIVE_PATCHES: dict[str, list[dict[str, object]]] = {
         # Guarded already (op_Equality/Inequality): SetGachaRoot, SetDiscDetailRoot, GetBone, SetBrightness, UnloadModel,
         # OnManagedUpdate +0x204, PlaySummonHomeMotion's own null check.
         {
+            # Patch the NRE call itself (null path only). The previous version inverted the guard (cbnz -> cbz) which made the
+            # NON-null path fall into `bl NRE`: harmless while SetModel was stubbed (animator always null), but with the
+            # restored SetModel (KF_NATIVE) it threw on every call, aborting SkillDescriptionWindow.CreateSummonModelCoroutine
+            # before ObserverModeController was created (no drag-rotate of the enlarged disc model).
             "description": "HomeSummonModelController.PlayIdleLoopIfExist: return when SummonAnimator is null",
-            "offset": 0x159DCBC,
-            "expected": bytes.fromhex("740000b5"),  # cbnz x20, #0x159dcc8
-            "replacement": bytes.fromhex("940200b4"),  # cbz x20, #0x159dd0c (function epilogue + ret)
+            "offset": 0x159DCC4,
+            "expected": bytes.fromhex("4ad9f197"),  # bl #0x12141ec (NRE helper, null path only)
+            "replacement": bytes.fromhex("12000014"),  # b #0x159dd0c (function epilogue + ret)
         },
         {
             "description": "HomeSummonModelController.PlayHomeAnim: return when SummonAnimator is null",
@@ -2783,6 +2787,15 @@ NATIVE_PATCHES: dict[str, list[dict[str, object]]] = {
     ],
 }
 
+# EXPERIMENT (2026-11-05, disc-detail 3D model): KF_SETMODEL_EXPERIMENT=1 drops the SetModel entry stub, the three prod
+# caves that live in the SetModel body (gym mannequins, GetDisplayAngles, BatAbilityParameter HitInfo fallback) and their
+# hooks, so the pristine SetModel runs. Battle features are broken in this build; it is for disc-detail diagnosis only.
+if os.environ.get("KF_SETMODEL_EXPERIMENT") == "1":
+    _drop = {0x159D1BC, 0x159D200, 0x159D3E0, 0x159DA48, 0x13BC3A8, 0x13BEAEC, 0x1439AEC}
+    if os.environ.get("KF_SETMODEL_EXPERIMENT_ALL") == "1":  # also LoadModelAsync/UnloadModel stubs, their caves and hooks
+        _drop |= {0x159E254, 0x159E25C, 0x159E294, 0x159E32C, 0x184961C, 0x184983C, 0x1A2AC44, 0x159DF5C, 0x159DF70, 0x17F8F1C}
+    NATIVE_PATCHES["arm64-v8a"] = [p for p in NATIVE_PATCHES["arm64-v8a"] if int(p["offset"]) not in _drop]
+
 UNITY_PATCHES: dict[str, list[dict[str, object]]] = {
     "arm64-v8a": [
         {
@@ -3075,6 +3088,107 @@ if TARGET_FPS not in (0, 30):
 NATIVE_PATCHES["arm64-v8a"].append(
     {"description": "Chat: FirebaseManager.CheckSignedIn -> mov w0,#1; ret (skip Firebase custom-token sign-in)", "offset": 0x17BB934, "expected": bytes.fromhex("0860403968000034"), "replacement": bytes.fromhex("20008052c0035fd6")},
 )
+
+
+# ---- KF_NATIVE=1: libkfpatch trampolines (docs/re-notes/kfpatch-design.md) ----
+# Each hooked il2cpp function gets `adrp x16,slot; ldr x16,[x16,#off]; br x16` over its first 3 instructions (all
+# PC-independent, checked offline by scripts/re/kfpatch_tramp.py). Slot table: libil2cpp .bss tail (RVA 0x4982C00, past
+# the file-backed data, inside the RW segment's page-rounded mapping); libkfpatch.so fills it at startup. Off by default,
+# so the default patch set (and its dry-run count) is unchanged. Entries: (slot index, function RVA, original 12 bytes).
+KF_NATIVE_SLOT_BASE = 0x4982C00
+KF_NATIVE_HOOKS = []
+if os.environ.get("KF_PROOF_RVA"):  # proof hook (slot 0) OFF by default; libkfpatch must be built with the same -DKF_PROOF_RVA
+    KF_NATIVE_HOOKS = [
+        (0, 0x1552CDC, "f657bda9f44f01a9fd7b02a9"),  # OutGameModelController.CreateSummonModel (proof only)
+    ]
+if os.environ.get("KF_NATIVE_DIAG") == "1":  # logging hooks (src/native/kfpatch/hooks_diag.c)
+    KF_NATIVE_HOOKS = KF_NATIVE_HOOKS + [
+        (1, 0x1454714, "fa67bba9f85f01a9f65702a9"),  # ModelManager.InstantiateSummonModel
+        (2, 0x16B5564, "f50f1df8f44f01a9fd7b02a9"),  # CharacterAnimatorBase.Initialize
+        (3, 0x1912FB8, "ff0301d1f50b00f9f44f02a9"),  # Component.GetComponent<T>
+        (4, 0x159E254, "f50f1df8f44f01a9fd7b02a9"),  # HomeSummonModelController.<LoadModelAsync>d__25.MoveNext (needs KF_SETMODEL_EXPERIMENT_ALL=1)
+        (5, 0x159D1BC, "ea0f18fce923016dfc6f02a9"),  # HomeSummonModelController.SetModel (needs KF_SETMODEL_EXPERIMENT=1)
+        (6, 0x159DD1C, "ea0f1cfce9a3006df50f00f9"),  # SetDiscDetailRoot
+        (7, 0x159DC54, "f50f1df8f44f01a9fd7b02a9"),  # PlayIdleLoopIfExist
+    ]
+if os.environ.get("KF_NATIVE") == "1":
+    for _slot, _rva, _orig in KF_NATIVE_HOOKS:
+        _va = KF_NATIVE_SLOT_BASE + 8 * _slot
+        _page = (_va >> 12) - (_rva >> 12)
+        assert -(1 << 20) <= _page < (1 << 20) and _va % 8 == 0
+        _adrp = 0x90000010 | ((_page & 3) << 29) | (((_page >> 2) & 0x7FFFF) << 5)
+        _ldr = 0xF9400210 | (((_va & 0xFFF) // 8) << 10)
+        NATIVE_PATCHES["arm64-v8a"].append({
+            "description": f"kfpatch trampoline slot {_slot} @ RVA 0x{_rva:x} (libkfpatch.so hook)",
+            "offset": _rva, "expected": bytes.fromhex(_orig),
+            "replacement": _adrp.to_bytes(4, "little") + _ldr.to_bytes(4, "little") + (0xD61F0200).to_bytes(4, "little"),
+        })
+
+
+# KF_NATIVE cave migration (2026-11-05): the prod/AI-role caves hosted in the dead bodies of HomeSummonModelController.SetModel /
+# <LoadModelAsync>d__25.MoveNext / UnloadModel now live in libkfpatch (src/native/kfpatch/caves_gen.S, generated by
+# scripts/re/kfpatch_cavegen.py). The three bodies are restored to pristine (their "bypass null exception" stubs are dropped, which
+# is what makes the disc-detail 3D model load) and the hook sites that branched into them are retargeted to 12-byte slot veneers
+# in the dead body of PlayerCharacter.UpdateLookTarget. KF_NATIVE=1 is therefore REQUIRED for any build that should show the model;
+# without it the legacy layout (stubbed bodies) is used. KF_DIAG caves share the veneer host and the bodies: unsupported together.
+if os.environ.get("KF_NATIVE") == "1":
+    import hashlib as _hl
+    if os.environ.get("KF_DIAG") == "1":
+        raise SystemExit("KF_NATIVE=1 (restored SetModel/LoadModelAsync/UnloadModel bodies) is incompatible with KF_DIAG=1")
+    _man = json.loads((Path(__file__).resolve().parent.parent / "src/native/kfpatch/caves_manifest.json").read_text())
+    _ranges = [tuple(r) for r in _man["ranges"]]
+    _inr = lambda a: any(lo <= a < hi for lo, hi in _ranges)
+    _stubs = set(_man["stubs"])
+    _blobs = {b["offset"]: b for b in _man["blobs"]}
+    _kept, _seen = [], set()
+    for _p in NATIVE_PATCHES["arm64-v8a"]:
+        _o = int(_p["offset"])
+        if _o in _stubs:
+            _seen.add(_o)
+            continue
+        if _inr(_o):
+            _b = _blobs.get(_o)
+            if _b is None or _hl.sha256(bytes(_p["replacement"])).hexdigest() != _b["sha256"]:
+                raise SystemExit(f"cave at 0x{_o:x} changed since caves_gen.S was generated; rerun scripts/re/kfpatch_cavegen.py")
+            _seen.add(_o)
+            continue
+        _kept.append(_p)
+    _missing = [hex(o) for o in _stubs if o not in _seen]
+    if _missing:
+        raise SystemExit(f"KF_NATIVE: expected SetModel/LoadModelAsync/UnloadModel stubs missing: {_missing}")
+    _vhost = _man["veneer_host"]
+    _vslot = {e["target"]: (e["slot"], _vhost + 12 * (e["slot"] - 16)) for e in _man["entries"]}
+    for _p in _kept:
+        _o = int(_p["offset"])
+        _rep = bytearray(_p["replacement"])
+        for _i in range(0, len(_rep) - 3, 4):
+            _w = struct.unpack_from("<I", _rep, _i)[0]
+            if (_w >> 26) in (5, 0x25):
+                _imm = _w & 0x3FFFFFF
+                _imm = _imm - (1 << 26) if _imm & 0x2000000 else _imm
+                _t = _o + _i + _imm * 4
+                if _t in _vslot:
+                    _d = (_vslot[_t][1] - (_o + _i)) // 4
+                    assert -(1 << 25) <= _d < (1 << 25)
+                    struct.pack_into("<I", _rep, _i, (_w & 0xFC000000) | (_d & 0x3FFFFFF))
+                elif _inr(_t):
+                    raise SystemExit(f"unmapped branch from 0x{_o + _i:x} into a migrated body (0x{_t:x})")
+        _p["replacement"] = bytes(_rep)
+    NATIVE_PATCHES["arm64-v8a"] = _kept
+    _vend = _vhost + 12 * len(_man["entries"])
+    for _p in _kept:
+        _o = int(_p["offset"]); _e = _o + len(_p["expected"])
+        if _o < _vend and _e > _vhost:
+            raise SystemExit(f"patch at 0x{_o:x} overlaps the kfpatch veneer host 0x{_vhost:x}")
+    _vrep = b"".join(
+        (0x90000010 | ((((((KF_NATIVE_SLOT_BASE + 8 * s) >> 12) - (va >> 12)) & 3) << 29)) | (((((KF_NATIVE_SLOT_BASE + 8 * s) >> 12) - (va >> 12)) >> 2 & 0x7FFFF) << 5)).to_bytes(4, "little")
+        + (0xF9400210 | ((((KF_NATIVE_SLOT_BASE + 8 * s) & 0xFFF) // 8) << 10)).to_bytes(4, "little")
+        + (0xD61F0200).to_bytes(4, "little")
+        for s, va in sorted(_vslot.values()))
+    NATIVE_PATCHES["arm64-v8a"].append({
+        "description": f"kfpatch cave veneers (slots 16+) in the dead body of PlayerCharacter.UpdateLookTarget @0x{_vhost:x}",
+        "offset": _vhost, "expected": bytes.fromhex(_man["veneer_expected_hex"]), "replacement": _vrep,
+    })
 
 
 def patch_native(path: Path, abi: str, dry_run: bool = False) -> list[dict[str, object]]:

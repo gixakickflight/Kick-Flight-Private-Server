@@ -1,0 +1,180 @@
+{
+ "veneer_host": 20765072,
+ "ranges": [
+  [
+   22663612,
+   22665904
+  ],
+  [
+   22667100,
+   22667432
+  ],
+  [
+   22667860,
+   22668116
+  ]
+ ],
+ "stubs": [
+  22663612,
+  22667100,
+  22667860
+ ],
+ "blobs": [
+  {
+   "offset": 22663680,
+   "len": 468,
+   "sha256": "806adb1fa0b4c22cffcec8a0a520e47a35f72696fda74c86010eb5960111b064",
+   "desc": "cave: gym mannequins (kickerAiParameterId >= 100 or -1 (offline Trial AI) -> AIOption 63) + AI casts its special skill when the SP gauge is "
+  },
+  {
+   "offset": 22664160,
+   "len": 44,
+   "sha256": "4eb8bf375f2367bab337c4bea5697b83a8d8799a2a3c21a5f3deecfa160a7b21",
+   "desc": "cave: null-safe PlayerBoneController.GetDisplayAngles (dead body of HomeSummonModelController.SetModel, after the AI cave)"
+  },
+  {
+   "offset": 22664208,
+   "len": 716,
+   "sha256": "22435a0695c899ab65dff699cda23750bc2df8d95b31103a410ca5a258200d0c",
+   "desc": "cave: AI roles telemetry cave (KF_AI_ROLES=1)"
+  },
+  {
+   "offset": 22664928,
+   "len": 372,
+   "sha256": "dac92097274ca51c656601766632b401c37bbb45cca5f441585850f017d82fd4",
+   "desc": "cave: AI role Scramble candidate scoring weighting cave (KF_AI_ROLE_TARGETING=1)"
+  },
+  {
+   "offset": 22665300,
+   "len": 412,
+   "sha256": "e76bef45c4cbdc6a5bd7de52f184744b6c2f5ad8cb3c9eaf50ce1e70af100e9f",
+   "desc": "cave: experimental Scramble carrier low-HP deposit"
+  },
+  {
+   "offset": 22665800,
+   "len": 48,
+   "sha256": "7dc6034b02f41da20869164a96a9bdc868798b8dd52e99e7680d4cc738b69a9c",
+   "desc": "cave: BatAbilityParameter..ctor HitInfo fallback -> _hitInfos[207] of skill_40001 when the timeline gave none"
+  },
+  {
+   "offset": 22667120,
+   "len": 88,
+   "sha256": "47b08847e4053a4361463f45b3087bd597cb2ee60f3bf87cb6ca86f1f9e2834a",
+   "desc": "cave: PlayerStateSkill.End tail -> ClearSynchronizedProperty(); Player.PlayerAnimator.PlayIdle(false, 0.1, 0)"
+  },
+  {
+   "offset": 22667868,
+   "len": 56,
+   "sha256": "8b6fa5f99868a16bfdcbbef73aa073bba025f63c91616b9b17d48beeb970983f",
+   "desc": "cave: SmogConditionAction.CreateSmog step = S>0 ? S : 2*_smogRadius (dead body of HomeSummonModelController.<LoadModelAsync>d__25.MoveNext)"
+  },
+  {
+   "offset": 22667924,
+   "len": 56,
+   "sha256": "47689a43ea4e6ad714008049ebf4a3d0143eda52a49ece52aa7e1f7345ddcc00",
+   "desc": "cave: SmogConditionAction.Initialize first-patch _intervalDistance = S>0 ? S : Radius+1 (dead body of HomeSummonModelController.<LoadModelAs"
+  },
+  {
+   "offset": 22668076,
+   "len": 20,
+   "sha256": "65061037e804a58e5e80d6a6bfe4a683b5e8166d473036c7690540a17e7e5986",
+   "desc": "cave: rush push part 2 (get_eulerAngles) (dead tail of HomeSummonModelController.<LoadModelAsync>d__25.MoveNext)"
+  }
+ ],
+ "entries": [
+  {
+   "target": 22663680,
+   "slot": 16
+  },
+  {
+   "target": 22664160,
+   "slot": 17
+  },
+  {
+   "target": 22664208,
+   "slot": 18
+  },
+  {
+   "target": 22664928,
+   "slot": 19
+  },
+  {
+   "target": 22665300,
+   "slot": 20
+  },
+  {
+   "target": 22665800,
+   "slot": 21
+  },
+  {
+   "target": 22667120,
+   "slot": 22
+  },
+  {
+   "target": 22667868,
+   "slot": 23
+  },
+  {
+   "target": 22667924,
+   "slot": 24
+  },
+  {
+   "target": 22668076,
+   "slot": 25
+  }
+ ],
+ "hook_sites": [
+  {
+   "site": 20693928,
+   "kind": "b",
+   "target": 22664160
+  },
+  {
+   "site": 20703980,
+   "kind": "b",
+   "target": 22663680
+  },
+  {
+   "site": 21207788,
+   "kind": "bl",
+   "target": 22665800
+  },
+  {
+   "site": 25136924,
+   "kind": "b",
+   "target": 22667120
+  },
+  {
+   "site": 25195216,
+   "kind": "b",
+   "target": 22664928
+  },
+  {
+   "site": 25195636,
+   "kind": "b",
+   "target": 22664208
+  },
+  {
+   "site": 25201984,
+   "kind": "b",
+   "target": 22665300
+  },
+  {
+   "site": 25466396,
+   "kind": "b",
+   "target": 22667868
+  },
+  {
+   "site": 25466940,
+   "kind": "b",
+   "target": 22667924
+  },
+  {
+   "site": 27438148,
+   "kind": "b",
+   "target": 22668076
+  }
+ ],
+ "pool_count": 28,
+ "veneer_expected_hex": "e923036dfc6f04a9fa6705a9f85f06a9f65707a9f44f08a9fd7b09a9fd430291f497019088566039f30300aae800003788800190081d42f9000140b91171f897e80300328856203974a640f9740000b5e0031faa021af997e00314aa8f98ff970820201ee801005474a640f9740000b5e0031faafa19f997"
+}
