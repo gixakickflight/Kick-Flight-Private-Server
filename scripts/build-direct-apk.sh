@@ -76,7 +76,7 @@ safe_host="${server_base_url#http://}"
 safe_host="${safe_host//:/-}"
 artifact_dir="$repo/.local/artifacts"
 work_root="$repo/.local/apk-direct-work"
-output_apk="${OUTPUT_APK:-$artifact_dir/KickFlight-${KF_VERSION_NAME:-2.11.706}-remote.apk}"
+output_apk="${OUTPUT_APK:-$artifact_dir/KickFlight-${KF_VERSION_NAME:-2.11.800}-remote.apk}"
 
 # Keystore resolution: explicit path, then worktree-local production key
 if [[ -n "${KEYSTORE:-}" ]]; then
@@ -161,6 +161,12 @@ fi
 
 echo "==> Patching previous-session exit reporter"
 "$python" "$repo/scripts/patch-exit-reporter.py" "$work/decoded" --base-url "$server_base_url"
+
+if [[ "${KF_NATIVE:-}" == "1" ]]; then
+  echo "==> Adding libkfpatch.so (KF_NATIVE=1)"
+  "$repo/scripts/build-kfpatch.sh"
+  "$python" "$repo/scripts/patch-kfpatch-apk.py" "$work/decoded" --so "$repo/.local/artifacts/kfpatch/libkfpatch.so"
+fi
 
 if [[ "${KF_PUSH:-}" == "1" ]]; then
   echo "==> Patching Firebase push (FCM token -> our server)"

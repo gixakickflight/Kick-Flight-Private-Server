@@ -28,6 +28,12 @@
 A DIAG build is the standard patched APK plus `DIAG_PATCHES_ARM64` from `scripts/patch-il2cpp-endpoints.py`: code caves writing integer probes to logcat under tag `KFDIAG` (`v=N`). Gameplay and data match production.
 - **References:** `scripts/re/README.md` (static RE tools, cave rules, dead-body map) and headers of `scripts/re/*_diag_caves.py`.
 
+### New Client Patches -> libkfpatch (policy since 2026-11-05)
+- All NEW client patches/hooks go in native lib libkfpatch (`src/native/kfpatch/`, built by `scripts/build-kfpatch.sh`, packaged with `KF_NATIVE=1`), reached via 12-byte static trampolines (`scripts/re/kfpatch_tramp.py`) at the hook site. Do not add new code caves in il2cpp dead bodies.
+- Existing caves stay put; migrate one to libkfpatch only when necessary (its host space is needed, or it causes problems). Migrations: separate PRs, each verified on the emulator.
+- Hook sites must not run before kfpatch slots are filled (no boot-time hooks); design notes: `docs/re-notes/kfpatch-design.md`.
+- Exception: boot-time patches and tiny byte/constant changes (endpoint strings, immediates) may stay as in-place il2cpp patches.
+
 ### Building on Another Machine
 1. **Prerequisites:** Standard `scripts/build-direct-apk.ps1` / `.sh` deps (Python 3.10+, Java, apktool 3.0.3, build-tools 35.0.0, verified `base.apk`) + `pip install keystone-engine capstone` **only** if generating new caves (consuming existing caves requires neither).
 2. **Environment Flags (read by `patch-il2cpp-endpoints.py`):**
