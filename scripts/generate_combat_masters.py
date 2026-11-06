@@ -705,7 +705,8 @@ def summon_table(skills: list) -> list:
             # LowModelId = 2 if middleModelFlag else 0 must name a bundle that exists in the catalog.
             rows.append({"id": n, "modelId": n, "summonCharacterType": 3 if n in trap_summon_ids else 0,
                          "positionX": 0.0, "positionY": 0.0, "positionZ": 1.5, "seId": 0,
-                         "gachaPositionX": 0.0, "gachaPositionY": 0.0, "gachaPositionZ": 0.0,
+                         # enlarged disc-detail view ortho = gachaPositionZ * CanvasHeightRate; zeros render nothing
+                         "gachaPositionX": 0.0, "gachaPositionY": -0.9, "gachaPositionZ": 2.6,
                          "gachaRotationX": 0.0, "gachaRotationY": 0.0, "gachaRotationZ": 0.0,
                          # disc-detail camera ortho size = PositionZ*0.8; zeros render nothing
                          "discDetailPositionX": 0.0, "discDetailPositionY": -0.9, "discDetailPositionZ": 2.6,
