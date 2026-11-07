@@ -839,7 +839,7 @@ public sealed class HarnessTests : IClassFixture<ServerTestHostFixture>
                 && row.GetProperty("battleRuleId").GetInt32() == expectedRuleId);
         }
 
-        // 4. Row 2 is the weaker goal guardian /battle/start returns for the ball rules.
+        // 4. Ball rules (3 and 4) get the weaker goal guardian rows (matchType = rule id, one row per ladder rank).
         using var getGuardianRequest = new HttpRequestMessage(HttpMethod.Get, "/demo-master/GuardianParameter");
         getGuardianRequest.Headers.Host = host;
         using var getGuardianResponse = await client.SendAsync(getGuardianRequest);
@@ -847,7 +847,9 @@ public sealed class HarnessTests : IClassFixture<ServerTestHostFixture>
         var guardianBytes = await getGuardianResponse.Content.ReadAsByteArrayAsync();
         using var guardianDoc = JsonDocument.Parse(D2CCodec.Decode(guardianBytes, commonCodeBytes));
         var guardians = guardianDoc.RootElement.EnumerateArray().ToDictionary(g => g.GetProperty("id").GetInt32());
-        Assert.Equal(3000, guardians[2].GetProperty("hp").GetInt32());
+        foreach (var ballRule in new[] { 3, 4 })
+            Assert.Equal(3000, guardians[GuardianBalance.RowId(ballRule, 1)].GetProperty("hp").GetInt32());
+        Assert.Equal(8000, guardians[GuardianBalance.RowId(1, 1)].GetProperty("hp").GetInt32());
 
         // 5. Both ball rules (3 and 4) need a score row keyed by battleRuleId.
         using var getScoreRequest = new HttpRequestMessage(HttpMethod.Get, "/demo-master/BattleRuleRapidBallScore");
@@ -858,7 +860,7 @@ public sealed class HarnessTests : IClassFixture<ServerTestHostFixture>
         using var scoreDoc = JsonDocument.Parse(D2CCodec.Decode(scoreBytes, commonCodeBytes));
         Assert.Contains(scoreDoc.RootElement.EnumerateArray(), r => r.GetProperty("battleRuleId").GetInt32() == 3);
 
-        // 6. /battle/start hands the ball rule (battleRuleType 3) the goal-guardian row 2, everything else row 1.
+        // 6. /battle/start serves the room's guardian row: the id is ruleId * 100 + ladder rank, so it names the rule (ball rule 3 -> 3xx).
         using var startRequest = new HttpRequestMessage(HttpMethod.Post, "/battle/start")
         {
             Content = new ByteArrayContent(D2CCodec.Encode(
@@ -870,7 +872,7 @@ public sealed class HarnessTests : IClassFixture<ServerTestHostFixture>
         using var startResponse = await client.SendAsync(startRequest);
         Assert.Equal(HttpStatusCode.OK, startResponse.StatusCode);
         using var startDoc = JsonDocument.Parse(D2CCodec.Decode(await startResponse.Content.ReadAsByteArrayAsync(), sessionKeyBytes));
-        Assert.Equal(2, startDoc.RootElement.GetProperty("guardianParameter").GetProperty("id").GetInt32());
+        Assert.Equal(3, startDoc.RootElement.GetProperty("guardianParameter").GetProperty("id").GetInt32() / 100);
         // The arena is drawn at random from BattleMatchmakingService.FieldPool (KF_FIELDS) for every battle.
         Assert.Contains(startDoc.RootElement.GetProperty("fieldId").GetInt32(), BattleMatchmakingService.FieldPool);
     }
@@ -911,8 +913,8 @@ public sealed class HarnessTests : IClassFixture<ServerTestHostFixture>
         // Battle A remains active while the server starts battle B under a separate id and rule.
         var battleA = await StartBattle($"battle-a-{Guid.NewGuid():N}", ruleId: 3);
         var battleB = await StartBattle($"battle-b-{Guid.NewGuid():N}", ruleId: 1);
-        Assert.Equal(2, battleA.GetProperty("guardianParameter").GetProperty("id").GetInt32());
-        Assert.Equal(1, battleB.GetProperty("guardianParameter").GetProperty("id").GetInt32());
+        Assert.Equal(3, battleA.GetProperty("guardianParameter").GetProperty("id").GetInt32() / 100);
+        Assert.Equal(1, battleB.GetProperty("guardianParameter").GetProperty("id").GetInt32() / 100);
         Assert.Contains(battleA.GetProperty("fieldId").GetInt32(), BattleMatchmakingService.FieldPool);
         Assert.Contains(battleB.GetProperty("fieldId").GetInt32(), BattleMatchmakingService.FieldPool);
 

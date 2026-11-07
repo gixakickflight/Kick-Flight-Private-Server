@@ -2,7 +2,7 @@
 """Comprehensive Playwright Browser QA for bilingual /balance UI (Spanish & English).
 
 Verifies:
-- Default Spanish on all UI surfaces (login, dashboard, 8 tabs, header, footer, dialogs, toasts)
+- Default Spanish on all UI surfaces (login, dashboard, 9 tabs, header, footer, dialogs, toasts)
 - Header language selector (Español / English) present and responsive on both desktop and mobile
 - Preference persistence across login, navigation, and page reloads via localStorage and cookies
 - Graceful storage failure fallback (when localStorage throws or is restricted)
@@ -749,7 +749,7 @@ def main():
 
             # All eight navigation buttons stay inside their own boxes at 390px.
             nav_boxes = m_page.locator("#tabs button").evaluate_all("els => els.map(e => { const r=e.getBoundingClientRect(); return {text:e.textContent.trim(), left:r.left, right:r.right, top:r.top, bottom:r.bottom}; })")
-            assert len(nav_boxes) == 8
+            assert len(nav_boxes) == 9
             for box in nav_boxes:
                 assert box["left"] >= 0 and box["right"] <= 390, f"Mobile nav overflow: {box}"
             for i, left in enumerate(nav_boxes):

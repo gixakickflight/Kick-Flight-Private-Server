@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace KickFlight.BootstrapApi.Tests;
@@ -18,7 +19,13 @@ public sealed class OtomoMasterBindingTests
 
     // config/masters_disc_rarity.json is in the namespace list (the release carries it) but this adapter never serves it:
     // there is no DiscRarity master in DemoSessionApi, so a binding for it would name a master that does not exist.
-    private static readonly string[] CarriedButNeverServed = ["disc_rarity"];
+    // config/masters_guardian_parameter.json is carried too, but GuardianParameter is generated from GuardianBalance and
+    // BattleRule (GuardianBalance.BuildMasterJson), so it is not bound either.
+    private static readonly string[] CarriedButNeverServed = ["disc_rarity", "guardian_parameter"];
+
+    // Bound (the adapter reads it from the release) but never served to the client as a master of its own: the input
+    // GuardianParameter is generated from.
+    private static readonly string[] BoundButNotServed = ["GuardianBalance"];
 
     private static string Pascal(string table) =>
         string.Concat(table.Split('_').Select(part => char.ToUpperInvariant(part[0]) + part[1..]));
@@ -67,9 +74,12 @@ public sealed class OtomoMasterBindingTests
             builder.UseContentRoot(AppContext.BaseDirectory));
         var served = await ServedMastersAsync(factory);
 
-        Assert.All(Bindings(), binding => Assert.Contains(binding.Master, served));
-        // The one table the catalogue carries and the adapter does not serve is named, not forgotten.
+        Assert.All(Bindings().Where(binding => !BoundButNotServed.Contains(binding.Master)),
+            binding => Assert.Contains(binding.Master, served));
+        // The tables the catalogue carries and the adapter does not serve are named, not forgotten.
         Assert.DoesNotContain("DiscRarity", served);
+        Assert.All(BoundButNotServed, master => Assert.DoesNotContain(master, served));
+        Assert.Contains("GuardianParameter", served);
     }
 
     [Fact]
@@ -99,6 +109,36 @@ public sealed class OtomoMasterBindingTests
         // A table the release did not change is the file's rows, served from the release's copy of them.
         var kicker = await ServedTableAsync(factory, "Kicker");
         Assert.Equal(14, kicker.Count);
+    }
+
+    [Fact]
+    public async Task GuardianParameter_is_generated_from_the_released_GuardianBalance_and_regenerated_on_a_publish()
+    {
+        await using var release = FakeOtomoSocial.Start();
+        static string Balance(int crystalHp) =>
+            GuardianBalance.DefaultJson.Replace("\"baseHp\":8000,\"hpPercentPerRank\":0.0,\"baseAttack\":6000",
+                $"\"baseHp\":{crystalHp},\"hpPercentPerRank\":0.0,\"baseAttack\":6000");
+        release.ReplaceMasterRows("kf.masters.guardian_balance", Balance(12345));
+
+        using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        {
+            builder.UseContentRoot(AppContext.BaseDirectory);
+            builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Otomo:Masters:BaseUrl"] = release.BaseUrl,
+                ["Otomo:Masters:CacheDir"] = Path.Combine(Path.GetTempPath(), "kf-test-masters-" + Guid.NewGuid().ToString("N"))
+            }));
+        });
+
+        int CrystalHp(List<JsonElement> rows) =>
+            rows.Single(row => row.GetProperty("id").GetInt32() == GuardianBalance.RowId(1, GuardianBalance.RankC)).GetProperty("hp").GetInt32();
+
+        Assert.Equal(12345, CrystalHp(await ServedTableAsync(factory, "GuardianParameter")));
+
+        release.ReplaceMasterRows("kf.masters.guardian_balance", Balance(22222));
+        release.Release = "guardian-balance-" + Guid.NewGuid().ToString("N");
+        Assert.True(await factory.Services.GetRequiredService<KickFlight.BootstrapApi.Otomo.OtomoMasters>().RefreshAsync(CancellationToken.None));
+        Assert.Equal(22222, CrystalHp(await ServedTableAsync(factory, "GuardianParameter")));
     }
 
     [Fact]

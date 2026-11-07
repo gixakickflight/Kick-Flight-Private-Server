@@ -29,12 +29,28 @@
    "rows": 2
   },
   {
+   "namespace": "kf.masters.battle_rule_parameter",
+   "audience": "server",
+   "table": "battle_rule_parameter",
+   "source": "config/masters_battle_rule_parameter.json",
+   "schema": "masters/otomo/schema/kf.masters.battle_rule_parameter.json",
+   "rows": 8
+  },
+  {
    "namespace": "kf.masters.battle_rule_rapid_ball_score",
    "audience": "server",
    "table": "battle_rule_rapid_ball_score",
    "source": "config/masters_battle_rule_rapid_ball_score.json",
    "schema": "masters/otomo/schema/kf.masters.battle_rule_rapid_ball_score.json",
    "rows": 2
+  },
+  {
+   "namespace": "kf.masters.battle_rule_role_parameter",
+   "audience": "server",
+   "table": "battle_rule_role_parameter",
+   "source": "config/masters_battle_rule_role_parameter.json",
+   "schema": "masters/otomo/schema/kf.masters.battle_rule_role_parameter.json",
+   "rows": 32
   },
   {
    "namespace": "kf.masters.common_condition_hit",
@@ -82,7 +98,7 @@
    "table": "disc_gacha",
    "source": "config/masters_disc_gacha.json",
    "schema": "masters/otomo/schema/kf.masters.disc_gacha.json",
-   "rows": 1
+   "rows": 2
   },
   {
    "namespace": "kf.masters.disc_grow",
@@ -131,6 +147,14 @@
    "source": "config/masters_gear_skill.json",
    "schema": "masters/otomo/schema/kf.masters.gear_skill.json",
    "rows": 25
+  },
+  {
+   "namespace": "kf.masters.guardian_balance",
+   "audience": "server",
+   "table": "guardian_balance",
+   "source": "config/masters_guardian_balance.json",
+   "schema": "masters/otomo/schema/kf.masters.guardian_balance.json",
+   "rows": 3
   },
   {
    "namespace": "kf.masters.guardian_parameter",
@@ -234,7 +258,7 @@
    "table": "lottery_cost",
    "source": "config/masters_lottery_cost.json",
    "schema": "masters/otomo/schema/kf.masters.lottery_cost.json",
-   "rows": 2
+   "rows": 3
   },
   {
    "namespace": "kf.masters.lottery_disc_drop_amount",

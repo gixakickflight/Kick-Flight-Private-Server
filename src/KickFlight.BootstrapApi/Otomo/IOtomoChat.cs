@@ -41,13 +41,24 @@ public sealed class OtomoChatException : Exception
 
 // One message. body and attachment are absent when empty. seq is the per-channel strictly increasing sequence;
 // sent_at is RFC 3339 with nanoseconds, UTC. There is no sender name: sender_id is the otomo player id.
+//
+// Translation (chat's, never the adapter's; docs/CHAT_TRANSLATION.md): `translations` is language -> text for the
+// languages chat.rules declares, absent or empty when there is none yet; `translation` is the state of that work -
+// "pending", "done", "failed" or "skipped" - and is absent altogether when the chat instance has translation off.
 public sealed record ChatMessageView(
     [property: JsonPropertyName("channel_id")] string ChannelId,
     [property: JsonPropertyName("seq")] long Seq,
     [property: JsonPropertyName("sender_id")] string SenderId,
     [property: JsonPropertyName("body")] string? Body,
     [property: JsonPropertyName("attachment")] string? Attachment,
-    [property: JsonPropertyName("sent_at")] DateTimeOffset SentAt);
+    [property: JsonPropertyName("sent_at")] DateTimeOffset SentAt,
+    [property: JsonPropertyName("translations")] IReadOnlyDictionary<string, string>? Translations = null,
+    [property: JsonPropertyName("translation")] string? Translation = null)
+{
+    public const string TranslationPending = "pending";
+
+    public bool TranslationIsPending => string.Equals(Translation, TranslationPending, StringComparison.Ordinal);
+}
 
 public sealed record ChatChannelView(
     [property: JsonPropertyName("id")] string Id,

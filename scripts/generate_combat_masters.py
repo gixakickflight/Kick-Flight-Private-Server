@@ -343,7 +343,13 @@ KICKER_SKILL_EXTRAS = {
     # KickerSkill), whose BlowOffInfo is this SkillBlowOff row -> PlayerStateBlowOff Down. It used to be a Stun row
     # (play-test 2026-10: "stuns instead of slamming").
     20003: {"blow_off": _SLAM},
-    20005: {"conditions": [(COND_SILENT, 8.0, 0.0, 1.0, 5), (COND_SILENT, 8.0, 0.0, 1.0, 4)],
+    # Owlbert: the drone (NPCDrone) applies the silence itself. NPCDroneStateAttack.Begin (0x14626A0) calls
+    # NPCDrone.AcceptCondition(trigger 3) -> GetConditionInitInfo -> PlayerParameter.GetKickerSkillConditionInitInfo(3),
+    # i.e. the KS rows are looked up with trigger 3 Execute and applied to the drone's target. The rows used to be
+    # triggers 5/4 (EnterEnemyTeamTrap/EnterTrap), which only ConditionTrapAction reads - and it ignores kicker
+    # skills (AddConditionInitInfo only registers AttackType Skill/SpecialSkill) - so nobody was ever silenced.
+    # The trap row is kept (SkillParameterBase.InitializeData reads it); the drone itself creates no Trap.
+    20005: {"conditions": [(COND_SILENT, 8.0, 0.0, 1.0, TRIGGER_EXECUTE)],
             "trap": {"trapType": 2, "duration": 8.0, "radius": 8.0, "effectValue": 0.0}},
     # Grenhawk: slow shot
     20007: {"conditions": [(COND_SPEED_RATE, 5.0, 0.0, 0.4, TRIGGER_RECEIVE_DAMAGE)]},
@@ -420,7 +426,12 @@ DISC_TRAPS = {
     10042: _T(0.4), 10044: _T(0.4),                                                              # Killer Billet, Raging Bulldog: ultra fast
     10043: _T(1.0), 10046: _T(1.0),                                                              # Septicopter, Robo Turret: medium
     10049: {**_B, "blow_off": None, "conditions": [(COND_SILENT, 8.0, 0.0, 1.0, TRIGGER_RECEIVE_DAMAGE)]},      # Aerojammer: bomb + skill seal 8 s
-    10050: {"trapType": 1, "duration": 10.0, "effectValue": 0.3, "interval": 0.0},              # Snazzy Snail: greatly slows 10 s
+    # Snazzy Snail: greatly slows 10 s. Trap types 1 Slow / 2 Silent / 8 Condition share one case in Trap.Initialize and
+    # become a ConditionTrapAction, which applies ONLY the skill's SkillCondition rows (AddConditionInitInfo, trigger
+    # 5 EnterEnemyTeamTrap for enemies); TrapInfo.EffectValue is never read. Without this SpeedRate row the trap
+    # existed but slowed nobody.
+    10050: {"trapType": 1, "duration": 10.0, "effectValue": 0.3, "interval": 0.0,
+            "conditions": [(COND_SPEED_RATE, 10.0, 0.0, 0.3, TRIGGER_ENTER_ENEMY_TRAP)]},
     # Jack o' Lantern: bomb + poison 60 % of max HP over 10 s (Poison ticks = target MaxHP x effectValue)
     10082: {**_B, "conditions": [(COND_POISON, 10.0, 1.0, 0.06, TRIGGER_RECEIVE_DAMAGE)]},
     10086: {"trapType": 8, "duration": 8.0, "effectValue": 0.0, "interval": 1.0,               # Pranky Pumpkin: damage area + ally regen 8 %/s
@@ -705,9 +716,13 @@ def summon_table(skills: list) -> list:
             # LowModelId = 2 if middleModelFlag else 0 must name a bundle that exists in the catalog.
             rows.append({"id": n, "modelId": n, "summonCharacterType": 3 if n in trap_summon_ids else 0,
                          "positionX": 0.0, "positionY": 0.0, "positionZ": 1.5, "seId": 0,
-                         "gachaPositionX": 0.0, "gachaPositionY": 0.0, "gachaPositionZ": 0.0,
+                         # HomeSummonModelController.SetModel (libil2cpp 0x159D1BC) sets the 3D-view camera ortho size to
+                         # Z * 0.8 (disc detail box) / Z * CanvasHeightRate (enlarged / gacha view, rate = canvas height /
+                         # reference height) and the model root to (X, Y); Z = 0 gave an empty RenderTexture. Y=-0.9 / Z=2.6
+                         # frames every summon (verified on the emulator 2026-11-05, 9 discs small and enlarged).
+                         "gachaPositionX": 0.0, "gachaPositionY": -0.9, "gachaPositionZ": 2.6,
                          "gachaRotationX": 0.0, "gachaRotationY": 0.0, "gachaRotationZ": 0.0,
-                         "discDetailPositionX": 0.0, "discDetailPositionY": 0.0, "discDetailPositionZ": 0.0,
+                         "discDetailPositionX": 0.0, "discDetailPositionY": -0.9, "discDetailPositionZ": 2.6,
                          "discDetailRotationX": 0.0, "discDetailRotationY": 0.0, "discDetailRotationZ": 0.0,
                          "middleModelFlag": 0 not in variants.get(n, {0})})
     return rows

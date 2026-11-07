@@ -101,6 +101,9 @@ public sealed class BattleMatchmakingService
         /// matches these tickets instead of refusing them (see StreamAssignmentsCoreAsync).
         /// </summary>
         public bool IsDiag { get; set; }
+        /// <summary>Display-only profile shown in the matchmaking roster. Null = not provided (legacy 13 / default badge).</summary>
+        public int? DisplayRank { get; set; }
+        public int? DisplayHonorId { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         /// <summary>Set when the entry's room closed its window with this entry in the final roster (badge stat context).</summary>
         public string? AssignedBattleId { get; set; }
@@ -346,6 +349,18 @@ public sealed class BattleMatchmakingService
         var session = RegisterTeamMember(userId, userName, kickerId, costumeId, battleRuleId, deck, partyId,
             isDiag, matchType, battleRuleType, deckLevels);
         return (session.BattleEntryId, session.TicketId);
+    }
+
+    /// <summary>
+    /// Sets the rank and equipped badge the roster displays for an entry (display only: pairing never reads them).
+    /// <paramref name="rankFor"/> receives the entry's battleRuleType so the rank is the player's standing for the
+    /// rule being queued. Unknown entries are ignored.
+    /// </summary>
+    public void SetEntryProfile(string battleEntryId, Func<int?, int> rankFor, int honorId)
+    {
+        if (!_entriesByBattleEntryId.TryGetValue(battleEntryId, out var session)) return;
+        session.DisplayRank = rankFor(session.BattleRuleType);
+        session.DisplayHonorId = honorId;
     }
 
     private BattleEntrySession RegisterTeamMember(
@@ -1210,10 +1225,10 @@ public sealed class BattleMatchmakingService
                 matchmakingTeamId = $"team-{(team == 0 ? 1 : 2)}",
                 battleEntryId = p.BattleEntryId,
                 name = playerName,
-                rank = 13,
+                rank = p.DisplayRank ?? 13,
                 kickerId = p.KickerId,
                 kickerCostumeId = p.KickerCostumeId,
-                honorId = 6010000,
+                honorId = p.DisplayHonorId ?? 6010000,
                 teamType = team,
                 kickerAiParameterId = 0, // Human
                 kickerAiDiscDeckId = 0,  // Human

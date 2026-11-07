@@ -50,7 +50,9 @@ renames only after validation; an existing immutable snapshot is accepted only w
 
 The VPS deploy workflow can stage an optional GitHub Release asset named `ios-resource-snapshot.tar.gz` from the same
 repository. Configure both repository variables `IOS_SNAPSHOT_RELEASE_TAG` and `IOS_SNAPSHOT_ARCHIVE_SHA256`; leave
-both empty to skip staging. The workflow downloads only that named asset from the configured repository's release,
+both empty only when no snapshot is needed. If both are empty the workflow reads `catalog-ios-12346.json` and fails fast when any
+row's `sourcePath` is under `.local/ios-resources/` (a snapshot-sourced catalog, currently `12346-r7`), because the API
+release would point at a snapshot that was never staged; with no snapshot-sourced rows it skips. The workflow downloads only that named asset from the configured repository's release,
 checks the pinned SHA-256, transfers it through the existing pinned-host SSH channel, then validates and stages it
 before source sync and any API restart. Staging never rewrites r4 or selects a path by itself. The API source release
 points at r5 only after the archive has staged successfully.
@@ -60,3 +62,7 @@ sources and iOS donor payloads, then run `scripts/build-ios-ui-resource-snapshot
 and Android audits, Android resource catalog, conversion report, and output paths. That builder preserves the original
 rows, appends only the 1,383 round-trip-validated UI bundles, and copies the 152 allowlisted raw resources unchanged.
 The report and source/donor audit artifacts are local inputs and are not shipped in the snapshot archive.
+
+## Test profile (revisioned review package)
+
+The revisioned iOS test profile (currently `assetVersion=12346`, revision 52) is pinned in `config/ios-profile-release.json` and is generic: staging, the wire-floor latch, API routing and health derive from the pin. See [IOS_PROFILE_RELEASE.md](IOS_PROFILE_RELEASE.md) for the activation flow and the steps to publish the next profile (for example revision 53).

@@ -20,8 +20,8 @@ class EndpointPreflightTests(unittest.TestCase):
         config = json.loads(config_path.read_text(encoding="utf-8"))
         self.assertEqual(config["serverBaseUrl"], "http://147.93.138.247:18080")
         self.assertEqual(config["photonHost"], "147.93.138.247")
-        self.assertEqual(config["versionName"], "2.11.705")
-        self.assertEqual(config["versionCode"], 63)
+        self.assertEqual(config["versionName"], "2.11.804")
+        self.assertEqual(config["versionCode"], 69)
         self.assertEqual(
             config["patchFlags"],
             {

@@ -19,7 +19,7 @@ builder.Services.Configure<HarnessOptions>(builder.Configuration.GetSection("Har
 builder.Services.Configure<PhotonServerOptions>(builder.Configuration.GetSection(PhotonServerOptions.SectionName));
 builder.Services.AddSingleton<FixtureStore>();
 builder.Services.AddSingleton<ResourceCatalogStore>();
-builder.Services.AddSingleton<IosR52TestProfileStore>();
+builder.Services.AddSingleton<IosTestProfileStore>();
 builder.Services.AddSingleton<SafeRequestInspector>();
 builder.Services.AddSingleton<IPhotonServerManager, PhotonServerManager>();
 builder.Services.AddSingleton<MaintenanceState>();
@@ -94,6 +94,7 @@ builder.Services.AddSingleton<IOtomoChat>(services => OtomoChat.Create(
     services.GetRequiredService<ILogger<OtomoChat>>()));
 builder.Services.AddSingleton<IChatSenders, ChatSenders>();
 KickFlight.BootstrapApi.Push.PushServiceCollectionExtensions.AddRankedPush(builder.Services, builder.Configuration);
+KickFlight.BootstrapApi.ChatTranslation.ChatTranslationServiceCollectionExtensions.AddChatTranslation(builder.Services);
 builder.Services.AddSingleton<ChatService>();
 builder.Services.AddSingleton<DemoSessionApi>();
 builder.Services.AddGrpc();
@@ -197,7 +198,7 @@ IResult ServeApk(string fileName)
         : Results.Json(new { error = "apk-not-built", expected = path }, statusCode: 404);
 }
 app.MapGet("/apk", () => ServeApk("KickFlight-2.11.0-current-patches.apk"));
-app.MapGet("/apk/remote", () => ServeApk("KickFlight-2.11.705-remote.apk"));
+app.MapGet("/apk/remote", () => ServeApk("KickFlight-2.11.804-remote.apk"));
 app.MapGet("/apk/diag", () => ServeApk("KickFlight-2.11.0-DIAG.apk"));
 app.MapGet("/apk/diag-remote", () => ServeApk("KickFlight-2.11.0-DIAG-remote.apk"));
 // Merged patch set (offline combat + Photon 2-player, scripts/patch-il2cpp-endpoints.py since 46f9392), built by
@@ -273,15 +274,15 @@ app.MapGet("/health/photon", async (IPhotonServerManager photonManager, Cancella
     return Results.Json(status, statusCode: (status.MasterReachable || !status.Enabled) ? 200 : 503);
 });
 app.MapGet("/health/ready", async (FixtureStore store, ResourceCatalogStore resourceStore,
-    IosR52TestProfileStore iosR52Store, IOptions<HarnessOptions> options, IPhotonServerManager photonManager,
+    IosTestProfileStore iosProfileStore, IOptions<HarnessOptions> options, IPhotonServerManager photonManager,
     CancellationToken ct) =>
 {
     var snapshot = store.GetSnapshot();
     var resourceSnapshot = resourceStore.GetSnapshot();
-    var useR52TestProfile = options.Value.EnableIosR52TestProfile;
-    var iosResourceSnapshot = useR52TestProfile ? iosR52Store.GetSnapshot() : resourceStore.GetIosSnapshot();
-    var iosCatalogReady = useR52TestProfile ? iosR52Store.IsReady : resourceStore.IsIosCatalogReady;
-    var iosProfileName = useR52TestProfile ? "r52-test" : "native";
+    var useIosTestProfile = options.Value.EnableIosTestProfile;
+    var iosResourceSnapshot = useIosTestProfile ? iosProfileStore.GetSnapshot() : resourceStore.GetIosSnapshot();
+    var iosCatalogReady = useIosTestProfile ? iosProfileStore.IsReady : resourceStore.IsIosCatalogReady;
+    var iosProfileName = useIosTestProfile ? iosProfileStore.ProfileName : "native";
     var iosProfileRevision = iosResourceSnapshot.Revision;
     var iosBootFixtureReady = store.GetIosBootFixture() is not null;
     var photonStatus = await photonManager.CheckHealthAsync(ct);
@@ -317,11 +318,15 @@ app.MapGet("/health/ready", async (FixtureStore store, ResourceCatalogStore reso
 // Firebase-RTDB-compatible chat websocket (docs/re-notes/chat.md). The client's Firebase URL is patched to this
 // host, so the SDK connects to /.ws?ns=<ns>&v=5[&ls=<sid>]. Must be mapped before the catch-all.
 app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(30) });
-app.Map("/.ws", async (HttpContext context, ChatService chat) =>
+app.Map("/.ws", async (HttpContext context, ChatService chat, KickFlight.BootstrapApi.ChatTranslation.ChatLanguageResolver chatLanguages,
+    KickFlight.BootstrapApi.ChatTranslation.ClientIpResolver chatIps) =>
 {
     if (!context.WebSockets.IsWebSocketRequest) return Results.BadRequest();
     using var socket = await context.WebSockets.AcceptWebSocketAsync();
-    var connection = chat.Register(socket);
+    // Reader language from the client IP (X-Real-IP / X-Forwarded-For only via a trusted proxy) -> country -> pt/es/ja/en.
+    // Only resolved when translation is on; otherwise the original text is served exactly as before.
+    var connection = chat.Register(socket, chat.TranslationEnabled ? chatLanguages.Resolve(context) : null,
+        chat.TranslationEnabled ? chatIps.Resolve(context)?.ToString() : null);
     try
     {
         await connection.SendAsync(ChatService.Handshake(context.Request.Host.Value, Guid.NewGuid().ToString("N")[..12]));
@@ -346,7 +351,7 @@ app.Map("/.ws", async (HttpContext context, ChatService chat) =>
 
 app.MapMethods("/{**path}", new[] { "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS" },
     async (HttpContext context, FixtureStore store, ResourceCatalogStore resourceStore,
-        IosR52TestProfileStore iosR52Store, DemoSessionApi demoSessionApi,
+        IosTestProfileStore iosProfileStore, DemoSessionApi demoSessionApi,
         IOptions<HarnessOptions> options, ILoggerFactory loggerFactory) =>
     {
         var host = FixtureStore.NormalizeHost(context.Request.Host.Host);
@@ -362,10 +367,11 @@ app.MapMethods("/{**path}", new[] { "GET", "POST", "PUT", "PATCH", "DELETE", "HE
         if (demoResult is not null) return demoResult;
 
         var requestPath = context.Request.Path.Value ?? "/";
-        var isIosList = requestPath.StartsWith($"/v1/list/{ResourceCatalogStore.IosAssetVersion}/", StringComparison.Ordinal);
+        var useIosTestProfile = options.Value.EnableIosTestProfile;
+        var iosListAssetVersion = useIosTestProfile ? iosProfileStore.AssetVersion : ResourceCatalogStore.IosAssetVersion;
+        var isIosList = requestPath.StartsWith($"/v1/list/{iosListAssetVersion}/", StringComparison.Ordinal);
         var isIosCdn = requestPath.StartsWith("/ios/cdn/", StringComparison.Ordinal);
-        var useR52TestProfile = options.Value.EnableIosR52TestProfile;
-        var iosCatalogReady = useR52TestProfile ? iosR52Store.IsReady : resourceStore.IsIosCatalogReady;
+        var iosCatalogReady = useIosTestProfile ? iosProfileStore.IsReady : resourceStore.IsIosCatalogReady;
         var isIosBoot = directClient && HttpMethods.IsPost(context.Request.Method) && requestPath == "/boot/index" &&
                         int.TryParse(context.Request.Headers["x-app-asset-platform"], out var platform) && platform == 2;
         if (directClient && (isIosBoot || isIosList || isIosCdn) &&
@@ -380,25 +386,25 @@ app.MapMethods("/{**path}", new[] { "GET", "POST", "PUT", "PATCH", "DELETE", "HE
         {
             if (directClient && isIosList)
             {
-                var listPrefix = $"/v1/list/{ResourceCatalogStore.IosAssetVersion}/";
+                var listPrefix = $"/v1/list/{iosListAssetVersion}/";
                 var fromRevisionText = requestPath[listPrefix.Length..];
-                var maxRevision = useR52TestProfile ? IosR52TestProfileStore.Revision : ResourceCatalogStore.IosWireRevision;
+                var maxRevision = useIosTestProfile ? iosProfileStore.Revision : ResourceCatalogStore.IosWireRevision;
                 if (fromRevisionText.Length == 0 || !fromRevisionText.All(char.IsAsciiDigit) ||
                     !int.TryParse(fromRevisionText, out var fromRevision) || fromRevision < 0 || fromRevision > maxRevision)
                     return Results.Json(new { error = "unsupported-ios-catalog-revision" }, statusCode: StatusCodes.Status404NotFound);
 
-                if (useR52TestProfile)
+                if (useIosTestProfile)
                 {
-                    var r52Fixture = iosR52Store.GetListDatabase(fromRevision);
-                    if (r52Fixture is null)
+                    var profileFixture = iosProfileStore.GetListDatabase(fromRevision);
+                    if (profileFixture is null)
                         return Results.Json(new { error = "unsupported-ios-catalog-revision" }, statusCode: StatusCodes.Status404NotFound);
                     var urlFormat = options.Value.IosOctoCdnUrlFormatsByHost.FirstOrDefault(pair =>
                         string.Equals(FixtureStore.NormalizeHost(pair.Key), host, StringComparison.OrdinalIgnoreCase)).Value;
-                    if (!string.Equals(urlFormat, IosR52TestProfileStore.CdnUrlFormat, StringComparison.Ordinal))
+                    if (!string.Equals(urlFormat, IosTestProfileStore.CdnUrlFormat, StringComparison.Ordinal))
                         return Results.Json(new { error = "ios-cdn-url-unavailable" }, statusCode: StatusCodes.Status503ServiceUnavailable);
-                    foreach (var header in r52Fixture.Headers) context.Response.Headers[header.Key] = header.Value;
-                    var r52Body = OctoDatabaseUrl.Rewrite(r52Fixture.Body, urlFormat);
-                    return new LocalFixtureResult(r52Body, "application/x-protobuf", StatusCodes.Status200OK);
+                    foreach (var header in profileFixture.Headers) context.Response.Headers[header.Key] = header.Value;
+                    var profileBody = OctoDatabaseUrl.Rewrite(profileFixture.Body, urlFormat);
+                    return new LocalFixtureResult(profileBody, "application/x-protobuf", StatusCodes.Status200OK);
                 }
 
                 var database = IosOctoDatabase.Build(resourceStore.GetIosSnapshot(), fromRevision);
@@ -406,7 +412,7 @@ app.MapMethods("/{**path}", new[] { "GET", "POST", "PUT", "PATCH", "DELETE", "HE
             }
             var resource = directClient
                 ? isIosCdn
-                    ? useR52TestProfile ? iosR52Store.MatchDirect(requestPath) : resourceStore.MatchIosDirect(requestPath)
+                    ? useIosTestProfile ? iosProfileStore.MatchDirect(requestPath) : resourceStore.MatchIosDirect(requestPath)
                     : resourceStore.MatchDirect(requestPath)
                 : resourceStore.Match(host, requestPath);
             if (resource is not null)

@@ -169,7 +169,9 @@ public sealed class RankedModeRotationTests
         using var startResponse = await client.SendAsync(startRequest);
         Assert.Equal(HttpStatusCode.OK, startResponse.StatusCode);
         using var startBody = JsonDocument.Parse(D2CCodec.Decode(await startResponse.Content.ReadAsByteArrayAsync(), sessionKey));
-        Assert.Equal(2, startBody.RootElement.GetProperty("guardianParameter").GetProperty("id").GetInt32());
+        // The room keeps its original rule, so the guardian row names activeRule even though the request posted newRule.
+        Assert.Equal(activeRule, startBody.RootElement.GetProperty("guardianParameter").GetProperty("id").GetInt32() / 100);
+        Assert.InRange(startBody.RootElement.GetProperty("guardianParameter").GetProperty("rank").GetInt32(), 0, 16);
 
         var resultPayload = JsonSerializer.Serialize(new { battleEntryId });
         using var resultRequest = new HttpRequestMessage(HttpMethod.Post, "/battle/result")

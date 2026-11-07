@@ -154,6 +154,10 @@ un `select`. Un uuid ⇒ un jugador, para siempre.
 | `Harness:MaxCapturedBodyBytes` | `65536` | truncado del cuerpo capturado |
 | `Harness:OctoCdnUrlFormat` | vacío | fija el formato de URL del CDN en vez de derivarlo del `Host` |
 | `KF_REPO_ROOT` | vacío | raíz con la que se resuelven todas las rutas relativas |
+| `Chat:Translation:Enabled` | `true` | selección del idioma del lector y retención de mensajes `pending`; la traducción la hace otomo chat ([`docs/CHAT_TRANSLATION.md`](CHAT_TRANSLATION.md)) |
+| `Chat:Translation:MaxBroadcastDelayMs` | `10000` | máximo que se retiene un mensaje cuya traducción sigue `pending`, desde su `sent_at` |
+| `KF_GEOIP_DB` | vacío | ruta del mmdb DB-IP Country Lite; sin él el chat se sirve en inglés |
+| `KF_CHAT_FORCE_LANGUAGE` / `KF_CHAT_FORCE_COUNTRY` | vacío | solo desarrollo: fuerza `pt`/`es`/`ja`/`en` o un país ISO para todos los lectores |
 
 `KF_REPO_ROOT` merece un párrafo: las rutas del proyecto (`config/masters_*.json`,
 `config/resources/catalog.json`, `../Kick-Flight-Assets/octo_sorted/...`) se

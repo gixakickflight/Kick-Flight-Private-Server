@@ -10,36 +10,52 @@ using Xunit;
 
 namespace KickFlight.BootstrapApi.Tests;
 
-public sealed class IosR52ProfileRoutingTests : IClassFixture<ServerTestHostFixture>
+public sealed class IosProfileRoutingTests : IClassFixture<ServerTestHostFixture>
 {
-    private const string PublicHost = IosR52TestProfileStore.CanonicalHost;
-    private const string CdnUrl = IosR52TestProfileStore.CdnUrlFormat;
+    private const string PublicHost = IosTestProfileStore.CanonicalHost;
+    private const string CdnUrl = IosTestProfileStore.CdnUrlFormat;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly ServerTestHostFixture _server;
 
-    public IosR52ProfileRoutingTests(ServerTestHostFixture server) => _server = server;
+    public IosProfileRoutingTests(ServerTestHostFixture server) => _server = server;
 
-    [R52ProfileFact]
-    public async Task R52_review_package_is_accepted_when_profile_path_is_set()
+    /// <summary>Synthetic profile identity and size; the current pin (12346/52) and a hypothetical next profile.</summary>
+    public sealed record ProfileShape(int AssetVersion, int Revision, int Routes, int Rows);
+
+    public static TheoryData<int, int, int, int> Shapes => new()
     {
-        var profileRoot = Environment.GetEnvironmentVariable("KF_R52_REVIEW_PROFILE");
+        { 12346, 52, 3389, 3719 },
+        { 12347, 53, 40, 77 },
+    };
+
+    [IosProfileFact]
+    public async Task Review_package_is_accepted_when_profile_path_is_set()
+    {
+        var profileRoot = Environment.GetEnvironmentVariable("KF_IOS_REVIEW_PROFILE");
         Assert.False(string.IsNullOrWhiteSpace(profileRoot));
         Assert.True(Directory.Exists(profileRoot));
+        // The staged package is self-describing: identity and row count come from its own report.
+        using var reviewReport = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(profileRoot, "profile-report.json")));
+        var reviewShape = new ProfileShape(
+            reviewReport.RootElement.GetProperty("assetVersion").GetInt32(),
+            reviewReport.RootElement.GetProperty("revision").GetInt32(),
+            reviewReport.RootElement.GetProperty("resourceRoutes").GetInt32(),
+            reviewReport.RootElement.GetProperty("servedRows").GetInt32());
 
         using var temp = new TemporaryDirectory();
         var android = await CreateAndroidSourcesAsync(temp.Path);
-        using var factory = CreateFactory(temp.Path, profileRoot, enabled: true, android.CatalogPath, android.FixtureDirectory);
+        using var factory = CreateFactory(temp.Path, profileRoot, enabled: true, android.CatalogPath, android.FixtureDirectory, reviewShape);
         using var client = factory.CreateClient();
 
-        using var listRequest = new HttpRequestMessage(HttpMethod.Get, "/v1/list/12346/0");
+        using var listRequest = new HttpRequestMessage(HttpMethod.Get, $"/v1/list/{reviewShape.AssetVersion}/0");
         listRequest.Headers.Host = PublicHost;
         using var listResponse = await client.SendAsync(listRequest);
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
         var listBody = await listResponse.Content.ReadAsByteArrayAsync();
-        Assert.Equal(3719, CountOctoRows(listBody));
+        Assert.Equal(reviewShape.Rows, CountOctoRows(listBody));
         Assert.Equal(CdnUrl, ReadTopLevelString(listBody, fieldNumber: 5));
 
-        using var currentRequest = new HttpRequestMessage(HttpMethod.Get, "/v1/list/12346/52");
+        using var currentRequest = new HttpRequestMessage(HttpMethod.Get, $"/v1/list/{reviewShape.AssetVersion}/{reviewShape.Revision}");
         currentRequest.Headers.Host = PublicHost;
         using var currentResponse = await client.SendAsync(currentRequest);
         Assert.Equal(HttpStatusCode.OK, currentResponse.StatusCode);
@@ -59,24 +75,27 @@ public sealed class IosR52ProfileRoutingTests : IClassFixture<ServerTestHostFixt
             payloadResponse.Content.Headers.ContentLength);
     }
 
-    [Fact]
-    public async Task R52_routes_prebuilt_wire_and_staged_ios_payloads_without_changing_android()
+    [Theory]
+    [MemberData(nameof(Shapes))]
+    public async Task Profile_routes_prebuilt_wire_and_staged_ios_payloads_without_changing_android(
+        int assetVersion, int revision, int routes, int rows)
     {
+        var shape = new ProfileShape(assetVersion, revision, routes, rows);
         using var temp = new TemporaryDirectory();
-        var profile = await CreateProfileAsync(Path.Combine(temp.Path, "r52-profile"));
+        var profile = await CreateProfileAsync(Path.Combine(temp.Path, "profile"), shape);
         var android = await CreateAndroidSourcesAsync(temp.Path);
-        using var factory = CreateFactory(temp.Path, profile.Root, enabled: true, android.CatalogPath, android.FixtureDirectory);
+        using var factory = CreateFactory(temp.Path, profile.Root, enabled: true, android.CatalogPath, android.FixtureDirectory, shape);
         using var client = factory.CreateClient();
 
-        using var firstListRequest = new HttpRequestMessage(HttpMethod.Get, "/v1/list/12346/0");
+        using var firstListRequest = new HttpRequestMessage(HttpMethod.Get, $"/v1/list/{assetVersion}/0");
         firstListRequest.Headers.Host = PublicHost;
         using var firstListResponse = await client.SendAsync(firstListRequest);
         Assert.Equal(HttpStatusCode.OK, firstListResponse.StatusCode);
         Assert.Equal("application/x-protobuf", firstListResponse.Content.Headers.ContentType?.MediaType);
-        Assert.Equal("r52-0", firstListResponse.Headers.GetValues("x-kickflight-fixture").Single());
+        Assert.Equal($"r{revision}-0", firstListResponse.Headers.GetValues("x-kickflight-fixture").Single());
         Assert.Equal(profile.UpdateWireBody, await firstListResponse.Content.ReadAsByteArrayAsync());
 
-        using var currentRequest = new HttpRequestMessage(HttpMethod.Get, "/v1/list/12346/52");
+        using var currentRequest = new HttpRequestMessage(HttpMethod.Get, $"/v1/list/{assetVersion}/{revision}");
         currentRequest.Headers.Host = PublicHost;
         using var currentResponse = await client.SendAsync(currentRequest);
         Assert.Equal(HttpStatusCode.OK, currentResponse.StatusCode);
@@ -87,11 +106,11 @@ public sealed class IosR52ProfileRoutingTests : IClassFixture<ServerTestHostFixt
         using (var health = JsonDocument.Parse(await healthResponse.Content.ReadAsByteArrayAsync()))
         {
             Assert.True(health.RootElement.GetProperty("iosCatalogReady").GetBoolean());
-            Assert.Equal("r52-test", health.RootElement.GetProperty("iosProfile").GetString());
-            Assert.Equal(IosR52TestProfileStore.Revision, health.RootElement.GetProperty("iosProfileRevision").GetInt32());
+            Assert.Equal($"r{revision}-test", health.RootElement.GetProperty("iosProfile").GetString());
+            Assert.Equal(revision, health.RootElement.GetProperty("iosProfileRevision").GetInt32());
         }
 
-        using var futureRequest = new HttpRequestMessage(HttpMethod.Get, "/v1/list/12346/53");
+        using var futureRequest = new HttpRequestMessage(HttpMethod.Get, $"/v1/list/{assetVersion}/{revision + 1}");
         futureRequest.Headers.Host = PublicHost;
         using var futureResponse = await client.SendAsync(futureRequest);
         Assert.Equal(HttpStatusCode.NotFound, futureResponse.StatusCode);
@@ -117,11 +136,14 @@ public sealed class IosR52ProfileRoutingTests : IClassFixture<ServerTestHostFixt
         Assert.Equal(android.PayloadBytes, await androidPayloadResponse.Content.ReadAsByteArrayAsync());
     }
 
-    [Fact]
-    public async Task Invalid_or_disabled_R52_profile_fails_closed_and_keeps_android_available()
+    [Theory]
+    [MemberData(nameof(Shapes))]
+    public async Task Invalid_or_disabled_profile_fails_closed_and_keeps_android_available(
+        int assetVersion, int revision, int routes, int rows)
     {
+        var shape = new ProfileShape(assetVersion, revision, routes, rows);
         using var temp = new TemporaryDirectory();
-        var profile = await CreateProfileAsync(Path.Combine(temp.Path, "r52-profile"));
+        var profile = await CreateProfileAsync(Path.Combine(temp.Path, "profile"), shape);
         var reportPath = Path.Combine(profile.Root, "profile-report.json");
         var report = JsonDocument.Parse(await File.ReadAllTextAsync(reportPath));
         var reportObject = JsonNode.Parse(report.RootElement.GetRawText())!.AsObject();
@@ -130,9 +152,9 @@ public sealed class IosR52ProfileRoutingTests : IClassFixture<ServerTestHostFixt
         await File.WriteAllTextAsync(reportPath, reportObject.ToJsonString(JsonOptions));
 
         var android = await CreateAndroidSourcesAsync(temp.Path);
-        using var enabledFactory = CreateFactory(temp.Path, profile.Root, enabled: true, android.CatalogPath, android.FixtureDirectory);
+        using var enabledFactory = CreateFactory(temp.Path, profile.Root, enabled: true, android.CatalogPath, android.FixtureDirectory, shape);
         using var enabledClient = enabledFactory.CreateClient();
-        using var rejectedListRequest = new HttpRequestMessage(HttpMethod.Get, "/v1/list/12346/0");
+        using var rejectedListRequest = new HttpRequestMessage(HttpMethod.Get, $"/v1/list/{assetVersion}/0");
         rejectedListRequest.Headers.Host = PublicHost;
         using var rejectedList = await enabledClient.SendAsync(rejectedListRequest);
         Assert.Equal(HttpStatusCode.ServiceUnavailable, rejectedList.StatusCode);
@@ -147,7 +169,7 @@ public sealed class IosR52ProfileRoutingTests : IClassFixture<ServerTestHostFixt
         using var androidPayload = await enabledClient.SendAsync(androidPayloadRequest);
         Assert.Equal(HttpStatusCode.OK, androidPayload.StatusCode);
 
-        using var disabledFactory = CreateFactory(temp.Path, profile.Root, enabled: false, android.CatalogPath, android.FixtureDirectory);
+        using var disabledFactory = CreateFactory(temp.Path, profile.Root, enabled: false, android.CatalogPath, android.FixtureDirectory, shape);
         using var disabledClient = disabledFactory.CreateClient();
         using var disabledRequest = new HttpRequestMessage(HttpMethod.Get, "/ios/cdn/object-0001.octo");
         disabledRequest.Headers.Host = PublicHost;
@@ -160,7 +182,8 @@ public sealed class IosR52ProfileRoutingTests : IClassFixture<ServerTestHostFixt
         string profileRoot,
         bool enabled,
         string androidCatalogPath,
-        string fixtureDirectory)
+        string fixtureDirectory,
+        ProfileShape shape)
     {
         var contentRoot = Path.Combine(tempRoot, "content-root");
         Directory.CreateDirectory(contentRoot);
@@ -170,8 +193,10 @@ public sealed class IosR52ProfileRoutingTests : IClassFixture<ServerTestHostFixt
             builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Harness:DirectClientHosts:0"] = PublicHost,
-                ["Harness:EnableIosR52TestProfile"] = enabled.ToString(),
-                ["Harness:IosR52TestProfilePath"] = profileRoot,
+                ["Harness:EnableIosTestProfile"] = enabled.ToString(),
+                ["Harness:IosTestProfileAssetVersion"] = shape.AssetVersion.ToString(),
+                ["Harness:IosTestProfileRevision"] = shape.Revision.ToString(),
+                ["Harness:IosTestProfilePath"] = profileRoot,
                 ["Harness:ResourceCatalogPath"] = androidCatalogPath,
                 ["Harness:FixtureDirectory"] = fixtureDirectory,
                 ["Harness:IosResourceCatalogPath"] = Path.Combine(tempRoot, "missing-ios", "catalog.json"),
@@ -183,7 +208,7 @@ public sealed class IosR52ProfileRoutingTests : IClassFixture<ServerTestHostFixt
         });
     }
 
-    private static async Task<ProfileFixture> CreateProfileAsync(string root)
+    private static async Task<ProfileFixture> CreateProfileAsync(string root, ProfileShape shape)
     {
         var fixtureDirectory = Path.Combine(root, "fixtures");
         var payloadDirectory = Path.Combine(root, "payload-r7");
@@ -192,18 +217,18 @@ public sealed class IosR52ProfileRoutingTests : IClassFixture<ServerTestHostFixt
 
         var payloadBytes = new byte[] { 0x52, 0x37, 0x21, 0x00 };
         var payloadSha = Sha256(payloadBytes);
-        var resources = new List<ResourceDefinition>(IosR52TestProfileStore.ExpectedResourceRoutes);
-        for (var id = 1; id <= IosR52TestProfileStore.ExpectedResourceRoutes; id++)
+        var resources = new List<ResourceDefinition>(shape.Routes);
+        for (var id = 1; id <= shape.Routes; id++)
         {
             var objectName = $"object-{id:D4}.octo";
             var sourcePath = $"payload-r7/{objectName}";
             await File.WriteAllBytesAsync(Path.Combine(payloadDirectory, objectName), payloadBytes);
             resources.Add(new ResourceDefinition
             {
-                Id = $"r52-{id:D4}",
+                Id = $"r{shape.Revision}-{id:D4}",
                 Enabled = true,
                 Host = PublicHost,
-                RequestPath = $"{IosR52TestProfileStore.CdnPrefix}object-{id:D4}.octo",
+                RequestPath = $"{IosTestProfileStore.CdnPrefix}object-{id:D4}.octo",
                 LogicalName = $"resource/synthetic-{id:D4}",
                 SourcePath = sourcePath,
                 ContentType = "application/octet-stream",
@@ -214,46 +239,46 @@ public sealed class IosR52ProfileRoutingTests : IClassFixture<ServerTestHostFixt
         var catalogPath = Path.Combine(root, "catalog.json");
         await File.WriteAllTextAsync(catalogPath, JsonSerializer.Serialize(new ResourceCatalogDocument { Resources = resources }, JsonOptions));
 
-        var updateWireBody = CreateWireDatabase(IosR52TestProfileStore.ExpectedUpdateRows);
-        var currentWireBody = CreateWireDatabase(0);
+        var updateWireBody = CreateWireDatabase(shape.Rows, shape.Revision);
+        var currentWireBody = CreateWireDatabase(0, shape.Revision);
         var fixtureHashes = new Dictionary<string, string>(StringComparer.Ordinal);
-        for (var from = 0; from < IosR52TestProfileStore.Revision; from++)
+        for (var from = 0; from < shape.Revision; from++)
         {
-            var fixtureName = $"resource-list-12346-from-{from}.json";
+            var fixtureName = $"resource-list-{shape.AssetVersion}-from-{from}.json";
             fixtureHashes[fixtureName] = await WriteFixtureAsync(
-                fixtureDirectory, fixtureName, $"r52-{from}", $"/v1/list/12346/{from}", updateWireBody);
+                fixtureDirectory, fixtureName, $"r{shape.Revision}-{from}", $"/v1/list/{shape.AssetVersion}/{from}", updateWireBody);
         }
-        const string currentFixtureName = "resource-list-12346.json";
+        var currentFixtureName = $"resource-list-{shape.AssetVersion}.json";
         fixtureHashes[currentFixtureName] = await WriteFixtureAsync(
-            fixtureDirectory, currentFixtureName, "r52-current", "/v1/list/12346/52", currentWireBody);
+            fixtureDirectory, currentFixtureName, $"r{shape.Revision}-current", $"/v1/list/{shape.AssetVersion}/{shape.Revision}", currentWireBody);
 
         var titleMinimumPath = Path.Combine(root, "title-minimum.json");
         await File.WriteAllTextAsync(titleMinimumPath, JsonSerializer.Serialize(new
         {
-            assetVersion = 12346,
-            revision = 52,
-            previousRevision = 51,
-            fromRevisions = Enumerable.Range(0, 52),
+            assetVersion = shape.AssetVersion,
+            revision = shape.Revision,
+            previousRevision = shape.Revision - 1,
+            fromRevisions = Enumerable.Range(0, shape.Revision),
             urlPathFormat = "/ios/cdn/{o}",
             entries = Array.Empty<object>()
         }, JsonOptions));
 
         var report = new
         {
-            schema = "r56.bootstrapapi.offline-profile.r52-direct-review.v1",
-            assetVersion = 12346,
-            revision = 52,
-            previousRevision = 51,
-            fromRevisions = Enumerable.Range(0, 52),
-            fixtureCount = 53,
-            fullUpdateFixtureRevisions = Enumerable.Range(0, 52),
-            currentFixtureRevision = 52,
-            servedRows = IosR52TestProfileStore.ExpectedUpdateRows,
-            resourceRoutes = IosR52TestProfileStore.ExpectedResourceRoutes,
-            payloadCount = IosR52TestProfileStore.ExpectedResourceRoutes,
-            payloadBytes = (long)payloadBytes.Length * IosR52TestProfileStore.ExpectedResourceRoutes,
+            schema = $"r56.bootstrapapi.offline-profile.r{shape.Revision}-direct-review.v1",
+            assetVersion = shape.AssetVersion,
+            revision = shape.Revision,
+            previousRevision = shape.Revision - 1,
+            fromRevisions = Enumerable.Range(0, shape.Revision),
+            fixtureCount = shape.Revision + 1,
+            fullUpdateFixtureRevisions = Enumerable.Range(0, shape.Revision),
+            currentFixtureRevision = shape.Revision,
+            servedRows = shape.Rows,
+            resourceRoutes = shape.Routes,
+            payloadCount = shape.Routes,
+            payloadBytes = (long)payloadBytes.Length * shape.Routes,
             canonicalHost = PublicHost,
-            cdnRequestPrefix = IosR52TestProfileStore.CdnPrefix,
+            cdnRequestPrefix = IosTestProfileStore.CdnPrefix,
             urlFormatInFixtures = CdnUrl,
             testOnly = true,
             complete = false,
@@ -335,10 +360,10 @@ public sealed class IosR52ProfileRoutingTests : IClassFixture<ServerTestHostFixt
         return new AndroidSources(catalogPath, fixtureDirectory, payload);
     }
 
-    private static byte[] CreateWireDatabase(int rows)
+    private static byte[] CreateWireDatabase(int rows, int revision)
     {
         using var output = new MemoryStream();
-        WriteVarintField(output, 1, 52);
+        WriteVarintField(output, 1, (ulong)revision);
         for (var row = 0; row < Math.Min(rows, 3131); row++) WriteBytesField(output, 2, []);
         if (rows != 0) WriteStringField(output, 3, "common");
         for (var row = 3131; row < rows; row++) WriteBytesField(output, 4, []);
@@ -445,7 +470,7 @@ public sealed class IosR52ProfileRoutingTests : IClassFixture<ServerTestHostFixt
     {
         public TemporaryDirectory()
         {
-            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"kf-r52-test-{Guid.NewGuid():N}");
+            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"kf-ios-profile-test-{Guid.NewGuid():N}");
             Directory.CreateDirectory(Path);
         }
 
@@ -455,11 +480,11 @@ public sealed class IosR52ProfileRoutingTests : IClassFixture<ServerTestHostFixt
     }
 }
 
-public sealed class R52ProfileFactAttribute : FactAttribute
+public sealed class IosProfileFactAttribute : FactAttribute
 {
-    public R52ProfileFactAttribute()
+    public IosProfileFactAttribute()
     {
-        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("KF_R52_REVIEW_PROFILE")))
-            Skip = "Set KF_R52_REVIEW_PROFILE to a verified staged R52 package to run full-payload routing validation.";
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("KF_IOS_REVIEW_PROFILE")))
+            Skip = "Set KF_IOS_REVIEW_PROFILE to a verified staged iOS profile package to run full-payload routing validation.";
     }
 }

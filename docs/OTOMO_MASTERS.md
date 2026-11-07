@@ -37,11 +37,13 @@ discs or translation keys.
 | `config/masters_weapon_attack.json` | `kf.masters.weapon_attack` | `masters/otomo/schema/kf.masters.weapon_attack.json` |
 | `config/masters_disc_buildup.json` | `kf.masters.disc_buildup` | `masters/otomo/schema/kf.masters.disc_buildup.json` |
 
-The rule is the same for all 62: the file stem after `masters_` is the namespace's last segment and the schema's
+The rule is the same for all 65: the file stem after `masters_` is the namespace's last segment and the schema's
 file name. `masters/otomo/namespaces.json` carries the full list with each table's row count.
 
-**The mapping is configuration, not a constant.** The whole list - every table the adapter serves, 61 of the 62
-namespaces (`disc_rarity` is carried by the release but is not a master `DemoSessionApi` serves) - is in
+**The mapping is configuration, not a constant.** The whole list - 63 of the 65 namespaces (`disc_rarity` is carried by
+the release but is not a master `DemoSessionApi` serves; `guardian_parameter` is carried but the served GuardianParameter
+is generated from `GuardianBalance` = `kf.masters.guardian_balance` and `BattleRule`, regenerated on every publish of
+either; `GuardianBalance` itself is read, never served to the client) - is in
 `appsettings.json`, under `Otomo:Masters:Tables`, so a deploy only needs `Otomo__Masters__Enabled` and the connection
 settings; a table bound there is read from the release and the file read is skipped. With `Enabled` off nothing is
 owned and the files are read as before. `Otomo:Masters:Tables` is an array of `<master>=<namespace>`

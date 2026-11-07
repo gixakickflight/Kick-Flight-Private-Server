@@ -7,6 +7,8 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Grpc.AspNetCore" Version="2.83.0" />
+    <!-- Offline DB-IP country lookup for chat translation (docs/CHAT_TRANSLATION.md). -->
+    <PackageReference Include="MaxMind.Db" Version="5.2.0" />
     <!-- Player state. Used directly rather than through EF Core: the store interface is deliberately
          synchronous, matching the request handlers that call it, and Npgsql has first-class sync methods. -->
     <PackageReference Include="Npgsql" Version="8.0.5" />

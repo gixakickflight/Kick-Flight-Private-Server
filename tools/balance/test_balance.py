@@ -660,6 +660,76 @@ def main():
         status2, _ = request("/api/table/disc", "POST", {"rows": core + [dict(core[0], id=99999999)]})
         check("core table still refuses add/delete", status2 == 400, "status %s" % status2)
 
+        # -- guardian_balance (Guardianes tab): same table API, extra validation -----
+        status, guardians = request("/api/table/guardian_balance")
+        check("guardian_balance is readable", status == 200 and isinstance(guardians, list) and len(guardians) == 3,
+              "status %s" % status)
+        if status == 200 and guardians:
+            tuned = [dict(g) for g in guardians]
+            tuned[0]["baseHp"] = 9000
+            tuned[0]["hpPercentPerRank"] = 10
+            tuned[0]["attackPercentPerRank"] = 2.5
+            status, result = request("/api/table/guardian_balance", "POST", {"rows": tuned})
+            check("guardian_balance accepts valid edits (int pct coerced to float)",
+                  status == 200 and result and result.get("ok") is True, "status %s body %s" % (status, result))
+            status, saved = request("/api/table/guardian_balance")
+            check("guardian_balance edits round-trip",
+                  saved and saved[0]["baseHp"] == 9000 and saved[0]["hpPercentPerRank"] == 10.0 and
+                  saved[0]["attackPercentPerRank"] == 2.5, "status %s" % status)
+            negative = [dict(g) for g in guardians]
+            negative[1]["baseHp"] = -1
+            status, _ = request("/api/table/guardian_balance", "POST", {"rows": negative})
+            check("guardian_balance rejects a negative base HP", status == 400, "status %s" % status)
+            negative = [dict(g) for g in guardians]
+            negative[0]["hpPercentPerRank"] = -5
+            status, _ = request("/api/table/guardian_balance", "POST", {"rows": negative})
+            check("guardian_balance rejects a negative percentage", status == 400, "status %s" % status)
+            fractional = [dict(g) for g in guardians]
+            fractional[0]["baseAttack"] = 100.5
+            status, _ = request("/api/table/guardian_balance", "POST", {"rows": fractional})
+            check("guardian_balance rejects a fractional base attack", status == 400, "status %s" % status)
+            status, _ = request("/api/table/guardian_balance", "POST", {"rows": guardians[:2]})
+            check("guardian_balance refuses removing a profile", status == 400, "status %s" % status)
+
+        # -- carry slowdown tables (Ralentizacion tab) ------------------------------
+        status, roles = request("/api/table/battle_rule_role_parameter")
+        check("battle_rule_role_parameter is readable with roleType 0..3 for 8 rules",
+              status == 200 and isinstance(roles, list) and len(roles) == 32 and
+              sorted({r["roleType"] for r in roles}) == [0, 1, 2, 3] and
+              all(r["crystalCountSpeedCorrection"] == 0 for r in roles), "status %s" % status)
+        status, params = request("/api/table/battle_rule_parameter")
+        check("battle_rule_parameter is readable (max count -1)",
+              status == 200 and isinstance(params, list) and len(params) == 8 and
+              all(p["itemDecelerationMaxCount"] == -1 for p in params), "status %s" % status)
+        if roles and params:
+            tuned = [dict(r) for r in roles]
+            tuned[0]["crystalCountSpeedCorrection"] = 2.5
+            status, result = request("/api/table/battle_rule_role_parameter", "POST", {"rows": tuned})
+            check("role table accepts a float percent", status == 200 and result and result.get("ok") is True,
+                  "status %s" % status)
+            status, saved = request("/api/table/battle_rule_role_parameter")
+            check("role table edit round-trips as override",
+                  saved and saved[0]["crystalCountSpeedCorrection"] == 2.5 and
+                  (OVERRIDES / "masters_battle_rule_role_parameter.json").is_file(), "status %s" % status)
+            for label, mutate in (
+                ("percent above 100", lambda rows: rows[1].update(crystalCountSpeedCorrection=100.5)),
+                ("negative percent", lambda rows: rows[1].update(crystalCountSpeedCorrection=-1)),
+                ("changed roleType", lambda rows: rows[1].update(roleType=3)),
+            ):
+                bad = [dict(r) for r in roles]
+                mutate(bad)
+                status, _ = request("/api/table/battle_rule_role_parameter", "POST", {"rows": bad})
+                check("role table rejects " + label, status == 400, "status %s" % status)
+            tuned = [dict(p) for p in params]
+            tuned[0]["itemDecelerationMaxCount"] = 1
+            status, _ = request("/api/table/battle_rule_parameter", "POST", {"rows": tuned})
+            check("parameter table accepts max count 1", status == 200, "status %s" % status)
+            for label, value in (("max count below -1", -2), ("fractional max count", 1.5)):
+                bad = [dict(p) for p in params]
+                bad[0]["itemDecelerationMaxCount"] = value
+                status, _ = request("/api/table/battle_rule_parameter", "POST", {"rows": bad})
+                check("parameter table rejects " + label, status == 400, "status %s" % status)
+
         # -- apply ----------------------------------------------------------------
         APPLIED_MARKER.unlink(missing_ok=True)
         status, applied = request("/api/apply", "POST")

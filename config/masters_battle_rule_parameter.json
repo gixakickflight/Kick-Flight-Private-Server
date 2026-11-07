@@ -1,0 +1,58 @@
+[
+ {
+  "id": 1,
+  "battleRuleId": 1,
+  "description": "without affecting your rank",
+  "subRuleName": "Fun Match",
+  "itemDecelerationMaxCount": -1
+ },
+ {
+  "id": 2,
+  "battleRuleId": 2,
+  "description": "without affecting your rank",
+  "subRuleName": "Fun Match",
+  "itemDecelerationMaxCount": -1
+ },
+ {
+  "id": 3,
+  "battleRuleId": 3,
+  "description": "without affecting your rank",
+  "subRuleName": "Fun Match",
+  "itemDecelerationMaxCount": -1
+ },
+ {
+  "id": 4,
+  "battleRuleId": 4,
+  "description": "Intense battles at S ranks",
+  "subRuleName": "Ranked Match",
+  "itemDecelerationMaxCount": -1
+ },
+ {
+  "id": 5,
+  "battleRuleId": 5,
+  "description": "Season 1",
+  "subRuleName": "Season Match",
+  "itemDecelerationMaxCount": -1
+ },
+ {
+  "id": 6,
+  "battleRuleId": 6,
+  "description": "Festival Match",
+  "subRuleName": "Kick-Flight Festival",
+  "itemDecelerationMaxCount": -1
+ },
+ {
+  "id": 7,
+  "battleRuleId": 7,
+  "description": "Intense battles at S ranks",
+  "subRuleName": "Ranked Match",
+  "itemDecelerationMaxCount": -1
+ },
+ {
+  "id": 8,
+  "battleRuleId": 8,
+  "description": "Intense battles at S ranks",
+  "subRuleName": "Ranked Match",
+  "itemDecelerationMaxCount": -1
+ }
+]

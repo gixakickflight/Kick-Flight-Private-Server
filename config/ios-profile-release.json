@@ -7,5 +7,5 @@
   "revisionFloor": 52,
   "testOnly": true,
   "complete": false,
-  "runtimeContract": "kickflight.ios-r52-test-profile.v1"
+  "runtimeContract": "kickflight.ios-test-profile.v1"
 }

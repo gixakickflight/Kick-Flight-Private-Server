@@ -4,6 +4,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using KickFlight.BootstrapApi.ChatTranslation;
 using KickFlight.BootstrapApi.Otomo;
 using Microsoft.Extensions.Options;
 
@@ -20,6 +21,11 @@ namespace KickFlight.BootstrapApi;
 /// <item>the relay: chat's only push is a Valkey publish, which this adapter has no client for, so while at least one
 /// socket listens it reads the global channel after its last seq every <see cref="OtomoChatOptions.PollInterval"/>, and
 /// a write made through this adapter wakes the read at once.</item>
+/// <item>which text a reader gets (docs/CHAT_TRANSLATION.md): chat translates and answers <c>translations</c> per
+/// language; a reader gets the one for their language (from their IP, <see cref="ChatLanguageResolver"/>) when there is
+/// one, else the original, and the author's own connection always gets the original. While chat says a message's
+/// translation is pending the relay holds it (and everything after it, to keep order) back for at most
+/// <see cref="ChatTranslationOptions.MaxBroadcastDelayMs"/> from its sent_at.</item>
 /// </list>
 /// Every client room id maps to chat's one global channel (the pre-move store was language-independent too, but kept the
 /// four rooms apart; chat has no room dimension, so the four tabs now show the same stream).
@@ -30,9 +36,13 @@ public sealed class ChatService : IDisposable
     public const int HistoryLimit = 100;
     private const int PollLimit = 200; // chat's MaxLimit (internal/chat/service.go: MaxLimit)
 
+    public const string DummyCustomToken = "kfchat-dummy-token";
+
     private readonly IOtomoChat _chat;
     private readonly IChatSenders _senders;
     private readonly OtomoChatOptions _options;
+    private readonly ChatTranslationOptions _translation;
+    private readonly TimeProvider _time;
     private readonly HashSet<int> _roomIds;
     private readonly bool _switch;
     private readonly ConcurrentDictionary<ChatConnection, byte> _connections = new();
@@ -46,11 +56,14 @@ public sealed class ChatService : IDisposable
     private long _lastMillis;
 
     public ChatService(IOtomoChat chat, IChatSenders senders, IOptions<OtomoChatOptions> options,
-        IWebHostEnvironment environment, IConfiguration configuration, ILogger<ChatService> logger)
+        IWebHostEnvironment environment, IConfiguration configuration, ILogger<ChatService> logger,
+        ChatTranslationOptions? translation = null, TimeProvider? time = null)
     {
         _chat = chat;
         _senders = senders;
         _options = options.Value;
+        _translation = translation ?? ChatTranslationOptions.FromConfiguration(configuration);
+        _time = time ?? TimeProvider.System;
         _logger = logger;
         _switch = configuration.GetValue("Chat:Enabled", true);
         _roomIds = LoadRoomIds(environment.ContentRootPath);
@@ -59,7 +72,65 @@ public sealed class ChatService : IDisposable
     /// <summary>Kill switch (Chat:Enabled=false) or no Otomo:Chat: startup then serves the empty connection id again.</summary>
     public bool Enabled => _switch && _chat.Enabled;
 
+    /// <summary>Read-side translation selection and the pending hold-back (Chat:Translation:Enabled, on by default).
+    /// With chat's translation off nothing changes either way: messages then carry no translations and no state.</summary>
+    public bool TranslationEnabled => Enabled && _translation.Enabled;
+
     public bool RoomExists(int roomId) => _roomIds.Contains(roomId);
+
+    // ---- the reader's identity (own messages stay in the original) ----
+
+    /// <summary>
+    /// Firebase custom token served at startup. With translation on it carries the player id so the websocket's auth
+    /// frame can tell which connection belongs to a message's author (they always see their own original text);
+    /// unchanged ("kfchat-dummy-token") otherwise.
+    /// </summary>
+    public string CustomTokenFor(long playerId) =>
+        TranslationEnabled && playerId > 0 ? $"{DummyCustomToken}.{playerId.ToString(CultureInfo.InvariantCulture)}" : DummyCustomToken;
+
+    // Fallback for the own-message rule. The shipped client never sends the Firebase auth frame (it does not complete
+    // its custom-token sign-in against this server), so the websocket cannot be tied to a player by token. Players are
+    // instead matched by network address: every authenticated HTTP request records the player's client address (in
+    // memory only, never persisted, bounded and expiring), and a websocket opened from that same address counts as that
+    // player's. Players sharing one address (NAT) simply see each other's originals, which is the safe direction.
+    private readonly ConcurrentDictionary<long, (string Address, long Ticks)> _playerAddresses = new();
+    private static readonly TimeSpan AddressLifetime = TimeSpan.FromHours(6);
+    private const int AddressMapLimit = 20000;
+
+    /// <summary>Records the address a player's latest authenticated HTTP request came from (no-op when unknown).</summary>
+    public void NoteClientAddress(long playerId, string? address)
+    {
+        if (playerId <= 0 || string.IsNullOrEmpty(address) || !TranslationEnabled) return;
+        var now = _time.GetUtcNow().UtcTicks;
+        _playerAddresses[playerId] = (address, now);
+        if (_playerAddresses.Count <= AddressMapLimit) return;
+        foreach (var entry in _playerAddresses)
+            if (now - entry.Value.Ticks > AddressLifetime.Ticks) _playerAddresses.TryRemove(entry.Key, out _);
+    }
+
+    /// <summary>True when <paramref name="connection"/> belongs to the author of <paramref name="message"/>: by auth-frame
+    /// id when the client sent one, otherwise by the address the author last used over HTTP.</summary>
+    public bool IsAuthor(ChatMessage message, ChatConnection connection)
+    {
+        if (connection.UserId > 0)
+            return message.UserId == connection.UserId.ToString(CultureInfo.InvariantCulture);
+        return connection.ClientAddress is { Length: > 0 } address
+            && long.TryParse(message.UserId, NumberStyles.None, CultureInfo.InvariantCulture, out var authorId)
+            && _playerAddresses.TryGetValue(authorId, out var known)
+            && known.Address == address
+            && _time.GetUtcNow().UtcTicks - known.Ticks <= AddressLifetime.Ticks;
+    }
+
+    public static bool TryGetUserIdFromCredential(string? credential, out long userId)
+    {
+        userId = 0;
+        if (string.IsNullOrEmpty(credential)) return false;
+        var marker = DummyCustomToken + ".";
+        var at = credential.IndexOf(marker, StringComparison.Ordinal);
+        if (at < 0) return false;
+        var digits = new string(credential.Skip(at + marker.Length).TakeWhile(char.IsAsciiDigit).ToArray());
+        return long.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out userId) && userId > 0;
+    }
 
     // ---- writes ----
 
@@ -91,7 +162,10 @@ public sealed class ChatService : IDisposable
     // ---- the DTO ----
 
     /// <summary>One message as the client reads it; the JSON names are the Firebase RTDB child fields (ChatDatabaseModel.SetData).</summary>
-    public sealed record ChatMessage(string Key, string UserId, string Name, string Comment, int StampId, int HonorId, string InsertDatetime);
+    /// <param name="Translations">chat's renderings of <paramref name="Comment"/> by language, null when it has none. Never
+    /// sent to the client as such: only the selected text goes into "comment" (<see cref="SelectText"/>).</param>
+    public sealed record ChatMessage(string Key, string UserId, string Name, string Comment, int StampId, int HonorId, string InsertDatetime,
+        IReadOnlyDictionary<string, string>? Translations = null);
 
     private async Task<List<ChatMessage>> ToMessagesAsync(IReadOnlyList<ChatMessageView> views, bool live,
         CancellationToken cancellationToken)
@@ -118,7 +192,8 @@ public sealed class ChatService : IDisposable
             }
             result.Add(new ChatMessage(view.Seq.ToString(CultureInfo.InvariantCulture), sender.UserId, sender.Name,
                 view.Body ?? "", StampOf(view.Attachment), sender.HonorId,
-                DateTimeOffset.FromUnixTimeMilliseconds(millis).ToString("yyyy-MM-ddTHH:mm:ss.fffzzz", CultureInfo.InvariantCulture)));
+                DateTimeOffset.FromUnixTimeMilliseconds(millis).ToString("yyyy-MM-ddTHH:mm:ss.fffzzz", CultureInfo.InvariantCulture),
+                view.Translations is { Count: > 0 } translations ? translations : null));
         }
         return result;
     }
@@ -129,9 +204,11 @@ public sealed class ChatService : IDisposable
 
     // ---- connections ----
 
-    public ChatConnection Register(WebSocket socket)
+    /// <param name="language">pt/es/ja/en for translated reads; null serves the original text.</param>
+    /// <param name="clientAddress">the handshake's client address, to recognise the author (<see cref="IsAuthor"/>).</param>
+    public ChatConnection Register(WebSocket socket, string? language = null, string? clientAddress = null)
     {
-        var connection = new ChatConnection(socket);
+        var connection = new ChatConnection(socket) { Language = language, ClientAddress = clientAddress };
         _connections[connection] = 0;
         return connection;
     }
@@ -174,12 +251,28 @@ public sealed class ChatService : IDisposable
         }
     }
 
+    /// <summary>
+    /// The messages of <paramref name="views"/> (ascending seq) the relay may push now: everything before the first one
+    /// whose translation chat still reports as pending and whose hold-back window (sent_at + MaxBroadcastDelayMs) is
+    /// still open. That one and everything after it wait for a later read, so the order the client sees is chat's.
+    /// </summary>
+    public static int Deliverable(IReadOnlyList<ChatMessageView> views, DateTimeOffset now, int maxDelayMs, bool holdBack)
+    {
+        if (!holdBack) return views.Count;
+        for (var i = 0; i < views.Count; i++)
+            if (views[i].TranslationIsPending && now < views[i].SentAt.AddMilliseconds(maxDelayMs)) return i;
+        return views.Count;
+    }
+
     private async Task PollOnceAsync((ChatConnection Connection, ChatListen Listen)[] listens, CancellationToken token)
     {
         var channel = await ChannelIdAsync(_options.ReaderPlayerId, token);
         var after = listens.Min(l => l.Listen.LastSeq);
-        var views = await _chat.ReadAsync(channel, _options.ReaderPlayerId, after, PollLimit, token);
-        if (views.Count == 0) return;
+        var read = await _chat.ReadAsync(channel, _options.ReaderPlayerId, after, PollLimit, token);
+        // A held message is not pushed and no cursor moves past it: the next poll reads it again, with its translations.
+        var count = Deliverable(read, _time.GetUtcNow(), _translation.MaxBroadcastDelayMs, TranslationEnabled);
+        if (count == 0) return;
+        var views = count == read.Count ? read : read.Take(count).ToArray();
         var messages = await ToMessagesAsync(views, live: true, token);
         for (var i = 0; i < views.Count; i++)
         {
@@ -187,7 +280,7 @@ public sealed class ChatService : IDisposable
             {
                 if (views[i].Seq <= listen.LastSeq || !connection.IsListening(listen)) continue;
                 listen.LastSeq = views[i].Seq;
-                try { await connection.SendAsync(DataPush($"{listen.Path}/{messages[i].Key}", listen.Tag, ToNode(messages[i]))); }
+                try { await connection.SendAsync(DataPush($"{listen.Path}/{messages[i].Key}", listen.Tag, ToNode(messages[i], connection))); }
                 catch (Exception ex) { _logger.LogDebug(ex, "Chat push failed"); }
             }
         }
@@ -218,14 +311,28 @@ public sealed class ChatService : IDisposable
         return new JsonObject { ["t"] = "d", ["d"] = new JsonObject { ["a"] = "d", ["b"] = body } }.ToJsonString();
     }
 
-    public static JsonNode ToNode(ChatMessage m) => new JsonObject
+    public static JsonNode ToNode(ChatMessage m) => ToNode(m, null, false);
+
+    public JsonNode ToNode(ChatMessage m, ChatConnection connection) =>
+        TranslationEnabled ? ToNode(m, connection.Language, IsAuthor(m, connection)) : ToNode(m);
+
+    /// <summary>Read-side selection only (never translates): the author sees the original; others see chat's
+    /// translation for their language, else the original.</summary>
+    public static JsonNode ToNode(ChatMessage m, string? language, bool isAuthor) => new JsonObject
     {
-        ["userId"] = m.UserId, ["name"] = m.Name, ["comment"] = m.Comment,
+        ["userId"] = m.UserId, ["name"] = m.Name, ["comment"] = SelectText(m, language, isAuthor),
         ["stampId"] = m.StampId, ["honorId"] = m.HonorId, ["insertDatetime"] = m.InsertDatetime
     };
 
-    /// <summary>The room's history as chat answers it (the newest page, ascending), and the highest seq in it.</summary>
-    private async Task<(JsonNode Snapshot, long LastSeq)> InitialSnapshotAsync(CancellationToken cancellationToken)
+    public static string SelectText(ChatMessage m, string? language, bool isAuthor)
+    {
+        if (isAuthor || language is null || m.Translations is null) return m.Comment;
+        return m.Translations.TryGetValue(language, out var text) && !string.IsNullOrWhiteSpace(text) ? text : m.Comment;
+    }
+
+    /// <summary>The room's history as chat answers it (the newest page, ascending), and the highest seq in it. A history
+    /// read is never held back: pending messages are in it with whatever translations they have.</summary>
+    private async Task<(JsonNode Snapshot, long LastSeq)> InitialSnapshotAsync(ChatConnection connection, CancellationToken cancellationToken)
     {
         var snapshot = new JsonObject();
         try
@@ -233,7 +340,7 @@ public sealed class ChatService : IDisposable
             var channel = await ChannelIdAsync(_options.ReaderPlayerId, cancellationToken);
             var views = await _chat.ReadAsync(channel, _options.ReaderPlayerId, 0, HistoryLimit, cancellationToken);
             var messages = await ToMessagesAsync(views, live: false, cancellationToken);
-            foreach (var m in messages) snapshot[m.Key] = ToNode(m);
+            foreach (var m in messages) snapshot[m.Key] = ToNode(m, connection);
             return (snapshot, views.Count == 0 ? 0 : views[^1].Seq);
         }
         catch (OtomoChatException ex)
@@ -268,7 +375,7 @@ public sealed class ChatService : IDisposable
                     await connection.SendAsync(DataPush(path, tag, new JsonObject()));
                     break;
                 }
-                var (snapshot, lastSeq) = await InitialSnapshotAsync(CancellationToken.None);
+                var (snapshot, lastSeq) = await InitialSnapshotAsync(connection, CancellationToken.None);
                 // Registered after the read, from the seq it ended at: whatever arrives later is the relay's.
                 connection.Listen(path, tag, roomId.Value, lastSeq);
                 EnsureRelay();
@@ -284,6 +391,11 @@ public sealed class ChatService : IDisposable
                 break;
             }
             default:
+                // Firebase auth carries the custom token served at startup (CustomTokenFor); it identifies the reader
+                // so their own messages stay untranslated. Never logged.
+                if (action is "auth" or "gauth" && body?["cred"] is JsonValue cred && cred.TryGetValue<string>(out var credential)
+                    && TryGetUserIdFromCredential(credential, out var readerId))
+                    connection.UserId = readerId;
                 // "s" (stats), "g" (get), "p"/"m" (put/merge), auth ... every request with an r gets a plain ok.
                 if (requestId is not null) await connection.SendAsync(Ack(requestId.Value));
                 break;
@@ -339,6 +451,12 @@ public sealed class ChatConnection(WebSocket socket)
     private readonly SemaphoreSlim _send = new(1, 1);
     private readonly ConcurrentDictionary<string, ChatListen> _listens = new();
     public WebSocket Socket { get; } = socket;
+    /// <summary>Reader language (pt/es/ja/en) fixed when the socket opens; null = original text.</summary>
+    public string? Language { get; init; }
+    /// <summary>Player id learned from the auth frame, 0 when unknown.</summary>
+    public long UserId { get; set; }
+    /// <summary>Client address of the websocket handshake (trusted-proxy aware), used to recognise the author.</summary>
+    public string? ClientAddress { get; init; }
 
     public void Listen(string path, long tag, int roomId, long lastSeq) => _listens[path] = new ChatListen(path, tag, roomId, lastSeq);
     public void Unlisten(string path) => _listens.TryRemove(path, out _);

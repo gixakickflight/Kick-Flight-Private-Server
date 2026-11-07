@@ -147,7 +147,7 @@ services:
       Otomo__Masters__Tables__13: Gear=kf.masters.gear
       Otomo__Masters__Tables__14: GearSameColorBonus=kf.masters.gear_same_color_bonus
       Otomo__Masters__Tables__15: GearSkill=kf.masters.gear_skill
-      Otomo__Masters__Tables__16: GuardianParameter=kf.masters.guardian_parameter
+      Otomo__Masters__Tables__16: GuardianBalance=kf.masters.guardian_balance
       Otomo__Masters__Tables__17: InitialDiscDeck=kf.masters.initial_disc_deck
       Otomo__Masters__Tables__18: Kicker=kf.masters.kicker
       Otomo__Masters__Tables__19: KickerAbility=kf.masters.kicker_ability
@@ -192,6 +192,8 @@ services:
       Otomo__Masters__Tables__58: WeaponAttackCollision=kf.masters.weapon_attack_collision
       Otomo__Masters__Tables__59: WeaponAttackCondition=kf.masters.weapon_attack_condition
       Otomo__Masters__Tables__60: WeaponAttackHit=kf.masters.weapon_attack_hit
+      Otomo__Masters__Tables__61: BattleRuleParameter=kf.masters.battle_rule_parameter
+      Otomo__Masters__Tables__62: BattleRuleRoleParameter=kf.masters.battle_rule_role_parameter
       # Documents the adapter follows on the same channel (session.rank must also be on the live channel).
       Otomo__Masters__Documents__0: session.rank
       Otomo__Masters__Documents__1: kf.bot_ai_profiles

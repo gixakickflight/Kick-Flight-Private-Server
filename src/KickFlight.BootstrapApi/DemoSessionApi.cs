@@ -303,8 +303,8 @@ public sealed partial class DemoSessionApi : IDisposable
         // scaling (150 came out as ~50 on a ~40k HP kicker; 6000 = ~2000 per shot). Row 2 is the ball-rule goal
         // guardian: NPCRevivalableGuardian.SetMaxHP is MAX_HP_STEP_AMOUNT (6) x hp, so 6 x 3000 = 18000 = ~7 hits.
         // The file is the source; the literal is only the fallback for a checkout without config/.
-        var guardianParameterJson = MasterJson("GuardianParameter", contentRoot, "config/masters_guardian_parameter.json", """[{"id":1,"matchType":1,"rank":1,"hp":8000,"attack":6000}]""");
-        _encryptedMasters["GuardianParameter"] = EncryptMaster(guardianParameterJson);
+        // Since the rank-scaled guardian: the rows are generated from the GuardianBalance table (GuardianBalance.BuildMasterJson)
+        // and the battle rules, below; a publish of either regenerates them (ApplyOtomoTables).
         // guardianAmount is per team: GameManager.CreateGuardian spawns it for both teams and indexes
         // FieldManager.GetGuardianInitialPosition, and FLD00101_1 (the crystal-rule variant) has exactly two
         // guardian points; the ball variants (rules 3/4) also spawn one guard per goal, which must be destroyed
@@ -333,6 +333,12 @@ public sealed partial class DemoSessionApi : IDisposable
         {
             _logger.LogWarning("Error parsing battle rule json: {Error}", ex.Message);
         }
+        // One GuardianParameter row per (battle rule id, ladder rank): the client predicate matches the controller's
+        // BattleRuleId and GuardianRank (see the guardian patch in patch-il2cpp-endpoints.py), so it needs the rules.
+        // GuardianBalance is not a client master: it is read here (from the release when bound) and never served.
+        _encryptedMasters["GuardianParameter"] = EncryptMaster(GuardianBalance.BuildMasterJson(
+            MasterJson("GuardianBalance", contentRoot, GuardianBalance.ConfigPath, GuardianBalance.DefaultJson),
+            _battleRuleTypeById.Select(r => (r.Key, r.Value))));
 
         // every rule can be played on every arena of the pool (equal ratio); the server, not the client, draws the field
         var battleRuleFieldRows = new List<object>();
@@ -421,18 +427,9 @@ public sealed partial class DemoSessionApi : IDisposable
         _encryptedMasters["HomeFieldSchedule"] = EncryptMaster("""[{"id":1,"fieldId":99999,"startDatetime":"2019-01-01 00:00:00","endDatetime":"2030-01-01 23:59:59"}]""");
         _encryptedMasters["Festival"] = EncryptMaster("""[{"id":1,"battleRuleId":6,"theme":"Kick-Flight Festival"}]""");
         _encryptedMasters["FestivalTeam"] = EncryptMaster("""[{"id":1,"battleRuleId":6,"name":"Red Team","color":"#FF0000"},{"id":2,"battleRuleId":6,"name":"Blue Team","color":"#0000FF"}]""");
-        _encryptedMasters["BattleRuleParameter"] = EncryptMaster("""
-            [
-              {"id":1,"battleRuleId":1,"description":"without affecting your rank","subRuleName":"Fun Match","itemDecelerationMaxCount":0},
-              {"id":2,"battleRuleId":2,"description":"without affecting your rank","subRuleName":"Fun Match","itemDecelerationMaxCount":0},
-              {"id":3,"battleRuleId":3,"description":"without affecting your rank","subRuleName":"Fun Match","itemDecelerationMaxCount":0},
-              {"id":4,"battleRuleId":4,"description":"Intense battles at S ranks","subRuleName":"Ranked Match","itemDecelerationMaxCount":0},
-              {"id":5,"battleRuleId":5,"description":"Season 1","subRuleName":"Season Match","itemDecelerationMaxCount":0},
-              {"id":6,"battleRuleId":6,"description":"Festival Match","subRuleName":"Kick-Flight Festival","itemDecelerationMaxCount":0},
-              {"id":7,"battleRuleId":7,"description":"Intense battles at S ranks","subRuleName":"Ranked Match","itemDecelerationMaxCount":0},
-              {"id":8,"battleRuleId":8,"description":"Intense battles at S ranks","subRuleName":"Ranked Match","itemDecelerationMaxCount":0}
-            ]
-            """);
+        // Carry slowdown (client: GetItemCountForSpeedCorrection x BattleRuleRoleParameter.crystalCountSpeedCorrection %
+        // per carried object, clamped by itemDecelerationMaxCount unless -1); see docs/re-notes/carry-slowdown.md.
+        _encryptedMasters["BattleRuleParameter"] = EncryptMaster(MasterJson("BattleRuleParameter", contentRoot, "config/masters_battle_rule_parameter.json", "[]"));
         // One row per tuned capsule type, so the timer the client renders is the one /capsule/open enforces, plus
         // 5010000: the capsule TutorialUtil.CAPSULE_ID hard-codes into slot 1 for the tutorial's capsule step
         // (OPEN_CAPSULE_DURATION 8 seconds), which the client looks up in this master like any other.
@@ -765,17 +762,9 @@ public sealed partial class DemoSessionApi : IDisposable
             ]
             """);
 
-        var roleParams = new List<object>();
-        int rId = 1;
-        foreach (var rule in Enumerable.Range(1, 6).Append(RankedModeRotation.CrystalRuleId)
-                     .Append(RankedModeRotation.FlagRuleId))
-        {
-            for (int role = 1; role <= 4; role++)
-            {
-                roleParams.Add(new { id = rId++, battleRuleId = rule, roleType = role, crystalCountSpeedCorrection = 1.0f });
-            }
-        }
-        _encryptedMasters["BattleRuleRoleParameter"] = EncryptMaster(JsonSerializer.Serialize(roleParams));
+        // roleType follows the client RoleType enum 0..3 (Speed, Support, Attack, Tank); every rule has all four rows
+        // so the client's built-in per-role defaults never apply.
+        _encryptedMasters["BattleRuleRoleParameter"] = EncryptMaster(MasterJson("BattleRuleRoleParameter", contentRoot, "config/masters_battle_rule_role_parameter.json", "[]"));
 
         _encryptedMasters["BattleRuleScrambleScore"] = EncryptMaster("""
             [
@@ -923,6 +912,9 @@ public sealed partial class DemoSessionApi : IDisposable
                     : ApplyObscuredOffsets(masterName, json));
                 applied.Add(masterName);
             }
+            // GuardianParameter is generated (GuardianBalance x BattleRule), never published itself: a release that
+            // carries either input regenerates it. GuardianBalance has no entry in _encryptedMasters, so it is not served.
+            if (RegenerateGuardianParameter()) applied.Add("GuardianParameter");
             // The ladder is a document of the same release, not a table, so a publish that moves a tier moves the
             // BattleRank master with it.
             ApplyBattleRankMaster();
@@ -930,6 +922,26 @@ public sealed partial class DemoSessionApi : IDisposable
             _logger.LogInformation(
                 "Master version {MasterVersion}: {Count} table(s) reloaded from {Source} ({Tables})",
                 MasterVersion, applied.Count, _otomoMasters.Source, string.Join(", ", applied.OrderBy(n => n, StringComparer.Ordinal)));
+        }
+    }
+
+    // Rebuilds the served GuardianParameter from the current GuardianBalance and BattleRule tables, when the release owns
+    // either. Called with the master lock held. False when neither is bound (the boot-time rows stand) or the inputs do
+    // not parse (the previous rows stand, logged).
+    private bool RegenerateGuardianParameter()
+    {
+        if (!_otomoMasters.Owns("GuardianBalance") && !_otomoMasters.Owns("BattleRule")) return false;
+        try
+        {
+            var balanceJson = MasterJson("GuardianBalance", _contentRoot, GuardianBalance.ConfigPath, GuardianBalance.DefaultJson);
+            var rulesJson = MasterJson("BattleRule", _contentRoot, "config/masters_battle_rule.json", BattleRuleFallbackJson);
+            _encryptedMasters["GuardianParameter"] = EncryptMaster(GuardianBalance.BuildMasterJson(balanceJson, GuardianBalance.RuleTypes(rulesJson)));
+            return true;
+        }
+        catch (Exception exception) when (exception is JsonException or InvalidOperationException or KeyNotFoundException or FormatException)
+        {
+            _logger.LogError("GuardianParameter not regenerated, the previous rows stay served: {Error}", exception.Message);
+            return false;
         }
     }
 
@@ -1189,6 +1201,9 @@ public sealed partial class DemoSessionApi : IDisposable
         var key = ticket.Key;
         var state = _statesByPlayer.GetOrAdd(ticket.GamePlayerId, GetOrCreateUserState);
         _onlineActivityByPlayer[state.PlayerId] = _timeProvider.GetUtcNow();
+        // Chat translation: lets the websocket (which carries no player identity) recognise a player's own messages.
+        if (_chat.TranslationEnabled)
+            _chat.NoteClientAddress(state.PlayerId, context.RequestServices.GetService<KickFlight.BootstrapApi.ChatTranslation.ClientIpResolver>()?.Resolve(context)?.ToString());
         // The x-app-* device headers of the player's latest request, for the telemetry of its matches.
         _ops.TouchClient(state.UserId, OpsClientInfo.FromRequest(context));
 
@@ -2022,7 +2037,7 @@ public sealed partial class DemoSessionApi : IDisposable
             interruptNotificationList = Array.Empty<object>(),
             teamBattleInvitationCustomToken = "",
             teamBattleInvitationId = "",
-            chatRoomConnectionCustomToken = _chat.Enabled ? "kfchat-dummy-token" : "",
+            chatRoomConnectionCustomToken = _chat.Enabled ? _chat.CustomTokenFor(state.PlayerId) : "",
             chatRoomConnectionId = _chat.Enabled ? "kfchat" : "",
             officialUrl = ""
         };
@@ -2403,6 +2418,7 @@ public sealed partial class DemoSessionApi : IDisposable
             isDiag: IsDiagClient(context), matchType: ruleMetadata.MatchType,
             battleRuleType: ruleMetadata.BattleRuleType,
             deckLevels: DeckLevelsFor(levels.Snapshot, deck, ruleMetadata.MatchType));
+        await SetRosterProfileAsync(ticket, state, entry.BattleEntryId, context.RequestAborted);
         // TeamCreate is called before Photon joins the recruiting room. Echo the app-asset revision the client
         // already has; an empty list is interpreted as missing application data and sends it to the update/restart
         // flow before it reaches Photon.
@@ -2448,6 +2464,7 @@ public sealed partial class DemoSessionApi : IDisposable
             teamId, state.UserId, EntryName(state, own), state.KickerId, state.KickerCostumeId, deck,
             isDiag: IsDiagClient(context), deckLevels: matchType => DeckLevelsFor(levels.Snapshot, deck, matchType));
         if (entry is null) return StatusError(context, key);
+        await SetRosterProfileAsync(ticket, state, entry.BattleEntryId, context.RequestAborted);
 
         var response = new
         {
@@ -2687,6 +2704,7 @@ public sealed partial class DemoSessionApi : IDisposable
             isDiag: IsDiagClient(context), matchType: ruleMetadata.MatchType,
             battleRuleType: ruleMetadata.BattleRuleType,
             deckLevels: DeckLevelsFor(levels.Snapshot, deck, ruleMetadata.MatchType));
+        await SetRosterProfileAsync(ticket, state, battleEntryId, context.RequestAborted);
 
         var resp = new
         {
@@ -2784,7 +2802,8 @@ public sealed partial class DemoSessionApi : IDisposable
         // GuardianParameterMaster is looked up by the id returned here (CallbackBattleStartSuccess), so a rule
         // whose guardian is the revivable ball-goal variant (battleRuleType 3) gets the weaker row 2.
         // Gym: row 3 = same HP, attack 0, so the guardian's eye laser cannot hurt anyone.
-        var guardianId = BattleMatchmakingService.GymEnabled ? 3 : battleRuleType == 3 ? 2 : 1;
+        var guardianRank = await GuardianRoomRankAsync(state, battleRuleType, battleId, context.RequestAborted);
+        var guardianId = GuardianBalance.RowId(battleRuleId, guardianRank);
         // The arena: the room's draw (same for every human in it) or a fresh draw when the room is unknown.
         var fieldId = _matchmaking.GetRoomFieldId(battleId) ?? BattleMatchmakingService.PickRandomField();
         var resp = new
@@ -2793,7 +2812,7 @@ public sealed partial class DemoSessionApi : IDisposable
             guardianParameter = new
             {
                 id = guardianId,
-                rank = 1
+                rank = guardianRank
             },
             lotteryFestivalPointId = 0
         };
@@ -2807,12 +2826,86 @@ public sealed partial class DemoSessionApi : IDisposable
         return BinaryJson(JsonSerializer.Serialize(resp), key);
     }
 
+    // Matchmaking roster display (display only - pairing never reads either value): the player's session rank for the
+    // queued rule, translated to the client's 0..16, and their equipped badge (session display slot). Any otomo failure
+    // keeps the old constant for that value (rank 13 / default honor) and is logged; it never fails the request.
+    internal const int RosterFallbackRank = 13;
+
+    private async Task SetRosterProfileAsync(KfIdentityTicket ticket, SessionState state, string battleEntryId,
+        CancellationToken cancellationToken)
+    {
+        async Task<IReadOnlyList<BattleRankLine>?> Ranks()
+        {
+            try { return await ReadOwnBattleRanksAsync(ticket, cancellationToken); }
+            catch (Exception exception)
+            {
+                _logger.LogWarning("Roster rank of {UserId} not read ({Error}); showing rank {Rank}", state.UserId, exception.Message, RosterFallbackRank);
+                return null;
+            }
+        }
+        async Task<int> Honor()
+        {
+            try { return await EquippedHonorAsync(ticket, cancellationToken); }
+            catch (Exception exception)
+            {
+                _logger.LogWarning("Roster badge of {UserId} not read ({Error}); showing the default", state.UserId, exception.Message);
+                return BadgeCatalog.DefaultHonorId;
+            }
+        }
+        var ranks = Ranks();
+        var honor = Honor();
+        var lines = await ranks;
+        var honorId = await honor;
+        _matchmaking.SetEntryProfile(battleEntryId,
+            ruleType => lines is null ? RosterFallbackRank : RankOnRule(lines, ruleType ?? RegularBattleRuleType),
+            honorId);
+    }
+
+    private static int RankOnRule(IReadOnlyList<BattleRankLine> lines, int battleRuleType) =>
+        (lines.FirstOrDefault(line => line.BattleRuleType == battleRuleType) ?? lines[0]).Rank;
+
+    // A player's rank on one rule, through session's internal plane by otomo id.
+    private async Task<int> PlayerRuleRankAsync(long playerId, int battleRuleType, CancellationToken cancellationToken)
+    {
+        var link = _playerStore.FindOtomoPlayer(playerId) ?? throw new OtomoRankException(OtomoRankFailure.Refused,
+            $"player {playerId} has no otomo account");
+        return RankOnRule(TranslateRanks(await _rank.GetPlayerAsync(link.OtomoPlayerId, cancellationToken)), battleRuleType);
+    }
+
+    // guardianParameter.rank: the plain ladder rank (0..16) of the ROOM, the lowest session rank among its humans (see
+    // GuardianBalance.RoomRank), so every client of the room receives the same value. The client shows it as the
+    // battle-start "Guardian Rank" league icon (thumbnail_league_<n>), so it must stay a real rank, never a composite
+    // key; the mode is told apart by the row's matchType = battle rule id. An unknown room (restart, no roster) falls
+    // back to the requester's own rank. Any otomo failure falls back to rank C, logged.
+    private async Task<int> GuardianRoomRankAsync(SessionState state, int battleRuleType, string battleId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var roster = _matchmaking.GetRoomRoster(battleId).Select(p => (p.userId, p.kickerAiParameterId)).ToList();
+            var ids = roster.Where(p => p.kickerAiParameterId == 0)
+                .Select(p => long.TryParse(p.userId, out var id) ? id : (long?)null)
+                .OfType<long>().Distinct().ToList();
+            if (ids.Count == 0) ids.Add(state.PlayerId);
+            var reads = await Task.WhenAll(ids.Select(async id =>
+                (Id: id, Rank: await PlayerRuleRankAsync(id, battleRuleType, cancellationToken))));
+            var ranks = reads.ToDictionary(read => read.Id, read => read.Rank);
+            return GuardianBalance.RoomRank(roster, id => ranks[id], ranks.GetValueOrDefault(state.PlayerId, GuardianBalance.RankC));
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning("Guardian rank fallback to C for {UserId}: {Error}", state.UserId, exception.Message);
+            return GuardianBalance.RankC;
+        }
+    }
+
     private async Task<IResult?> HandleCustomBattleStartAsync(HttpContext context, SessionState state, byte[] key)
     {
         var body = await ReadBodyAsync(context.Request);
         int battleRuleType;
         int fieldId;
         int guardianId;
+        int guardianRank;
         try
         {
             var plaintext = D2CCodec.Decode(body, key);
@@ -2835,7 +2928,8 @@ public sealed partial class DemoSessionApi : IDisposable
                 return StatusError(context, key);
             }
 
-            guardianId = battleRuleType == 3 ? 2 : 1;
+            guardianId = GuardianBalance.ProfileFor(false, battleRuleType);
+            guardianRank = GuardianBalance.RankC; // custom battles are unranked and have no matchmaking roster
         }
         catch (Exception ex) when (ex is CryptographicException or JsonException or InvalidOperationException
                                    or KeyNotFoundException or FormatException)
@@ -2851,7 +2945,7 @@ public sealed partial class DemoSessionApi : IDisposable
         var response = new
         {
             customBattleId,
-            guardianParameter = new { id = guardianId, rank = 1 }
+            guardianParameter = new { id = guardianId, rank = guardianRank }
         };
 
         context.Response.Headers["x-app-status-code"] = "0";

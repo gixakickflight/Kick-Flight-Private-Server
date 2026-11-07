@@ -492,4 +492,57 @@ public sealed class RankedOutcomeTests
         Assert.Equal("no_team_score", undetermined);
         Assert.Null(DemoSessionApi.RankWinFor(null, out _));
     }
+
+    // ---- roster profile and guardian rank (display only, read from session) ----
+
+    private static BattleMatchmakingService.MatchingPlayerBattleInfo RosterRow(Fixture f, Session player, BattleMatchmakingService.BadgeBattleEntryContext ctx) =>
+        Assert.Single(f.Matchmaking.GetRoomRoster(ctx.BattleId!),
+            p => p.kickerAiParameterId == 0 && p.userId == player.PlayerId.ToString(CultureInfo.InvariantCulture));
+
+    private static async Task<JsonElement> GuardianAsync(Fixture f, Session player, BattleMatchmakingService.BadgeBattleEntryContext ctx)
+    {
+        using var start = await PostAsync(f.Client, player, "/battle/start",
+            JsonSerializer.Serialize(new { battleRuleId = f.RuleId, battleId = ctx.BattleId }));
+        return start.RootElement.GetProperty("guardianParameter").Clone();
+    }
+
+    [Fact]
+    public async Task Roster_rank_badge_and_guardian_rank_are_the_players_session_standing_and_display_slot()
+    {
+        await using var f = Fixture.Create();
+        var player = await AuthAsync(f.Client);
+        var account = f.AccountOf(player);
+        foreach (var ruleType in SessionRuleTypes) OtomoTestEnvironment.Social.SeedRank(account, ruleType, 1400); // rank_4
+        OtomoTestEnvironment.Social.SeedDisplay(account, "honor", "honor:6010003");
+
+        var (_, ctx) = await f.EnterAsync(player);
+        var me = RosterRow(f, player, ctx);
+        Assert.Equal(4, me.rank);
+        Assert.Equal(6010003, me.honorId);
+
+        // The room's only human is this player, so the guardian rank is theirs, and the row id names rule and rank.
+        var guardian = await GuardianAsync(f, player, ctx);
+        Assert.Equal(4, guardian.GetProperty("rank").GetInt32());
+        Assert.Equal(GuardianBalance.RowId(ctx.RoomBattleRuleId ?? f.RuleId, 4), guardian.GetProperty("id").GetInt32());
+    }
+
+    [Fact]
+    public async Task Session_rank_outage_keeps_the_old_roster_constants_and_guardian_rank_C_without_failing_the_request()
+    {
+        await using var f = Fixture.Create();
+        var player = await AuthAsync(f.Client);
+        var account = f.AccountOf(player);
+        OtomoTestEnvironment.Social.SetRankReadsUnavailable(account, true);
+        try
+        {
+            var (_, ctx) = await f.EnterAsync(player); // asserts the entry answered 200
+            Assert.Equal(DemoSessionApi.RosterFallbackRank, RosterRow(f, player, ctx).rank);
+            var guardian = await GuardianAsync(f, player, ctx);
+            Assert.Equal(GuardianBalance.RankC, guardian.GetProperty("rank").GetInt32());
+        }
+        finally
+        {
+            OtomoTestEnvironment.Social.SetRankReadsUnavailable(account, false);
+        }
+    }
 }

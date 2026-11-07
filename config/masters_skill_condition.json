@@ -108,6 +108,15 @@
   "triggerType": 1
  },
  {
+  "id": 146,
+  "skillId": 10050,
+  "conditionType": 2,
+  "duration": 10.0,
+  "interval": 0.0,
+  "effectValue": 0.3,
+  "triggerType": 5
+ },
+ {
   "id": 47,
   "skillId": 10051,
   "conditionType": 5,
@@ -501,16 +510,7 @@
   "duration": 8.0,
   "interval": 0.0,
   "effectValue": 1.0,
-  "triggerType": 5
- },
- {
-  "id": 137,
-  "skillId": 20005,
-  "conditionType": 9,
-  "duration": 8.0,
-  "interval": 0.0,
-  "effectValue": 1.0,
-  "triggerType": 4
+  "triggerType": 3
  },
  {
   "id": 139,
