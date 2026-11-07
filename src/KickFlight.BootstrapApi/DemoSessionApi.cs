@@ -369,18 +369,10 @@ public sealed partial class DemoSessionApi : IDisposable
         _encryptedMasters["HomeFieldSchedule"] = EncryptMaster("""[{"id":1,"fieldId":99999,"startDatetime":"2019-01-01 00:00:00","endDatetime":"2030-01-01 23:59:59"}]""");
         _encryptedMasters["Festival"] = EncryptMaster("""[{"id":1,"battleRuleId":6,"theme":"Kick-Flight Festival"}]""");
         _encryptedMasters["FestivalTeam"] = EncryptMaster("""[{"id":1,"battleRuleId":6,"name":"Red Team","color":"#FF0000"},{"id":2,"battleRuleId":6,"name":"Blue Team","color":"#0000FF"}]""");
-        _encryptedMasters["BattleRuleParameter"] = EncryptMaster("""
-            [
-              {"id":1,"battleRuleId":1,"description":"without affecting your rank","subRuleName":"Fun Match","itemDecelerationMaxCount":0},
-              {"id":2,"battleRuleId":2,"description":"without affecting your rank","subRuleName":"Fun Match","itemDecelerationMaxCount":0},
-              {"id":3,"battleRuleId":3,"description":"without affecting your rank","subRuleName":"Fun Match","itemDecelerationMaxCount":0},
-              {"id":4,"battleRuleId":4,"description":"Intense battles at S ranks","subRuleName":"Ranked Match","itemDecelerationMaxCount":0},
-              {"id":5,"battleRuleId":5,"description":"Season 1","subRuleName":"Season Match","itemDecelerationMaxCount":0},
-              {"id":6,"battleRuleId":6,"description":"Festival Match","subRuleName":"Kick-Flight Festival","itemDecelerationMaxCount":0},
-              {"id":7,"battleRuleId":7,"description":"Intense battles at S ranks","subRuleName":"Ranked Match","itemDecelerationMaxCount":0},
-              {"id":8,"battleRuleId":8,"description":"Intense battles at S ranks","subRuleName":"Ranked Match","itemDecelerationMaxCount":0}
-            ]
-            """);
+        // Carry slowdown (client: GetItemCountForSpeedCorrection x BattleRuleRoleParameter.crystalCountSpeedCorrection %
+        // per carried object, clamped by itemDecelerationMaxCount unless -1). Both tables are config files so the
+        // /balance panel can override them; see docs/re-notes/carry-slowdown.md.
+        _encryptedMasters["BattleRuleParameter"] = EncryptMaster(LoadJson(contentRoot, "config/masters_battle_rule_parameter.json", "[]"));
         _encryptedMasters["Capsule"] = EncryptMaster("""
             [
               {"id":5010001,"lotteryId":1,"name":"Standard Capsule","openTime":"01:00:00","lotteryDiscRarityGroupId":1,"lotteryDiscDropAmountGroupId":1},
@@ -701,17 +693,9 @@ public sealed partial class DemoSessionApi : IDisposable
             ]
             """);
 
-        var roleParams = new List<object>();
-        int rId = 1;
-        foreach (var rule in Enumerable.Range(1, 6).Append(RankedModeRotation.CrystalRuleId)
-                     .Append(RankedModeRotation.FlagRuleId))
-        {
-            for (int role = 1; role <= 4; role++)
-            {
-                roleParams.Add(new { id = rId++, battleRuleId = rule, roleType = role, crystalCountSpeedCorrection = 1.0f });
-            }
-        }
-        _encryptedMasters["BattleRuleRoleParameter"] = EncryptMaster(JsonSerializer.Serialize(roleParams));
+        // roleType follows the client RoleType enum 0..3 (Speed, Support, Attack, Tank); every rule has all four rows
+        // so the client's built-in per-role defaults never apply.
+        _encryptedMasters["BattleRuleRoleParameter"] = EncryptMaster(LoadJson(contentRoot, "config/masters_battle_rule_role_parameter.json", "[]"));
 
         _encryptedMasters["BattleRuleScrambleScore"] = EncryptMaster("""
             [
