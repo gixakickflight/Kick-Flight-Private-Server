@@ -113,8 +113,8 @@ services:
       # Commit being deployed (scripts/deploy-vps-ci.sh exports it from the workflow's GITHUB_SHA). Every API start
       # records it in the ops telemetry's server_runs table; the Health tab's default window is "this release".
       KF_RELEASE_SHA: ${KF_RELEASE_SHA:-unknown}
-      # 2.11.800 Android minimum; iOS remains on its separately verified 2.11.3 minimum.
-      ClientUpdate__MinimumVersion: "2.11.800"
+      # 2.11.804 Android minimum; iOS remains on its separately verified 2.11.3 minimum.
+      ClientUpdate__MinimumVersion: "2.11.804"
       ClientUpdate__IosMinimumVersion: "2.11.3"
       PlayerStore__ConnectionString: Host=postgres;Port=5432;Database=kickflight;Username=kickflight;Password=${KF_DB_PASSWORD:?Set KF_DB_PASSWORD in the root .env}
       PhotonServer__Enabled: "true"
@@ -134,12 +134,20 @@ services:
       Replays__Directory: /srv/replays
       # In-game chat rooms (ChatService). Same pattern as replays: a writable sub-mount of the rsync-excluded .local/.
       Chat__DataDirectory: /srv/chat
+      # Chat translation (docs/CHAT_TRANSLATION.md). Empty GEMINI_API_KEY (the default) disables the feature; the key
+      # lives only in the persistent root .env on the VPS, never in this file or in CI.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      KF_CHAT_TRANSLATE_MODEL: ${KF_CHAT_TRANSLATE_MODEL:-gemini-3.5-flash-lite}
+      KF_CHAT_TRANSLATE_CONTEXT_MESSAGES: ${KF_CHAT_TRANSLATE_CONTEXT_MESSAGES:-20}
+      # DB-IP country mmdb kept fresh by the geoip-db service (read-only mount below); missing file -> English.
+      KF_GEOIP_DB: /var/lib/geoip/dbip-country.mmdb
     volumes:
       - ../config:/srv/repo/config:ro
       - ../content:/srv/repo/content:ro
       - ../.local:/srv/repo/.local:ro
       - ../.local/replays:/srv/replays
       - ../.local/chat:/srv/chat
+      - geoip-data:/var/lib/geoip:ro
       - ../.local/maintenance:/srv/repo/data
       - ../.local/diag-uploads:/srv/diag-uploads
       - ${KF_ASSETS_PATH:-../../Kick-Flight-Assets}:/srv/Kick-Flight-Assets:ro

@@ -12,6 +12,6 @@ out="$repo/.local/artifacts/kfpatch"; mkdir -p "$out"
 srcs=("$repo"/src/native/kfpatch/*.c "$repo"/src/native/kfpatch/caves_gen.S)
 SOURCE_DATE_EPOCH=0 "$cc" -shared -fPIC -O2 -fvisibility=hidden -Wall -Wextra \
   -Wl,--build-id=none -Wl,-z,max-page-size=16384 -ffile-prefix-map="$repo"=. \
-  ${KF_PROOF_RVA:+-DKF_PROOF_RVA=$KF_PROOF_RVA} ${KF_NATIVE_DIAG:+-DKF_NATIVE_DIAG=1} \
+  ${KF_PROOF_RVA:+-DKF_PROOF_RVA=$KF_PROOF_RVA} ${KF_NATIVE_DIAG:+-DKF_NATIVE_DIAG=1} ${KF_CRI_TEST:+-DKF_CRI_TEST=$KF_CRI_TEST} ${KF_UNITY_TEST:+-DKF_UNITY_TEST=$KF_UNITY_TEST} ${KF_FILL_DELAY_MS:+-DKF_FILL_DELAY_MS=$KF_FILL_DELAY_MS} \
   -o "$out/libkfpatch.so" "${srcs[@]}" -llog
 sha256sum "$out/libkfpatch.so"

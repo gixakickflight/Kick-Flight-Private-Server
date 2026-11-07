@@ -1,13 +1,13 @@
 # Kick Flight: The Fenix Returns
 
-Servidor privado de comunidad para **Kick-Flight**. El cliente se parchea a partir de la APK base 2.11.0; la última versión de cliente publicada en el catálogo del repositorio es la **2.11.800** (Android). Este repositorio contiene la API compatible con el cliente, el servidor Photon basado en LuxonServer, los datos de juego editables, la herramienta web de balance y las herramientas para preparar el CDN y una APK parcheada.
+Servidor privado de comunidad para **Kick-Flight**. El cliente se parchea a partir de la APK base 2.11.0; la última versión de cliente publicada en el catálogo del repositorio es la **2.11.804** (Android). Este repositorio contiene la API compatible con el cliente, el servidor Photon basado en LuxonServer, los datos de juego editables, la herramienta web de balance y las herramientas para preparar el CDN y una APK parcheada.
 
 La instancia pública corre en una VM de OCI. Docker Compose levanta la API, Photon, el CDN y la landing; la persistencia de jugadores usa PostgreSQL administrado por Neon. Caddy publica la web por HTTPS en `kick-flight-fenix.us.ci`.
 
 ## Instancia pública
 
 - Sitio y descarga: [kick-flight-fenix.us.ci](https://kick-flight-fenix.us.ci/)
-- APK Android 2.11.800: [descargar](https://kick-flight-fenix.us.ci/apk/KickFlight-2.11.800-remote.apk)
+- APK Android 2.11.804: [descargar](https://kick-flight-fenix.us.ci/apk/KickFlight-2.11.804-remote.apk)
 - Estado de la API: [health/ready](https://kick-flight-fenix.us.ci/health/ready)
 
 La APK ya apunta a esta instancia. Tras instalarla, el primer inicio requiere internet para bajar los recursos del juego desde el CDN. Las partidas usan Photon; la API y Photon son servicios separados dentro de la pila.
@@ -155,3 +155,8 @@ Los archivos de trabajo como `.env`, la APK base, el keystore, los bundles grand
 - Balance y combate: [`tools/balance/README.md`](tools/balance/README.md), [`docs/COMBAT_MASTERS_FILL_IN.md`](docs/COMBAT_MASTERS_FILL_IN.md), [`docs/DISC_BALANCE_FIX.md`](docs/DISC_BALANCE_FIX.md).
 - iOS: [`docs/IOS_RESOURCE_CATALOG.md`](docs/IOS_RESOURCE_CATALOG.md), [`docs/IOS_PROFILE_RELEASE.md`](docs/IOS_PROFILE_RELEASE.md).
 - Ingeniería inversa: [`scripts/re/README.md`](scripts/re/README.md), [`docs/re-notes/`](docs/re-notes/), [`AGENTS.md`](AGENTS.md).
+- Chat: [`docs/CHAT_TRANSLATION.md`](docs/CHAT_TRANSLATION.md) (traducción de mensajes del chat con Gemini).
+
+## Atribuciones
+
+- IP Geolocation by [DB-IP](https://db-ip.com): la traducción del chat elige el idioma según el país del cliente con la base "IP to Country Lite" de DB-IP, licenciada CC BY 4.0.

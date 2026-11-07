@@ -86,3 +86,34 @@ Hook-site: a `b`/`bl` to a veneer `adrp x16,slot; ldr x16,[x16]; br x16` (12 B) 
 | 0x1A2AC44 b | 0x159E32C rush push part 2 | host part 1 (dead CheckInitializeError tail, outside migrated ranges) already pushed x29/x30; cave does `bl get_eulerAngles`, restores, `ret` | |
 
 Boot-time safety: libkfpatch's watcher fills pool + cave slots before the C hooks, polling every 1 ms for libil2cpp.so (mapped when libunity loads it, hundreds of ms before il2cpp_init and tens of seconds before any Tap Start). All 10 sites are battle code (AI, smog, skill end, bone controller, entrained state), none reachable from Title/Home boot, so every slot is filled before first use. The proof hook on CreateSummonModel is removed by default (only `KF_PROOF_RVA`).
+
+## Fail-safe veneers (2.11.804, 2026-11-06): an empty slot never jumps to 0
+Problem: every hook site was `adrp x16,slot; ldr x16,[x16,#off]; br x16`. With the slot still 0 (watcher not yet scheduled, libkfpatch failed to load, hook fires before the fill) that is `br 0` = the 2.11.800 pc=0 crash class. A naive in-place `cbz` is impossible: the displaced original instructions would have no room.
+Design (`scripts/re/kfpatch_veneer.py`, pure Python, shared by `patch-il2cpp-endpoints.py`): the hook site is ONE `b V` (4 bytes, displaces only I0; LR/args untouched, `b` never `bl` for entry hooks). V lives in verified-dead code:
+```
+V+0  adrp x16, slot_page        ; x16 = IP0, the only register used
+V+4  ldr  x16, [x16, #slot_off]
+V+8  cbz  x16, F                ; slot empty -> original code
+V+12 br   x16                   ; slot filled -> hook/cave exactly as before
+F:   I0 (re-encoded if PC-relative) ; b site+4          (bl sites: I0 ; ret, entered with LR=site+4)
+```
+I0 is NOT executed before the test (the hook would see a moved sp). The C hook's "call original" therefore replays only I0: `KF_ORIG_STUB1` (kfpatch.h) and `kf_hook_t.disp = 4` (`ret_slot = target + 4`); sites hooked with the legacy 12-byte form (proof/diag hooks, `disp = 0`) keep `KF_ORIG_STUB`. adrp/ldr/cbz/br leave NZCV alone. Per-site fail-safe words are derived from each site patch's byte-guarded original word:
+
+| Slot | Site | Original word | Fail-safe F |
+|---|---|---|---|
+| 8 (CRI) | il2cpp 0x1BDBEFC | `stp x20,x19,[sp,#-0x20]!` | I0; `b 0x1BDBF00` |
+| 16 | 0x13BEAEC | `stp x20,x19,[sp,#-0x20]!` | I0; `b +4` |
+| 17 | 0x13BC3A8 | `stp d13,d12,[sp,#-0x50]!` | I0; `b +4` |
+| 18 | 0x1807474 | `str w0,[x19,#0x7c]` | I0; `b +4` |
+| 19 | 0x18072D0 | `ldr x1,[x26]` | I0; `b +4` |
+| 20 | 0x1808D40 | `ldr s1,[x19,#0x20]` | I0; `b +4` |
+| 21 | 0x1439AEC (`bl`) | `mov x1,x0` | I0; `ret` |
+| 22 | 0x17F8F1C | tail `b 0x17F1B08` | `b 0x17F1B08` (re-encoded) |
+| 23 | 0x184961C | `fadd s0,s0,s0` | I0; `b +4` |
+| 24 | 0x184983C | `stp s1,s0,[x19,#0x4c]` | I0; `b +4` |
+| 25 | 0x1A2AC44 | (inside prod patch, "rush push part 2") | `ldr s0,[sp,#0x10]; ldp x29,x30,[sp],#0x20; mov x0,xzr; ret` (skip get_eulerAngles, same epilogue as the cave) |
+
+il2cpp host: dead body of `PlayerCharacter.UpdateLookTarget` @0x13CD990: 10 cave veneers x 32 B (slots 16-25, `host + 32*(slot-16)`) + the CRI veneer x 24 B at 0x13CDAD0 = 344 B, byte-guarded against the pristine bytes (`KF_VHOST_EXPECTED`); the body spans ~0x13CD984..0x13CE3DC and production patches touch nothing else in it (the DIAG regions D/E that used it are mutually exclusive with KF_NATIVE). libunity host: the first 48 B of the dead function 0xA08DDC (FDE size 2196 B), found by `scripts/re/find_dead_functions.py` (104 candidates in the whole .so; nothing outside the function references it through b/bl/b.cond/cbz/tbz/adr/adrp+add, .rela.dyn addends, raw qwords, dynsym; also 0 rodata-relative hits). libunity veneers: walk @0xA08DDC, release @0xA08DF4; hook sites `b 0xA08DDC` @0x2C3070 and `b 0xA08DF4` @0x2BA824 over `sub sp,sp,#0x50` / `str x24,[sp,#-0x40]!`.
+libunity host (CORRECTED 2026-11-06): the first 2.11.804 build hosted the two 24 B libunity veneers in 0xA08DDC, picked by a heuristic finder whose adrp+add window was only 4 insns. That was WRONG: 0xA08DDC (2196 B, SIMD job kernel) is a registered callback - `adrp x3,#0xa08000` at 0xA08868 and `add x3,x3,#0xddc` at 0xA08884 pass its address, together with 0xA09670/0xA096C8/0xA096D0, to a registration call (bl 0x55db74). Overwriting its prologue would crash whenever the job runs. Fixed: host is now 0xEFF890 (FDE 244 B, last quarter of .text; ends in `ret`, preceded by `ret`; first 48 B patched, byte-guarded by `KF_UNITY_VHOST_EXPECTED`). Walk veneer 0xEFF890, release veneer 0xEFF8A8. Proof on the pristine libunity.so (`scripts/re/verify_dead_host.py`, whole-ELF): zero b/bl/b.cond/cbz/cbnz/tbz/tbnz/adr/ldr-literal into the function; adrp->add/ldr/str with a 64-insn window resolves nothing into it (one adrp to the same 4 KB page at 0xF00F10 adds 0xCD4 -> 0xEFFCD4, another function); zero raw qwords (8- and 4-aligned), zero uint32 RVAs, zero .rela.dyn/.rela.plt addends (incl. sym+addend), zero dynsym/.dynamic entries, zero 32-bit relative jump-table style words (scales 1 and 4, 64 bases) in .rodata/.gcc_except_table/.data.rel.ro/.data. Strict screen `scripts/re/find_dead_functions.py`: 9 of 61014 FDE functions pass; six of them (0x78xxxx float<->half kernels) fail the verifier as registered callbacks like 0xA08DDC, 0xE1A558 does not end in a terminator, leaving 0xEFF620 and 0xEFF890. Static proof only (no runtime coverage proof).
+il2cpp host proof (pristine libil2cpp.so, same verifier, range 0x13CD990..0x13CE3DC): zero references of every kind into the body. The only references to the method are its entry 0x13CD984: one `bl` at 0x13CB60C (PlayerCharacter update chain) and the managed method-pointer slot `.rela.dyn` RELATIVE @0x42CE2A8 (vtable/reflection reachable); both land on the production patch at 0x13CD984 (`ret`, c0035fd6, unconditional), which precedes the veneers, so a call/reflection invoke returns before touching them. Not a metadata-only claim: the check is on the final 804 bytes (`c0035fd6 ed33016d eb2b026d` then the first veneer `b0ad01b0 ...`).
+Test flag: `KF_FILL_DELAY_MS=<ms>` (build-kfpatch.sh, TEST builds only) makes the watcher leave all slots at 0 for that long so the fail-safe path is exercised for real.

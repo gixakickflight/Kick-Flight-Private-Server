@@ -155,6 +155,11 @@ un `select`. Un uuid ⇒ un jugador, para siempre.
 | `Harness:MaxCapturedBodyBytes` | `65536` | truncado del cuerpo capturado |
 | `Harness:OctoCdnUrlFormat` | vacío | fija el formato de URL del CDN en vez de derivarlo del `Host` |
 | `KF_REPO_ROOT` | vacío | raíz con la que se resuelven todas las rutas relativas |
+| `GEMINI_API_KEY` | vacío | clave de Google AI Studio; vacío desactiva la traducción del chat ([`docs/CHAT_TRANSLATION.md`](CHAT_TRANSLATION.md)) |
+| `KF_CHAT_TRANSLATE_MODEL` | `gemini-3.5-flash-lite` | modelo Gemini para traducir el chat |
+| `KF_CHAT_TRANSLATE_CONTEXT_MESSAGES` | `20` | mensajes previos de la sala enviados como contexto |
+| `KF_GEOIP_DB` | vacío | ruta del mmdb DB-IP Country Lite; sin él el chat se sirve en inglés |
+| `KF_CHAT_FORCE_LANGUAGE` / `KF_CHAT_FORCE_COUNTRY` | vacío | solo desarrollo: fuerza `pt`/`es`/`ja`/`en` o un país ISO para todos los lectores |
 
 `KF_REPO_ROOT` merece un párrafo: las rutas del proyecto (`config/masters_*.json`,
 `config/resources/catalog.json`, `../Kick-Flight-Assets/octo_sorted/...`) se

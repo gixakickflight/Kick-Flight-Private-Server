@@ -10,7 +10,11 @@ static i64 hook_proof(i64 a, i64 b, i64 c, i64 d, i64 e, i64 f, i64 g, i64 h) {
     KFLOG("proof hook this=%p a1=%p a2=%p", (void*)a, (void*)b, (void*)c);
     return orig_proof(a, b, c, d, e, f, g, h);
 }
+// hooks_cri.c: crash family 3 guard (slot 8, production).
+extern i64 hook_csobj(i64, i64, i64, i64, i64, i64, i64, i64);
+extern uint64_t csobj_ret;
 const kf_hook_t kf_hooks[] = {
+    {8, 0x1BDBEFC, (void*)hook_csobj, &csobj_ret, 4},  // GRE.AudioManager.CreateSoundObject
 #if KF_PROOF_RVA
     {0, KF_PROOF_RVA, (void*)hook_proof, &proof_ret},
 #endif
@@ -18,8 +22,8 @@ const kf_hook_t kf_hooks[] = {
 };
 const int kf_hook_count =
 #if KF_PROOF_RVA
-    1;
+    2;
 #else
-    0;
+    1;
 #endif
 void kf_register_hooks(void) {}

@@ -2183,7 +2183,15 @@ NATIVE_PATCHES: dict[str, list[dict[str, object]]] = {
             # is also at +0x18. The latter is an Il2CppString whose length is at +0x10;
             # protobuf uses a non-null empty-string object for Stages 1/2, so testing only
             # the connection_ pointer incorrectly classifies those updates as Success.
-            "replacement": bytes.fromhex("880e40f9480200b4090d40f9090200b4291140b9c9010034170000141f2003d5"),
+            # The callback is also invoked with a NULL response (x1/x20) for the Error (2), Cancelled (3) and
+            # Completed (4) states of the stream (gRPC status 13/14 when the connection drops or the server
+            # restarts). 2.11.705..2.11.800 dereferenced it unguarded -> SIGSEGV fault 0x18 at this very
+            # instruction. A NULL response now takes the original Cancelled/Completed handler (0x13EE4A4:
+            # GetAssignmentsDestroy(controller, false)); the Error retry path was already overwritten by the
+            # Stage 3 patch below. Layout (8 insns, same size):
+            #   cbz x20,0x13EE4A4 ; ldr x8,[x20,#0x18] ; cbz x8,0x13EE4D0 ; ldr x9,[x8,#0x18] ; cbz x9,0x13EE4D0 ;
+            #   ldr w9,[x9,#0x10] ; cbnz w9,0x13EE4F8 ; b 0x13EE4D0
+            "replacement": bytes.fromhex("140100b4880e40f9280200b4090d40f9e90100b4291140b9e90200350c000014"),
         }] if PHOTON_FLOW else []),
         *([{
             "description": "commit Stage 3 through the captured NormalMatchingController instead of the racy MatchingManager singleton",
@@ -3096,9 +3104,35 @@ NATIVE_PATCHES["arm64-v8a"].append(
 # the file-backed data, inside the RW segment's page-rounded mapping); libkfpatch.so fills it at startup. Off by default,
 # so the default patch set (and its dry-run count) is unchanged. Entries: (slot index, function RVA, original 12 bytes).
 KF_NATIVE_SLOT_BASE = 0x4982C00
-KF_NATIVE_HOOKS = []
+KF_NATIVE_HOOKS = []   # legacy 12-byte `adrp/ldr/br` trampolines (proof/diag hooks only; NOT fail-safe, never in production builds)
+# Production hooks (2.11.804+): a single `b V` over the first instruction, V = fail-safe veneer (scripts/re/kfpatch_veneer.py): slot empty ->
+# the displaced original instruction runs and execution resumes at site+4, so an unfilled slot can never `br 0`. (slot, function RVA, I0 hex)
+KF_NATIVE_HOOKS1 = [
+    # Crash family 3 guard (hooks_cri.c): GRE.AudioManager.CreateSoundObject returns a null sound object while CRIWARE has no ACF
+    # registered, instead of SIGSEGV @0x7b0 inside criAtomExSoundObject_Create. docs/re-notes/exception-review-2.11.800.md.
+    (8, 0x1BDBEFC, "f44fbea9"),
+]
+# Crash families 4/5 (hooks_unity.c): hooks in libunity.so itself (Unity 2018.4.11f1, arm64), slot table in the libunity .bss tail
+# (RVA 0x1466C00; PT_LOAD #2 memsz ends 0x1466B48, the anonymous .bss mapping is page-rounded to 0x1467000 - verified in /proc/pid/maps;
+# code only addresses the page below 0x1466B48, so 0x1466C00..0x1467000 is zero and never referenced). Entries: (slot, function RVA
+# == file offset, I0 hex). The 24-byte fail-safe veneers live at the start of a verified-dead libunity function (see KF_UNITY_VHOST).
+KF_UNITY_SLOT_BASE = 0x1466C00
+KF_UNITY_HOOKS = [
+    (0, 0x2C3070, "ff4301d1"),  # dependency walker: obj-keyed map find (family 4, UnityPreload SIGSEGV pc +0x2cab34); I0 = sub sp,sp,#0x50
+    (1, 0x2BA824, "f80f1cf8"),  # ref-counted block release (family 5, UnityMain SIGSEGV/SIGBUS pc +0x2ba84c); I0 = str x24,[sp,#-0x40]!
+]
+# Dead libunity function 0xEFF890 (FDE size 244 B; a 2.11.804 relocation: the previous host 0xA08DDC turned out to be a registered job
+# callback - its address is materialised by adrp+add 7 insns apart at 0xA08868/0xA08884 and passed to a registration call). Verified on
+# the pristine libunity.so with scripts/re/verify_dead_host.py (b/bl/b.cond/cbz/cbnz/tbz/tbnz/adr/ldr-literal, adrp->add/ldr/str with a
+# 64-insn window, raw qwords at 4- and 8-byte alignment, uint32 RVAs, .rela.dyn/.rela.plt addends incl. sym+addend, dynsym, .dynamic,
+# 32-bit relative jump-table style words with scale 1 and 4: all zero) and scripts/re/find_dead_functions.py (strict screen, 9 of 61014
+# FDE functions pass; 0xEFF890 and 0xEFF620 are the only ones that also end in ret and follow a ret). Guarded by the pristine bytes of its
+# first 48 bytes (a different libunity build fails the byte guard).
+KF_UNITY_VHOST = 0xEFF890
+KF_UNITY_VSTRIDE = 24
+KF_UNITY_VHOST_EXPECTED = bytes.fromhex("ff431ed1fd7bb4a9fd030091f35303a9e827086db4430391ea2f096de20f02a9ec370a6de00701a9ee3f0b6df55b04a9")
 if os.environ.get("KF_PROOF_RVA"):  # proof hook (slot 0) OFF by default; libkfpatch must be built with the same -DKF_PROOF_RVA
-    KF_NATIVE_HOOKS = [
+    KF_NATIVE_HOOKS = KF_NATIVE_HOOKS + [
         (0, 0x1552CDC, "f657bda9f44f01a9fd7b02a9"),  # OutGameModelController.CreateSummonModel (proof only)
     ]
 if os.environ.get("KF_NATIVE_DIAG") == "1":  # logging hooks (src/native/kfpatch/hooks_diag.c)
@@ -3125,12 +3159,38 @@ if os.environ.get("KF_NATIVE") == "1":
         })
 
 
+if os.environ.get("KF_NATIVE") == "1":
+    import importlib.util as _ilu
+    _vs = _ilu.spec_from_file_location("kfpatch_veneer", str(Path(__file__).resolve().parent / "re" / "kfpatch_veneer.py"))
+    kfv = _ilu.module_from_spec(_vs)
+    sys.modules["kfpatch_veneer"] = kfv
+    _vs.loader.exec_module(kfv)
+    # libunity hooks: `b V` over I0 + 24-byte fail-safe veneers in the dead function KF_UNITY_VHOST (one host patch, byte-guarded).
+    _uv = bytearray()
+    for _k, (_slot, _rva, _i0h) in enumerate(KF_UNITY_HOOKS):
+        _i0 = struct.unpack("<I", bytes.fromhex(_i0h))[0]
+        _vva = KF_UNITY_VHOST + KF_UNITY_VSTRIDE * _k
+        _uv += kfv.veneer(_vva, KF_UNITY_SLOT_BASE + 8 * _slot, kfv.failsafe_resume(_i0, _vva + 16, _rva + 4), KF_UNITY_VSTRIDE)
+        UNITY_PATCHES["arm64-v8a"].append({
+            "description": f"kfpatch libunity hook site slot {_slot} @ RVA 0x{_rva:x}: b -> fail-safe veneer 0x{_vva:x} (libkfpatch.so hook, original code while slot is empty)",
+            "offset": _rva, "expected": bytes.fromhex(_i0h),
+            "replacement": struct.pack("<I", kfv.branch(_rva, _vva)),
+        })
+    assert len(_uv) <= len(KF_UNITY_VHOST_EXPECTED)
+    UNITY_PATCHES["arm64-v8a"].append({
+        "description": f"kfpatch libunity fail-safe veneers in the dead function @0x{KF_UNITY_VHOST:x} (adrp/ldr/cbz/br + displaced I0/b back)",
+        "offset": KF_UNITY_VHOST, "expected": KF_UNITY_VHOST_EXPECTED[:len(_uv)], "replacement": bytes(_uv),
+    })
+
+
 # KF_NATIVE cave migration (2026-11-05): the prod/AI-role caves hosted in the dead bodies of HomeSummonModelController.SetModel /
 # <LoadModelAsync>d__25.MoveNext / UnloadModel now live in libkfpatch (src/native/kfpatch/caves_gen.S, generated by
 # scripts/re/kfpatch_cavegen.py). The three bodies are restored to pristine (their "bypass null exception" stubs are dropped, which
 # is what makes the disc-detail 3D model load) and the hook sites that branched into them are retargeted to 12-byte slot veneers
 # in the dead body of PlayerCharacter.UpdateLookTarget. KF_NATIVE=1 is therefore REQUIRED for any build that should show the model;
 # without it the legacy layout (stubbed bodies) is used. KF_DIAG caves share the veneer host and the bodies: unsupported together.
+# Pristine bytes of the veneer host (dead PlayerCharacter.UpdateLookTarget body, entry stubbed to ret at 0x13CD984), first 344 B: 10 cave veneers x 32 B + 1 x 24 B.
+KF_VHOST_EXPECTED = bytes.fromhex("e923036dfc6f04a9fa6705a9f85f06a9f65707a9f44f08a9fd7b09a9fd430291f497019088566039f30300aae800003788800190081d42f9000140b91171f897e80300328856203974a640f9740000b5e0031faa021af997e00314aa8f98ff970820201ee801005474a640f9740000b5e0031faafa19f997e00314aac985ff970001003674a240f9740000b5e0031faaf319f997e00314aae7bbff970700001474a240f9740000b5e0031faaec19f997e00314aa57bbff97e00313aa48f4ff971f2c007140040054c0120035e00313aae1031f2ab1cbff97f40300aad41000b4358501f0b5c244f9890240f9a80240f92b8144390a8144397f010a6bc3000054296540f9290d0a8b29815ff83f0108eb80000054e0031faad119f997a80240f9890240f90a8144392b8144397f010a6b430e0054296540f9290d0a8b29815ff83f0108eb80029f9a6d00001461018052e00313aa91cbff97")
 if os.environ.get("KF_NATIVE") == "1":
     import hashlib as _hl
     if os.environ.get("KF_DIAG") == "1":
@@ -3157,7 +3217,8 @@ if os.environ.get("KF_NATIVE") == "1":
     if _missing:
         raise SystemExit(f"KF_NATIVE: expected SetModel/LoadModelAsync/UnloadModel stubs missing: {_missing}")
     _vhost = _man["veneer_host"]
-    _vslot = {e["target"]: (e["slot"], _vhost + 12 * (e["slot"] - 16)) for e in _man["entries"]}
+    _VST = 32  # bytes per cave veneer (16 B adrp/ldr/cbz/br + up to 16 B fail-safe)
+    _vslot = {e["target"]: (e["slot"], _vhost + _VST * (e["slot"] - 16)) for e in _man["entries"]}
     for _p in _kept:
         _o = int(_p["offset"])
         _rep = bytearray(_p["replacement"])
@@ -3175,19 +3236,49 @@ if os.environ.get("KF_NATIVE") == "1":
                     raise SystemExit(f"unmapped branch from 0x{_o + _i:x} into a migrated body (0x{_t:x})")
         _p["replacement"] = bytes(_rep)
     NATIVE_PATCHES["arm64-v8a"] = _kept
-    _vend = _vhost + 12 * len(_man["entries"])
+    # Fail-safe veneers (kfpatch_veneer.py): slot empty -> displaced original instruction + branch back. Per-site fail-safe words are derived
+    # from the byte-guarded original word of each hook-site patch; the one site inside a larger prod patch (0x1A2AC44) is spelled out.
+    _entry_slot = {e["target"]: e["slot"] for e in _man["entries"]}
+    _site_orig = {int(_p["offset"]): bytes(_p["expected"]) for _p in _kept if len(_p["expected"]) == 4}
+    _vwords = {}
+    for _h in _man["hook_sites"]:
+        _site, _s = _h["site"], _entry_slot[_h["target"]]
+        _va = _vhost + _VST * (_s - 16)
+        if _site == 0x1A2AC44:
+            # rush push part 2 (get_eulerAngles): part 1 already pushed x29/x30 and stored s0 at [sp,#0x10]; with the cave unavailable skip the
+            # call and return the way the cave does: ldr s0,[sp,#0x10]; ldp x29,x30,[sp],#0x20; mov x0,xzr; ret
+            _w = [0xBD4013E0, 0xA8C27BFD, 0xAA1F03E0, kfv.RET]
+        else:
+            _i0 = struct.unpack("<I", _site_orig[_site])[0]
+            if _h["kind"] == "bl":
+                _w = kfv.failsafe_bl_site(_i0)
+            elif (_i0 >> 26) == 5:
+                _w = kfv.failsafe_tail_b(_i0, _site, _va + 16)
+            else:
+                _w = kfv.failsafe_resume(_i0, _va + 16, _site + 4)
+        _vwords[_s] = (_va, _w)
+    assert sorted(_vwords) == sorted(e["slot"] for e in _man["entries"])
+    _vrep = b"".join(kfv.veneer(_va, KF_NATIVE_SLOT_BASE + 8 * _s, _w, _VST) for _s, (_va, _w) in sorted(_vwords.items()))
+    # CRI (slot 8) and any other production KF_NATIVE_HOOKS1 entry: 24-byte veneers right after the cave veneers.
+    _VST1 = 24
+    _v1base = _vhost + _VST * len(_man["entries"])
+    for _k, (_slot, _rva, _i0h) in enumerate(KF_NATIVE_HOOKS1):
+        _i0 = struct.unpack("<I", bytes.fromhex(_i0h))[0]
+        _va = _v1base + _VST1 * _k
+        _vrep += kfv.veneer(_va, KF_NATIVE_SLOT_BASE + 8 * _slot, kfv.failsafe_resume(_i0, _va + 16, _rva + 4), _VST1)
+        _kept.append({
+            "description": f"kfpatch hook site slot {_slot} @ RVA 0x{_rva:x}: b -> fail-safe veneer 0x{_va:x} (libkfpatch.so hook, original code while slot is empty)",
+            "offset": _rva, "expected": bytes.fromhex(_i0h), "replacement": struct.pack("<I", kfv.branch(_rva, _va)),
+        })
+    _vend = _vhost + len(_vrep)
     for _p in _kept:
         _o = int(_p["offset"]); _e = _o + len(_p["expected"])
         if _o < _vend and _e > _vhost:
-            raise SystemExit(f"patch at 0x{_o:x} overlaps the kfpatch veneer host 0x{_vhost:x}")
-    _vrep = b"".join(
-        (0x90000010 | ((((((KF_NATIVE_SLOT_BASE + 8 * s) >> 12) - (va >> 12)) & 3) << 29)) | (((((KF_NATIVE_SLOT_BASE + 8 * s) >> 12) - (va >> 12)) >> 2 & 0x7FFFF) << 5)).to_bytes(4, "little")
-        + (0xF9400210 | ((((KF_NATIVE_SLOT_BASE + 8 * s) & 0xFFF) // 8) << 10)).to_bytes(4, "little")
-        + (0xD61F0200).to_bytes(4, "little")
-        for s, va in sorted(_vslot.values()))
+            raise SystemExit(f"patch at 0x{_o:x} overlaps the kfpatch veneer host 0x{_vhost:x}..0x{_vend:x}")
+    NATIVE_PATCHES["arm64-v8a"] = _kept
     NATIVE_PATCHES["arm64-v8a"].append({
-        "description": f"kfpatch cave veneers (slots 16+) in the dead body of PlayerCharacter.UpdateLookTarget @0x{_vhost:x}",
-        "offset": _vhost, "expected": bytes.fromhex(_man["veneer_expected_hex"]), "replacement": _vrep,
+        "description": f"kfpatch fail-safe veneers (cave slots 16+ and CRI slot 8) in the dead body of PlayerCharacter.UpdateLookTarget @0x{_vhost:x}",
+        "offset": _vhost, "expected": KF_VHOST_EXPECTED[:len(_vrep)], "replacement": _vrep,
     })
 
 
@@ -3229,7 +3320,7 @@ def patch_native(path: Path, abi: str, dry_run: bool = False) -> list[dict[str, 
     return reports
 
 
-def patch_unity_native(path: Path, abi: str) -> list[dict[str, object]]:
+def patch_unity_native(path: Path, abi: str, dry_run: bool = False) -> list[dict[str, object]]:
     patches = UNITY_PATCHES.get(abi, [])
     if not patches:
         return []
@@ -3266,7 +3357,8 @@ def patch_unity_native(path: Path, abi: str) -> list[dict[str, object]]:
             "from": expected.hex(),
             "to": replacement.hex(),
         })
-    path.write_bytes(data)
+    if not dry_run:
+        path.write_bytes(data)
     return reports
 
 
@@ -3292,6 +3384,9 @@ def main() -> int:
             return 1
         reports = patch_native(target, "arm64-v8a", dry_run=True)
         print(f"Dry-run successful on {target}: verified {len(reports)} patches.")
+        if args.arm64_unity and args.arm64_unity.is_file():  # optional: byte-guard check of the libunity patches too (no write)
+            ureports = patch_unity_native(args.arm64_unity, "arm64-v8a", dry_run=True)
+            print(f"Dry-run successful on {args.arm64_unity}: verified {len(ureports)} libunity patches.")
         return 0
 
     if not (args.metadata and args.arm64 and args.armv7 and args.base_url):

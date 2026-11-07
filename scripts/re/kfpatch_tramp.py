@@ -1,5 +1,9 @@
 """Static kfpatch trampoline generator/validator (no cave needed).
 
+NOTE (2.11.804): production hooks no longer use this 12-byte `br [slot]` form (it jumps to 0 while the slot is empty). They use a single
+`b V` + fail-safe veneer, see scripts/re/kfpatch_veneer.py. This form remains for proof/diag hooks only.
+
+
 Trampoline (12 B, written over the first 3 instructions of a hooked il2cpp function):
     adrp x16, slot_page ; ldr x16, [x16, #slot_off] ; br x16
 The displaced 3 instructions must be PC-independent so libkfpatch can replay them in its original-call stub.
