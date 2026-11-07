@@ -474,6 +474,9 @@ public sealed class HarnessTests : IClassFixture<ServerTestHostFixture>
             // The one sanctioned outbound client: the FCM push sender (Push/FcmSender.cs) calls Google's FCM/OAuth
             // endpoints, never an upstream Kick-Flight/Grenge API.
             if (file.EndsWith(Path.Combine("Push", "FcmSender.cs"), StringComparison.Ordinal)) continue;
+            // Chat translation calls Google's Gemini API (ChatTranslation/GeminiInteractionsClient.cs), likewise never an
+            // upstream Kick-Flight/Grenge API.
+            if (file.EndsWith(Path.Combine("ChatTranslation", "GeminiInteractionsClient.cs"), StringComparison.Ordinal)) continue;
             var source = File.ReadAllText(file);
             foreach (var symbol in forbidden) Assert.DoesNotContain(symbol, source);
         }

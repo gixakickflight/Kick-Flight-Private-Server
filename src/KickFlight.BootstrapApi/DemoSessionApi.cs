@@ -1118,6 +1118,9 @@ public sealed partial class DemoSessionApi : IDisposable
         var key = cached.Key;
         var state = cached.State;
         _onlineActivityByPlayer[state.PlayerId] = _timeProvider.GetUtcNow();
+        // Chat translation: lets the websocket (which carries no player identity) recognise a player's own messages.
+        if (_chat.TranslationEnabled)
+            _chat.NoteClientAddress(state.PlayerId, context.RequestServices.GetService<KickFlight.BootstrapApi.ChatTranslation.ClientIpResolver>()?.Resolve(context)?.ToString());
         // The x-app-* device headers of the player's latest request, for the telemetry of its matches.
         _ops.TouchClient(state.UserId, OpsClientInfo.FromRequest(context));
 
@@ -1710,7 +1713,7 @@ public sealed partial class DemoSessionApi : IDisposable
             interruptNotificationList = Array.Empty<object>(),
             teamBattleInvitationCustomToken = "",
             teamBattleInvitationId = "",
-            chatRoomConnectionCustomToken = _chat.Enabled ? "kfchat-dummy-token" : "",
+            chatRoomConnectionCustomToken = _chat.Enabled ? _chat.CustomTokenFor(state.PlayerId) : "",
             chatRoomConnectionId = _chat.Enabled ? "kfchat" : "",
             officialUrl = ""
         };

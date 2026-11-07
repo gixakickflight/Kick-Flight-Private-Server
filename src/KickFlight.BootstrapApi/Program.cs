@@ -36,6 +36,7 @@ builder.Services.AddSingleton<IPlayerStore>(services => PlayerStoreFactory.Creat
 builder.Services.AddSingleton<OpsTelemetryService>();
 builder.Services.AddHostedService(services => services.GetRequiredService<OpsTelemetryService>());
 KickFlight.BootstrapApi.Push.PushServiceCollectionExtensions.AddRankedPush(builder.Services, builder.Configuration);
+KickFlight.BootstrapApi.ChatTranslation.ChatTranslationServiceCollectionExtensions.AddChatTranslation(builder.Services);
 builder.Services.AddSingleton<ChatService>();
 builder.Services.AddSingleton<DemoSessionApi>();
 builder.Services.AddGrpc();
@@ -252,11 +253,15 @@ app.MapGet("/health/ready", async (FixtureStore store, ResourceCatalogStore reso
 // Firebase-RTDB-compatible chat websocket (docs/re-notes/chat.md). The client's Firebase URL is patched to this
 // host, so the SDK connects to /.ws?ns=<ns>&v=5[&ls=<sid>]. Must be mapped before the catch-all.
 app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(30) });
-app.Map("/.ws", async (HttpContext context, ChatService chat) =>
+app.Map("/.ws", async (HttpContext context, ChatService chat, KickFlight.BootstrapApi.ChatTranslation.ChatLanguageResolver chatLanguages,
+    KickFlight.BootstrapApi.ChatTranslation.ClientIpResolver chatIps) =>
 {
     if (!context.WebSockets.IsWebSocketRequest) return Results.BadRequest();
     using var socket = await context.WebSockets.AcceptWebSocketAsync();
-    var connection = chat.Register(socket);
+    // Reader language from the client IP (X-Real-IP / X-Forwarded-For only via a trusted proxy) -> country -> pt/es/ja/en.
+    // Only resolved when translation is on; otherwise the original text is served exactly as before.
+    var connection = chat.Register(socket, chat.TranslationEnabled ? chatLanguages.Resolve(context) : null,
+        chat.TranslationEnabled ? chatIps.Resolve(context)?.ToString() : null);
     try
     {
         await connection.SendAsync(ChatService.Handshake(context.Request.Host.Value, Guid.NewGuid().ToString("N")[..12]));

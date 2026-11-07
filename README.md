@@ -155,3 +155,8 @@ Los archivos de trabajo como `.env`, la APK base, el keystore, los bundles grand
 - Balance y combate: [`tools/balance/README.md`](tools/balance/README.md), [`docs/COMBAT_MASTERS_FILL_IN.md`](docs/COMBAT_MASTERS_FILL_IN.md), [`docs/DISC_BALANCE_FIX.md`](docs/DISC_BALANCE_FIX.md).
 - iOS: [`docs/IOS_RESOURCE_CATALOG.md`](docs/IOS_RESOURCE_CATALOG.md), [`docs/IOS_PROFILE_RELEASE.md`](docs/IOS_PROFILE_RELEASE.md).
 - Ingeniería inversa: [`scripts/re/README.md`](scripts/re/README.md), [`docs/re-notes/`](docs/re-notes/), [`AGENTS.md`](AGENTS.md).
+- Chat: [`docs/CHAT_TRANSLATION.md`](docs/CHAT_TRANSLATION.md) (traducción de mensajes del chat con Gemini).
+
+## Atribuciones
+
+- IP Geolocation by [DB-IP](https://db-ip.com): la traducción del chat elige el idioma según el país del cliente con la base "IP to Country Lite" de DB-IP, licenciada CC BY 4.0.
