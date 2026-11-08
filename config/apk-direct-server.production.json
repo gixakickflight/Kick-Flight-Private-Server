@@ -1,8 +1,8 @@
 {
-  "serverBaseUrl": "http://147.93.138.247:18080",
-  "photonHost": "147.93.138.247",
-  "versionName": "2.11.804",
-  "versionCode": 69,
+  "serverBaseUrl": "http://kick-flight-fenix.us.ci:18080",
+  "photonHost": "kick-flight-fenix.us.ci",
+  "versionName": "2.11.805",
+  "versionCode": 70,
   "updateUrl": "https://kick-flight-fenix.us.ci/",
   "expectedSourceSha256": "ffa620d2e2f905e729812606024e02741124951dce908bb2e0587f0a4e16e031",
   "patchFlags": {
@@ -15,6 +15,6 @@
     "KF_RESULT_DIAG": "0",
     "KF_TARGET_FPS": "120",
     "KF_PUSH": "1",
-    "CHAT_BASE_URL": "http://147.93.138.247:18080?ns={0}"
+    "CHAT_BASE_URL": "http://kick-flight-fenix.us.ci:18080?ns={0}"
   }
 }

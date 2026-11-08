@@ -33,6 +33,16 @@ if ($baseUri.Scheme -ne 'http' -or -not $baseUri.Host -or $baseUri.AbsolutePath 
     throw 'serverBaseUrl must have the form http://host:port with no path, query, or fragment.'
 }
 
+# Parity with build-direct-apk.sh: photonHost + patchFlags from the config (explicit env vars win).
+$photonHost = if ($env:KF_PHOTON_HOST) { $env:KF_PHOTON_HOST } elseif ($config.photonHost) { [string]$config.photonHost } else { '' }
+if ($config.patchFlags) {
+    foreach ($flag in $config.patchFlags.PSObject.Properties) {
+        if (-not (Test-Path -LiteralPath "Env:$($flag.Name)")) {
+            Set-Item -LiteralPath "Env:$($flag.Name)" -Value ([string]$flag.Value)
+        }
+    }
+}
+
 $actualSourceHash = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash
 if ($actualSourceHash -ne $config.expectedSourceSha256) {
     throw "Source APK hash mismatch. Expected $($config.expectedSourceSha256), found $actualSourceHash."
@@ -80,6 +90,8 @@ try {
     $previousForceGameScene = $env:KF_FORCE_GAME_SCENE
     $previousExperimentalAllocators = $env:KF_UNITY_EXPERIMENTAL_ALLOCATORS
     try {
+        $patchArgs = @()
+        if ($photonHost) { $patchArgs += @('--photon-host', $photonHost) }
         $env:KF_FORCE_GAME_SCENE = if ($ForceGameScene) { '1' } else { '0' }
         $env:KF_UNITY_EXPERIMENTAL_ALLOCATORS = if ($EnableExperimentalUnityAllocators) { '1' } else { '0' }
         & python $patcher `
@@ -87,7 +99,8 @@ try {
             --arm64 (Join-Path $decoded 'lib\arm64-v8a\libil2cpp.so') `
             --armv7 (Join-Path $decoded 'lib\armeabi-v7a\libil2cpp.so') `
             --arm64-unity (Join-Path $decoded 'lib\arm64-v8a\libunity.so') `
-            --base-url $config.serverBaseUrl
+            --base-url $config.serverBaseUrl `
+            @patchArgs
         if ($LASTEXITCODE -ne 0) { throw "IL2CPP endpoint patch failed with exit code $LASTEXITCODE." }
     } finally {
         $env:KF_FORCE_GAME_SCENE = $previousForceGameScene
@@ -146,5 +159,6 @@ Write-Host "Direct APK: $OutputPath"
 Write-Host "SHA-256:    $outputHash"
 Write-Host "Server URL: $($config.serverBaseUrl)"
 Write-Host "Direct host: $($baseUri.Host)"
+if ($photonHost) { Write-Host "Photon host: $photonHost" }
 Write-Host "Forced GameScene transition: $ForceGameScene"
 Write-Host "Experimental Unity allocators: $($EnableExperimentalUnityAllocators.IsPresent)"
