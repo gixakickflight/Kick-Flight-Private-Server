@@ -299,7 +299,10 @@ def main():
             "id": skill_type + 1,
             "name": name,
             "gearSkillType": skill_type,
-            "groupId": skill_type + 1
+            # GearSameColorBonus rows match on GearSkill.groupId (PlayerGearParameter..ctor, 0x1744488) and nothing else
+            # reads it: one group lets the bonus rows below apply to every skill. Split a skill into its own group only
+            # together with bonus rows for that group, or it gets no same-colour bonus at all.
+            "groupId": 1
         })
         # Generate gears of different rarities and colors for each skill
         for rarity in range(4): # N, R, SR, UR
@@ -325,7 +328,9 @@ def main():
                 "groupId": 1,
                 "rarityType": r,
                 "count": count,
-                "coefficient": round(0.05 * count * (r + 1), 3)
+                # Added to each matching gear's own coefficient (0x1744568), so it is sized from the rarity's middle
+                # base value (0.03 / 0.05 / 0.07 / 0.09): +25% of it for two gears of a colour, +50% for three.
+                "coefficient": round((0.03 + 0.02 * r) * (0.25 if count == 2 else 0.5), 4)
             })
             bonus_id += 1
 

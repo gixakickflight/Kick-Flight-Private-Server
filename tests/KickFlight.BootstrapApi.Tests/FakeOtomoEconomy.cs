@@ -147,6 +147,7 @@ public sealed partial class FakeOtomoEconomy : IAsyncDisposable
     private static readonly Dictionary<string, (Grant[] Cost, Grant[] Grants)> Offers = new(StringComparer.Ordinal)
     {
         ["ticket.single"] = ([new Grant("jetcoin", null, 100)], [new Grant("kicker_ticket", null, 1)]),
+        ["gear_chip.10"] = ([new Grant("jetcoin", null, 100)], [new Grant("gear_chip", null, 10)]),
         ["shard.skin.2010101"] = ([new Grant("shard", null, 60)], [new Grant(null, "skin:2010101", 1)])
     };
 
@@ -521,6 +522,21 @@ public sealed partial class FakeOtomoEconomy : IAsyncDisposable
             }
         });
 
+        // A counter report: recorded (Requests) and echoed. The fake keeps no tracks; tests read what was reported.
+        _app.MapPost("/internal/economy/progress", async (HttpContext context) =>
+        {
+            var (root, failure) = await InternalAsync(context);
+            if (root is null) return failure;
+            return Results.Json(new
+            {
+                player_id = root.Value.GetProperty("player_id").GetString(),
+                counter = root.Value.GetProperty("counter").GetString(),
+                delta = root.Value.GetProperty("delta").GetInt64(),
+                key = root.Value.GetProperty("key").GetString(),
+                reason = root.Value.GetProperty("reason").GetString()
+            });
+        });
+
         _app.MapPost("/internal/economy/consume", async (HttpContext context) =>
         {
             var (root, failure) = await InternalAsync(context);
@@ -836,8 +852,14 @@ public sealed partial class FakeOtomoEconomy : IAsyncDisposable
         ["match.capsule.standard.1"] = [new Grant("capsule_standard", null, 1)],
         ["match.capsule.standard.2"] = [new Grant("capsule_standard", null, 2)],
         ["match.capsule.golden.2"] = [new Grant("capsule_golden", null, 2)],
-        ["match.capsule.golden.3"] = [new Grant("capsule_golden", null, 3)]
+        ["match.capsule.golden.3"] = [new Grant("capsule_golden", null, 3)],
+        // Player experience per battle (kf-otomo economy.rules).
+        ["match.exp.win"] = [new Grant("player_exp", null, MatchExpWin)],
+        ["match.exp.loss"] = [new Grant("player_exp", null, MatchExpLoss)]
     };
+
+    public const long MatchExpWin = 800;
+    public const long MatchExpLoss = 400;
 
     public const long StarterDiscForce = 300;
 

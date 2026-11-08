@@ -129,7 +129,9 @@ public sealed partial class DemoSessionApi : IDisposable
     private readonly Dictionary<int, List<int>> _costumesByKicker = [];
     private readonly Dictionary<int, int> _costumeKicker = [];   // row id -> kickerId
     private readonly List<int> _discIdList = [];
-    private readonly List<int> _gearIdList = [];                 // Gear master row ids, the pool gear/create rolls from
+    private readonly List<int> _gearIdList = [];                 // Gear master row ids (boot-time; the roll reads _gearRolls)
+    private volatile GearRollTable _gearRolls = GearRollTable.Empty; // what gear/create rolls from, rebuilt per release
+    private volatile IReadOnlyList<(int KickerId, int ItemId)> _gearMaterials = []; // KickerGearMaterial rows
     private readonly ILogger<DemoSessionApi> _logger;
     private readonly BattleMatchmakingService _matchmaking;
     private readonly BattleReplayService _replays;
@@ -642,6 +644,11 @@ public sealed partial class DemoSessionApi : IDisposable
         var gearJson = MasterJson("Gear", contentRoot, "config/masters_gear.json", "[]");
         var gearSkillJson = MasterJson("GearSkill", contentRoot, "config/masters_gear_skill.json", "[]");
         var gearSameColorBonusJson = MasterJson("GearSameColorBonus", contentRoot, "config/masters_gear_same_color_bonus.json", "[]");
+        // Which item is a kicker's gear chip. GoodsUtil.GetGearMaterialAmount (0x16871AC) finds the row for the kicker
+        // (or the shared kickerId -1 row) and reads that item's amount; with no row the client counts 0 chips and keeps
+        // the gear roll button off.
+        var kickerGearMaterialJson = MasterJson("KickerGearMaterial", contentRoot, "config/masters_kicker_gear_material.json",
+            $$"""[{"id":1,"kickerId":-1,"itemId":{{EconomyCatalog.GearMaterialItemId}}}]""");
 
         try
         {
@@ -700,6 +707,7 @@ public sealed partial class DemoSessionApi : IDisposable
         _encryptedMasters["Gear"] = EncryptMaster(gearJson);
         _encryptedMasters["GearSkill"] = EncryptMaster(gearSkillJson);
         _encryptedMasters["GearSameColorBonus"] = EncryptMaster(gearSameColorBonusJson);
+        _encryptedMasters["KickerGearMaterial"] = EncryptMaster(kickerGearMaterialJson);
 
         var aiParamJson = MasterJson("KickerAiParameter", contentRoot, "config/masters_kicker_ai_parameter.json", "[]");
         var aiDiscJson = MasterJson("KickerAiDisc", contentRoot, "config/masters_kicker_ai_disc.json", "[]");
@@ -901,6 +909,44 @@ public sealed partial class DemoSessionApi : IDisposable
     // A published release that changes a table this server serves. Runs on the refresher's thread, so it takes the
     // master lock: the entries and the version the client compares are replaced together, and no request sees a
     // catalogue half from the old release and half from the new one.
+    // The gear roll's inputs, from the tables this server serves now: Gear and LotteryGearRarity for the roll, and
+    // KickerGearMaterial for which chip a roll spends. Called at the first roll and again by every release that carries
+    // one of them; a table that does not parse leaves the previous one in place (logged).
+    private void RebuildGearTables()
+    {
+        try
+        {
+            var rolls = GearRollTable.Parse(
+                MasterJson("Gear", _contentRoot, "config/masters_gear.json", "[]"),
+                MasterJson("LotteryGearRarity", _contentRoot, "config/masters_lottery_gear_rarity.json", "[]"),
+                out var problem);
+            if (problem is not null) _logger.LogWarning("Gear roll: {Problem}", problem);
+
+            var materials = new List<(int, int)>();
+            using (var doc = JsonDocument.Parse(MasterJson("KickerGearMaterial", _contentRoot,
+                       "config/masters_kicker_gear_material.json", "[]")))
+            {
+                foreach (var row in doc.RootElement.EnumerateArray())
+                    materials.Add((row.GetProperty("kickerId").GetInt32(), row.GetProperty("itemId").GetInt32()));
+            }
+
+            _gearRolls = rolls;
+            _gearMaterials = materials;
+            _logger.LogInformation("Gear roll table: {Table}; chips: {Materials}", rolls.Describe(),
+                string.Join(", ", materials.Select(m => $"kicker {m.Item1} -> item {m.Item2}")));
+        }
+        catch (Exception exception) when (exception is JsonException or InvalidOperationException or KeyNotFoundException or FormatException)
+        {
+            _logger.LogError("Gear tables not rebuilt, the previous ones stay: {Error}", exception.Message);
+        }
+    }
+
+    private GearRollTable GearRolls()
+    {
+        if (_gearRolls.IsEmpty) RebuildGearTables();
+        return _gearRolls;
+    }
+
     private void ApplyOtomoTables()
     {
         lock (_masterLock)
@@ -918,6 +964,8 @@ public sealed partial class DemoSessionApi : IDisposable
             // GuardianParameter is generated (GuardianBalance x BattleRule), never published itself: a release that
             // carries either input regenerates it. GuardianBalance has no entry in _encryptedMasters, so it is not served.
             if (RegenerateGuardianParameter()) applied.Add("GuardianParameter");
+            if (_otomoMasters.Owns("Gear") || _otomoMasters.Owns("LotteryGearRarity") || _otomoMasters.Owns("KickerGearMaterial"))
+                RebuildGearTables();
             // The ladder is a document of the same release, not a table, so a publish that moves a tier moves the
             // BattleRank master with it.
             ApplyBattleRankMaster();
@@ -1891,13 +1939,20 @@ public sealed partial class DemoSessionApi : IDisposable
             return StatusError(context, key);
         }
 
-        if (_gearIdList.Count == 0 || _kickerList.All(k => k.Id != kickerId))
+        var rolls = GearRolls();
+        if (rolls.IsEmpty || _kickerList.All(k => k.Id != kickerId))
         {
-            _logger.LogWarning("Rejected gear/create for unknown kicker {KickerId} ({GearCount} gears in master)", kickerId, _gearIdList.Count);
+            _logger.LogWarning("Rejected gear/create for unknown kicker {KickerId} ({GearCount} gears in master)", kickerId, rolls.GearIds.Count);
             return StatusError(context, key);
         }
 
-        var gearId = _gearIdList[Random.Shared.Next(_gearIdList.Count)];
+        // One chip per roll, taken before the roll is stored. The response carries no item list: the client takes the
+        // chip off its own counter after a success (0x1766DF4), the kicker's own chip when it has one, else a shared
+        // chip, so this spends by the same rule. The key is the request's cache id, so a retried request spends once.
+        var (chipPaid, chipFailure) = await SpendGearChipAsync(context, ticket, key, path, kickerId);
+        if (!chipPaid) return chipFailure;
+
+        var gearId = rolls.Roll(Random.Shared);
         var (written, failure) = await TryWriteGearRollAsync(context, ticket, key, path, "gear-create",
             new GearRoll(kickerId, gearId));
         if (written is null) return failure;
@@ -1912,6 +1967,49 @@ public sealed partial class DemoSessionApi : IDisposable
         context.Response.Headers["x-kickflight-fixture"] = "dynamic-gear-create";
         _logger.LogInformation("Rolled gear {GearId} for kicker {KickerId} (user {UserId})", gearId, kickerId, state.UserId);
         return BinaryJson($"{{\"gearId\":{gearId}}}", key);
+    }
+
+    // Spends one gear chip for a gear/create: the kicker's own material when the player holds one, else the shared one
+    // (KickerGearMaterial kickerId -1). Economy refuses a spend the player cannot cover, and then nothing has moved.
+    private async Task<(bool Paid, IResult? Failure)> SpendGearChipAsync(HttpContext context, KfIdentityTicket ticket,
+        byte[] key, string path, int kickerId)
+    {
+        var economy = await ReadPlayerEconomyAsync(ticket, EconomyRead.Balances, path, context.RequestAborted);
+        if (economy.Snapshot is null)
+            return (false, economy.Error is null ? StatusError(context, key) : EconomyUnavailable(context, path, economy.Error));
+
+        var candidates = _gearMaterials.Where(m => m.KickerId == kickerId)
+            .Concat(_gearMaterials.Where(m => m.KickerId == -1))
+            .Select(m => EconomyCatalog.CurrencyForItemId(m.ItemId))
+            .OfType<string>()
+            .Distinct()
+            .ToList();
+        var currency = candidates.FirstOrDefault(c =>
+            economy.Snapshot.Balances.FirstOrDefault(b => b.Currency == c)?.Balance >= 1) ?? candidates.FirstOrDefault();
+        if (currency is null)
+        {
+            _logger.LogWarning("gear/create for kicker {KickerId}: no KickerGearMaterial row names an economy currency", kickerId);
+            return (false, StatusError(context, key));
+        }
+
+        var cacheId = ProgressKeyPart(context.Request.Headers["x-app-response-cache-id"].ToString());
+        var spendKey = cacheId.Length > 0 ? $"gear-chip:{cacheId}" : $"gear-chip:{Guid.NewGuid():N}";
+        try
+        {
+            await _economy.ConsumeAsync(new EconomyConsumeRequest(ticket.OtomoPlayerId, spendKey, "gear_create", path,
+                [], [new EconomyCurrencyCost(currency, 1)]), context.RequestAborted);
+            return (true, null);
+        }
+        catch (OtomoEconomyException ex) when (ex.Failure == OtomoEconomyFailure.Refused)
+        {
+            _logger.LogWarning("gear/create for kicker {KickerId}: economy refused the {Currency} spend: {Status} {Code}",
+                kickerId, currency, ex.StatusCode, ex.Code);
+            return (false, StatusError(context, key));
+        }
+        catch (OtomoEconomyException ex)
+        {
+            return (false, EconomyUnavailable(context, path, ex));
+        }
     }
 
     private async Task<IResult?> HandleGearSetAsync(HttpContext context, KfIdentityTicket ticket, SessionState state,
@@ -1937,7 +2035,7 @@ public sealed partial class DemoSessionApi : IDisposable
         var (own, failure) = await TryReadOwnLoadoutAsync(context, ticket, path);
         if (own is null) return failure!;
         var gearId = own.Loadout.Roll.GearId;
-        if (slotNumber is < 1 or > 3 || !_costumeKicker.ContainsKey(costumeId) || !_gearIdList.Contains(gearId))
+        if (slotNumber is < 1 or > 3 || !_costumeKicker.ContainsKey(costumeId) || !GearRolls().GearIds.Contains(gearId))
         {
             _logger.LogWarning("Rejected gear/set: costume={CostumeId} slot={Slot} pendingGear={GearId}", costumeId, slotNumber, gearId);
             return StatusError(context, key);
@@ -2128,7 +2226,7 @@ public sealed partial class DemoSessionApi : IDisposable
             userId = state.UserId,
             displayUserId = PlayerDisplayIdCodec.ToPublic(int.TryParse(state.UserId, out var uid) ? uid : 1000001),
             name = OwnName(state, own),
-            exp = 38500,
+            exp = PlayerExpOf(economy.Balances),
             honorId = equippedHonor,
             userFrameList = new[]
             {
@@ -2994,7 +3092,6 @@ public sealed partial class DemoSessionApi : IDisposable
         // The two counters the client reports that economy keeps: kills and the MVP flag. Both are the client's
         // word, which is the same trust level as the ranked result this handler already applies.
         var killCount = 0;
-        var mvp = false;
         try
         {
             var body = await ReadBodyAsync(context.Request);
@@ -3010,7 +3107,6 @@ public sealed partial class DemoSessionApi : IDisposable
                 {
                     killCount = reportedKills;
                 }
-                mvp = TryGetBool(document.RootElement, "mvpFlag", out var reportedMvp) && reportedMvp;
             }
         }
         catch (Exception ex)
@@ -3103,8 +3199,18 @@ public sealed partial class DemoSessionApi : IDisposable
 
         // The battle's counters go to economy as facts, before the client is told the battle is over: what they
         // are worth is a track's step, claimed later on the player's own plane.
-        await ReportBattleProgressAsync(ticket, battleEntryId, won: applyProgression, killCount, mvp,
+        // Won and MVP are the validated report's, not the match type: a regular-match win counts, and the MVP flag is
+        // the caller's own row in userScoreList (the result body has no top-level mvpFlag).
+        var creditedReport = statReport is { CreditStats: true } ? statReport : null;
+        var wonBattle = RankWinFor(creditedReport, out _) == true;
+        var mvpBattle = creditedReport is not null && creditedReport.Stats.GetValueOrDefault(BadgeStatNames.Mvp) > 0;
+        await ReportBattleProgressAsync(ticket, battleEntryId, wonBattle, killCount, mvpBattle,
             context.RequestAborted);
+
+        // Player experience: one class per issued battle (win or loss), keyed by the entry, so a retry pays once.
+        var userExp = ownedEntry is null
+            ? await ReadPlayerExpAsync(ticket, "/battle/result", context.RequestAborted)
+            : await PayBattleExpAsync(ticket, battleEntryId, wonBattle, context.RequestAborted);
 
         // A capsule, for a battle this server issued to this player (DemoSessionApi.Capsules.cs): the battle fact's
         // entitlement trigger mints it. Keyed by the entry, so a retried result shows the same capsule.
@@ -3114,7 +3220,7 @@ public sealed partial class DemoSessionApi : IDisposable
         var rank = new { battleRuleType, battlePoint = after.BattlePoint, rank = after.Rank };
         var resp = new
         {
-            userExp = 38500 + 800, // the user's total exp (see the static exp served at startup) plus this battle's reward
+            userExp, // the player_exp balance after this battle's class; the client reads the level from PlayerLevelExp
             userBattleRank = rank,
             beforeUserBattleRank = new { battleRuleType, battlePoint = before.BattlePoint, rank = before.Rank },
             playerLevelUpRewardList = Array.Empty<object>(),

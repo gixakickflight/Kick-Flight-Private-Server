@@ -174,6 +174,43 @@ public sealed partial class DemoSessionApi
         }
     }
 
+    // Player experience is an economy currency (the tenant's player_exp); the level is the client's own reading of it
+    // against the PlayerLevelExp master. What a battle is worth is the tenant's two classes, editable like any other.
+    internal const string PlayerExpCurrency = "player_exp";
+    internal const string MatchExpWinClass = "match.exp.win";
+    internal const string MatchExpLossClass = "match.exp.loss";
+
+    internal static long PlayerExpOf(IReadOnlyList<EconomyBalance>? balances) =>
+        balances?.FirstOrDefault(balance => balance.Currency == PlayerExpCurrency)?.Balance ?? 0;
+
+    private async Task<long> ReadPlayerExpAsync(KfIdentityTicket ticket, string path, CancellationToken cancellationToken)
+    {
+        var economy = await ReadPlayerEconomyAsync(ticket, EconomyRead.Balances, path, cancellationToken);
+        return PlayerExpOf(economy.Snapshot?.Balances);
+    }
+
+    // Pays this battle's experience class and answers the balance after it. A class the tenant does not declare, or an
+    // economy that cannot be reached, is logged and answered with the balance as it stands: a result screen is never
+    // refused over experience, and the retry the client makes carries the same key.
+    private async Task<long> PayBattleExpAsync(KfIdentityTicket ticket, string battleEntryId, bool won,
+        CancellationToken cancellationToken)
+    {
+        var expClass = won ? MatchExpWinClass : MatchExpLossClass;
+        try
+        {
+            var grant = await GrantClassAsync(ticket, expClass, $"{expClass}:{battleEntryId}", "battle_result",
+                battleEntryId, cancellationToken);
+            var paid = grant?.Balances?.FirstOrDefault(balance => balance.Currency == PlayerExpCurrency);
+            if (paid is not null) return paid.Balance;
+        }
+        catch (Exception exception) when (exception is OtomoEconomyException or HttpRequestException)
+        {
+            _logger.LogWarning("Battle experience {Class} for entry {Entry} was not paid: {Error}",
+                expClass, battleEntryId, exception.Message);
+        }
+        return await ReadPlayerExpAsync(ticket, "/battle/result", cancellationToken);
+    }
+
     // One class paid on the internal plane, keyed by the fact it pays for. Null when the internal plane is off (the
     // caller decides what "nothing to pay with" means for its route); the economy's failure is thrown as it came,
     // so a caller can tell an outage (answer 503) from a refusal (answer the error contract).

@@ -57,7 +57,10 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
         var gearIds = LoadGearIds();
         Assert.NotEmpty(gearIds);
 
-        var session = await CreateSessionAsync();
+        using var gearFactory = GearTestPlane.WithInternalPlane(_factory);
+        var uuid = Guid.NewGuid().ToString("N");
+        var session = await CreateSessionAsync(gearFactory, uuid);
+        GearTestPlane.GiveChipsToDevice(uuid);
         var startup = await PostAsync(session, "/startup/index", null);
 
         var kicker = startup.GetProperty("userKickerList")[0];
@@ -965,11 +968,11 @@ public sealed class PolishEndpointsTests : IClassFixture<PolishEndpointsFixture>
         return await session.Client.SendAsync(request);
     }
 
-    private async Task<DemoSession> CreateSessionAsync(WebApplicationFactory<Program>? factory = null)
+    private async Task<DemoSession> CreateSessionAsync(WebApplicationFactory<Program>? factory = null, string? uuid = null)
     {
         var client = (factory ?? _factory).CreateClient();
         var key = Encoding.ASCII.GetBytes("0123456789abcdef0123456789abcdef");
-        var payload = JsonSerializer.Serialize(new { hash = Encoding.ASCII.GetString(key), uuid = Guid.NewGuid().ToString("N") });
+        var payload = JsonSerializer.Serialize(new { hash = Encoding.ASCII.GetString(key), uuid = uuid ?? Guid.NewGuid().ToString("N") });
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "/auth/index")
         {

@@ -24,7 +24,21 @@ public sealed class LoadoutSessionTests : IClassFixture<ServerTestHostFixture>
     private readonly WebApplicationFactory<Program> _factory;
     private readonly FakeOtomoSocial _session = OtomoTestEnvironment.Social;
 
-    public LoadoutSessionTests(ServerTestHostFixture fixture) => _factory = fixture.Factory;
+    private readonly WebApplicationFactory<Program> _gearFactory;
+
+    public LoadoutSessionTests(ServerTestHostFixture fixture)
+    {
+        _factory = fixture.Factory;
+        _gearFactory = GearTestPlane.WithInternalPlane(fixture.Factory);
+    }
+
+    // A player on a host with economy's internal plane on, holding gear chips: what gear/create needs.
+    private async Task<DemoSession> CreateGearSessionAsync()
+    {
+        var player = await SignInAsync(Guid.NewGuid().ToString("N"), _gearFactory);
+        GearTestPlane.GiveChips(player.Account);
+        return player;
+    }
 
     private static int[] Discs(JsonElement deck) => deck.EnumerateArray().Select(id => id.GetInt32()).ToArray();
 
@@ -234,7 +248,7 @@ public sealed class LoadoutSessionTests : IClassFixture<ServerTestHostFixture>
     [Fact]
     public async Task Gear_create_retried_with_the_same_cache_id_shows_the_roll_session_stored()
     {
-        var player = await CreateSessionAsync();
+        var player = await CreateGearSessionAsync();
         var startup = await PostAsync(player, "/startup/index", null);
         var kickerId = startup.GetProperty("userKickerList")[0].GetProperty("kickerId").GetInt32();
 
@@ -250,9 +264,41 @@ public sealed class LoadoutSessionTests : IClassFixture<ServerTestHostFixture>
     }
 
     [Fact]
+    public async Task Gear_create_spends_one_gear_chip_and_a_retry_spends_nothing_more()
+    {
+        var player = await CreateGearSessionAsync();
+        var startup = await PostAsync(player, "/startup/index", null);
+        var kickerId = startup.GetProperty("userKickerList")[0].GetProperty("kickerId").GetInt32();
+
+        await PostAsync(player, "/gear/create", new { kickerId }, cacheId: "chip-1");
+        await PostAsync(player, "/gear/create", new { kickerId }, cacheId: "chip-1");
+
+        Assert.Equal(9, OtomoTestEnvironment.Economy.BalanceOf(player.Account, EconomyCatalog.GearChipCurrency));
+        // The client counts chips from the item KickerGearMaterial names, so startup carries the balance as that item.
+        var after = await PostAsync(player, "/startup/index", null);
+        var chips = after.GetProperty("userItemList").EnumerateArray()
+            .Single(row => row.GetProperty("itemId").GetInt32() == EconomyCatalog.GearMaterialItemId);
+        Assert.Equal(9, chips.GetProperty("amount").GetInt64());
+    }
+
+    [Fact]
+    public async Task Gear_create_without_a_chip_is_refused_and_leaves_no_roll()
+    {
+        var player = await CreateGearSessionAsync();
+        GearTestPlane.GiveChips(player.Account, 0);
+        var startup = await PostAsync(player, "/startup/index", null);
+        var kickerId = startup.GetProperty("userKickerList")[0].GetProperty("kickerId").GetInt32();
+
+        await PostAsync(player, "/gear/create", new { kickerId }, expectStatusZero: false);
+
+        var after = await PostAsync(player, "/startup/index", null);
+        Assert.Equal(0, after.GetProperty("userGear").GetProperty("gearId").GetInt32());
+    }
+
+    [Fact]
     public async Task Gear_set_puts_the_gear_in_the_loadout_and_clears_the_roll_in_ext()
     {
-        var player = await CreateSessionAsync();
+        var player = await CreateGearSessionAsync();
         var startup = await PostAsync(player, "/startup/index", null);
         var kicker = startup.GetProperty("userKickerList")[0];
         var kickerId = kicker.GetProperty("kickerId").GetInt32();
@@ -274,7 +320,7 @@ public sealed class LoadoutSessionTests : IClassFixture<ServerTestHostFixture>
     [Fact]
     public async Task Nothing_the_adapter_writes_to_ext_is_outside_the_published_fields()
     {
-        var player = await CreateSessionAsync();
+        var player = await CreateGearSessionAsync();
         var startup = await PostAsync(player, "/startup/index", null);
         var kickerId = startup.GetProperty("userKickerList")[0].GetProperty("kickerId").GetInt32();
         var costumeId = startup.GetProperty("userKickerList")[0].GetProperty("userKickerCostumeList")[0].GetProperty("kickerCostumeId").GetInt32();
@@ -377,9 +423,9 @@ public sealed class LoadoutSessionTests : IClassFixture<ServerTestHostFixture>
 
     private Task<DemoSession> CreateSessionAsync() => SignInAsync(Guid.NewGuid().ToString("N"));
 
-    private async Task<DemoSession> SignInAsync(string uuid)
+    private async Task<DemoSession> SignInAsync(string uuid, WebApplicationFactory<Program>? factory = null)
     {
-        var client = _factory.CreateClient();
+        var client = (factory ?? _factory).CreateClient();
         var key = Encoding.ASCII.GetBytes("0123456789abcdef0123456789abcdef");
         var payload = JsonSerializer.Serialize(new { hash = Encoding.ASCII.GetString(key), uuid });
         using var request = new HttpRequestMessage(HttpMethod.Post, "/auth/index")

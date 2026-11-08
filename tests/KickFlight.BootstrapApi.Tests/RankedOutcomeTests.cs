@@ -174,7 +174,7 @@ public sealed class RankedOutcomeTests
     }
 
     private static string Result(string entryId, long playerId, int ownTeam, int? own, int? other,
-        bool breakaway = false, bool includeCaller = true, bool includeScores = true, int killCount = 0)
+        bool breakaway = false, bool includeCaller = true, bool includeScores = true, int killCount = 0, bool mvp = false)
     {
         var dict = new Dictionary<string, object> { ["battleEntryId"] = entryId, ["killCount"] = killCount };
         if (includeScores)
@@ -185,7 +185,7 @@ public sealed class RankedOutcomeTests
             };
         dict["userScoreList"] = new[]
         {
-            new { userId = includeCaller ? playerId : playerId + 999, score = 1, mvpFlag = false, aiFlag = false,
+            new { userId = includeCaller ? playerId : playerId + 999, score = 1, mvpFlag = mvp, aiFlag = false,
                   breakawayFlag = breakaway, badConnectionFlag = false }
         };
         return JsonSerializer.Serialize(dict);
@@ -334,6 +334,52 @@ public sealed class RankedOutcomeTests
         var award = Assert.Single(OtomoTestEnvironment.Social.Awards, call => call.PlayerId == account);
         using var sent = JsonDocument.Parse(award.RawBody);
         Assert.Equal("regular_win", sent.RootElement.GetProperty("outcome").GetString());
+    }
+
+    // The counters this player's battles reported to economy's internal plane, in order.
+    private static string[] ReportedCounters(string account) =>
+        OtomoTestEnvironment.Economy.Requests
+            .Where(call => call.Path == "/internal/economy/progress" && call.Body is not null)
+            .Select(call => JsonDocument.Parse(call.Body!).RootElement)
+            .Where(body => body.GetProperty("player_id").GetString() == account)
+            .Select(body => body.GetProperty("counter").GetString()!)
+            .ToArray();
+
+    [Fact]
+    public async Task A_regular_match_win_as_mvp_counts_the_win_and_the_mvp_and_pays_win_experience()
+    {
+        await using var f = Fixture.Create();
+        var player = await AuthAsync(f.Client);
+        var account = f.AccountOf(player);
+        var (win, ctx) = await f.EnterAsync(player, ruleId: 1);
+        using var response = await PostAsync(f.Client, player, "/battle/result",
+            Result(win, player.PlayerId, ctx.OwnTeamType!.Value, 9, 1, mvp: true));
+
+        var counters = ReportedCounters(account);
+        Assert.Contains("battle.play", counters);
+        Assert.Contains("battle.win", counters);
+        Assert.Contains("battle.mvp", counters);
+        Assert.Equal(FakeOtomoEconomy.MatchExpWin, response.RootElement.GetProperty("userExp").GetInt64());
+        Assert.Equal(FakeOtomoEconomy.MatchExpWin, OtomoTestEnvironment.Economy.BalanceOf(account, "player_exp"));
+    }
+
+    [Fact]
+    public async Task A_loss_counts_a_play_but_no_win_and_pays_loss_experience_once_across_a_retry()
+    {
+        await using var f = Fixture.Create();
+        var player = await AuthAsync(f.Client);
+        var account = f.AccountOf(player);
+        var (loss, ctx) = await f.EnterAsync(player, ruleId: 1);
+        var body = Result(loss, player.PlayerId, ctx.OwnTeamType!.Value, 1, 9);
+        using (await PostAsync(f.Client, player, "/battle/result", body)) { }
+        using var retry = await PostAsync(f.Client, player, "/battle/result", body);
+
+        var counters = ReportedCounters(account);
+        Assert.Contains("battle.play", counters);
+        Assert.DoesNotContain("battle.win", counters);
+        Assert.DoesNotContain("battle.mvp", counters);
+        Assert.Equal(FakeOtomoEconomy.MatchExpLoss, retry.RootElement.GetProperty("userExp").GetInt64());
+        Assert.Equal(FakeOtomoEconomy.MatchExpLoss, OtomoTestEnvironment.Economy.BalanceOf(account, "player_exp"));
     }
 
     [Fact]

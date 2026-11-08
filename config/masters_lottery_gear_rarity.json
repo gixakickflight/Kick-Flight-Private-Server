@@ -2,21 +2,21 @@
   {
     "id": 1,
     "rarityType": 0,
-    "dropRatio": 1
+    "dropRatio": 55
   },
   {
     "id": 2,
     "rarityType": 1,
-    "dropRatio": 1
+    "dropRatio": 30
   },
   {
     "id": 3,
     "rarityType": 2,
-    "dropRatio": 1
+    "dropRatio": 12
   },
   {
     "id": 4,
     "rarityType": 3,
-    "dropRatio": 1
+    "dropRatio": 3
   }
 ]

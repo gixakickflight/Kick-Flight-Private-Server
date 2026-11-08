@@ -11,7 +11,7 @@ namespace KickFlight.BootstrapApi.Otomo;
 // masters are served from this table and the progress rows (userMissionProgressList) only ever name ids that are in
 // it. A track economy reports that is not in this table is logged and not shown; a client cannot render it.
 //
-//   missionId     = one per track (1xx daily, 2xx weekly, 3xx lifetime)
+//   missionId     = one per track (1xx daily, 3xx lifetime; 2xx was weekly, retired 2026-11-08)
 //   missionTaskId = missionId * 100 + step + 1, one per step of that track
 //
 // The targets and the rewards below are what release 17 publishes. They are display only: what a claim actually
@@ -34,8 +34,8 @@ public static class EconomyMissions
     }
 
     // MissionType (dump.cs): BattlePlay 4, BattleWin 5, BattleMvp 6, BattleKill 17.
-    // MissionTermType: None 1, Daily 2. There is no weekly term in the client, so the weekly tracks are None with
-    // their period named in the title; the expiry each row carries is still the real end of the week.
+    // MissionTermType: None 1, Daily 2. The client has no weekly term; the weekly tracks are retired, and a weekly track
+    // economy still reports is logged and not shown, like any track this table does not have.
     private const int BattlePlay = 4, BattleWin = 5, BattleMvp = 6, BattleKill = 17;
     private const int TermNone = 1, TermDaily = 2;
 
@@ -48,9 +48,6 @@ public static class EconomyMissions
         new("mission.daily.win", 102, BattleWin, TermDaily, "Win a battle", [new(0, 1, [Coins(200), Tickets(1)])]),
         new("mission.daily.mvp", 103, BattleMvp, TermDaily, "Be the MVP of a battle", [new(0, 1, [Coins(100)])]),
         new("mission.daily.kill", 104, BattleKill, TermDaily, "Knock out 10 kickers", [new(0, 10, [Coins(100)])]),
-        new("mission.weekly.play", 201, BattlePlay, TermNone, "Weekly: play 20 battles", [new(0, 20, [Coins(800)])]),
-        new("mission.weekly.win", 202, BattleWin, TermNone, "Weekly: win 10 battles",
-            [new(0, 10, [Coins(1200), Tickets(2)])]),
         new("mission.lifetime.play", 301, BattlePlay, TermNone, "Play 100 battles", [new(0, 100, [Coins(3000)])]),
         new("mission.lifetime.win", 302, BattleWin, TermNone, "Win battles",
             [new(0, 10, [Coins(1500)]), new(1, 50, [Coins(4000)]), new(2, 100, [Coins(8000)])])

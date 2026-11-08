@@ -9,144 +9,144 @@
     "id": 2,
     "name": "ATK Boost",
     "gearSkillType": 1,
-    "groupId": 2
+    "groupId": 1
   },
   {
     "id": 3,
     "name": "Movement Speed",
     "gearSkillType": 2,
-    "groupId": 3
+    "groupId": 1
   },
   {
     "id": 4,
     "name": "Fire Boost",
     "gearSkillType": 3,
-    "groupId": 4
+    "groupId": 1
   },
   {
     "id": 5,
     "name": "Water Boost",
     "gearSkillType": 4,
-    "groupId": 5
+    "groupId": 1
   },
   {
     "id": 6,
     "name": "Wind Boost",
     "gearSkillType": 5,
-    "groupId": 6
+    "groupId": 1
   },
   {
     "id": 7,
     "name": "Stun Resistance",
     "gearSkillType": 6,
-    "groupId": 7
+    "groupId": 1
   },
   {
     "id": 8,
     "name": "Paralysis Resistance",
     "gearSkillType": 7,
-    "groupId": 8
+    "groupId": 1
   },
   {
     "id": 9,
     "name": "Poison Resistance",
     "gearSkillType": 8,
-    "groupId": 9
+    "groupId": 1
   },
   {
     "id": 10,
     "name": "Silence Resistance",
     "gearSkillType": 9,
-    "groupId": 10
+    "groupId": 1
   },
   {
     "id": 11,
     "name": "ATK Debuff Resistance",
     "gearSkillType": 10,
-    "groupId": 11
+    "groupId": 1
   },
   {
     "id": 12,
     "name": "DEF Debuff Resistance",
     "gearSkillType": 11,
-    "groupId": 12
+    "groupId": 1
   },
   {
     "id": 13,
     "name": "Speed Debuff Resistance",
     "gearSkillType": 12,
-    "groupId": 13
+    "groupId": 1
   },
   {
     "id": 14,
     "name": "Cooldown Reduction",
     "gearSkillType": 13,
-    "groupId": 14
+    "groupId": 1
   },
   {
     "id": 15,
     "name": "Special Skill Charge Boost",
     "gearSkillType": 14,
-    "groupId": 15
+    "groupId": 1
   },
   {
     "id": 16,
     "name": "Fast Boost Regeneration",
     "gearSkillType": 15,
-    "groupId": 16
+    "groupId": 1
   },
   {
     "id": 17,
     "name": "Healing Received Boost",
     "gearSkillType": 16,
-    "groupId": 17
+    "groupId": 1
   },
   {
     "id": 18,
     "name": "ATK Buff Booster",
     "gearSkillType": 17,
-    "groupId": 18
+    "groupId": 1
   },
   {
     "id": 19,
     "name": "DEF Buff Booster",
     "gearSkillType": 18,
-    "groupId": 19
+    "groupId": 1
   },
   {
     "id": 20,
     "name": "Speed Buff Booster",
     "gearSkillType": 19,
-    "groupId": 20
+    "groupId": 1
   },
   {
     "id": 21,
     "name": "Faster Respawn",
     "gearSkillType": 20,
-    "groupId": 21
+    "groupId": 1
   },
   {
     "id": 22,
     "name": "Special Gauge Retention on Death",
     "gearSkillType": 21,
-    "groupId": 22
+    "groupId": 1
   },
   {
     "id": 23,
     "name": "Mixed Resistance: ATK and Speed",
     "gearSkillType": 22,
-    "groupId": 23
+    "groupId": 1
   },
   {
     "id": 24,
     "name": "Mixed Resistance: Silence and Poison",
     "gearSkillType": 23,
-    "groupId": 24
+    "groupId": 1
   },
   {
     "id": 25,
     "name": "Mixed Synergy: ATK and Speed",
     "gearSkillType": 24,
-    "groupId": 25
+    "groupId": 1
   }
 ]

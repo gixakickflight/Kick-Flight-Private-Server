@@ -23,13 +23,14 @@ namespace KickFlight.BootstrapApi.Otomo;
 //               skin:<costumeId>    a kicker costume, keyed by the KickerCostume master's ROW id;
 //                                   owning a costume owns its kicker
 //
-// Four of the client's eight Item rows are served as a constant zero, because nothing pays them any more and a
+// Three of the client's eight Item rows are served as a constant zero, because nothing pays them any more and a
 // constant is the honest answer rather than a name invented for a counter that has no faucet:
 //
 //   row 2  JetCoinPaid       no IAP on this server: there is no paid coin
 //   row 4  KickPoint          retired with the pre-EOS battle rewards
-//   row 5  GearMaterial      the gear roll is session's (ext pending_gear, DemoSessionApi.Loadout.cs)
 //   row 8  DiscGachaTicket   the disc gacha is priced in Jet Coin, so nothing earns or spends it
+//
+// The gear chip (GearMaterial, 202) is economy's gear_chip currency: gear/create spends one per roll.
 //
 // Anything the economy holds that is not named here is not shown to the client: an unmapped item is logged and
 // skipped rather than guessed at, because a wrong itemId puts a wrong number on a real screen.
@@ -60,8 +61,16 @@ public static class EconomyCatalog
         (DiscForceCurrency, DiscForceItemId),
         // The kicker ticket is economy's currency rather than an item because a gacha pool is priced in
         // currencies; the client has always shown it as an Item row, so it is rendered as one.
-        ("kicker_ticket", KickerTicketItemId)
+        ("kicker_ticket", KickerTicketItemId),
+        // The shared gear chip: KickerGearMaterial's kickerId -1 row names this item, and gear/create spends one.
+        (GearChipCurrency, GearMaterialItemId)
     ];
+
+    public const string GearChipCurrency = "gear_chip";
+
+    // The economy currency a client Item id is, when it is one (the reverse of CurrencyRows).
+    public static string? CurrencyForItemId(int itemId) =>
+        CurrencyRows.FirstOrDefault(row => row.ItemId == itemId).Currency;
 
     // Currencies the economy holds that are deliberately not an Item row. A capsule token is spent the moment its
     // capsule is opened and the capsule slot is what the client shows for it, so a counter would only show a
@@ -96,13 +105,14 @@ public static class EconomyCatalog
     // The goods shop's products (GoodsShopProductRow in DemoSessionApi.Shop.cs) and the economy offer each one buys.
     // The product id is the client's - it sends it in GoodsShopBuyRequestData.goodsShopProductId - and the offer id
     // is economy's; this table is the only place the two are related.
-    // Only one of the three has an offer behind it. The other two sold what the economy design stopped selling: a
-    // disc ticket (the disc gacha is priced in Jet Coin) and gear stamps (not ported). They stay in the client's
-    // product list and answer "not for sale", which is the truth - the alternative, inventing offers so the shelf
-    // looks full, would put unpriced goods on a live screen.
+    // Two of the three have an offer behind it: kicker tickets and gear chips (gear_chip.10). The disc ticket is what
+    // the economy design stopped selling (the disc gacha is priced in Jet Coin); it stays in the client's product
+    // list and answers "not for sale", which is the truth - the alternative, inventing an offer so the shelf looks
+    // full, would put unpriced goods on a live screen.
     public static readonly (int ProductId, string OfferId)[] GoodsShopOffers =
     [
-        (2, "ticket.single")
+        (2, "ticket.single"),
+        (3, "gear_chip.10")
     ];
 
     // The one cosmetic pool in use, and the GachaKicker row id the client quotes back in

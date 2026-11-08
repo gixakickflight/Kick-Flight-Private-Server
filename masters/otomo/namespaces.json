@@ -245,6 +245,14 @@
    "rows": 1
   },
   {
+   "namespace": "kf.masters.kicker_gear_material",
+   "audience": "server",
+   "table": "kicker_gear_material",
+   "source": "config/masters_kicker_gear_material.json",
+   "schema": "masters/otomo/schema/kf.masters.kicker_gear_material.json",
+   "rows": 1
+  },
+  {
    "namespace": "kf.masters.kicker_parameter",
    "audience": "server",
    "table": "kicker_parameter",

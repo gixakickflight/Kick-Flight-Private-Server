@@ -4,55 +4,55 @@
     "groupId": 1,
     "rarityType": 0,
     "count": 2,
-    "coefficient": 0.1
+    "coefficient": 0.0075
   },
   {
     "id": 2,
     "groupId": 1,
     "rarityType": 0,
     "count": 3,
-    "coefficient": 0.15
+    "coefficient": 0.015
   },
   {
     "id": 3,
     "groupId": 1,
     "rarityType": 1,
     "count": 2,
-    "coefficient": 0.2
+    "coefficient": 0.0125
   },
   {
     "id": 4,
     "groupId": 1,
     "rarityType": 1,
     "count": 3,
-    "coefficient": 0.3
+    "coefficient": 0.025
   },
   {
     "id": 5,
     "groupId": 1,
     "rarityType": 2,
     "count": 2,
-    "coefficient": 0.3
+    "coefficient": 0.0175
   },
   {
     "id": 6,
     "groupId": 1,
     "rarityType": 2,
     "count": 3,
-    "coefficient": 0.45
+    "coefficient": 0.035
   },
   {
     "id": 7,
     "groupId": 1,
     "rarityType": 3,
     "count": 2,
-    "coefficient": 0.4
+    "coefficient": 0.0225
   },
   {
     "id": 8,
     "groupId": 1,
     "rarityType": 3,
     "count": 3,
-    "coefficient": 0.6
+    "coefficient": 0.045
   }
 ]

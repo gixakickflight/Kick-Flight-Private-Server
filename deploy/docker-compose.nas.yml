@@ -194,6 +194,7 @@ services:
       Otomo__Masters__Tables__60: WeaponAttackHit=kf.masters.weapon_attack_hit
       Otomo__Masters__Tables__61: BattleRuleParameter=kf.masters.battle_rule_parameter
       Otomo__Masters__Tables__62: BattleRuleRoleParameter=kf.masters.battle_rule_role_parameter
+      Otomo__Masters__Tables__63: KickerGearMaterial=kf.masters.kicker_gear_material
       # Documents the adapter follows on the same channel (session.rank must also be on the live channel).
       Otomo__Masters__Documents__0: session.rank
       Otomo__Masters__Documents__1: kf.bot_ai_profiles
