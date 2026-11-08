@@ -503,8 +503,11 @@ public sealed partial class DemoSessionApi
             receivedUserKickerList = payloads.BuildReceivedUserKickerList(roll.Draws, snapshot,
                 state.KickerId, state.KickerCostumeId),
             userItemList = payloads.BuildUserItemList(snapshot),
-            effectTopImageFilename = EffectOr(gacha.GachaGroupId, gacha.EffectTopImageFilename),
-            effectBottomImageFilename = EffectOr(gacha.GachaGroupId, gacha.EffectBottomImageFilename),
+            // Not EffectOr: KickerScoutDisplayView.Initialize (0x1537C88) loads a non-empty name from
+            // ui/localize/<lang>/banner/kickergachatitle/<name> (no group banner lives there) and falls back to
+            // its own built-in title sprites only when the name is empty.
+            effectTopImageFilename = gacha.EffectTopImageFilename,
+            effectBottomImageFilename = gacha.EffectBottomImageFilename,
             userPresentList = Array.Empty<object>(),
             userMissionProgressList = Array.Empty<object>(),
             userDailyRandomMissionTaskList = Array.Empty<object>(),
@@ -676,8 +679,9 @@ public sealed partial class DemoSessionApi
         effectBottomImageFilename = effectBottom
     };
 
-    // A gacha row's effect art is optional in the master and empty in ours. The client draws a white quad for
-    // an empty filename, so fall back to the group's banner: something real, rather than a blank frame.
+    // A disc gacha row's effect art is optional in the master and empty in ours. The disc draw draws a white quad
+    // for an empty filename, so fall back to the group's banner: something real, rather than a blank frame.
+    // The kicker draw does not use this (see HandleGachaKickerDrawAsync).
     private string EffectOr(int gachaGroupId, string effect) =>
         !string.IsNullOrEmpty(effect)
             ? effect
