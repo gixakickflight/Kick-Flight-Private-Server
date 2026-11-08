@@ -644,6 +644,24 @@ if [[ "$rebuild_farm" == true ]]; then
     --atomic --backup-dir "$backup_dir"
 fi
 
+# Priority is Repo -> Overrides -> Base. The API serves .local/masters-overrides/masters_<table>.json instead of
+# config/masters_<table>.json whenever an override exists, and .local/ is never deployed, so a master change
+# published in the repo would be shadowed. Merge the repo's masters changes (previously deployed commit ->
+# this commit) into the existing overrides now: after the new release is verified, before the live source tree
+# is replaced and before the API is (re)started, so it loads the merged data. BASE comes from the VPS's own
+# state (.local/deployed-masters-commit, else .ci/current-sha), not from the workflow's "before" SHA, which
+# can differ from what is really deployed after a skipped or failed run. Any error aborts the deployment here
+# with every override untouched (the script restores the CDN if the farm was already swapped). Dry run:
+#   python3 scripts/merge-master-overrides.py --app-dir "$VPS_APP_DIR" --repo-dir <release>/config --commit <sha> --dry-run
+if [[ -f "$release_dir/scripts/merge-master-overrides.py" ]]; then
+  if ! python3 "$release_dir/scripts/merge-master-overrides.py" \
+      --app-dir "$app_dir" --repo-dir "$release_dir/config" --commit "$release_sha" \
+      --releases-dir "$releases_dir" --fallback-base-dir "$previous_release/config"; then
+    echo "master override merge failed; aborting before any service restart (overrides were not modified)" >&2
+    exit 1
+  fi
+fi
+
 trap rollback_on_error EXIT ERR
 activated=true
 source_sync_started=true
