@@ -131,6 +131,17 @@ public sealed partial class DemoSessionApi : IDisposable
         _logger.LogInformation("Master overrides in {OverrideDir}: {Count} ({Names})",
             _mastersOverrides.Directory, overridden.Count,
             overridden.Count == 0 ? "none" : string.Join(", ", overridden));
+
+        // Repo -> Overrides -> Base: the deploy merges repo master changes into the overrides
+        // (scripts/merge-master-overrides.py), so an override that still differs from config/ is balance-team
+        // tuning. List them so a master fix that never reached an override is visible at startup.
+        foreach (var divergence in _mastersOverrides.DescribeDivergences(environment.ContentRootPath))
+        {
+            _logger.LogWarning(
+                "Master override {File} differs from config/: {Rows} row(s) ({Modified} modified, {OnlyOverride} only in override, {OnlyConfig} only in config){Note}",
+                divergence.FileName, divergence.DifferingRows, divergence.Modified, divergence.OnlyInOverride,
+                divergence.OnlyInConfig, divergence.Note is null ? "" : " - " + divergence.Note);
+        }
     }
 
     // Inline fallbacks for a checkout without config/ (InitializeMasters). Public so tests can validate the rules

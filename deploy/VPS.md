@@ -403,3 +403,44 @@ copia los `masters_*.json` a `config/` del checkout y haz commit; al llegar a `m
 **Restart API to apply** avisa de que las partidas en curso se caen, ejecuta `docker restart deploy-api-1` y
 espera a `/health/ready`; hasta entonces la UI muestra los cambios pendientes. Detalle completo en
 `tools/balance/README.md` y `tools/balance/deploy/README.md`.
+
+### Prioridad Repo → Overrides → Base (merge en el despliegue)
+
+Un override sustituye por completo a `config/masters_<tabla>.json`, y `.local/` no se despliega, así que un
+cambio de master publicado en el repo quedaba tapado. `scripts/deploy-vps-ci.sh` ejecuta ahora
+`scripts/merge-master-overrides.py` tras verificar la release y **antes** de sincronizar el árbol y de
+reiniciar la API (la API lee los masters una sola vez al arrancar, así que carga ya los datos fusionados):
+
+- Solo se tocan las tablas que tienen override **y** cuyo JSON del repo cambió entre BASE (último commit
+  fusionado) y el commit nuevo. Sin override no se hace nada (la API ya sirve el fichero nuevo del repo).
+- Fusión a tres bandas por `id` y por campo: si el repo cambió un campo respecto a BASE, gana el repo (aunque
+  el override también lo hubiera editado: se registra como `CONFLICT`); si solo cambió el override, se
+  conserva. Filas nuevas en el repo se añaden, filas borradas en el repo se borran, filas solo del override se
+  conservan. Una fila que el override borró solo se restaura si el repo la modificó. Una tabla sin `id` único
+  se sustituye entera por la del repo con aviso `WARNING` (hoy ninguna tabla de `config/` está en ese caso).
+- Mantiene el formato del override (la WebUI escribe `json.dumps(rows, ensure_ascii=False, indent=1)`),
+  copia antes el fichero a `.local/balance-backups/<tabla>-<YYYYmmdd-HHMMSS>.json` (mismo nombre que usa la
+  WebUI, así su vista de diff compara contra el estado previo), escribe de forma atómica conservando
+  propietario y permisos y vuelve a comprobar que la WebUI no haya guardado mientras tanto (si lo hizo,
+  replanifica). Si algo falla, los overrides quedan intactos y el despliegue se aborta antes de reiniciar nada.
+  Ejecutarlo dos veces con los mismos commits no cambia nada.
+- BASE: el marcador `/opt/kickflight/.local/deployed-masters-commit` (se escribe tras cada fusión correcta); su
+  árbol está en `.ci/releases/<sha>/config`. Si el marcador no existe (primer despliegue con esta función) se
+  usa el commit realmente desplegado según `.ci/current-sha` (y, en la primera ejecución del CI, la copia
+  `.pre-ci`). Se usa el estado de la VPS y no `github.event.before`, que puede diferir de lo desplegado tras un
+  despliegue omitido o fallido. Si no se puede determinar BASE, aborta; nunca sobrescribe todo.
+- Al arrancar, la API avisa por cada override cuyas filas difieren de `config/` (filas modificadas / solo en
+  el override / solo en config), para ver ajustes del equipo de balance y arreglos que no llegaron.
+
+Simulación sin escribir nada (en la VPS o en local), con el árbol `config/` de la release nueva:
+
+```sh
+python3 scripts/merge-master-overrides.py --app-dir /opt/kickflight \
+  --repo-dir /opt/kickflight/.ci/releases/<sha>/config --commit <sha> --dry-run
+# local, con revisiones git y una copia de los overrides:
+python3 scripts/merge-master-overrides.py --git-root . --base-rev <antes> --repo-rev <despues> \
+  --override-dir <copia> --backup-dir <tmp> --dry-run
+```
+
+La WebUI corre como servicio del host y no usa bloqueos: la fusión no puede detenerla sin `sudo`, por eso se
+apoya en la comprobación optimista antes del `rename`. Tests: `python3 -m unittest tests.test_merge_master_overrides`.
