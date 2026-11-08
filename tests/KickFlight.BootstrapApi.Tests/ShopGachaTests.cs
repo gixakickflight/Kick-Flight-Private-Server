@@ -205,17 +205,15 @@ public sealed class ShopGachaTests : IClassFixture<ServerTestHostFixture>
             dropKicker.Select(r => r.GetProperty("kickerCostumeId").GetInt32()).OrderBy(id => id).ToArray());
     }
 
-    // The Item master is deliberately not served: our rows carry invented names, and the client looks an item's
-    // sprite up by the row it holds, so serving them shadows the baked table's real sprite keys and every icon
-    // renders as a white quad. The counts the client shows come from userItemList, not from this master.
+    // The Item master is served. The client resolves which userItemList row is Disc Force or Jet Coin by finding the
+    // goods type in this master (GoodsUtil.get_DiscForceItemId: ItemMaster.Find(goodsType == 302).Id); a fresh install
+    // with no Item master shows 0 for every counter and cannot pass the tutorial's build-up lesson.
     [Fact]
-    public async Task Item_master_is_not_served_so_the_baked_sprite_keys_stand()
+    public async Task Item_master_is_served_so_the_counters_resolve()
     {
-        using var client = _factory.CreateClient();
-        using var request = new HttpRequestMessage(HttpMethod.Get, "/demo-master/Item");
-        request.Headers.Host = Host;
-        using var response = await client.SendAsync(request);
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        var rows = await ReadMasterAsync("Item");
+        Assert.Contains(rows, r => r.GetProperty("goodsType").GetInt32() == JetCoinGoodsType && r.GetProperty("id").GetInt32() == 1);
+        Assert.Contains(rows, r => r.GetProperty("goodsType").GetInt32() == 302 && r.GetProperty("id").GetInt32() == 3);
     }
 
     // GoodsType.JetCoinFree: the currency every goods shop product is priced in.

@@ -625,11 +625,14 @@ public sealed partial class DemoSessionApi : IDisposable
               {"id":8,"goodsType":402,"name":"DiscGachaTicket","maxAmount":9999999}
             ]
             """;
-        // The Item master is deliberately NOT served. Ours carries only id/goodsType/name/maxAmount, and the
-        // client draws a goods icon by looking a sprite up by the row it holds: serving our invented names
-        // ("JetCoin", "KickerGachaTicket") shadows the baked table that has the real sprite keys, and every
-        // item icon renders as a white quad. The counts the client shows come from userItemList, not from here.
-        _ = itemJson;
+        // The Item master is served, as on the live server. The client finds which item row holds each counter by
+        // looking the goods type up in this master (GoodsUtil.get_DiscForceItemId / get_FreeJetCoinItemId at
+        // 0x1686704..: MasterManager.ItemMaster.Find(goodsType == 302).Id, then GetItemAmount(id) from userItemList).
+        // A client with no Item master - any fresh install - therefore reads 0 Jet Coin and 0 Disc Force whatever
+        // userItemList says, and the tutorial's build-up lesson cannot be passed. Not serving it (58170c9, for
+        // white item icons) only worked on devices that still held an older copy. Icons are not resolved through
+        // this master (GoodsUtil.GetSpritePath, 0x1685EFC, reads none of its columns).
+        _encryptedMasters["Item"] = EncryptMaster(itemJson);
 
         var discJson = MasterJson("Disc", contentRoot, "config/masters_disc.json", "[]");
         var skillJson = MasterJson("Skill", contentRoot, "config/masters_skill.json", "[]");
