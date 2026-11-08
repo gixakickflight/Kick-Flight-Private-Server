@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using KickFlight.BootstrapApi;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -58,6 +59,60 @@ public sealed class MasterOverridesTests : IDisposable
 
         Assert.Equal("inline-fallback", read);
         Assert.Empty(overrides.Applied);
+    }
+
+    [Fact]
+    public void Divergence_report_is_empty_when_the_override_matches_config_semantically()
+    {
+        var overrides = new MasterOverrides(_root, AppContext.BaseDirectory);
+        var baseText = File.ReadAllText(Path.Combine(RepoRoot, "config", "masters_kicker.json"));
+        // Same rows, different formatting: not a divergence.
+        var compact = JsonSerializer.Serialize(JsonDocument.Parse(baseText).RootElement);
+        File.WriteAllText(Path.Combine(_root, "masters_kicker.json"), compact);
+
+        Assert.Empty(overrides.DescribeDivergences(AppContext.BaseDirectory));
+    }
+
+    [Fact]
+    public void Divergence_report_counts_modified_added_and_removed_rows()
+    {
+        var overrides = new MasterOverrides(_root, AppContext.BaseDirectory);
+        var rows = JsonNode.Parse(File.ReadAllText(Path.Combine(RepoRoot, "config", "masters_kicker.json")))!.AsArray();
+        Assert.True(rows.Count >= 3);
+        rows[0]!["name"] = "Retuned by the balance team";           // modified
+        rows.RemoveAt(1);                                            // only in config
+        rows.Add(JsonNode.Parse("""{"id":987654321,"name":"Override only"}"""));   // only in override
+        File.WriteAllText(Path.Combine(_root, "masters_kicker.json"), rows.ToJsonString());
+
+        var report = Assert.Single(overrides.DescribeDivergences(AppContext.BaseDirectory));
+
+        Assert.Equal("masters_kicker.json", report.FileName);
+        Assert.Equal(1, report.Modified);
+        Assert.Equal(1, report.OnlyInConfig);
+        Assert.Equal(1, report.OnlyInOverride);
+        Assert.Equal(3, report.DifferingRows);
+    }
+
+    [Fact]
+    public void Divergence_report_never_throws_on_a_malformed_override()
+    {
+        var overrides = new MasterOverrides(_root, AppContext.BaseDirectory);
+        File.WriteAllText(Path.Combine(_root, "masters_kicker.json"), "{broken");
+
+        var report = Assert.Single(overrides.DescribeDivergences(AppContext.BaseDirectory));
+
+        Assert.NotNull(report.Note);
+    }
+
+    [Fact]
+    public void Divergence_report_flags_an_override_without_a_config_file()
+    {
+        var overrides = new MasterOverrides(_root, AppContext.BaseDirectory);
+        File.WriteAllText(Path.Combine(_root, "masters_not_in_config.json"), "[]");
+
+        var report = Assert.Single(overrides.DescribeDivergences(AppContext.BaseDirectory));
+
+        Assert.Contains("no config/ file", report.Note);
     }
 
     [Fact]
