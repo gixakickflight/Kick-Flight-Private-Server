@@ -18,8 +18,8 @@ class EndpointPreflightTests(unittest.TestCase):
         config_path = ROOT / "config" / "apk-direct-server.production.json"
         self.assertTrue(config_path.is_file(), f"Missing config: {config_path}")
         config = json.loads(config_path.read_text(encoding="utf-8"))
-        self.assertEqual(config["serverBaseUrl"], "http://147.93.138.247:18080")
-        self.assertEqual(config["photonHost"], "147.93.138.247")
+        self.assertEqual(config["serverBaseUrl"], "http://kick-flight-fenix.us.ci:18080")
+        self.assertEqual(config["photonHost"], "kick-flight-fenix.us.ci")
         self.assertEqual(config["versionName"], "2.11.804")
         self.assertEqual(config["versionCode"], 69)
         self.assertEqual(
@@ -34,7 +34,7 @@ class EndpointPreflightTests(unittest.TestCase):
                 "KF_RESULT_DIAG": "0",
                 "KF_TARGET_FPS": "120",
                 "KF_PUSH": "1",
-                "CHAT_BASE_URL": "http://147.93.138.247:18080?ns={0}",
+                "CHAT_BASE_URL": "http://kick-flight-fenix.us.ci:18080?ns={0}",
             },
         )
         self.assertEqual(
@@ -44,40 +44,40 @@ class EndpointPreflightTests(unittest.TestCase):
 
     def test_valid_ip_passes_preflight(self) -> None:
         url, authority, photon = patcher.validate_endpoint_preflight(
-            "http://147.93.138.247:18080",
-            photon_host="147.93.138.247",
+            "http://kick-flight-fenix.us.ci:18080",
+            photon_host="kick-flight-fenix.us.ci",
             skip_dns_check=False,
         )
-        self.assertEqual(url, "http://147.93.138.247:18080")
-        self.assertEqual(authority, "147.93.138.247:18080")
-        self.assertEqual(photon, "147.93.138.247")
+        self.assertEqual(url, "http://kick-flight-fenix.us.ci:18080")
+        self.assertEqual(authority, "kick-flight-fenix.us.ci:18080")
+        self.assertEqual(photon, "kick-flight-fenix.us.ci")
 
     def test_unresolvable_nxdomain_fails_preflight(self) -> None:
         with self.assertRaises(ValueError) as ctx:
             patcher.validate_endpoint_preflight(
-                "http://kickflightsg.ddns.net:18080",
+                "http://kickflight-nxdomain.invalid:18080",
                 skip_dns_check=False,
             )
-        self.assertIn("kickflightsg.ddns.net", str(ctx.exception))
+        self.assertIn("kickflight-nxdomain.invalid", str(ctx.exception))
         self.assertIn("cannot be resolved", str(ctx.exception))
 
     def test_invalid_scheme_fails(self) -> None:
         with self.assertRaises(ValueError) as ctx:
             patcher.validate_endpoint_preflight(
-                "https://147.93.138.247:18080",
+                "https://kick-flight-fenix.us.ci:18080",
                 skip_dns_check=True,
             )
         self.assertIn("serverBaseUrl must use http://", str(ctx.exception))
 
     def test_skip_preflight_bypasses_dns_check(self) -> None:
         url, authority, photon = patcher.validate_endpoint_preflight(
-            "http://kickflightsg.ddns.net:18080",
-            photon_host="147.93.138.247",
+            "http://kickflight-nxdomain.invalid:18080",
+            photon_host="kick-flight-fenix.us.ci",
             skip_dns_check=True,
         )
-        self.assertEqual(url, "http://kickflightsg.ddns.net:18080")
-        self.assertEqual(authority, "kickflightsg.ddns.net:18080")
-        self.assertEqual(photon, "147.93.138.247")
+        self.assertEqual(url, "http://kickflight-nxdomain.invalid:18080")
+        self.assertEqual(authority, "kickflight-nxdomain.invalid:18080")
+        self.assertEqual(photon, "kick-flight-fenix.us.ci")
 
 
 if __name__ == "__main__":
