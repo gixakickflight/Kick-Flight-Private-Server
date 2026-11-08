@@ -3024,6 +3024,9 @@ public sealed partial class DemoSessionApi : IDisposable
         var ownedEntry = entry is { } candidate && candidate.UserId == state.UserId ? candidate : null;
         var battleRuleType = ownedEntry?.BattleRuleType ?? RegularBattleRuleType;
         var applyProgression = ownedEntry is { MatchType: 2, BattleRuleType: >= 1 and <= 3 };
+        // A regular match moves the same ladder, but through the regular_* outcomes, whose session.rank outcome_limits
+        // stop it at S: regular play climbs a player to S and never touches anyone already above it.
+        var regularRank = ownedEntry is { MatchType: 1, BattleRuleType: >= 1 and <= 3 };
         if (!string.IsNullOrEmpty(battleEntryId) && entry is null)
         {
             _logger.LogWarning("Battle result for {UserId}: unknown entry {BattleEntryId}, rank left unchanged",
@@ -3069,11 +3072,12 @@ public sealed partial class DemoSessionApi : IDisposable
         BattleRankStanding after;
         try
         {
-            if (applyProgression)
+            if (applyProgression || regularRank)
             {
+                var outcomePrefix = applyProgression ? "" : RegularOutcomePrefix;
                 processedRankedResult = await _matchmaking.ProcessRankedResultOnceAsync(battleEntryId, state.UserId,
                     ruleType => AwardRankedResultAsync(ticket, state, battleEntryId, ruleType, statReport,
-                        context.RequestAborted));
+                        outcomePrefix, context.RequestAborted));
             }
             var rankSnapshot = processedRankedResult?.RankedResult;
             before = rankSnapshot?.Before ?? await ReadOwnStandingAsync(ticket, battleRuleType, context.RequestAborted);

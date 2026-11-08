@@ -146,9 +146,10 @@ public sealed class RankedOutcomeTests
         }
 
         /// <summary>Enters the active ranked rule over HTTP (no party) and waits for the room to close.</summary>
-        public async Task<(string EntryId, BattleMatchmakingService.BadgeBattleEntryContext Context)> EnterAsync(Session player)
+        public async Task<(string EntryId, BattleMatchmakingService.BadgeBattleEntryContext Context)> EnterAsync(Session player,
+            int? ruleId = null)
         {
-            using var entry = await PostAsync(Client, player, "/battle/entry", JsonSerializer.Serialize(new { battleRuleId = RuleId }));
+            using var entry = await PostAsync(Client, player, "/battle/entry", JsonSerializer.Serialize(new { battleRuleId = ruleId ?? RuleId }));
             var entryId = entry.RootElement.GetProperty("battleEntryId").GetString()!;
             var ticketId = entry.RootElement.GetProperty("battleEntryTicketId").GetString()!;
             var cancel = new CancellationTokenSource();
@@ -317,6 +318,22 @@ public sealed class RankedOutcomeTests
         Assert.Equal("win", sent.RootElement.GetProperty("outcome").GetString());
         Assert.False(sent.RootElement.TryGetProperty("delta", out _));
         Assert.Null(award.Delta);
+    }
+
+    // A regular match (rule 1, match type 1) moves the same ladder through regular_win / regular_loss; the tenant's
+    // session.rank outcome_limits are what stop those at S.
+    [Fact]
+    public async Task A_regular_match_win_posts_the_outcome_regular_win()
+    {
+        await using var f = Fixture.Create();
+        var player = await AuthAsync(f.Client);
+        var account = f.AccountOf(player);
+        var (win, ctx) = await f.EnterAsync(player, ruleId: 1);
+        using (await PostAsync(f.Client, player, "/battle/result", Result(win, player.PlayerId, ctx.OwnTeamType!.Value, 9, 1))) { }
+
+        var award = Assert.Single(OtomoTestEnvironment.Social.Awards, call => call.PlayerId == account);
+        using var sent = JsonDocument.Parse(award.RawBody);
+        Assert.Equal("regular_win", sent.RootElement.GetProperty("outcome").GetString());
     }
 
     [Fact]

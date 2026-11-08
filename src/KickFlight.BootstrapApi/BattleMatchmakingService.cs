@@ -513,7 +513,9 @@ public sealed class BattleMatchmakingService
         {
             var resultEntry = new BattleResultEntry(entry.UserId, entry.BattleRuleId,
                 entry.BattleMatchType, entry.BattleRuleType);
-            if (entry.BattleMatchType != 2 || entry.BattleRuleType is not (>= 1 and <= 3))
+            // Ranked (2) and regular (1) matches both move the ladder; the caller picks the outcomes, and the
+            // tenant's outcome_limits keep regular play below S.
+            if (entry.BattleMatchType is not (1 or 2) || entry.BattleRuleType is not (>= 1 and <= 3))
                 return new BattleResultProcessing(resultEntry, null, false);
 
             if (entry.AppliedRankedResult is { } cached)

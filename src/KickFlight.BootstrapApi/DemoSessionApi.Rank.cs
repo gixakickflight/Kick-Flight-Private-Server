@@ -25,6 +25,10 @@ public sealed partial class DemoSessionApi
     // The namespace the ladder is published under in the release bundle (Otomo:Masters:Documents).
     private const string RankLadderNamespace = "session.rank";
 
+    // Regular matches report regular_win / regular_loss; the tenant's session.rank gives those outcomes their points
+    // and the outcome_limits that stop them at S.
+    private const string RegularOutcomePrefix = "regular_";
+
     // The BattleRank master's letter names, rank 0 .. 16. This is presentation the client needs and the ladder does not
     // carry; the thresholds beside it are the ladder's. Rank 0 (D) is the blank plate below the first tier, so its
     // total stays 0.
@@ -199,7 +203,7 @@ public sealed partial class DemoSessionApi
     // the repeats). A failure is thrown to the handler, which answers 503: the award is never silently dropped.
     private async Task<BattleMatchmakingService.RankedResultSnapshot?> AwardRankedResultAsync(KfIdentityTicket ticket,
         SessionState state, string battleEntryId, int battleRuleType, BadgeBattleStatReport? statReport,
-        CancellationToken cancellationToken)
+        string outcomePrefix, CancellationToken cancellationToken)
     {
         var won = RankWinFor(statReport, out var skipReason);
         if (won is null)
@@ -220,7 +224,7 @@ public sealed partial class DemoSessionApi
             : new BattleRankStanding(currentEntry.Points, TierRank(currentEntry.Tier));
 
         var award = await _rank.AwardAsync(ticket.OtomoPlayerId, ruleType,
-            won.Value ? "win" : "loss",
+            outcomePrefix + (won.Value ? "win" : "loss"),
             $"battle:{battleEntryId}:{ticket.OtomoPlayerId}", cancellationToken);
         var after = new BattleRankStanding(award.Points, TierRank(award.Tier));
 

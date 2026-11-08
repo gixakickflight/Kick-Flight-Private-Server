@@ -44,7 +44,7 @@ public sealed partial class FakeOtomoSocial : IAsyncDisposable
     public const int Floor = 200;
     public const int Ceiling = 7500;
     public static readonly IReadOnlyDictionary<string, int> Outcomes =
-        new Dictionary<string, int> { ["win"] = 50, ["loss"] = -20 };
+        new Dictionary<string, int> { ["win"] = 50, ["loss"] = -20, ["regular_win"] = 50, ["regular_loss"] = -20 };
     public static readonly int[] TierMinPoints =
         [200, 500, 900, 1400, 1900, 2400, 2900, 3400, 3900, 4400, 4900, 5400, 5900, 6400, 6900, 7500];
 
