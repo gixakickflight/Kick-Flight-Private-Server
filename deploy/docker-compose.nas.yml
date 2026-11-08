@@ -89,6 +89,8 @@ services:
       - ${KF_KEYS_DIR}/session_matchmaker.key:/run/secrets/otomo/session_matchmaker.key:ro
       - ${KF_KEYS_DIR}/chat_adapter.key:/run/secrets/otomo/chat_adapter.key:ro
       - ${KF_KEYS_DIR}/patch_gameserver.key:/run/secrets/otomo/patch_gameserver.key:ro
+      # ops: the gate snapshot, read as the optional game_server role (ops_game_server.key on the otomo host).
+      - ${KF_KEYS_DIR}/ops_game_server.key:/run/secrets/otomo/ops_game_server.key:ro
     env_file:
       # Otomo__TokenSecret only (0600, not in git): the HMAC key of the access token this adapter hands the KF
       # client. Rotating it invalidates client tokens until the next /auth/index.
@@ -228,6 +230,13 @@ services:
       Otomo__Recordings__BaseUrl: ${KF_OTOMO_GATEWAY_URL}
       Otomo__Recordings__InternalBaseUrl: ${KF_OTOMO_PATCH_URL:?Set KF_OTOMO_PATCH_URL in deploy/.env}
       Otomo__Recordings__ServiceKeyFile: /run/secrets/otomo/patch_gameserver.key
+
+      # The update gate is otomo's: ops' snapshot for the live channel (the console's Update gate page and the
+      # release's client_update block). ClientUpdate:* and /admin/client-update are not consulted while this is set.
+      Otomo__UpdateGate__SnapshotUrl: ${KF_OTOMO_OPS_URL:?Set KF_OTOMO_OPS_URL in deploy/.env}/internal/ops/snapshot
+      Otomo__UpdateGate__ServiceKeyPath: /run/secrets/otomo/ops_game_server.key
+      Otomo__UpdateGate__Channel: live
+      Otomo__UpdateGate__Mode: enforce
 
       # Two directories the API creates at startup. Both default under /srv/repo/.local, which is read-only here.
       Replays__Directory: /srv/repo/data/replays

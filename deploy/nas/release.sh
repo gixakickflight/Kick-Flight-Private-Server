@@ -122,10 +122,10 @@ set +e
 nas ROOT="$ROOT" STAGE="$stage" SHA="$sha" LOCALIZE_WIN="$LOCALIZE_CHECKOUT_WIN" LOCALIZE_WSL="$LOCALIZE_CHECKOUT_WSL" \
     COMMIT="$commit" NAS_SSH="$NAS_SSH" NAS_INSTANCE="$NAS_INSTANCE" <<'EOF'
 APP="$ROOT/app"; D="$APP/deploy"; fail=0
-for f in .env kf-otomo.env kf-config-gameserver.key economy_gameserver.key session_matchmaker.key chat_adapter.key patch_gameserver.key; do
+for f in .env kf-otomo.env kf-config-gameserver.key economy_gameserver.key session_matchmaker.key chat_adapter.key patch_gameserver.key ops_game_server.key; do
   [[ -s "$D/$f" ]] || { echo "!! missing $D/$f"; fail=1; }
 done
-[[ -s "$D/.env" ]] && for v in KF_ROOT KF_KEYS_DIR KF_PUBLIC_HOST KF_OTOMO_GATEWAY_URL KF_OTOMO_CONFIG_URL KF_OTOMO_ECONOMY_URL KF_OTOMO_SESSION_URL KF_OTOMO_CHAT_URL KF_OTOMO_PATCH_URL; do
+[[ -s "$D/.env" ]] && for v in KF_ROOT KF_KEYS_DIR KF_PUBLIC_HOST KF_OTOMO_GATEWAY_URL KF_OTOMO_CONFIG_URL KF_OTOMO_ECONOMY_URL KF_OTOMO_SESSION_URL KF_OTOMO_CHAT_URL KF_OTOMO_PATCH_URL KF_OTOMO_OPS_URL; do
   grep -q "^$v=." "$D/.env" || { echo "!! $D/.env does not set $v (template: deploy/nas/nas.env.example)"; fail=1; }
 done
 [[ $fail == 0 ]] && echo "env and keys: ok"
