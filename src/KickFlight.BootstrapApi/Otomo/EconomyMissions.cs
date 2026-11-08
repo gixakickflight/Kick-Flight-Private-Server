@@ -53,6 +53,105 @@ public static class EconomyMissions
             [new(0, 10, [Coins(1500)]), new(1, 50, [Coins(4000)]), new(2, 100, [Coins(8000)])])
     ];
 
+    // ---- The Badge tab ------------------------------------------------------------------------------------------
+    //
+    // The mission screen's Badge list (MissionListType.Badge 3) shows the rows whose missionTermType is None
+    // (MissionListTypeExtensions.ToMissionTermType 0x1722D90, table 0x3228500: Daily 2, Limited 3, Badge 1). One
+    // mission per badge rule of the catalog: its missionId is the honor id, one task (honorId * 100 + 1) at the rule's
+    // target, and the badge itself as the reward (GoodsType.Honor 601, goodsId = the honor id). Progress is economy's:
+    // the badge tracks (kf-otomo gen_badges.py) pay "badge.<honorId>" on the step that awards it, and that step's
+    // track value is the row's value. Badge tracks are auto-claimed, so a reached step reads as received and there is
+    // nothing to claim on this list.
+    public sealed record BadgeMission(int HonorId, int MissionType, string Title, long Target)
+    {
+        public int TaskId => HonorId * 100 + 1;
+    }
+
+    private const int GoodsTypeHonor = 601;
+    private const string BadgeClassPrefix = "badge.";
+    private const string AchievementPrefix = "Recognizes the listed achievement: ";
+
+    private static IReadOnlyList<BadgeMission> _badges = [];
+    private static IReadOnlyDictionary<int, BadgeMission> _badgesById = new Dictionary<int, BadgeMission>();
+
+    public static IReadOnlyList<BadgeMission> Badges => _badges;
+
+    // The honor id a badge track's step pays, or null for a class that is not a badge this list shows.
+    public static BadgeMission? BadgeForClass(string? stepClass) =>
+        stepClass is not null && stepClass.StartsWith(BadgeClassPrefix, StringComparison.Ordinal)
+        && int.TryParse(stepClass.AsSpan(BadgeClassPrefix.Length), NumberStyles.None, CultureInfo.InvariantCulture, out var id)
+        && _badgesById.TryGetValue(id, out var badge)
+            ? badge
+            : null;
+
+    // Read once at boot from config/badge_rule_catalog.json (the same catalog the Honor master is built from). Only
+    // the kinds the tenant documents express (BadgeCatalog.TranslatedKinds) with a positive target are listed: a
+    // badge no track can pay would sit at 0 forever.
+    public static void UseBadgeCatalog(string? catalogJson)
+    {
+        var badges = new List<BadgeMission>();
+        if (!string.IsNullOrWhiteSpace(catalogJson))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(catalogJson);
+                foreach (var entry in doc.RootElement.GetProperty("entries").EnumerateArray())
+                {
+                    if (!entry.TryGetProperty("requirements", out var req) || req.ValueKind != JsonValueKind.Object) continue;
+                    var kind = req.TryGetProperty("kind", out var k) ? k.GetString() : null;
+                    if (kind is null || !BadgeCatalog.TranslatedKinds.Contains(kind)) continue;
+                    if (!req.TryGetProperty("target", out var t) || !t.TryGetInt64(out var target) || target <= 0) continue;
+                    var id = entry.GetProperty("id").GetInt32();
+                    var stat = req.TryGetProperty("stat", out var s) ? s.GetString() : null;
+                    badges.Add(new BadgeMission(id, BadgeMissionType(kind, stat), BadgeTitle(entry), target));
+                }
+            }
+            catch (Exception exception) when (exception is JsonException or KeyNotFoundException or InvalidOperationException
+                                                  or FormatException)
+            {
+                badges.Clear();
+            }
+        }
+        _badges = badges;
+        _badgesById = badges.ToDictionary(badge => badge.HonorId);
+    }
+
+    // MissionType (dump.cs) only picks the row's icon and where its "go" button leads; the closest one per rule kind.
+    private static int BadgeMissionType(string kind, string? stat) => kind switch
+    {
+        "battle_count" or "registration_complete" or "login_days" => BattlePlay,
+        "wins_total" or "kicker_wins" or "mode_wins" or "queue_wins" => BattleWin,
+        "mvp_count" => BattleMvp,
+        "rank" => 7,           // RankUp
+        "win_streak" => 20,    // BattleStraightWin
+        "disc_upgrades" => 11, // DiscBuildup
+        "stat_total" => stat switch
+        {
+            "kills" => BattleKill,
+            "deaths" => 18,                         // BattleKilled
+            "moving_distance" => 13,                // BattleMovingDistance
+            "crystals_collected" => 14,             // BattleAcquiredCrystal
+            "guardian_released_crystals" or "crystals_released" => 22, // BattleReleasedCrystal
+            "flag_goals" => 15,                     // BattleFlagGoal
+            "flag_drops" => 23,                     // BattleEnemyFlagDrop
+            "ball_goals" => 24,                     // BattleBallShoot
+            "ball_drops" => 25,                     // BattleBallDrop
+            "likes_received" => 19,                 // BattleGood
+            _ => BattlePlay
+        },
+        _ => BattlePlay
+    };
+
+    // "Recognizes the listed achievement: Win 3 times with Tsubame." -> "Win 3 times with Tsubame."; the badge's
+    // name when the catalog has no description.
+    private static string BadgeTitle(JsonElement entry)
+    {
+        var description = entry.TryGetProperty("description", out var d) ? d.GetString() ?? "" : "";
+        if (description.StartsWith(AchievementPrefix, StringComparison.Ordinal)) description = description[AchievementPrefix.Length..];
+        description = description.Trim();
+        return description.Length > 0 ? description : entry.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+    }
+
     public static Mission? ByTrack(string? trackId) =>
         All.FirstOrDefault(mission => string.Equals(mission.TrackId, trackId, StringComparison.Ordinal));
 
@@ -113,12 +212,31 @@ public static class EconomyMissions
             missionConditionId = 1,
             displayFlag = true,
             presentFlag = false
-        });
+        }).Concat(Badges.Select(badge => new
+        {
+            id = badge.HonorId,
+            missionType = badge.MissionType,
+            missionTermType = TermNone,
+            missionTargetType = 1,
+            randomGroupId = 0,
+            title = badge.Title,
+            sortOrder = badge.HonorId,
+            missionTermId = 1,
+            missionConditionId = 1,
+            displayFlag = true,
+            presentFlag = false
+        }));
         var tasks = All.SelectMany(mission => mission.Steps.Select(step => new
         {
             id = mission.TaskId(step.Index),
             missionId = mission.MissionId,
             value = step.Target,
+            displayFlag = true
+        })).Concat(Badges.Select(badge => new
+        {
+            id = badge.TaskId,
+            missionId = badge.HonorId,
+            value = badge.Target,
             displayFlag = true
         }));
         var rewardId = 0;
@@ -133,6 +251,18 @@ public static class EconomyMissions
             goodsId = GoodsThumbnailId(reward.GoodsType),
             amount = reward.Amount
         }))).ToList();
+        // A badge's reward is the badge: the honor id itself, as every other honor goods row names it.
+        foreach (var badge in Badges)
+        {
+            rewards.Add(new
+            {
+                id = ++rewardId,
+                missionTaskId = badge.TaskId,
+                goodsType = GoodsTypeHonor,
+                goodsId = badge.HonorId,
+                amount = 1
+            });
+        }
         var terms = new[]
         {
             new

@@ -233,8 +233,12 @@ public sealed class EconomyPayloads
             var mission = EconomyMissions.ByTrack(track.TrackId);
             if (mission is null)
             {
-                // Badge tracks are not missions: the badge screen reads their items, not the mission masters.
-                if (track.TrackId.StartsWith(DemoSessionApi.BadgeTrackPrefix, StringComparison.Ordinal)) continue;
+                // A badge track is one Badge-tab mission per step that pays a badge (EconomyMissions.BadgeMission).
+                if (track.TrackId.StartsWith(DemoSessionApi.BadgeTrackPrefix, StringComparison.Ordinal))
+                {
+                    rows.AddRange(BadgeProgressRows(track));
+                    continue;
+                }
                 _logger.LogWarning("Economy reports track {Track}, which the mission masters have no row for; not shown",
                     track.TrackId);
                 continue;
@@ -276,6 +280,36 @@ public sealed class EconomyPayloads
             });
         }
         return rows.ToArray();
+    }
+
+    // The Badge-tab rows of one badge track: each step that pays a listed badge, at the track's progress (a streak's
+    // best run, since the badge is held to its peak). Auto-claimed, so a reached step is received (3).
+    private static IEnumerable<object> BadgeProgressRows(EconomyTrack track)
+    {
+        var value = string.Equals(track.Mode, "gauge", StringComparison.Ordinal) ? Math.Max(track.Best, track.Value) : track.Value;
+        foreach (var step in track.Steps ?? [])
+        {
+            var badge = EconomyMissions.BadgeForClass(step.Class);
+            if (badge is null) continue;
+            yield return new
+            {
+                missionId = badge.HonorId,
+                loopCount = 0,
+                value = ToClientAmount(Math.Min(value, badge.Target)),
+                userMissionTaskStatusList = new object[]
+                {
+                    new
+                    {
+                        missionTaskId = badge.TaskId,
+                        loopCount = 0,
+                        missionTaskStatus = step.Claimed || step.Reached ? 3 : 1,
+                        receiptExpirationDatetime = "",
+                        expirationDatetime = "",
+                        newFlag = false
+                    }
+                }
+            };
+        }
     }
 
     // The home's mission badge: how many steps are reached and not yet claimed.

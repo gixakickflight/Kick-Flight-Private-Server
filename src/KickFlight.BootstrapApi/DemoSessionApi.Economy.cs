@@ -17,8 +17,8 @@ namespace KickFlight.BootstrapApi;
 public sealed partial class DemoSessionApi
 {
     // Which slices of a player's economy state one request needs. Every request asks for what it uses and nothing
-    // else: the startup payload needs balances, inventory and the mission tracks, the home payload needs the shop,
-    // the pools and the tracks (for the badge), and a purchase receipt needs the balances and inventory again
+    // else: the startup payload needs balances, inventory and the mission tracks, the home payload needs the balances
+    // (player exp), the shop, the pools and the tracks (for the badge), and a purchase receipt needs the balances and inventory again
     // *after* the purchase.
     [Flags]
     private enum EconomyRead
@@ -175,10 +175,33 @@ public sealed partial class DemoSessionApi
     }
 
     // Player experience is an economy currency (the tenant's player_exp); the level is the client's own reading of it
-    // against the PlayerLevelExp master. What a battle is worth is the tenant's two classes, editable like any other.
+    // against the PlayerLevelExp master. What a battle is worth (experience, Disc Force, anything else) is the tenant's
+    // two classes, editable like any other.
     internal const string PlayerExpCurrency = "player_exp";
-    internal const string MatchExpWinClass = "match.exp.win";
-    internal const string MatchExpLossClass = "match.exp.loss";
+    internal const string MatchRewardWinClass = "match.reward.win";
+    internal const string MatchRewardLossClass = "match.reward.loss";
+
+    // What one battle paid: the experience after it, and one ResponseUserItem per item-backed currency the class paid,
+    // carrying the total afterwards. The result screen shows the Disc Force line as that total minus what the client
+    // held (ResultManager.<SendResult>b__56_0, 0x18A55C4..0x18A5630) and then takes the totals as its own.
+    internal sealed record BattleReward(long UserExp, object[] ReceivedUserItems);
+
+    internal static object[] ReceivedItemsOf(EconomyGrantResult? grant)
+    {
+        if (grant?.Entries is null || grant.Balances is null) return [];
+        var rows = new List<object>();
+        foreach (var currency in grant.Entries
+                     .Where(entry => entry.Delta > 0 && entry.OwnerKind is null or "player")
+                     .Select(entry => entry.Currency)
+                     .Distinct(StringComparer.Ordinal))
+        {
+            if (!EconomyCatalog.TryItemIdForCurrency(currency, out var itemId)) continue;
+            var after = grant.Balances.FirstOrDefault(balance => balance.Currency == currency);
+            if (after is null) continue;
+            rows.Add(new { itemId, amount = (int)Math.Clamp(after.Balance, 0, int.MaxValue) });
+        }
+        return rows.ToArray();
+    }
 
     internal static long PlayerExpOf(IReadOnlyList<EconomyBalance>? balances) =>
         balances?.FirstOrDefault(balance => balance.Currency == PlayerExpCurrency)?.Balance ?? 0;
@@ -189,26 +212,32 @@ public sealed partial class DemoSessionApi
         return PlayerExpOf(economy.Snapshot?.Balances);
     }
 
-    // Pays this battle's experience class and answers the balance after it. A class the tenant does not declare, or an
-    // economy that cannot be reached, is logged and answered with the balance as it stands: a result screen is never
-    // refused over experience, and the retry the client makes carries the same key.
-    private async Task<long> PayBattleExpAsync(KfIdentityTicket ticket, string battleEntryId, bool won,
+    // Pays this battle's reward class and answers what it paid. A class the tenant does not declare, or an economy that
+    // cannot be reached, is logged and answered with the experience as it stands and no items: a result screen is
+    // never refused over a reward, and the retry the client makes carries the same key (a replay answers the first
+    // payment's balances, so the screen shows the same reward again).
+    private async Task<BattleReward> PayBattleRewardAsync(KfIdentityTicket ticket, string battleEntryId, bool won,
         CancellationToken cancellationToken)
     {
-        var expClass = won ? MatchExpWinClass : MatchExpLossClass;
+        var rewardClass = won ? MatchRewardWinClass : MatchRewardLossClass;
         try
         {
-            var grant = await GrantClassAsync(ticket, expClass, $"{expClass}:{battleEntryId}", "battle_result",
+            var grant = await GrantClassAsync(ticket, rewardClass, $"{rewardClass}:{battleEntryId}", "battle_result",
                 battleEntryId, cancellationToken);
-            var paid = grant?.Balances?.FirstOrDefault(balance => balance.Currency == PlayerExpCurrency);
-            if (paid is not null) return paid.Balance;
+            var exp = grant?.Balances?.FirstOrDefault(balance => balance.Currency == PlayerExpCurrency);
+            if (grant is not null)
+            {
+                return new BattleReward(
+                    exp?.Balance ?? await ReadPlayerExpAsync(ticket, "/battle/result", cancellationToken),
+                    ReceivedItemsOf(grant));
+            }
         }
         catch (Exception exception) when (exception is OtomoEconomyException or HttpRequestException)
         {
-            _logger.LogWarning("Battle experience {Class} for entry {Entry} was not paid: {Error}",
-                expClass, battleEntryId, exception.Message);
+            _logger.LogWarning("Battle reward {Class} for entry {Entry} was not paid: {Error}",
+                rewardClass, battleEntryId, exception.Message);
         }
-        return await ReadPlayerExpAsync(ticket, "/battle/result", cancellationToken);
+        return new BattleReward(await ReadPlayerExpAsync(ticket, "/battle/result", cancellationToken), []);
     }
 
     // One class paid on the internal plane, keyed by the fact it pays for. Null when the internal plane is off (the

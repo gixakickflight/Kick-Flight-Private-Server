@@ -292,6 +292,8 @@ public sealed partial class DemoSessionApi : IDisposable
         var badgeCatalogJson = LoadJson(contentRoot, BadgeCatalog.CatalogPath, "");
         _encryptedMasters["Honor"] = EncryptMaster(BadgeCatalog.BuildHonorMasterJson(badgeCatalogJson));
         BadgeCatalog.LogCoverage(_logger, badgeCatalogJson);
+        // The mission screen's Badge tab lists the same catalog (EconomyMissions.UseBadgeCatalog).
+        EconomyMissions.UseBadgeCatalog(badgeCatalogJson);
 
         // FieldManager.InitializeAsync does FieldMaster[fieldId] and silently gives up (FieldInfo stays null, every
         // PlayerCharacter.Initialize then NREs and the loading screen never ends) when the row is missing. 801 is the
@@ -1375,7 +1377,10 @@ public sealed partial class DemoSessionApi : IDisposable
 
         if (path == "/home/index")
         {
-            var economy = await ReadPlayerEconomyAsync(ticket, EconomyRead.Shop | EconomyRead.Pools | EconomyRead.Tasks,
+            // Balances for userPlayer.exp: the client sets its level from it on every home load (UserPlayerInfo.SetExp,
+            // 0x18FCA30), so a home without it puts every player back to level 1.
+            var economy = await ReadPlayerEconomyAsync(ticket,
+                EconomyRead.Balances | EconomyRead.Shop | EconomyRead.Pools | EconomyRead.Tasks,
                 path, context.RequestAborted);
             if (economy.Snapshot is null) return EconomyUnavailable(context, path, economy.Error);
             var snapshot = economy.Snapshot!;
@@ -2160,13 +2165,15 @@ public sealed partial class DemoSessionApi : IDisposable
 
         var isIos = IsIosClient(context.Request);
         var clientVersion = context.Request.Headers["x-app-application-version"].ToString();
-        if (!_clientUpdate.IsOutdated(clientVersion, isIos)) return null;
+        var (outdated, message) = _clientUpdate.Check(clientVersion, isIos,
+            context.Request.Headers["x-app-language"].ToString(), _logger);
+        if (!outdated) return null;
 
         _logger.LogInformation("Client update: refused {Path} from {Platform} version {Version}", path,
             isIos ? "iOS" : "Android",
             string.IsNullOrWhiteSpace(clientVersion) ? "(missing)" : clientVersion);
         context.Response.Headers["x-app-status-code"] = "1";
-        return Results.Text(_clientUpdate.BuildForcedUpdateJson(), "application/json", Encoding.UTF8,
+        return Results.Text(_clientUpdate.BuildForcedUpdateJson(message), "application/json", Encoding.UTF8,
             StatusCodes.Status200OK);
     }
 
@@ -3207,10 +3214,12 @@ public sealed partial class DemoSessionApi : IDisposable
         await ReportBattleProgressAsync(ticket, battleEntryId, wonBattle, killCount, mvpBattle,
             context.RequestAborted);
 
-        // Player experience: one class per issued battle (win or loss), keyed by the entry, so a retry pays once.
-        var userExp = ownedEntry is null
-            ? await ReadPlayerExpAsync(ticket, "/battle/result", context.RequestAborted)
-            : await PayBattleExpAsync(ticket, battleEntryId, wonBattle, context.RequestAborted);
+        // The battle's reward (experience, Disc Force, whatever the tenant's class pays): one class per issued battle
+        // (win or loss), keyed by the entry, so a retry pays once.
+        var reward = ownedEntry is null
+            ? new BattleReward(await ReadPlayerExpAsync(ticket, "/battle/result", context.RequestAborted), [])
+            : await PayBattleRewardAsync(ticket, battleEntryId, wonBattle, context.RequestAborted);
+        var userExp = reward.UserExp;
 
         // A capsule, for a battle this server issued to this player (DemoSessionApi.Capsules.cs): the battle fact's
         // entitlement trigger mints it. Keyed by the entry, so a retried result shows the same capsule.
@@ -3225,7 +3234,7 @@ public sealed partial class DemoSessionApi : IDisposable
             beforeUserBattleRank = new { battleRuleType, battlePoint = before.BattlePoint, rank = before.Rank },
             playerLevelUpRewardList = Array.Empty<object>(),
             receivedUserCapsuleList = capsule is null ? Array.Empty<object>() : [UserCapsuleRow(capsule)],
-            receivedUserItemList = Array.Empty<object>(),
+            receivedUserItemList = reward.ReceivedUserItems,
             receivedUserPresentList = Array.Empty<object>(),
             userMissionProgressList = missionProgress,
             userDailyRandomMissionTaskList = Array.Empty<object>(),

@@ -864,13 +864,15 @@ public sealed partial class FakeOtomoEconomy : IAsyncDisposable
         ["match.capsule.standard.2"] = [new Grant("capsule_standard", null, 2)],
         ["match.capsule.golden.2"] = [new Grant("capsule_golden", null, 2)],
         ["match.capsule.golden.3"] = [new Grant("capsule_golden", null, 3)],
-        // Player experience per battle (kf-otomo economy.rules).
-        ["match.exp.win"] = [new Grant("player_exp", null, MatchExpWin)],
-        ["match.exp.loss"] = [new Grant("player_exp", null, MatchExpLoss)]
+        // What a battle pays, win or loss: experience and Disc Force (kf-otomo economy.rules).
+        ["match.reward.win"] = [new Grant("player_exp", null, MatchExpWin), new Grant("disc_force", null, MatchDiscForceWin)],
+        ["match.reward.loss"] = [new Grant("player_exp", null, MatchExpLoss), new Grant("disc_force", null, MatchDiscForceLoss)]
     };
 
     public const long MatchExpWin = 800;
     public const long MatchExpLoss = 400;
+    public const long MatchDiscForceWin = 200;
+    public const long MatchDiscForceLoss = 100;
 
     public const long StarterDiscForce = 300;
 

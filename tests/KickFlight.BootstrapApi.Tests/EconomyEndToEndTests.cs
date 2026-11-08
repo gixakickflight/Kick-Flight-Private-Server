@@ -115,6 +115,18 @@ public sealed class EconomyEndToEndTests : IClassFixture<ServerTestHostFixture>
     }
 
     [Fact]
+    public async Task Home_reports_the_player_exp_economy_holds()
+    {
+        var session = await CreateSessionAsync();
+        _economy.Seed(session.Account, [("player_exp", 1600)]);
+
+        var home = await PostAsync(session, "/home/index", null);
+
+        // The client sets its level from this on every home load, so a missing balance read reads as level 1.
+        Assert.Equal(1600, home.GetProperty("userPlayer").GetProperty("exp").GetInt64());
+    }
+
+    [Fact]
     public async Task Goods_shop_buy_is_one_economy_purchase_and_the_counters_are_read_back()
     {
         var session = await CreateSessionAsync();

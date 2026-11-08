@@ -23,6 +23,12 @@ builder.Services.AddSingleton<IosTestProfileStore>();
 builder.Services.AddSingleton<SafeRequestInspector>();
 builder.Services.AddSingleton<IPhotonServerManager, PhotonServerManager>();
 builder.Services.AddSingleton<MaintenanceState>();
+// The update gate is otomo's when Otomo:UpdateGate:SnapshotUrl is set (Otomo/OtomoUpdateGate.cs): ops' snapshot,
+// polled as the optional game_server reader. Unset, ClientUpdateState keeps its own minimum as before.
+builder.Services.Configure<KickFlight.BootstrapApi.Otomo.OtomoUpdateGateOptions>(
+    builder.Configuration.GetSection(KickFlight.BootstrapApi.Otomo.OtomoUpdateGateOptions.SectionName));
+builder.Services.AddSingleton<KickFlight.BootstrapApi.Otomo.OtomoUpdateGate>();
+builder.Services.AddHostedService(services => services.GetRequiredService<KickFlight.BootstrapApi.Otomo.OtomoUpdateGate>());
 builder.Services.AddSingleton<ClientUpdateState>();
 builder.Services.AddSingleton<LatestInformationState>();
 builder.Services.AddSingleton(TimeProvider.System);

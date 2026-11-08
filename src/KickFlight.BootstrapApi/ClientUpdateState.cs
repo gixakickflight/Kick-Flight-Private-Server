@@ -35,13 +35,38 @@ public sealed class ClientUpdateState
     private ClientUpdateSnapshot _current;
     private bool _invalidPersistedState;
 
-    public ClientUpdateState(ILogger<ClientUpdateState> logger, IWebHostEnvironment environment, IConfiguration configuration)
+    public ClientUpdateState(ILogger<ClientUpdateState> logger, IWebHostEnvironment environment, IConfiguration configuration,
+        KickFlight.BootstrapApi.Otomo.OtomoUpdateGate? otomo = null)
         : this(logger, configuration["ClientUpdate:FilePath"] is { Length: > 0 } configured
             ? configured
             : Path.Combine(environment.ContentRootPath, "data", "client-update.json"),
             configuration["ClientUpdate:MinimumVersion"] ?? configuration["ClientUpdate:AndroidMinimumVersion"],
             configuration["ClientUpdate:IosMinimumVersion"])
     {
+        Otomo = otomo is { Enabled: true } ? otomo : null;
+    }
+
+    /// <summary>
+    /// The gate otomo's ops states (Otomo:UpdateGate). When set it is the only source of the minimum: the local file
+    /// and the loopback /admin/client-update are not consulted, so the console's Update gate is what players meet.
+    /// </summary>
+    public KickFlight.BootstrapApi.Otomo.OtomoUpdateGate? Otomo { get; }
+
+    /// <summary>
+    /// One decision for one request: otomo's gate when it is configured, else the local minimum. The message is the
+    /// gate's own, in the client's language, when otomo states one.
+    /// </summary>
+    public (bool Outdated, string Message) Check(string? clientVersion, bool isIos, string? language, ILogger log)
+    {
+        if (Otomo is null) return (IsOutdated(clientVersion, isIos), "");
+        var decision = Otomo.Check(clientVersion, isIos ? "ios" : "android", language);
+        if (decision.Outdated && Otomo.Warns)
+        {
+            log.LogInformation("Update gate (warn): would refuse version {Version}, minimum {Minimum}",
+                string.IsNullOrWhiteSpace(clientVersion) ? "(missing)" : clientVersion, decision.Minimum);
+            return (false, "");
+        }
+        return (decision.Outdated, decision.Message);
     }
 
     public ClientUpdateState(ILogger<ClientUpdateState> logger, string filePath, string? initialMinimumVersion = null, string? initialIosMinimumVersion = null)
@@ -133,9 +158,12 @@ public sealed class ClientUpdateState
         string.IsNullOrWhiteSpace(value) || TryParseVersion(value, out _);
 
     /// <summary>Plaintext (not D2C-encrypted) body the client turns into its forced-update window.</summary>
-    public string BuildForcedUpdateJson() =>
+    public string BuildForcedUpdateJson(string? message = null) =>
         // "1400" opens the forced-update window; the window's own texts come from the Translation master.
-        JsonSerializer.Serialize(new { error = new { code = "1400", title = DefaultTitle, message = DefaultMessage } });
+        JsonSerializer.Serialize(new
+        {
+            error = new { code = "1400", title = DefaultTitle, message = string.IsNullOrWhiteSpace(message) ? DefaultMessage : message }
+        });
 
     private static string Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? "" : value.Trim();
 
@@ -258,6 +286,13 @@ public static class ClientUpdateAdmin
     public static async Task<IResult> PostAsync(HttpContext context, ClientUpdateState clientUpdate)
     {
         if (!MaintenanceAdmin.IsLocalAdmin(context)) return Results.NotFound();
+        if (clientUpdate.Otomo is not null)
+        {
+            return Results.Conflict(new
+            {
+                error = "the update gate is otomo's (Otomo:UpdateGate): set it on the console's Update gate page or in the release's client_update block"
+            });
+        }
 
         string? minimumVersion = null;
         string? iosMinimumVersion = null;

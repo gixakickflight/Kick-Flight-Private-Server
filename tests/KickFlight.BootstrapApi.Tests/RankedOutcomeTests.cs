@@ -352,6 +352,7 @@ public sealed class RankedOutcomeTests
         var player = await AuthAsync(f.Client);
         var account = f.AccountOf(player);
         var (win, ctx) = await f.EnterAsync(player, ruleId: 1);
+        var discForceBefore = OtomoTestEnvironment.Economy.BalanceOf(account, "disc_force");
         using var response = await PostAsync(f.Client, player, "/battle/result",
             Result(win, player.PlayerId, ctx.OwnTeamType!.Value, 9, 1, mvp: true));
 
@@ -361,7 +362,17 @@ public sealed class RankedOutcomeTests
         Assert.Contains("battle.mvp", counters);
         Assert.Equal(FakeOtomoEconomy.MatchExpWin, response.RootElement.GetProperty("userExp").GetInt64());
         Assert.Equal(FakeOtomoEconomy.MatchExpWin, OtomoTestEnvironment.Economy.BalanceOf(account, "player_exp"));
+        Assert.Equal(discForceBefore + FakeOtomoEconomy.MatchDiscForceWin,
+            OtomoTestEnvironment.Economy.BalanceOf(account, "disc_force"));
+        Assert.Equal(discForceBefore + FakeOtomoEconomy.MatchDiscForceWin, ReceivedDiscForce(response));
     }
+
+    // The Disc Force row of a result's receivedUserItemList: the total after the battle, which the client turns into
+    // the "+N" line by subtracting what it held.
+    private static long ReceivedDiscForce(JsonDocument response) =>
+        response.RootElement.GetProperty("receivedUserItemList").EnumerateArray()
+            .Single(row => row.GetProperty("itemId").GetInt32() == EconomyCatalog.DiscForceItemId)
+            .GetProperty("amount").GetInt64();
 
     [Fact]
     public async Task A_loss_counts_a_play_but_no_win_and_pays_loss_experience_once_across_a_retry()
@@ -371,6 +382,7 @@ public sealed class RankedOutcomeTests
         var account = f.AccountOf(player);
         var (loss, ctx) = await f.EnterAsync(player, ruleId: 1);
         var body = Result(loss, player.PlayerId, ctx.OwnTeamType!.Value, 1, 9);
+        var discForceBefore = OtomoTestEnvironment.Economy.BalanceOf(account, "disc_force");
         using (await PostAsync(f.Client, player, "/battle/result", body)) { }
         using var retry = await PostAsync(f.Client, player, "/battle/result", body);
 
@@ -380,6 +392,9 @@ public sealed class RankedOutcomeTests
         Assert.DoesNotContain("battle.mvp", counters);
         Assert.Equal(FakeOtomoEconomy.MatchExpLoss, retry.RootElement.GetProperty("userExp").GetInt64());
         Assert.Equal(FakeOtomoEconomy.MatchExpLoss, OtomoTestEnvironment.Economy.BalanceOf(account, "player_exp"));
+        Assert.Equal(discForceBefore + FakeOtomoEconomy.MatchDiscForceLoss,
+            OtomoTestEnvironment.Economy.BalanceOf(account, "disc_force"));
+        Assert.Equal(discForceBefore + FakeOtomoEconomy.MatchDiscForceLoss, ReceivedDiscForce(retry));
     }
 
     [Fact]
