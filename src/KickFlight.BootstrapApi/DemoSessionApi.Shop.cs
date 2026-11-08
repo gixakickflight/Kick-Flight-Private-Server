@@ -34,9 +34,9 @@ public sealed partial class DemoSessionApi
     // product economy has never sold. Product 4 used to be that row.
     private static readonly GoodsShopProductRow[] GoodsShopProducts =
     [
-        new(1, 2, "Disc Gacha Ticket", 101, 1, 100, 402, 8, 1),
-        new(2, 2, "Kicker Gacha Ticket", 101, 1, 300, 401, 7, 1),
-        new(3, 2, "Gear Stamps x10", 101, 1, 100, 202, 5, 10),
+        new(1, 2, "Disc Gacha Ticket", 101, EconomyCatalog.JetCoinItemId, 100, 402, EconomyCatalog.DiscTicketItemId, 1),
+        new(2, 2, "Kicker Gacha Ticket", 101, EconomyCatalog.JetCoinItemId, 300, 401, EconomyCatalog.KickerTicketItemId, 1),
+        new(3, 2, "Gear Stamps x10", 101, EconomyCatalog.JetCoinItemId, 100, 202, EconomyCatalog.GearMaterialItemId, 10),
     ];
 
     // ResponseGoodsShopProduct, field for field (goodsShopProductGoodsList carries exactly one grant here).
@@ -53,7 +53,7 @@ public sealed partial class DemoSessionApi
             var offer = OfferFor(economy, product.Id);
             var cost = offer?.Cost?.FirstOrDefault(grant =>
                 grant.Currency is not null && grant.Amount > 0 &&
-                EconomyCatalog.TryItemIdForCurrency(grant.Currency, out var itemId) && itemId == 1);
+                EconomyCatalog.TryItemIdForCurrency(grant.Currency, out var itemId) && itemId == EconomyCatalog.JetCoinItemId);
 
             // The price the client shows is the offer's, so the shop cannot advertise one price and charge another;
             // the static row's price stands when economy does not sell the product at all.

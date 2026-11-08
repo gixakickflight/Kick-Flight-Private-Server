@@ -38,16 +38,16 @@ public sealed class EconomyEndToEndTests : IClassFixture<ServerTestHostFixture>
         var items = startup.GetProperty("userItemList").EnumerateArray().ToList();
         Assert.Equal(8, items.Count);
         // Row 1 is the coin, row 7 the kicker ticket (economy holds it as a currency), row 6 the fragments.
-        Assert.Equal(500, ItemAmount(items, 1));
-        Assert.Equal(25, ItemAmount(items, 7));
-        Assert.Equal(7, ItemAmount(items, 6));
+        Assert.Equal(500, ItemAmount(items, 1010001));
+        Assert.Equal(25, ItemAmount(items, 4010001));
+        Assert.Equal(7, ItemAmount(items, 3030001));
         // Rows nothing pays any more answer zero rather than a name invented for them, and shards are not a
         // counter on this screen at all.
-        Assert.Equal(0, ItemAmount(items, 2));
-        Assert.Equal(0, ItemAmount(items, 3));
-        Assert.Equal(0, ItemAmount(items, 4));
-        Assert.Equal(0, ItemAmount(items, 5));
-        Assert.Equal(0, ItemAmount(items, 8));
+        Assert.Equal(0, ItemAmount(items, 1020001));
+        Assert.Equal(0, ItemAmount(items, 3020001));
+        Assert.Equal(0, ItemAmount(items, 7010001));
+        Assert.Equal(0, ItemAmount(items, 2020001));
+        Assert.Equal(0, ItemAmount(items, 4020001));
 
         var disc = Assert.Single(startup.GetProperty("userDiscList").EnumerateArray().ToList());
         Assert.Equal(3010001, disc.GetProperty("discId").GetInt32());
@@ -123,8 +123,8 @@ public sealed class EconomyEndToEndTests : IClassFixture<ServerTestHostFixture>
         var buy = await PostAsync(session, "/goodsShop/buy", new { goodsShopProductId = 2 });
 
         var items = buy.GetProperty("userItemList").EnumerateArray().ToList();
-        Assert.Equal(400, ItemAmount(items, 1));
-        Assert.Equal(1, ItemAmount(items, 7));
+        Assert.Equal(400, ItemAmount(items, 1010001));
+        Assert.Equal(1, ItemAmount(items, 4010001));
         // A ticket is a currency in economy, so the purchase answers a balance rather than an item movement: the
         // received list is empty and the new balance is what arrives in userItemList.
         Assert.Empty(buy.GetProperty("receivedUserItemList").EnumerateArray());
@@ -168,7 +168,7 @@ public sealed class EconomyEndToEndTests : IClassFixture<ServerTestHostFixture>
         Assert.Equal(2010101, drop.GetProperty("kickerCostumeId").GetInt32());
         Assert.Equal(1, drop.GetProperty("kickerId").GetInt32());
         Assert.NotEmpty(draw.GetProperty("receivedUserKickerList").EnumerateArray());
-        Assert.Equal(100, ItemAmount(draw.GetProperty("userItemList").EnumerateArray().ToList(), 1));
+        Assert.Equal(100, ItemAmount(draw.GetProperty("userItemList").EnumerateArray().ToList(), 1010001));
 
         Assert.Equal(100, _economy.BalanceOf(session.Account, "jetcoin"));
         Assert.Equal(1, _economy.ItemsOf(session.Account, "skin:2010101"));
@@ -205,7 +205,7 @@ public sealed class EconomyEndToEndTests : IClassFixture<ServerTestHostFixture>
             .GetProperty("discId").GetInt32());
         Assert.False(draw.GetProperty("completedDisplayFlag").GetBoolean());
         Assert.True(draw.GetProperty("drawableCount").GetInt32() > 0);
-        Assert.Equal(100, ItemAmount(draw.GetProperty("userItemList").EnumerateArray().ToList(), 1));
+        Assert.Equal(100, ItemAmount(draw.GetProperty("userItemList").EnumerateArray().ToList(), 1010001));
         Assert.Equal(100, _economy.BalanceOf(session.Account, "jetcoin"));
 
         var roll = Assert.Single(CallsFor(session.Account, "/api/player/economy/gacha/roll"));

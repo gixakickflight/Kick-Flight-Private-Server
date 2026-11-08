@@ -38,17 +38,29 @@ public static class EconomyCatalog
     // Disc Force by name, because two routes spend or show it on their own: /disc/buildup pays a level with it and
     // answers its remaining balance as a single userItem.
     public const string DiscForceCurrency = "disc_force";
-    public const int DiscForceItemId = 3;
+
+    // The client's own Item ids: goodsType * 10000 + 1, the scheme its art is keyed by (ui/goods/thumbnail_<id>) and the
+    // one ItemMaster.Find(goodsType).Id answers when the client resolves a counter, a price or an "Owned" figure.
+    // Rows 1-8 were this server's invention; with them a price quoted as 4010001 (for its icon) was counted against
+    // row 7, and every "Owned" read 0.
+    public const int JetCoinItemId = 1010001;       // GoodsType 101 JetCoinFree
+    public const int PaidJetCoinItemId = 1020001;   // 102 JetCoinPaid
+    public const int DiscForceItemId = 3020001;     // 302 DiscForce
+    public const int KickPointItemId = 7010001;     // 701 KickPoint
+    public const int GearMaterialItemId = 2020001;  // 202 GearMaterial
+    public const int DiscFragmentItemId = 3030001;  // 303 DiscFragment
+    public const int KickerTicketItemId = 4010001;  // 401 KickerGachaTicket
+    public const int DiscTicketItemId = 4020001;    // 402 DiscGachaTicket
 
     // Currencies, by the client's Item master row. These four are the legacy counters the startup payload has
     // always carried first.
     public static readonly (string Currency, int ItemId)[] CurrencyRows =
     [
-        ("jetcoin", 1),
+        ("jetcoin", JetCoinItemId),
         (DiscForceCurrency, DiscForceItemId),
         // The kicker ticket is economy's currency rather than an item because a gacha pool is priced in
         // currencies; the client has always shown it as an Item row, so it is rendered as one.
-        ("kicker_ticket", 7)
+        ("kicker_ticket", KickerTicketItemId)
     ];
 
     // Currencies the economy holds that are deliberately not an Item row. A capsule token is spent the moment its
@@ -62,18 +74,23 @@ public static class EconomyCatalog
     // gacha is priced in Jet Coin now, so nothing spends it any more.
     public static readonly (string Item, int ItemId)[] ItemRows =
     [
-        ("fragment", 6)
+        ("fragment", DiscFragmentItemId)
     ];
 
     // The client's Item master has exactly these eight rows, and the startup payload has always carried all eight
     // whether or not the player holds any. Keeping the row count is what keeps the counters screen stable.
-    public static readonly int[] ItemMasterIds = [1, 2, 3, 4, 5, 6, 7, 8];
+    public static readonly int[] ItemMasterIds =
+    [
+        JetCoinItemId, PaidJetCoinItemId, DiscForceItemId, KickPointItemId, GearMaterialItemId, DiscFragmentItemId,
+        KickerTicketItemId, DiscTicketItemId
+    ];
 
     // The GoodsType each Item master row is (served in the Item master itself): a shop or gacha price is expressed
     // to the client as a (goodsType, goodsId) pair, and goodsId is the Item row.
     public static readonly (int ItemId, int GoodsType)[] GoodsTypeRows =
     [
-        (1, 101), (2, 102), (3, 302), (4, 701), (5, 202), (6, 303), (7, 401), (8, 402)
+        (JetCoinItemId, 101), (PaidJetCoinItemId, 102), (DiscForceItemId, 302), (KickPointItemId, 701),
+        (GearMaterialItemId, 202), (DiscFragmentItemId, 303), (KickerTicketItemId, 401), (DiscTicketItemId, 402)
     ];
 
     // The goods shop's products (GoodsShopProductRow in DemoSessionApi.Shop.cs) and the economy offer each one buys.

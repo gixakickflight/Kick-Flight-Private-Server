@@ -39,7 +39,7 @@ public sealed class ShopGachaTests : IClassFixture<ServerTestHostFixture>
         var items = (await PostAsync(session, "/startup/index", null)).GetProperty("userItemList").EnumerateArray().ToList();
 
         Assert.Equal(7, items.Count);
-        Assert.Equal(new[] { 1, 2, 3, 4, 5, 7, 8 }, items.Select(item => item.GetProperty("itemId").GetInt32()).ToArray());
+        Assert.Equal(EconomyCatalog.ItemMasterIds.Where(id => id != EconomyCatalog.DiscFragmentItemId).ToArray(), items.Select(item => item.GetProperty("itemId").GetInt32()).ToArray());
         Assert.All(items, item => Assert.Equal(0, item.GetProperty("amount").GetInt32()));
     }
 
@@ -212,8 +212,8 @@ public sealed class ShopGachaTests : IClassFixture<ServerTestHostFixture>
     public async Task Item_master_is_served_so_the_counters_resolve()
     {
         var rows = await ReadMasterAsync("Item");
-        Assert.Contains(rows, r => r.GetProperty("goodsType").GetInt32() == JetCoinGoodsType && r.GetProperty("id").GetInt32() == 1);
-        Assert.Contains(rows, r => r.GetProperty("goodsType").GetInt32() == 302 && r.GetProperty("id").GetInt32() == 3);
+        Assert.Contains(rows, r => r.GetProperty("goodsType").GetInt32() == JetCoinGoodsType && r.GetProperty("id").GetInt32() == 1010001);
+        Assert.Contains(rows, r => r.GetProperty("goodsType").GetInt32() == 302 && r.GetProperty("id").GetInt32() == 3020001);
     }
 
     // GoodsType.JetCoinFree: the currency every goods shop product is priced in.

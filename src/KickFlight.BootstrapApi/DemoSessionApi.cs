@@ -615,14 +615,14 @@ public sealed partial class DemoSessionApi : IDisposable
         // goodsTypes the gear screen (202 gear stamps), the gacha (401/402 tickets) and the goods shop trade in.
         var itemJson = """
             [
-              {"id":1,"goodsType":101,"name":"JetCoin","maxAmount":9999999},
-              {"id":2,"goodsType":102,"name":"PaidJetCoin","maxAmount":9999999},
-              {"id":3,"goodsType":302,"name":"DiscForce","maxAmount":9999999},
-              {"id":4,"goodsType":701,"name":"KickPoint","maxAmount":9999999},
-              {"id":5,"goodsType":202,"name":"GearMaterial","maxAmount":9999999},
-              {"id":6,"goodsType":303,"name":"DiscFragment","maxAmount":9999999},
-              {"id":7,"goodsType":401,"name":"KickerGachaTicket","maxAmount":9999999},
-              {"id":8,"goodsType":402,"name":"DiscGachaTicket","maxAmount":9999999}
+              {"id":1010001,"goodsType":101,"name":"JetCoin","maxAmount":9999999},
+              {"id":1020001,"goodsType":102,"name":"PaidJetCoin","maxAmount":9999999},
+              {"id":3020001,"goodsType":302,"name":"DiscForce","maxAmount":9999999},
+              {"id":7010001,"goodsType":701,"name":"KickPoint","maxAmount":9999999},
+              {"id":2020001,"goodsType":202,"name":"GearMaterial","maxAmount":9999999},
+              {"id":3030001,"goodsType":303,"name":"DiscFragment","maxAmount":9999999},
+              {"id":4010001,"goodsType":401,"name":"KickerGachaTicket","maxAmount":9999999},
+              {"id":4020001,"goodsType":402,"name":"DiscGachaTicket","maxAmount":9999999}
             ]
             """;
         // The Item master is served, as on the live server. The client finds which item row holds each counter by

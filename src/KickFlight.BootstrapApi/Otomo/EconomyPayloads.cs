@@ -84,7 +84,7 @@ public sealed class EconomyPayloads
         // here converts fragments, so a zero row is only an empty banner; it is left out so the block has no count
         // to render against.
         return EconomyCatalog.ItemMasterIds
-            .Where(itemId => itemId != 6 || amounts.GetValueOrDefault(6) != 0)
+            .Where(itemId => itemId != EconomyCatalog.DiscFragmentItemId || amounts.GetValueOrDefault(EconomyCatalog.DiscFragmentItemId) != 0)
             .Select(itemId => (object)new { itemId, amount = amounts.GetValueOrDefault(itemId) })
             .ToArray();
     }
@@ -147,7 +147,7 @@ public sealed class EconomyPayloads
                 continue;
             }
             var discForce = draw.Duplicate &&
-                            EconomyCatalog.TryItemIdForCurrency(draw.PaidCurrency, out var itemId) && itemId == 3
+                            EconomyCatalog.TryItemIdForCurrency(draw.PaidCurrency, out var itemId) && itemId == EconomyCatalog.DiscForceItemId
                 ? ToClientAmount(draw.PaidAmount)
                 : 0;
             rows.Add(new { discId, amount = 1, discForceAmount = discForce });

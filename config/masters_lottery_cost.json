@@ -2,16 +2,16 @@
   {
     "id": 1,
     "goodsType": 402,
-    "goodsId": 8
+    "goodsId": 4020001
   },
   {
     "id": 2,
     "goodsType": 401,
-    "goodsId": 7
+    "goodsId": 4010001
   },
   {
     "id": 3,
     "goodsType": 101,
-    "goodsId": 1
+    "goodsId": 1010001
   }
 ]

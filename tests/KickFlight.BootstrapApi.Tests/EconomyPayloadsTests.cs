@@ -53,12 +53,12 @@ public sealed class EconomyPayloadsTests
         var rows = Payload(Build().BuildUserItemList(snapshot)).EnumerateArray().ToList();
 
         Assert.Equal(8, rows.Count);
-        Assert.Equal(new[] { 1, 2, 3, 4, 5, 6, 7, 8 }, rows.Select(row => row.GetProperty("itemId").GetInt32()).ToArray());
-        Assert.Equal(250, Amount(rows, 1));
-        Assert.Equal(12, Amount(rows, 6));
-        Assert.Equal(3, Amount(rows, 7));
+        Assert.Equal(EconomyCatalog.ItemMasterIds, rows.Select(row => row.GetProperty("itemId").GetInt32()).ToArray());
+        Assert.Equal(250, Amount(rows, 1010001));
+        Assert.Equal(12, Amount(rows, 3030001));
+        Assert.Equal(3, Amount(rows, 4010001));
         // Rows 2, 3, 4, 5 and 8 have no faucet left on this server, and shards are not a counter on this screen.
-        foreach (var unmapped in new[] { 2, 3, 4, 5, 8 })
+        foreach (var unmapped in new[] { EconomyCatalog.PaidJetCoinItemId, EconomyCatalog.DiscForceItemId, EconomyCatalog.KickPointItemId, EconomyCatalog.GearMaterialItemId, EconomyCatalog.DiscTicketItemId })
         {
             Assert.Equal(0, Amount(rows, unmapped));
         }
@@ -75,8 +75,8 @@ public sealed class EconomyPayloadsTests
 
         // Seven, not eight: the zero Disc Fragment counter is left out (BuildUserItemList).
         Assert.Equal(7, rows.Count);
-        Assert.Equal([1, 2, 3, 4, 5, 7, 8], rows.Select(row => row.GetProperty("itemId").GetInt32()));
-        Assert.Equal(1, Amount(rows, 1));
+        Assert.Equal(EconomyCatalog.ItemMasterIds.Where(id => id != EconomyCatalog.DiscFragmentItemId).ToArray(), rows.Select(row => row.GetProperty("itemId").GetInt32()));
+        Assert.Equal(1, Amount(rows, 1010001));
         Assert.Equal(0, rows.Skip(1).Sum(row => row.GetProperty("amount").GetInt32()));
     }
 
@@ -163,7 +163,7 @@ public sealed class EconomyPayloadsTests
         var rows = Payload(Build().BuildReceivedUserItemList(moves)).EnumerateArray().ToList();
 
         var only = Assert.Single(rows);
-        Assert.Equal(6, only.GetProperty("itemId").GetInt32());
+        Assert.Equal(EconomyCatalog.DiscFragmentItemId, only.GetProperty("itemId").GetInt32());
         Assert.Equal(25, only.GetProperty("amount").GetInt32());
     }
 
