@@ -124,17 +124,17 @@
       "bytes": 149884376
     },
     {
-      "id": "apk-remote-211804",
+      "id": "apk-remote-211805",
       "enabled": true,
       "host": "10.0.2.2",
-      "requestPath": "/apk/KickFlight-2.11.804-remote.apk",
-      "logicalName": "Remote-play APK download (2.11.804)",
-      "description": "Android 2.11.804: fixes the libkfpatch startup race (pc=0), matchmaking GetAssignments null (0x18), CRIWARE ACF guard and two libunity crashes (UnityPreload/UnityMain); fail-safe hook veneers. Required update; release-key APK gate-verified (startup, login, matchmaking, battles) on an AVD against the live VPS; not verified on a real arm64 device.",
-      "sourcePath": ".local/KickFlight-2.11.804-remote.apk",
+      "requestPath": "/apk/KickFlight-2.11.805-remote.apk",
+      "logicalName": "Remote-play APK download (2.11.805)",
+      "description": "Android 2.11.805: server moved to Europe; the client now connects through kick-flight-fenix.us.ci (API, Photon, chat) instead of a fixed IP. Required update (older APKs point to the offline previous server); release-key APK gate-verified (startup, login, matchmaking, battle) on an AVD against the live EU VPS; not verified on a real arm64 device.",
+      "sourcePath": ".local/KickFlight-2.11.805-remote.apk",
       "contentType": "application/vnd.android.package-archive",
-      "sha256": "fcbdfcc686f916df9562ca037a28b344356de027cf1574860024eabb330816ed",
+      "sha256": "fe44c6f4ecddcd3966237405e9fcf30d379f319ec1472fb4eef0d0e51130b0a6",
       "bytes": 149884565,
-      "releaseTag": "android-2.11.804"
+      "releaseTag": "android-2.11.805"
     },
     {
       "id": "kicker-skin-thumb-001-022-direct",
