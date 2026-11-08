@@ -3091,6 +3091,18 @@ if TARGET_FPS not in (0, 30):
     )
 
 
+# ---- Discs tab: hide the Disc Fragment exchange cell (docs/re-notes/disc-exchange-hide.md) ----
+# ShopDiscScroller adds one cell outside the tutorial (the "Owned: 0 / No disc fragments" block above the Disc Gacha
+# banner); fragments are not ported, so the cell is dead UI. Force the scroller's own tutorial branch in its three
+# delegate methods so the tab lists only the gacha groups. KF_HIDE_DISC_EXCHANGE=0 keeps the cell.
+if os.environ.get("KF_HIDE_DISC_EXCHANGE", "1") != "0":
+    NATIVE_PATCHES["arm64-v8a"].extend([
+        {"description": "Discs tab: ShopDiscScroller.GetNumberOfCells eor w20,w0,#1 -> mov w20,wzr (no exchange cell)", "offset": 0x14B3BA0, "expected": bytes.fromhex("14000052"), "replacement": bytes.fromhex("f4031f2a")},
+        {"description": "Discs tab: ShopDiscScroller.GetCellView tbnz w0,#0,0x14B3A98 -> b 0x14B3A98 (never SetDiscExchangeData)", "offset": 0x14B3A18, "expected": bytes.fromhex("00040037"), "replacement": bytes.fromhex("20000014")},
+        {"description": "Discs tab: ShopDiscScroller.GetCellHeight tbnz w0,#0,0x14B37C4 -> b 0x14B37C4 (never the exchange height)", "offset": 0x14B370C, "expected": bytes.fromhex("c0050037"), "replacement": bytes.fromhex("2e000014")},
+    ])
+
+
 # ---- Chat: skip the Firebase custom-token sign-in (our /.ws accepts anonymous listeners) ----
 # docs/re-notes/chat.md. The URL re-point is a metadata literal (kind "chat_url" above).
 NATIVE_PATCHES["arm64-v8a"].append(
