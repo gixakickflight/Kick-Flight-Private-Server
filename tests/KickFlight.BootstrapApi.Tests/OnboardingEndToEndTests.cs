@@ -140,6 +140,8 @@ public sealed class OnboardingEndToEndTests : IDisposable
         AssertMembers(draw, "dropDiscList", "receivedUserDiscList", "receivedUserItemList", "userItemList", "modelId",
             "capsuleEffectType", "userPresentList", "receivedRewardList");
         Assert.Equal(8, draw.GetProperty("userItemList").GetArrayLength());
+        // capsule/cp_0000 does not exist; the client dereferences the instantiated capsule unchecked.
+        Assert.True(draw.GetProperty("modelId").GetInt32() > 0);
 
         var kickerDraw = await PostAsync(session, "/tutorial/gachaKickerDraw", null);
         AssertMembers(kickerDraw, "receivedUserKickerList", "userItemList", "userPresentList", "receivedRewardList");

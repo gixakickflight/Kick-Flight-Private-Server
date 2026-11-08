@@ -29,6 +29,7 @@ public sealed partial class DemoSessionApi
 {
     private const string TutorialDiscClass = "tutorial.disc";
     private const string TutorialKickerClass = "tutorial.kicker";
+    private const int TutorialCapsuleModelId = 1;
 
     private async Task<IResult?> HandleTutorialStepAsync(string path, HttpContext context, KfIdentityTicket ticket,
         SessionState state, byte[] key)
@@ -180,7 +181,11 @@ public sealed partial class DemoSessionApi
             // animation; answering without it leaves the screen waiting on a collection that never arrives,
             // which the client answers by re-sending /tutorial/gachaDiscDraw.
             gachaDropCountRewardList = Array.Empty<object>(),
-            modelId = gacha?.ModelId ?? 0,
+            // The draw animation instantiates capsule/cp_<modelId> (HomeCapsuleModelController.CreateModel 0x172D9A4 ->
+            // ModelManager.InstantiateCapsuleModel -> ResourceUtil.GetCapsulePath) and dereferences it unchecked, so a
+            // model id with no bundle freezes the screen on a NullReferenceException. The DiscGacha rows carry modelId 0;
+            // cp_0001 is the client's default capsule and is in the resource catalog.
+            modelId = gacha is { ModelId: > 0 } ? gacha.ModelId : TutorialCapsuleModelId,
             capsuleEffectType = 1,
             userPresentList = Array.Empty<object>(),
             receivedRewardList
