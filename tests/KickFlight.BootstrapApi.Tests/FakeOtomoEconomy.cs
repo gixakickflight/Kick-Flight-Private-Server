@@ -153,15 +153,18 @@ public sealed partial class FakeOtomoEconomy : IAsyncDisposable
 
     public const string CosmeticPoolId = "cosmetic.standard";
 
-    // The pools this fake rolls: what one draw costs in jetcoin, the bundle count that is sold for that single price
-    // (economy's Pool.Bundle), and the one item every draw lands on, so a test can assert what a draw dropped without
-    // modelling weights - the weighting is economy's job and is tested there, not here.
-    private static readonly Dictionary<string, (long Price, long? Bundle, string Item, string Rarity)> Pools = new()
+    // The pools this fake rolls: what one draw costs in jetcoin, the declared bundle (economy's Pool.Bundle: its count
+    // and, optionally, its own price - without one it costs Price x count, as economy charges), and the one item every
+    // draw lands on, so a test can assert what a draw dropped without modelling weights - the weighting is economy's
+    // job and is tested there, not here.
+    private static readonly Dictionary<string, (long Price, long? Bundle, long? BundlePrice, string Item, string Rarity)> Pools = new()
     {
-        [CosmeticPoolId] = (300, null, "skin:2010101", "common"),
-        ["disc.standard"] = (300, null, "disc:3010014", "r"),
-        ["disc.eleven"] = (3000, 11, "disc:3010014", "r")
+        [CosmeticPoolId] = (300, null, null, "skin:2010101", "common"),
+        ["disc.standard"] = (300, null, null, "disc:3010014", "r"),
+        ["disc.eleven"] = (300, 11, 3000, "disc:3010014", "r")
     };
+
+    public static long DiscElevenPrice => Pools["disc.eleven"].BundlePrice!.Value;
 
     private void Map()
     {
@@ -244,6 +247,14 @@ public sealed partial class FakeOtomoEconomy : IAsyncDisposable
                     total_weight = 100L,
                     pity = new { after = 0L, rarity = "" },
                     pity_misses = 0L,
+                    bundle = pair.Value.Bundle is { } bundleCount
+                        ? new
+                        {
+                            count = bundleCount,
+                            cost = new[] { new { currency = "jetcoin", item = (string?)null,
+                                amount = pair.Value.BundlePrice ?? pair.Value.Price * bundleCount } }
+                        }
+                        : null,
                     window = new { start = "", end = "" },
                     open = true
                 }).ToArray()
@@ -329,7 +340,7 @@ public sealed partial class FakeOtomoEconomy : IAsyncDisposable
             lock (_lock)
             {
                 var player = _players.GetOrAdd(account, _ => new PlayerEconomy());
-                var price = pool.Bundle == count ? pool.Price : pool.Price * count;
+                var price = pool.Bundle == count && pool.BundlePrice is { } bundlePrice ? bundlePrice : pool.Price * count;
                 if (player.Balances.GetValueOrDefault("jetcoin") < price)
                 {
                     return Error(context, StatusCodes.Status409Conflict, "insufficient_funds", "insufficient funds");

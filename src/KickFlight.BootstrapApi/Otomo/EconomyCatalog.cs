@@ -122,8 +122,9 @@ public static class EconomyCatalog
     public static readonly (int GachaId, string PoolId)[] KickerGachas = [(1, CosmeticPoolId)];
 
     // The disc tab's two buttons: DiscGacha row id (GachaDiscDrawRequestData.gachaId, which is all a draw request
-    // carries), the economy pool, and how many draws one press rolls. disc.eleven is a bundle pool: a roll of exactly
-    // its bundle count pays its cost once, so the count here must be that bundle count.
+    // carries), the economy pool, and how many draws one press rolls. disc.eleven declares a bundle: a roll of exactly
+    // its bundle count costs the bundle's own price (economy.gacha bundle.cost; without one, the pool's cost times the
+    // count), so the count here must be that bundle count.
     public static readonly (int GachaId, string PoolId, int Count)[] DiscGachas =
     [
         (1, "disc.standard", 1),

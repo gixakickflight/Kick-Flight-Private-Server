@@ -14,7 +14,7 @@ namespace KickFlight.BootstrapApi;
 //
 //   kicker tab  GachaKicker row 1 -> cosmetic.standard, one draw per press, paid in kicker_ticket
 //   disc tab    DiscGacha row 1   -> disc.standard, one draw for its cost (300 jetcoin)
-//               DiscGacha row 2   -> disc.eleven, a bundle of eleven draws for one cost (3000 jetcoin)
+//               DiscGacha row 2   -> disc.eleven, its declared bundle of eleven draws at the bundle's price (3000 jetcoin)
 //
 // A draw request carries nothing but gachaId (GachaDiscDrawRequestData / GachaKickerDrawRequestData), so every
 // button is its own ResponseGacha row, with dropAmount saying how many discs it gives. The price shown is the pool's.
@@ -546,7 +546,7 @@ public sealed partial class DemoSessionApi
                     gacha.Id, mapped.Value.PoolId);
             }
 
-            var poolCost = PoolCost(pool);
+            var poolCost = PoolCost(pool, mapped?.Count ?? 1);
             if (poolCost is null)
             {
                 var (masterGoodsType, masterGoodsId) = CostOf(gacha.LotteryCostId);
@@ -642,13 +642,17 @@ public sealed partial class DemoSessionApi
 
     // The pool's price as the client's three fields: goodsType/GoodsId name the Item master row, costAmount is how
     // many of it one draw costs.
-    private static (int GoodsType, int GoodsId, int Amount)? PoolCost(EconomyPool? pool)
+    // What one press of a button that rolls `count` draws costs: the pool's bundle price for its declared bundle
+    // (economy answers it, own price or cost x count), otherwise the pool's cost times the count - what economy charges.
+    private static (int GoodsType, int GoodsId, int Amount)? PoolCost(EconomyPool? pool, int count = 1)
     {
-        var cost = pool?.Cost?.FirstOrDefault(grant => grant.Currency is not null && grant.Amount > 0);
+        var bundle = count > 1 && pool?.Bundle is { } declared && declared.Count == count ? declared.Cost : null;
+        var cost = (bundle ?? pool?.Cost)?.FirstOrDefault(grant => grant.Currency is not null && grant.Amount > 0);
         if (cost is null) return null;
         if (!EconomyCatalog.TryItemIdForCurrency(cost.Currency, out var itemId)) return null;
         if (!EconomyCatalog.TryGoodsTypeForItemId(itemId, out var goodsType)) return null;
-        return (goodsType, itemId, (int)Math.Clamp(cost.Amount, 0, int.MaxValue));
+        var amount = bundle is null ? cost.Amount * count : cost.Amount;
+        return (goodsType, itemId, (int)Math.Clamp(amount, 0, int.MaxValue));
     }
 
     // The LotteryCost master row's goodsType/goodsId, for a gacha economy has no pool for: display only.

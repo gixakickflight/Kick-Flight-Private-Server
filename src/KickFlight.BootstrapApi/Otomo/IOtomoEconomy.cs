@@ -126,7 +126,14 @@ public sealed record EconomyPool(
     [property: JsonPropertyName("pity")] EconomyPity? Pity,
     [property: JsonPropertyName("pity_misses")] long PityMisses,
     [property: JsonPropertyName("window")] EconomyWindow? Window,
-    [property: JsonPropertyName("open")] bool Open);
+    [property: JsonPropertyName("open")] bool Open,
+    [property: JsonPropertyName("bundle")] EconomyPoolBundle? Bundle = null);
+
+// A pool's declared multi-pull: how many draws one purchase buys and what that purchase costs (economy answers the
+// bundle's own price, or the pool's cost times the count when the tenant names none).
+public sealed record EconomyPoolBundle(
+    [property: JsonPropertyName("count")] long Count,
+    [property: JsonPropertyName("cost")] IReadOnlyList<EconomyGrant>? Cost);
 
 public sealed record EconomyPools(
     [property: JsonPropertyName("release")] string? Release,
