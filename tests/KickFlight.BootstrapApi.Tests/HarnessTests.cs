@@ -35,7 +35,7 @@ public sealed class HarnessTests : IClassFixture<ServerTestHostFixture>
         Assert.Equal("not-ready", body.GetProperty("status").GetString());
         Assert.Contains(
             body.GetProperty("errors").EnumerateArray().Select(error => error.GetString()),
-            error => error is not null && error.Contains("apk-remote-211806: Source file was not found.", StringComparison.Ordinal));
+            error => error is not null && error.Contains("apk-remote-211807: Source file was not found.", StringComparison.Ordinal));
     }
 
     [Theory]

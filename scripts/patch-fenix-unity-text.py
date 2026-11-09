@@ -25,32 +25,30 @@ def fix_raw(data: bytes):
     out += data[i:]
     return bytes(out), n
 
-# Loading screen logo: sprite "loading_logo" (368x92, black "Kick-Flight" wordmark drawn over a yellow box) lives in the
-# "Common" SpriteAtlas texture (Texture2D 1024x2048, ASTC 6x6) at bottom-left rect (0,895). Replace it with a black Fenix silhouette.
-LOGO_RECT = (0, 895, 368, 92)   # x, y(bottom-origin), w, h
-def patch_loading_logo(env, root):
+# Logo removal (2.11.807). Loading wordmark = sprite "loading_logo" (368x92) in the "Common" atlas (Texture2D path_id 3,
+# 1024x2048 ASTC 6x6) at bottom-left rect (0,895); title intro wordmark = sprite "title_logo_animation" (2000x698) in the
+# "Title" atlas (path_id 4, 2048x1024 ASTC 4x4) at rect (0,0). Both rects are cleared to transparent; nothing else is touched.
+CLEAR_RECTS = ((3, (1024, 2048), (0, 895, 368, 92), "loading_logo (Common atlas)"),
+               (4, (2048, 1024), (0, 0, 2000, 698), "title_logo_animation (Title atlas)"),
+               # standalone 360x36 RGBA "Logo@2x" texture (black Kick-Flight wordmark, sprite 526): whole texture
+               (117, (360, 36), (0, 0, 360, 36), "Logo@2x (standalone texture)"))
+def clear_logo_rects(env):
     from PIL import Image
-    logo_path = Path(__file__).resolve().parent.parent / "assets/branding/fenix/fenix-logo-1024.png"
-    for o in env.objects:
-        if o.type.name != "Texture2D" or o.path_id != 3:
-            continue
-        tex = o.read()
-        if (tex.m_Width, tex.m_Height) != (1024, 2048):
-            continue
-        img = tex.image.convert("RGBA"); H = img.size[1]
-        x, y, w, h = LOGO_RECT; top = H - y - h
-        logo = Image.open(logo_path).convert("RGBA"); a = logo.getchannel("A")
-        logo = logo.crop(a.point(lambda v: 255 if v > 8 else 0).getbbox())
-        sc = min(w * 0.92 / logo.width, h * 0.92 / logo.height)
-        logo = logo.resize((max(1, round(logo.width * sc)), max(1, round(logo.height * sc))), Image.LANCZOS)
-        sil = Image.new("RGBA", logo.size, (0, 0, 0, 0)); sil.putalpha(logo.getchannel("A"))   # black silhouette, alpha kept
-        img.paste(Image.new("RGBA", (w, h), (0, 0, 0, 0)), (x, top))
-        img.paste(sil, (x + (w - sil.width) // 2, top + (h - sil.height) // 2), sil)
-        tex.set_image(img, target_format=tex.m_TextureFormat)
-        tex.save()
-        print("loading_logo replaced in Common atlas")
-        return True
-    return False
+    done = 0
+    for path_id, size, (x, y, w, h), label in CLEAR_RECTS:
+        for o in env.objects:
+            if o.type.name != "Texture2D" or o.path_id != path_id:
+                continue
+            tex = o.read()
+            if (tex.m_Width, tex.m_Height) != size:
+                continue
+            img = tex.image.convert("RGBA"); top = img.size[1] - y - h
+            img.paste(Image.new("RGBA", (w, h), (0, 0, 0, 0)), (x, top))
+            tex.set_image(img, target_format=tex.m_TextureFormat)
+            tex.save()
+            print(label + " cleared (transparent)")
+            done += 1
+    return done
 
 def main():
     root = Path(sys.argv[1]); p = root / "assets/bin/Data/data.unity3d"
@@ -69,8 +67,8 @@ def main():
                 if n:
                     o.set_raw_data(new); total += n
     print(f"copyright replacements: {total}")
-    logo = patch_loading_logo(env, root)
-    if total or logo:
+    cleared = clear_logo_rects(env)
+    if total or cleared:
         p.write_bytes(env.file.save(packer="original"))
 
 main()
