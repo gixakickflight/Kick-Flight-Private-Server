@@ -10,7 +10,7 @@ Run LAST (after the provider-injecting patchers, before `apktool b`):
   KF_PACKAGE_ID=jp.grenge.kickflight to keep the original id (rename becomes a no-op).
 * res/values*/strings.xml: app_name -> display name (default "Fenix").
 * Launcher icons (res/mipmap-*/app_icon*.png, adaptive foreground/background, drawable-nodpi/ic_launcher.png,
-  notification icons) and assets/title_logo.jpg (loading/boot wordmark) from assets/branding/fenix/.
+  notification icons; F only) and assets/title_logo.jpg (blanked boot splash, EXIF kept) from assets/branding/fenix/.
 Dex/native code is untouched: Application.identifier / paths are resolved at runtime from the package manager.
 """
 import argparse, os, re, sys
@@ -54,11 +54,12 @@ def square(path: Path, size: int) -> Image.Image:
 
 
 def patch_icons(decoded: Path) -> int:
-    """All launcher variants use fenix-icon-1024.png (purple rounded square, yellow F + flame).
+    """All launcher variants use fenix-icon-1024.png (purple rounded square, yellow F, no flame).
     Adaptive: background = flat icon purple, foreground = the icon scaled into the safe zone (same purple, so seamless)."""
     from PIL import ImageDraw
     icon = Image.open(BRAND / "fenix-icon-1024.png").convert("RGBA")
-    bgc = icon.getpixel((100, 500))[:3]
+    fmark = Image.open(BRAND / "fenix-f-1024.png").convert("RGBA")
+    bgc = (0x1E, 0x12, 0x38)   # flat icon purple for the adaptive background
     n = 0
     res = decoded / "res"
     for d, px in DENSITY_ICON.items():
@@ -79,8 +80,8 @@ def patch_icons(decoded: Path) -> int:
         fg = m / "ic_launcher_foreground.png"
         if fg.exists():
             canvas = Image.new("RGBA", (s, s), (0, 0, 0, 0))
-            w = round(s * 0.72)
-            canvas.alpha_composite(icon.resize((w, w), Image.LANCZOS), ((s - w) // 2, (s - w) // 2))
+            w = round(s * 0.85)   # F mark only (transparent), kept inside the 66/108 adaptive safe zone
+            canvas.alpha_composite(fmark.resize((w, w), Image.LANCZOS), ((s - w) // 2, (s - w) // 2))
             canvas.save(fg); n += 1
         bgf = m / "ic_launcher_background.png"
         if bgf.exists():
@@ -92,12 +93,13 @@ def patch_icons(decoded: Path) -> int:
     if p.exists():
         icon.save(p); n += 1
     p = res / "drawable/notification_icon.png"
-    if p.exists():  # white silhouette of the icon artwork (status bar style)
+    if p.exists():  # white silhouette of the F (yellow face only, shadow dropped), alpha mask per Android rules
         w = 512
-        lg = icon.resize((w, w), Image.LANCZOS)
+        lg = fmark.resize((w, w), Image.LANCZOS)
         r, g, bch, al = lg.split()
-        diff = Image.eval(Image.merge("RGB", (r, g, bch)).convert("L"), lambda v: 255 if v > 150 else 0)
-        sil = Image.new("RGBA", (w, w), (255, 255, 255, 0)); sil.putalpha(diff); sil.save(p); n += 1
+        face = Image.eval(Image.merge("RGB", (r, g, bch)).convert("L"), lambda v: 255 if v > 150 else 0)
+        from PIL import ImageChops
+        sil = Image.new("RGBA", (w, w), (255, 255, 255, 0)); sil.putalpha(ImageChops.multiply(face, al)); sil.save(p); n += 1
     return n
 
 
@@ -126,12 +128,7 @@ def patch_title_jpg(decoded: Path) -> bool:
         return False
     orig = p.read_bytes()
     w, h = Image.open(io.BytesIO(orig)).size
-    logo = Image.open(BRAND / "fenix-logo-shadow-1024.png").convert("RGBA")
-    logo = logo.crop(logo.getchannel("A").point(lambda v: 255 if v > 8 else 0).getbbox())
-    sc = min(w * 0.96 / logo.width, h * 0.96 / logo.height)
-    lg = logo.resize((round(logo.width * sc), round(logo.height * sc)), Image.LANCZOS)
-    canvas = Image.new("RGB", (w, h), (255, 255, 255))
-    canvas.paste(lg, ((w - lg.width) // 2, (h - lg.height) // 2), lg)
+    canvas = Image.new("RGB", (w, h), (255, 255, 255))   # logo removed (2.11.807): plain white, EXIF kept
     buf = io.BytesIO(); canvas.save(buf, "JPEG", quality=95); new = buf.getvalue()
     o_segs, _ = _jpeg_segments(orig)
     n_segs, n_sos = _jpeg_segments(new)
@@ -151,7 +148,7 @@ def main() -> int:
     a = ap.parse_args()
     if not (a.decoded / "AndroidManifest.xml").is_file():
         sys.exit(f"not a decoded APK tree: {a.decoded}")
-    for need in ("fenix-icon-1024.png", "fenix-logo-shadow-1024.png"):
+    for need in ("fenix-icon-1024.png", "fenix-f-1024.png"):
         if not (BRAND / need).is_file():
             sys.exit(f"missing {BRAND / need}")
     print(f"package refs renamed: {rename_package(a.decoded, a.package)} -> {a.package}")

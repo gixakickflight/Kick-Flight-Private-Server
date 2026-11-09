@@ -79,17 +79,17 @@
       "sha256": "c0973c1afaeff3a715c724bebf333eb8f70cca099bb90f8e858bb19a570ce77b"
     },
     {
-      "id": "apk-remote-211806",
+      "id": "apk-remote-211807",
       "enabled": true,
       "host": "10.0.2.2",
-      "requestPath": "/apk/Fenix-2.11.806.apk",
-      "logicalName": "Fenix Android APK download (2.11.806)",
-      "description": "Android 2.11.806: the game is now Fenix (new app, package world.global.fenix, installed alongside the old one; accounts do not carry over). Adds the battle ping HUD (toggle in Settings > Battle) and a 60 s matchmaking window. Release-key APK gate-verified on an AVD against the live VPS; not verified on a real arm64 device.",
-      "sourcePath": ".local/Fenix-2.11.806.apk",
+      "requestPath": "/apk/Fenix-2.11.807.apk",
+      "logicalName": "Fenix Android APK download (2.11.807)",
+      "description": "Android 2.11.807: removed the logo from the title, loading and home screens; app icon is now a single F. Updates Fenix 2.11.806 in place (account kept). Build gate: signed with the publication key (cert 81ca6334); live-VPS gate pending.",
+      "sourcePath": ".local/Fenix-2.11.807.apk",
       "contentType": "application/vnd.android.package-archive",
-      "sha256": "6789485fc1df7be2cf1d8569af1728873bb9849b10b8da625a6e43b1e335ae97",
-      "bytes": 149450389,
-      "releaseTag": "android-2.11.806"
+      "sha256": "98912b68cde136f484afacb56603c8d2fa4f0575207facf941ff89cbb253e86a",
+      "bytes": 149098133,
+      "releaseTag": "android-2.11.807"
     },
     {
       "id": "kicker-skin-thumb-001-022-direct",
