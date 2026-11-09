@@ -20,16 +20,19 @@ typedef struct { float x, y; } v2f_t;
 #endif
 KF_ORIG_STUB1(sbcv, 0xf81a0ffb)        // str x27,[sp,#-0x60]!
 
-static void* g_opt_view;
-static void* g_opt_row;
-static void* g_opt_txt;                // cloned label (a LocalizeText component overwrites it with "Tap lock-on" after Start, so re-applied by kf_opt_tick)
+uint32_t kf_gc_new(void* o);
+void* kf_gc_get(uint32_t h);
+void kf_gc_free(uint32_t h);
+// Cloned label: something overwrites it with "Tap lock-on" after Start, so it is re-applied for a few seconds by kf_opt_tick. It is held ONLY by an
+// il2cpp strong GC handle: a raw pointer to it went stale when the Settings view was destroyed and crashed the next battle (Text.set_text on freed memory).
+static uint32_t h_opt_txt;
 static uint64_t g_fake_mi[16] __attribute__((aligned(16)));   // MethodInfo copy (0x80 B) whose methodPointer is the native callback
 
 // m_CachedPtr survives native destruction; ask UnityEngine.Object.op_Implicit(Object) 0x23E1338 as well.
 static int alive(void* o) {
     return o && *(void* volatile*)((char*)o + 0x10) != NULL && FN(int, 0x23E1338u, void*, void*)(o, NULL) != 0;
 }
-static int g_opt_ticks;                // remaining label re-apply ticks after add_row (LocalizeText overwrites within a few seconds)
+static int g_opt_ticks;                // remaining label re-apply ticks after add_row
 
 // Action<bool> target: (closure/this, bool, MethodInfo*)
 static void cb_ping(void* target, uint8_t v, void* mi) {
@@ -99,7 +102,7 @@ static void add_row(void* view) {
     void* ctog = ctrTr ? FN(void*, 0x29ADF5Cu, void*, void*, void*)(ctrTr, type_of(tap), NULL) : NULL;   // Component.GetComponent(Type)
     void* ctxt = ctxTr ? FN(void*, 0x29ADF5Cu, void*, void*, void*)(ctxTr, type_of(txt), NULL) : NULL;
     KFLOG("pinghud-opt: row %p toggle %p text %p", crow, ctog, ctxt);
-    g_opt_txt = ctxt; g_opt_ticks = 12;
+    kf_gc_free(h_opt_txt); h_opt_txt = kf_gc_new(ctxt); g_opt_ticks = ctxt ? 12 : 0;
     if (ctxt) FN(void, 0x266BC94u, void*, void*, void*)(ctxt, kf_il2cpp_str("Ping HUD"), NULL);   // UI.Text.set_text
     if (ctog) {
         void* klass = **(void* volatile***)(g_base + 0x43D93F0);                  // System.Action<bool> TypeInfo (GOT slot, as in Initialize)
@@ -112,22 +115,23 @@ static void add_row(void* view) {
         FN(void, 0x31C833Cu, void*, void*, void*)(ctog, d, NULL);                  // ToggleSwitchButton.SetButtonAction
         FN(void, 0x31C8404u, void*, int, void*)(ctog, kf_ping_pref(), NULL);       // SetColorActive(isOn)
     }
-    g_opt_view = view; g_opt_row = crow;
 }
 
-void kf_opt_reset(void) { g_opt_ticks = 0; g_opt_txt = NULL; g_opt_row = NULL; g_opt_view = NULL; }   // new battle HUD: forget any settings UI from an earlier scene
+static void opt_drop(void) { kf_gc_free(h_opt_txt); h_opt_txt = 0; g_opt_ticks = 0; }
+void kf_opt_reset(void) { opt_drop(); }   // new battle HUD: forget any settings UI from an earlier scene
 
 void kf_opt_tick(void) {               // ~1 Hz from hook_settime while the battle HUD runs
-    if (g_opt_ticks <= 0) { g_opt_txt = NULL; g_opt_row = NULL; g_opt_view = NULL; return; }   // never touch the settings UI outside its first seconds
+    if (g_opt_ticks <= 0) { if (h_opt_txt) opt_drop(); return; }
     g_opt_ticks--;
-    if (alive(g_opt_view) && alive(g_opt_row) && alive(g_opt_txt)) FN(void, 0x266BC94u, void*, void*, void*)(g_opt_txt, kf_il2cpp_str("Ping HUD"), NULL);
-    else { g_opt_txt = NULL; g_opt_row = NULL; g_opt_view = NULL; g_opt_ticks = 0; }
+    void* t = kf_gc_get(h_opt_txt);
+    if (alive(t)) FN(void, 0x266BC94u, void*, void*, void*)(t, kf_il2cpp_str("Ping HUD"), NULL);
+    else opt_drop();
 }
 
 i64 hook_sbcv_init(i64 a, i64 b, i64 c, i64 d, i64 e, i64 f, i64 g, i64 h) {
     i64 r = sbcv_orig(a, b, c, d, e, f, g, h);
     void* view = (void*)a;
-    if (view && (view != g_opt_view || !alive(g_opt_view) || !alive(g_opt_row))) add_row(view);
+    if (view) add_row(view);   // synchronous; no view/row pointer is kept
     return r;
 }
 #endif

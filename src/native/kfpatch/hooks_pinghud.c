@@ -54,8 +54,18 @@ KF_ORIG_STUB1(settime, 0x6dba2beb)    // stp d11,d10,[sp,#-0x60]!   (site = `b V
 void* kf_il2cpp_str(const char* s) { return FN(void*, RVA_STRING_NEW, const char*)(s); }
 
 int g_ping_on = -1;                   // -1 = not read yet; shared with the Options toggle (stage 2)
-static void* g_view;                  // TimeView the clone belongs to
-static void* g_clone;                 // cloned TextMeshProUGUI
+// Nothing managed/Unity is cached as a raw pointer across frames: scene changes free the objects and the GC can reuse their memory
+// (stale-pointer SIGSEGV seen with the Settings-at-Home -> battle sequence). Cross-frame state is held by il2cpp strong GC handles
+// (RVAs of il2cpp_gchandle_new/get_target/free), which keep the wrapper memory valid; liveness is then asked to Unity (alive()).
+uint32_t kf_gc_new(void* o) { return o ? FN(uint32_t, 0x120A13Cu, void*, int)(o, 0) : 0; }
+void* kf_gc_get(uint32_t h) { return h ? FN(void*, 0x120A14Cu, uint32_t)(h) : NULL; }
+void kf_gc_free(uint32_t h) { if (h) FN(void, 0x120A158u, uint32_t)(h); }
+static uint32_t h_view, h_clone, h_bg_go, h_bg_tr;   // TimeView the clone belongs to / cloned TextMeshProUGUI / KFPingBg GO + transform
+#define g_view kf_gc_get(h_view)
+#define g_clone kf_gc_get(h_clone)
+#define g_bg_go kf_gc_get(h_bg_go)
+#define g_bg_tr kf_gc_get(h_bg_tr)
+#define SET_H(h, v) do { kf_gc_free(h); (h) = kf_gc_new(v); } while (0)
 
 // m_CachedPtr is NOT cleared when Unity destroys the native object (stale wrappers survive scene changes), so also ask
 // UnityEngine.Object.op_Implicit(Object) 0x23E1338 (= native alive check).
@@ -149,8 +159,6 @@ static void* type_of(void* obj) {   // System.Type object of obj's class
     return FN(void*, 0x120A318u, void*)(FN(void*, 0x1208D10u, void*)(klass));
 }
 
-static void* g_bg_go;                 // KFPingBg (dark box; parent of the text), toggled instead of the text
-static void* g_bg_tr;
 #define KF_BG_W 150.0f
 #define KF_BG_H 36.0f
 #define KF_BG_RIGHT 8.0f              // the HP bars stick out ~8 units past the 100-wide row rect: right-align with the bars
@@ -193,7 +201,7 @@ static void make_clone(void* view) {
     void* c = FN(void*, RVA_INSTANTIATE_P, void*, void*, int, void*)(sec, ptr, 0, NULL);
     if (!c) { KFLOG("pinghud: skip - Instantiate returned null"); return; }
     void* tr = FN(void*, RVA_GET_TR, void*, void*)(c, NULL);
-    g_bg_go = NULL; g_bg_tr = NULL;
+    SET_H(h_bg_go, NULL); SET_H(h_bg_tr, NULL);
     if (et && alive(bgImg)) {
         // The timer box is the Image on GameTime (it has the TimeView + digits as children), so it cannot be Instantiate()d: build a new
         // GameObject with an Image of the same class and copy sprite / colour / image type from it.
@@ -216,7 +224,7 @@ static void make_clone(void* view) {
             v3_t one = {1.0f, 1.0f, 1.0f};
             FN(void, RVA_SET_LSCALE, void*, v3_t, void*)(btr, one, NULL);
             FN(void, RVA_SET_LAST_SIBLING, void*, void*)(btr, NULL);
-            g_bg_go = go; g_bg_tr = btr;
+            SET_H(h_bg_go, go); SET_H(h_bg_tr, btr);
         }
     }
     if (g_bg_tr) {
@@ -242,7 +250,7 @@ static void make_clone(void* view) {
     }
     FN(void, RVA_TMP_AUTOSIZE, void*, int, void*)(c, 0, NULL);
     style_clone(c);
-    g_view = view; g_clone = c;
+    SET_H(h_view, view); SET_H(h_clone, c); g_ping_on = -1;   // PlayerPrefs "kf_ping_hud" re-read at every battle start
     KFLOG("pinghud: clone %p of seconds %p (view %p) bg=%p", c, sec, view, g_bg_go);
 }
 
@@ -258,7 +266,7 @@ i64 hook_settime(i64 a, i64 b, i64 c, i64 d, i64 e, i64 f, i64 g, i64 h) {
         kf_opt_tick();
 #endif
         if (view != g_view || !alive(g_clone)) {
-            g_clone = NULL; g_bg_go = NULL; g_bg_tr = NULL;
+            SET_H(h_clone, NULL); SET_H(h_bg_go, NULL); SET_H(h_bg_tr, NULL);
 #ifdef KF_PINGHUD_OPTION
             kf_opt_reset();
 #endif

@@ -87,8 +87,8 @@
       "description": "Android 2.11.806: the game is now Fenix (new app, package world.global.fenix, installed alongside the old one; accounts do not carry over). Adds the battle ping HUD (toggle in Settings > Battle) and a 60 s matchmaking window. Release-key APK gate-verified on an AVD against the live VPS; not verified on a real arm64 device.",
       "sourcePath": ".local/Fenix-2.11.806.apk",
       "contentType": "application/vnd.android.package-archive",
-      "sha256": "3b442dcdf221cf0de6d4d6fe00718fc9854037ca299e30b6f150bd7e4a3df34e",
-      "bytes": 149307029,
+      "sha256": "6789485fc1df7be2cf1d8569af1728873bb9849b10b8da625a6e43b1e335ae97",
+      "bytes": 149450389,
       "releaseTag": "android-2.11.806"
     },
     {
