@@ -31140,7 +31140,7 @@
       "requestPath": "/cdn/lnl8I1",
       "logicalName": "Unity AssetBundle ui/localize/de/title/title_logo.unity3d",
       "description": "Physically independent de localize bundle cloned from ui/localize/zh/title/title_logo.unity3d; CAB and container keys are unique; built by scripts/build-localize-bundles.py",
-      "sourcePath": ".local/localize-bundles/416C6E6C384931_fb62f3495c2b9523cf628d1f762ae9a2.bundle",
+      "sourcePath": "content/resources/fenix-localize/416C6E6C384931_fb62f3495c2b9523cf628d1f762ae9a2.bundle",
       "contentType": "application/octet-stream",
       "sha256": "fd571ff514d23f06417e6f00d3ac3116a756405f3dd2411bb87a09ee7dbdd32e"
     },
@@ -32163,7 +32163,7 @@
       "requestPath": "/cdn/l1X500",
       "logicalName": "Unity AssetBundle ui/localize/en/title/title_logo.unity3d",
       "description": "Physically independent en localize bundle cloned from ui/localize/zh/title/title_logo.unity3d; CAB and container keys are unique; built by scripts/build-localize-bundles.py",
-      "sourcePath": ".local/localize-bundles/416C3158353030_990ad7d279321d7aea265eaed02a9d8e.bundle",
+      "sourcePath": "content/resources/fenix-localize/416C3158353030_990ad7d279321d7aea265eaed02a9d8e.bundle",
       "contentType": "application/octet-stream",
       "sha256": "d0bbb63ba438e9cf203ccd06a9d0f14b6349979b95b7dd50dbffb37f219f7ce5"
     },
@@ -33186,7 +33186,7 @@
       "requestPath": "/cdn/lhPql9",
       "logicalName": "Unity AssetBundle ui/localize/es/title/title_logo.unity3d",
       "description": "Physically independent es localize bundle cloned from ui/localize/zh/title/title_logo.unity3d; CAB and container keys are unique; built by scripts/build-localize-bundles.py",
-      "sourcePath": ".local/localize-bundles/416C6850716C39_309ad12745814e2a8383fa1805517a65.bundle",
+      "sourcePath": "content/resources/fenix-localize/416C6850716C39_309ad12745814e2a8383fa1805517a65.bundle",
       "contentType": "application/octet-stream",
       "sha256": "4b48b1053e47a786043232a8ecb528ba5b42ccf9302ac2200bf0e7c96bd896af"
     },
@@ -34209,7 +34209,7 @@
       "requestPath": "/cdn/l7kbvz",
       "logicalName": "Unity AssetBundle ui/localize/fr/title/title_logo.unity3d",
       "description": "Physically independent fr localize bundle cloned from ui/localize/zh/title/title_logo.unity3d; CAB and container keys are unique; built by scripts/build-localize-bundles.py",
-      "sourcePath": ".local/localize-bundles/416C376B62767A_d8f1c855a1807804a06d8152a0f9c5e3.bundle",
+      "sourcePath": "content/resources/fenix-localize/416C376B62767A_d8f1c855a1807804a06d8152a0f9c5e3.bundle",
       "contentType": "application/octet-stream",
       "sha256": "5209aff2efd8625ba0915751eb9de207cf043e4bfe5e7b25e2d6df8f947d8bf7"
     },
@@ -35232,7 +35232,7 @@
       "requestPath": "/cdn/lG0j6k",
       "logicalName": "Unity AssetBundle ui/localize/ja/title/title_logo.unity3d",
       "description": "Physically independent ja localize bundle cloned from ui/localize/zh/title/title_logo.unity3d; CAB and container keys are unique; built by scripts/build-localize-bundles.py",
-      "sourcePath": ".local/localize-bundles/416C47306A366B_c237e7ac6231d95f18c7e8378801ff86.bundle",
+      "sourcePath": "content/resources/fenix-localize/416C47306A366B_c237e7ac6231d95f18c7e8378801ff86.bundle",
       "contentType": "application/octet-stream",
       "sha256": "4f277c24bc17fb34e7dd55ed3a77f1d169bc38a2480a3cfb0ebddfc94245911c"
     },
@@ -36255,7 +36255,7 @@
       "requestPath": "/cdn/lQL7ap",
       "logicalName": "Unity AssetBundle ui/localize/ko/title/title_logo.unity3d",
       "description": "Physically independent ko localize bundle cloned from ui/localize/zh/title/title_logo.unity3d; CAB and container keys are unique; built by scripts/build-localize-bundles.py",
-      "sourcePath": ".local/localize-bundles/416C514C376170_a2f204527a844a57230f1c4de04a757d.bundle",
+      "sourcePath": "content/resources/fenix-localize/416C514C376170_a2f204527a844a57230f1c4de04a757d.bundle",
       "contentType": "application/octet-stream",
       "sha256": "1a8fdcd918d00362a1d338b9cdf2a2112fdcecf7a5b207d47ec8dc9ddfa4ee12"
     },
@@ -37278,7 +37278,7 @@
       "requestPath": "/cdn/lSLdhy",
       "logicalName": "Unity AssetBundle ui/localize/pt/title/title_logo.unity3d",
       "description": "Physically independent pt localize bundle cloned from ui/localize/zh/title/title_logo.unity3d; CAB and container keys are unique; built by scripts/build-localize-bundles.py",
-      "sourcePath": ".local/localize-bundles/416C534C646879_0c38ae2d35a8b8076763855c76c48cdf.bundle",
+      "sourcePath": "content/resources/fenix-localize/416C534C646879_0c38ae2d35a8b8076763855c76c48cdf.bundle",
       "contentType": "application/octet-stream",
       "sha256": "f63bb2bf0a4c013f608a31c4393264f7b6d088b3abc7bbdd89c0302adf2c483b"
     }
