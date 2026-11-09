@@ -5169,9 +5169,9 @@
       "requestPath": "/cdn/52Uzpw",
       "logicalName": "Unity AssetBundle field/fld90001.unity3d",
       "description": "Preserved Unity bundle for field/fld90001.unity3d",
-      "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/413532557A7077_95eee5e1c16ad31792dbac491f580394.bundle",
+      "sourcePath": "content/resources/fenix-home/413532557A7077_7180d86bac5605d832fd025c8660c3cf.bundle",
       "contentType": "application/octet-stream",
-      "sha256": "bc1188874a7c9b85d2b5cb708e766b96b2d53599dfd9f5c07daae325e6a8483e"
+      "sha256": "ff19e51fe7553ba2f7bb2dfb3a5011ae551fcf3c9db0c50c769689b3b452c060"
     },
     {
       "id": "unity-bundle-419",
@@ -7380,9 +7380,9 @@
       "requestPath": "/cdn/ABOM32",
       "logicalName": "Unity AssetBundle field/fld00402.unity3d",
       "description": "Preserved Unity bundle for field/fld00402.unity3d",
-      "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4141424F4D3332_6ef67b921bf4a9d9cb0d0e418d1ca931.bundle",
+      "sourcePath": "content/resources/fenix-home/4141424F4D3332_543fc9df2fc25674d60374adcb6ae65a.bundle",
       "contentType": "application/octet-stream",
-      "sha256": "40eee80bfc0933dbdb4de18925682b3ffaff06e71d6f5d0c7653714058de3194"
+      "sha256": "c732c33888825c62af64d1e58eb9380c870424d85ae69a8872437b0a86187eb6"
     },
     {
       "id": "unity-bundle-620",
@@ -8975,9 +8975,9 @@
       "requestPath": "/cdn/DlX7ri",
       "logicalName": "Unity AssetBundle field/fld00302.unity3d",
       "description": "Preserved Unity bundle for field/fld00302.unity3d",
-      "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41446C58377269_4e1f234fe32ba4e425445fd911ac05d7.bundle",
+      "sourcePath": "content/resources/fenix-home/41446C58377269_9f5f42ec4bbc5a2ce53343a065c9176a.bundle",
       "contentType": "application/octet-stream",
-      "sha256": "087d47dcb469628387accbefd5e468eec0c2728aab40a624745c5d4022b9c93b"
+      "sha256": "7fa7b8af6d1f7feec5fe597cbf259635f26477e6d7c799628717b99c8238cbed"
     },
     {
       "id": "unity-bundle-765",
@@ -16312,9 +16312,9 @@
       "requestPath": "/cdn/WiiMg5",
       "logicalName": "Unity AssetBundle field/fld90000.unity3d",
       "description": "Preserved Unity bundle for field/fld90000.unity3d",
-      "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/415769694D6735_d3ac7d8e9769224c4b067ac08f1a5ddb.bundle",
+      "sourcePath": "content/resources/fenix-home/415769694D6735_a7f7060a4d45b325680a887e00090786.bundle",
       "contentType": "application/octet-stream",
-      "sha256": "9ccb4ec638f7788ed74deb7a33aa6ea4ce85677fae204d6e7dae2313b60e8247"
+      "sha256": "dff4d48f9b10b479781cb96c5949d15a5bb5f2114964f03d947e79a10f9db74e"
     },
     {
       "id": "unity-bundle-1432",
@@ -18435,9 +18435,9 @@
       "requestPath": "/cdn/bJ9pwB",
       "logicalName": "Unity AssetBundle field/fld00301.unity3d",
       "description": "Preserved Unity bundle for field/fld00301.unity3d",
-      "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41624A39707742_21878806c7663a8f20a0eda47bf732ea.bundle",
+      "sourcePath": "content/resources/fenix-home/41624A39707742_29c32e0e392205843bd9885b0bf55f75.bundle",
       "contentType": "application/octet-stream",
-      "sha256": "2d532ae34ae4736fba40896107c863acf6867d2fefb6924c0ae6de266db35dad"
+      "sha256": "a72db86217b19c49f9ab1de75c14c6223249493f502dcc18e33e64d565e7c20a"
     },
     {
       "id": "unity-bundle-1625",
@@ -18699,9 +18699,9 @@
       "requestPath": "/cdn/by0uVC",
       "logicalName": "Unity AssetBundle field/fld90002.unity3d",
       "description": "Preserved Unity bundle for field/fld90002.unity3d",
-      "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41627930755643_ac03cc139d519cc3ded4809007331b38.bundle",
+      "sourcePath": "content/resources/fenix-home/41627930755643_a10ed644958595c8a90617db2ed401af.bundle",
       "contentType": "application/octet-stream",
-      "sha256": "0f09cc9d0d5ee72fb46584d0e9e5fff9bb9b3dc4c03958e23ef7a0da3669f317"
+      "sha256": "ba0b942dd8661de98bbf39aa7d3a9e59c94996e7eb6e5bb599bafaae2c768815"
     },
     {
       "id": "unity-bundle-1649",
@@ -18787,9 +18787,9 @@
       "requestPath": "/cdn/c3pPIz",
       "logicalName": "Unity AssetBundle field/fld00102.unity3d",
       "description": "Preserved Unity bundle for field/fld00102.unity3d",
-      "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4163337050497A_56ed3cc9e7e89fe2f911d4f16ce0f0c4.bundle",
+      "sourcePath": "content/resources/fenix-home/4163337050497A_31de7552a831d66dc713286caf00b04b.bundle",
       "contentType": "application/octet-stream",
-      "sha256": "af1361665c4b97ce16fde751d7b102265f991c4eccc410882241245d18eb9389"
+      "sha256": "b9a3a6cd54fa9416a13f1f666e33ac718e8866e6ecb02d3998a9f056b5fdfeff"
     },
     {
       "id": "unity-bundle-1657",
@@ -20349,9 +20349,9 @@
       "requestPath": "/cdn/frlPe3",
       "logicalName": "Unity AssetBundle field/fld00702.unity3d",
       "description": "Preserved Unity bundle for field/fld00702.unity3d",
-      "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4166726C506533_03f9cfe9514740863356d7704dbb3b59.bundle",
+      "sourcePath": "content/resources/fenix-home/4166726C506533_616ba38f16ee534c56abc269e96b4cd7.bundle",
       "contentType": "application/octet-stream",
-      "sha256": "4d477508f16ec16da15001f52cf2748ee50d77e16adbb55ed45d84e24e4a632b"
+      "sha256": "8d29ea552869d5a156fe05af3e492c53354a92716699001864d97db8c6b55457"
     },
     {
       "id": "unity-bundle-1799",
@@ -22615,9 +22615,9 @@
       "requestPath": "/cdn/kxsnJS",
       "logicalName": "Unity AssetBundle field/fld00902.unity3d",
       "description": "Preserved Unity bundle for field/fld00902.unity3d",
-      "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/416B78736E4A53_fba6e9c8cdbc69616e6d9e95449de5f5.bundle",
+      "sourcePath": "content/resources/fenix-home/416B78736E4A53_d6ecb4498149d183440edef926d01d9c.bundle",
       "contentType": "application/octet-stream",
-      "sha256": "9684d4c98cfd6c9d2a88f8c46c4ed888547541be9d45b85962c4f6625c3e18ac"
+      "sha256": "8ff02eae7706954319248a71875cc25284b85aade38bdc990a17984818290c5b"
     },
     {
       "id": "unity-bundle-2005",
@@ -25750,9 +25750,9 @@
       "requestPath": "/cdn/rvrMCZ",
       "logicalName": "Unity AssetBundle field/fld00602.unity3d",
       "description": "Preserved Unity bundle for field/fld00602.unity3d",
-      "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/417276724D435A_e64bcf7e8e092f0fc540f72b9d59a092.bundle",
+      "sourcePath": "content/resources/fenix-home/417276724D435A_ddc1b2f09b3e4e87be82c00db3bc233b.bundle",
       "contentType": "application/octet-stream",
-      "sha256": "ef498e80bf99538175eb0bbb72fefdb3e5a45a0cf5e377b30991ede426909f4d"
+      "sha256": "278effe2ee4fd0ec71a4f365481c0a32d4fb9933aecde6b2719a0a8bc58e754b"
     },
     {
       "id": "unity-bundle-2290",
@@ -26003,9 +26003,9 @@
       "requestPath": "/cdn/sSdS55",
       "logicalName": "Unity AssetBundle field/fld99999.unity3d",
       "description": "Preserved Unity bundle for field/fld99999.unity3d",
-      "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41735364533535_54566f0dee5ee791e1c0873ce0cd37d9.bundle",
+      "sourcePath": "content/resources/fenix-home/41735364533535_07a718529af4523eba81c6db3c255115.bundle",
       "contentType": "application/octet-stream",
-      "sha256": "7205ddfedb9e2bc9c34a6bf6e35babf2fa2c758490ee788ac1dd79a27735286c"
+      "sha256": "c77b4656a0c3576a0e22c953d7b739262f09916d7470959f3706bfc38b84f547"
     },
     {
       "id": "unity-bundle-2313",
@@ -31140,9 +31140,9 @@
       "requestPath": "/cdn/lnl8I1",
       "logicalName": "Unity AssetBundle ui/localize/de/title/title_logo.unity3d",
       "description": "Physically independent de localize bundle cloned from ui/localize/zh/title/title_logo.unity3d; CAB and container keys are unique; built by scripts/build-localize-bundles.py",
-      "sourcePath": "content/resources/fenix-localize/416C6E6C384931_43855ae4d066f0b0c0b0b2186dfdae1f.bundle",
+      "sourcePath": ".local/localize-bundles/416C6E6C384931_fb62f3495c2b9523cf628d1f762ae9a2.bundle",
       "contentType": "application/octet-stream",
-      "sha256": "e986185545e42aa58af537ba576a71914c27c9515d7b5cd415a224c0472672e5"
+      "sha256": "fd571ff514d23f06417e6f00d3ac3116a756405f3dd2411bb87a09ee7dbdd32e"
     },
     {
       "id": "localize-en-unity-bundle-1685",
@@ -32163,9 +32163,9 @@
       "requestPath": "/cdn/l1X500",
       "logicalName": "Unity AssetBundle ui/localize/en/title/title_logo.unity3d",
       "description": "Physically independent en localize bundle cloned from ui/localize/zh/title/title_logo.unity3d; CAB and container keys are unique; built by scripts/build-localize-bundles.py",
-      "sourcePath": "content/resources/fenix-localize/416C3158353030_2b4cdd61888dbcd36ea3b33397fb70dc.bundle",
+      "sourcePath": ".local/localize-bundles/416C3158353030_990ad7d279321d7aea265eaed02a9d8e.bundle",
       "contentType": "application/octet-stream",
-      "sha256": "a1f3e65ef76f7dbb928c7d03687c87f09d02d33515a3e7beb2a092cc4bd5e352"
+      "sha256": "d0bbb63ba438e9cf203ccd06a9d0f14b6349979b95b7dd50dbffb37f219f7ce5"
     },
     {
       "id": "localize-es-unity-bundle-1685",
@@ -33186,9 +33186,9 @@
       "requestPath": "/cdn/lhPql9",
       "logicalName": "Unity AssetBundle ui/localize/es/title/title_logo.unity3d",
       "description": "Physically independent es localize bundle cloned from ui/localize/zh/title/title_logo.unity3d; CAB and container keys are unique; built by scripts/build-localize-bundles.py",
-      "sourcePath": "content/resources/fenix-localize/416C6850716C39_8c39b4dfcdf646c1738589d3a9862e4a.bundle",
+      "sourcePath": ".local/localize-bundles/416C6850716C39_309ad12745814e2a8383fa1805517a65.bundle",
       "contentType": "application/octet-stream",
-      "sha256": "57c8b73dd23cfffdc8a002f3d1f10968726a88961dcee80e6aac5d5765c15bd8"
+      "sha256": "4b48b1053e47a786043232a8ecb528ba5b42ccf9302ac2200bf0e7c96bd896af"
     },
     {
       "id": "localize-fr-unity-bundle-1685",
@@ -34209,9 +34209,9 @@
       "requestPath": "/cdn/l7kbvz",
       "logicalName": "Unity AssetBundle ui/localize/fr/title/title_logo.unity3d",
       "description": "Physically independent fr localize bundle cloned from ui/localize/zh/title/title_logo.unity3d; CAB and container keys are unique; built by scripts/build-localize-bundles.py",
-      "sourcePath": "content/resources/fenix-localize/416C376B62767A_fd4aa6ff55927c9717d87abc4158f043.bundle",
+      "sourcePath": ".local/localize-bundles/416C376B62767A_d8f1c855a1807804a06d8152a0f9c5e3.bundle",
       "contentType": "application/octet-stream",
-      "sha256": "d20ce10b313741710d4fdb3b13459b4c5fdd73f20f9f0b75e74ac493589e3573"
+      "sha256": "5209aff2efd8625ba0915751eb9de207cf043e4bfe5e7b25e2d6df8f947d8bf7"
     },
     {
       "id": "localize-ja-unity-bundle-1685",
@@ -35232,9 +35232,9 @@
       "requestPath": "/cdn/lG0j6k",
       "logicalName": "Unity AssetBundle ui/localize/ja/title/title_logo.unity3d",
       "description": "Physically independent ja localize bundle cloned from ui/localize/zh/title/title_logo.unity3d; CAB and container keys are unique; built by scripts/build-localize-bundles.py",
-      "sourcePath": "content/resources/fenix-localize/416C47306A366B_4c9d9dda180fd480ffa13a593a56e8f4.bundle",
+      "sourcePath": ".local/localize-bundles/416C47306A366B_c237e7ac6231d95f18c7e8378801ff86.bundle",
       "contentType": "application/octet-stream",
-      "sha256": "5a07be302b9c2ee580e6426e34278128c561c833ca9ac8e24a836dba4cadf67b"
+      "sha256": "4f277c24bc17fb34e7dd55ed3a77f1d169bc38a2480a3cfb0ebddfc94245911c"
     },
     {
       "id": "localize-ko-unity-bundle-1685",
@@ -36255,9 +36255,9 @@
       "requestPath": "/cdn/lQL7ap",
       "logicalName": "Unity AssetBundle ui/localize/ko/title/title_logo.unity3d",
       "description": "Physically independent ko localize bundle cloned from ui/localize/zh/title/title_logo.unity3d; CAB and container keys are unique; built by scripts/build-localize-bundles.py",
-      "sourcePath": "content/resources/fenix-localize/416C514C376170_25efb346dcb3ddea746ff1b811e06a1b.bundle",
+      "sourcePath": ".local/localize-bundles/416C514C376170_a2f204527a844a57230f1c4de04a757d.bundle",
       "contentType": "application/octet-stream",
-      "sha256": "1133ccffdd61ca1746ab3e9e8fce2540adbd5fefeca9ef4622823b6ca7e7d01a"
+      "sha256": "1a8fdcd918d00362a1d338b9cdf2a2112fdcecf7a5b207d47ec8dc9ddfa4ee12"
     },
     {
       "id": "localize-pt-unity-bundle-1685",
@@ -37278,9 +37278,9 @@
       "requestPath": "/cdn/lSLdhy",
       "logicalName": "Unity AssetBundle ui/localize/pt/title/title_logo.unity3d",
       "description": "Physically independent pt localize bundle cloned from ui/localize/zh/title/title_logo.unity3d; CAB and container keys are unique; built by scripts/build-localize-bundles.py",
-      "sourcePath": "content/resources/fenix-localize/416C534C646879_dd73e3f7a5d2022e931ed13a76c67b30.bundle",
+      "sourcePath": ".local/localize-bundles/416C534C646879_0c38ae2d35a8b8076763855c76c48cdf.bundle",
       "contentType": "application/octet-stream",
-      "sha256": "77423bd401fcf455ebece2e016ab04d6ddf8e1ad779e05e0d5346102a46a79ec"
+      "sha256": "f63bb2bf0a4c013f608a31c4393264f7b6d088b3abc7bbdd89c0302adf2c483b"
     }
   ]
 }

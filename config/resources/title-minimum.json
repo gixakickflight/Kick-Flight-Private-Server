@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "assetVersion": 12345,
-  "revision": 43,
+  "revision": 46,
   "fromRevisions": [
     0,
     1,
@@ -46,7 +46,10 @@
     40,
     41,
     42,
-    43
+    43,
+    44,
+    45,
+    46
   ],
   "urlPathFormat": "/cdn/{o}",
   "entries": [
@@ -5240,7 +5243,7 @@
         "field/fld90001.unity3d"
       ],
       "objectName": "52Uzpw",
-      "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/413532557A7077_95eee5e1c16ad31792dbac491f580394.bundle",
+      "sourcePath": "content/resources/fenix-home/413532557A7077_7180d86bac5605d832fd025c8660c3cf.bundle",
       "logicalName": "Unity AssetBundle field/fld90001.unity3d",
       "description": "Preserved Unity bundle for field/fld90001.unity3d"
     },
@@ -7652,7 +7655,7 @@
         "field/fld00402.unity3d"
       ],
       "objectName": "ABOM32",
-      "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4141424F4D3332_6ef67b921bf4a9d9cb0d0e418d1ca931.bundle",
+      "sourcePath": "content/resources/fenix-home/4141424F4D3332_543fc9df2fc25674d60374adcb6ae65a.bundle",
       "logicalName": "Unity AssetBundle field/fld00402.unity3d",
       "description": "Preserved Unity bundle for field/fld00402.unity3d"
     },
@@ -9392,7 +9395,7 @@
         "field/fld00302.unity3d"
       ],
       "objectName": "DlX7ri",
-      "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41446C58377269_4e1f234fe32ba4e425445fd911ac05d7.bundle",
+      "sourcePath": "content/resources/fenix-home/41446C58377269_9f5f42ec4bbc5a2ce53343a065c9176a.bundle",
       "logicalName": "Unity AssetBundle field/fld00302.unity3d",
       "description": "Preserved Unity bundle for field/fld00302.unity3d"
     },
@@ -17396,7 +17399,7 @@
         "field/fld90000.unity3d"
       ],
       "objectName": "WiiMg5",
-      "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/415769694D6735_d3ac7d8e9769224c4b067ac08f1a5ddb.bundle",
+      "sourcePath": "content/resources/fenix-home/415769694D6735_a7f7060a4d45b325680a887e00090786.bundle",
       "logicalName": "Unity AssetBundle field/fld90000.unity3d",
       "description": "Preserved Unity bundle for field/fld90000.unity3d"
     },
@@ -19712,7 +19715,7 @@
         "field/fld00301.unity3d"
       ],
       "objectName": "bJ9pwB",
-      "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41624A39707742_21878806c7663a8f20a0eda47bf732ea.bundle",
+      "sourcePath": "content/resources/fenix-home/41624A39707742_29c32e0e392205843bd9885b0bf55f75.bundle",
       "logicalName": "Unity AssetBundle field/fld00301.unity3d",
       "description": "Preserved Unity bundle for field/fld00301.unity3d"
     },
@@ -20000,7 +20003,7 @@
         "field/fld90002.unity3d"
       ],
       "objectName": "by0uVC",
-      "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41627930755643_ac03cc139d519cc3ded4809007331b38.bundle",
+      "sourcePath": "content/resources/fenix-home/41627930755643_a10ed644958595c8a90617db2ed401af.bundle",
       "logicalName": "Unity AssetBundle field/fld90002.unity3d",
       "description": "Preserved Unity bundle for field/fld90002.unity3d"
     },
@@ -20096,7 +20099,7 @@
         "field/fld00102.unity3d"
       ],
       "objectName": "c3pPIz",
-      "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4163337050497A_56ed3cc9e7e89fe2f911d4f16ce0f0c4.bundle",
+      "sourcePath": "content/resources/fenix-home/4163337050497A_31de7552a831d66dc713286caf00b04b.bundle",
       "logicalName": "Unity AssetBundle field/fld00102.unity3d",
       "description": "Preserved Unity bundle for field/fld00102.unity3d"
     },
@@ -21800,7 +21803,7 @@
         "field/fld00702.unity3d"
       ],
       "objectName": "frlPe3",
-      "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/4166726C506533_03f9cfe9514740863356d7704dbb3b59.bundle",
+      "sourcePath": "content/resources/fenix-home/4166726C506533_616ba38f16ee534c56abc269e96b4cd7.bundle",
       "logicalName": "Unity AssetBundle field/fld00702.unity3d",
       "description": "Preserved Unity bundle for field/fld00702.unity3d"
     },
@@ -24272,7 +24275,7 @@
         "field/fld00902.unity3d"
       ],
       "objectName": "kxsnJS",
-      "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/416B78736E4A53_fba6e9c8cdbc69616e6d9e95449de5f5.bundle",
+      "sourcePath": "content/resources/fenix-home/416B78736E4A53_d6ecb4498149d183440edef926d01d9c.bundle",
       "logicalName": "Unity AssetBundle field/fld00902.unity3d",
       "description": "Preserved Unity bundle for field/fld00902.unity3d"
     },
@@ -27692,7 +27695,7 @@
         "field/fld00602.unity3d"
       ],
       "objectName": "rvrMCZ",
-      "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/417276724D435A_e64bcf7e8e092f0fc540f72b9d59a092.bundle",
+      "sourcePath": "content/resources/fenix-home/417276724D435A_ddc1b2f09b3e4e87be82c00db3bc233b.bundle",
       "logicalName": "Unity AssetBundle field/fld00602.unity3d",
       "description": "Preserved Unity bundle for field/fld00602.unity3d"
     },
@@ -27968,7 +27971,7 @@
         "field/fld99999.unity3d"
       ],
       "objectName": "sSdS55",
-      "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41735364533535_54566f0dee5ee791e1c0873ce0cd37d9.bundle",
+      "sourcePath": "content/resources/fenix-home/41735364533535_07a718529af4523eba81c6db3c255115.bundle",
       "logicalName": "Unity AssetBundle field/fld99999.unity3d",
       "description": "Preserved Unity bundle for field/fld99999.unity3d"
     },
@@ -33572,7 +33575,7 @@
         "ui/localize/de/title/title_logo.unity3d"
       ],
       "objectName": "lnl8I1",
-      "sourcePath": "content/resources/fenix-localize/416C6E6C384931_43855ae4d066f0b0c0b0b2186dfdae1f.bundle",
+      "sourcePath": ".local/localize-bundles/416C6E6C384931_fb62f3495c2b9523cf628d1f762ae9a2.bundle",
       "logicalName": "Unity AssetBundle ui/localize/de/title/title_logo.unity3d",
       "description": "Physically independent de localize bundle cloned from ui/localize/zh/title/title_logo.unity3d; CAB and container keys are unique; built by scripts/build-localize-bundles.py"
     },
@@ -34688,7 +34691,7 @@
         "ui/localize/en/title/title_logo.unity3d"
       ],
       "objectName": "l1X500",
-      "sourcePath": "content/resources/fenix-localize/416C3158353030_2b4cdd61888dbcd36ea3b33397fb70dc.bundle",
+      "sourcePath": ".local/localize-bundles/416C3158353030_990ad7d279321d7aea265eaed02a9d8e.bundle",
       "logicalName": "Unity AssetBundle ui/localize/en/title/title_logo.unity3d",
       "description": "Physically independent en localize bundle cloned from ui/localize/zh/title/title_logo.unity3d; CAB and container keys are unique; built by scripts/build-localize-bundles.py"
     },
@@ -35804,7 +35807,7 @@
         "ui/localize/es/title/title_logo.unity3d"
       ],
       "objectName": "lhPql9",
-      "sourcePath": "content/resources/fenix-localize/416C6850716C39_8c39b4dfcdf646c1738589d3a9862e4a.bundle",
+      "sourcePath": ".local/localize-bundles/416C6850716C39_309ad12745814e2a8383fa1805517a65.bundle",
       "logicalName": "Unity AssetBundle ui/localize/es/title/title_logo.unity3d",
       "description": "Physically independent es localize bundle cloned from ui/localize/zh/title/title_logo.unity3d; CAB and container keys are unique; built by scripts/build-localize-bundles.py"
     },
@@ -36920,7 +36923,7 @@
         "ui/localize/fr/title/title_logo.unity3d"
       ],
       "objectName": "l7kbvz",
-      "sourcePath": "content/resources/fenix-localize/416C376B62767A_fd4aa6ff55927c9717d87abc4158f043.bundle",
+      "sourcePath": ".local/localize-bundles/416C376B62767A_d8f1c855a1807804a06d8152a0f9c5e3.bundle",
       "logicalName": "Unity AssetBundle ui/localize/fr/title/title_logo.unity3d",
       "description": "Physically independent fr localize bundle cloned from ui/localize/zh/title/title_logo.unity3d; CAB and container keys are unique; built by scripts/build-localize-bundles.py"
     },
@@ -38036,7 +38039,7 @@
         "ui/localize/ja/title/title_logo.unity3d"
       ],
       "objectName": "lG0j6k",
-      "sourcePath": "content/resources/fenix-localize/416C47306A366B_4c9d9dda180fd480ffa13a593a56e8f4.bundle",
+      "sourcePath": ".local/localize-bundles/416C47306A366B_c237e7ac6231d95f18c7e8378801ff86.bundle",
       "logicalName": "Unity AssetBundle ui/localize/ja/title/title_logo.unity3d",
       "description": "Physically independent ja localize bundle cloned from ui/localize/zh/title/title_logo.unity3d; CAB and container keys are unique; built by scripts/build-localize-bundles.py"
     },
@@ -39152,7 +39155,7 @@
         "ui/localize/ko/title/title_logo.unity3d"
       ],
       "objectName": "lQL7ap",
-      "sourcePath": "content/resources/fenix-localize/416C514C376170_25efb346dcb3ddea746ff1b811e06a1b.bundle",
+      "sourcePath": ".local/localize-bundles/416C514C376170_a2f204527a844a57230f1c4de04a757d.bundle",
       "logicalName": "Unity AssetBundle ui/localize/ko/title/title_logo.unity3d",
       "description": "Physically independent ko localize bundle cloned from ui/localize/zh/title/title_logo.unity3d; CAB and container keys are unique; built by scripts/build-localize-bundles.py"
     },
@@ -40268,7 +40271,7 @@
         "ui/localize/pt/title/title_logo.unity3d"
       ],
       "objectName": "lSLdhy",
-      "sourcePath": "content/resources/fenix-localize/416C534C646879_dd73e3f7a5d2022e931ed13a76c67b30.bundle",
+      "sourcePath": ".local/localize-bundles/416C534C646879_0c38ae2d35a8b8076763855c76c48cdf.bundle",
       "logicalName": "Unity AssetBundle ui/localize/pt/title/title_logo.unity3d",
       "description": "Physically independent pt localize bundle cloned from ui/localize/zh/title/title_logo.unity3d; CAB and container keys are unique; built by scripts/build-localize-bundles.py"
     }

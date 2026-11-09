@@ -15,7 +15,6 @@ from UnityPy.enums import TextureFormat
 ROOT = Path(__file__).resolve().parent.parent
 LANGS = ["en", "es", "ja", "pt", "ko", "fr", "de"]
 NAME = "ui/localize/zh/title/title_logo.unity3d"
-LOGO = ROOT / "assets/branding/fenix/fenix-logo-shadow-1024.png"
 
 l = importlib.machinery.SourceFileLoader("c", str(ROOT / "scripts/build-action-asset-bundles.py"))
 s = importlib.util.spec_from_loader(l.name, l); codec = importlib.util.module_from_spec(s); l.exec_module(codec)
@@ -36,11 +35,7 @@ tex_objs = [o for o in env.objects if o.type.name == "Texture2D"]
 assert len(tex_objs) == 1
 obj = tex_objs[0]; tex = obj.read()
 W, H = tex.m_Width, tex.m_Height
-logo = Image.open(LOGO).convert("RGBA"); logo = logo.crop(logo.getchannel("A").point(lambda v: 255 if v > 8 else 0).getbbox())
-sc = min(W * 0.98 / logo.width, H * 0.98 / logo.height)
-logo = logo.resize((max(1, round(logo.width * sc)), max(1, round(logo.height * sc))), Image.LANCZOS)
-canvas = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-canvas.paste(logo, ((W - logo.width) // 2, (H - logo.height) // 2), logo)
+canvas = Image.new("RGBA", (W, H), (0, 0, 0, 0))   # logo removed (2.11.807): fully transparent, same size/format
 fmt = tex.m_TextureFormat
 tex.set_image(canvas, target_format=TextureFormat(fmt))
 tex.save()
