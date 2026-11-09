@@ -520,7 +520,7 @@ public sealed class BattleMatchmakingService
     // joins extends the deadline (JoinIncrementSeconds); bots fill the empty slots after it expires.
     // KF_MATCH_WINDOW_SECONDS=0 disables the window (start as soon as a second human appears).
     public TimeSpan MatchWindow { get; set; } =
-        TimeSpan.FromSeconds(ParseMatchConfiguration("KF_MATCH_WINDOW_SECONDS", 40.0));
+        TimeSpan.FromSeconds(ParseMatchConfiguration("KF_MATCH_WINDOW_SECONDS", 60.0));
 
     /// <summary>
     /// Seconds the second human adds to the window; each later join adds a tenth of this less: 5, 4.5, 4, ...
@@ -531,7 +531,7 @@ public sealed class BattleMatchmakingService
 
     /// <summary>
     /// How much a join extends the window, counting the joiner: 5 s for the second human, then half a second
-    /// less each time (4.5, 4, ... 2 s for the eighth), so eight humans total 40 + 5 + 4.5 + ... + 2 = 64.5 s.
+    /// less each time (4.5, 4, ... 2 s for the eighth), so eight humans total 60 + 5 + 4.5 + ... + 2 = 84.5 s.
     /// </summary>
     public double JoinIncrementSeconds(int humansInRoom)
     {

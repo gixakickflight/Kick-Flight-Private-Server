@@ -602,13 +602,13 @@ public sealed class BattleMatchmakingTests
     }
 
     [Fact]
-    public void Default_window_is_forty_seconds_and_first_join_increment_is_five()
+    public void Default_window_is_sixty_seconds_and_first_join_increment_is_five()
     {
         var service = CreateService(fastWindow: false);
 
         if (Environment.GetEnvironmentVariable("KF_MATCH_WINDOW_SECONDS") is null)
         {
-            Assert.Equal(40.0, service.MatchWindow.TotalSeconds, 3);
+            Assert.Equal(60.0, service.MatchWindow.TotalSeconds, 3);
         }
         if (Environment.GetEnvironmentVariable("KF_MATCH_JOIN_INCREMENT_SECONDS") is null)
         {

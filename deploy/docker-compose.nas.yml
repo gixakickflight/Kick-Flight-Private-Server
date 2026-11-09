@@ -67,7 +67,7 @@ services:
       # write, which is what the API falls back to when the connection string below is unset.
       - /mnt/Tanuki_1/kickflight/app/data:/srv/repo/data
       # One catalog entry addresses a file as ".local/...": the installable APK served at
-      # /apk/KickFlight-*, which is how a phone gets the client. It is a build artifact of the repository,
+      # /apk/Fenix-*, which is how a phone gets the client. It is a build artifact of the repository,
       # so it is uploaded rather than committed - but the catalog pins its SHA-256, so it must be the exact
       # file the catalog was generated against or /health/ready fails on it.
       - /mnt/Tanuki_1/kickflight/app/.local:/srv/repo/.local:ro

@@ -24,7 +24,7 @@ public sealed class ClientUpdateState
 {
     public const string DefaultTitle = "Update required";
     public const string DefaultMessage =
-        "A new version of Kick Flight is available. Download it from kick-flight-fenix.us.ci and install it to keep playing.";
+        "A new version of Fenix is available. Download it from kick-flight-fenix.us.ci and install it to keep playing.";
 
     private static readonly JsonSerializerOptions FileJson = new() { WriteIndented = true };
 

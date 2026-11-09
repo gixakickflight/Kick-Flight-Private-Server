@@ -48,7 +48,7 @@ public sealed class BadgeAwardRules
         {
             rows.Clear();
         }
-        if (rows.Count == 0) rows.Add(new { id = DefaultHonorId, honorType = 1, name = "Kick-Flight", title = "", sortOrder = DefaultHonorId });
+        if (rows.Count == 0) rows.Add(new { id = DefaultHonorId, honorType = 1, name = "Fenix", title = "", sortOrder = DefaultHonorId });
         return System.Text.Json.JsonSerializer.Serialize(rows);
     }
     private const string CatalogRelativePath = "config/badge_rule_catalog.json";

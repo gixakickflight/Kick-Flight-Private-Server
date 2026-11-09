@@ -20,8 +20,8 @@ param(
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 $adb = Join-Path $repo '.local\android-sdk\platform-tools\adb.exe'
-$package = 'jp.grenge.kickflight'
-$activity = 'jp.grenge.kickflight/com.google.firebase.MessagingUnityPlayerActivity'
+$package = 'world.global.fenix'
+$activity = 'world.global.fenix/com.google.firebase.MessagingUnityPlayerActivity'
 $runDirectory = [IO.Path]::GetFullPath((Join-Path $repo (Join-Path $EvidenceRoot $RunId)))
 $transcriptPath = Join-Path $runDirectory 'commands.jsonl'
 $summaryPath = Join-Path $runDirectory 'summary.json'

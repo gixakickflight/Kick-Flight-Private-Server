@@ -3111,7 +3111,12 @@ KF_NATIVE_HOOKS1 = [
     # Crash family 3 guard (hooks_cri.c): GRE.AudioManager.CreateSoundObject returns a null sound object while CRIWARE has no ACF
     # registered, instead of SIGSEGV @0x7b0 inside criAtomExSoundObject_Create. docs/re-notes/exception-review-2.11.800.md.
     (8, 0x1BDBEFC, "f44fbea9"),
+    # Battle HUD ping (hooks_pinghud.c, docs/re-notes/ping-hud.md): Colorful.TimeView.SetTime(int); I0 = stp d11,d10,[sp,#-0x60]!
+    (26, 0x161DE68, "eb2bba6d"),
 ]
+if os.environ.get("KF_PINGHUD_OPTION") == "1":
+    # Ping HUD stage 2 (hooks_pinghud_opt.c): SettingBattleCategoryView.Initialize adds an Options ON/OFF row; I0 = str x27,[sp,#-0x60]!
+    KF_NATIVE_HOOKS1.append((27, 0x15E393C, "fb0f1af8"))
 # Crash families 4/5 (hooks_unity.c): hooks in libunity.so itself (Unity 2018.4.11f1, arm64), slot table in the libunity .bss tail
 # (RVA 0x1466C00; PT_LOAD #2 memsz ends 0x1466B48, the anonymous .bss mapping is page-rounded to 0x1467000 - verified in /proc/pid/maps;
 # code only addresses the page below 0x1466B48, so 0x1466C00..0x1467000 is zero and never referenced). Entries: (slot, function RVA
@@ -3190,7 +3195,7 @@ if os.environ.get("KF_NATIVE") == "1":
 # in the dead body of PlayerCharacter.UpdateLookTarget. KF_NATIVE=1 is therefore REQUIRED for any build that should show the model;
 # without it the legacy layout (stubbed bodies) is used. KF_DIAG caves share the veneer host and the bodies: unsupported together.
 # Pristine bytes of the veneer host (dead PlayerCharacter.UpdateLookTarget body, entry stubbed to ret at 0x13CD984), first 344 B: 10 cave veneers x 32 B + 1 x 24 B.
-KF_VHOST_EXPECTED = bytes.fromhex("e923036dfc6f04a9fa6705a9f85f06a9f65707a9f44f08a9fd7b09a9fd430291f497019088566039f30300aae800003788800190081d42f9000140b91171f897e80300328856203974a640f9740000b5e0031faa021af997e00314aa8f98ff970820201ee801005474a640f9740000b5e0031faafa19f997e00314aac985ff970001003674a240f9740000b5e0031faaf319f997e00314aae7bbff970700001474a240f9740000b5e0031faaec19f997e00314aa57bbff97e00313aa48f4ff971f2c007140040054c0120035e00313aae1031f2ab1cbff97f40300aad41000b4358501f0b5c244f9890240f9a80240f92b8144390a8144397f010a6bc3000054296540f9290d0a8b29815ff83f0108eb80000054e0031faad119f997a80240f9890240f90a8144392b8144397f010a6b430e0054296540f9290d0a8b29815ff83f0108eb80029f9a6d00001461018052e00313aa91cbff97")
+KF_VHOST_EXPECTED = bytes.fromhex("e923036dfc6f04a9fa6705a9f85f06a9f65707a9f44f08a9fd7b09a9fd430291f497019088566039f30300aae800003788800190081d42f9000140b91171f897e80300328856203974a640f9740000b5e0031faa021af997e00314aa8f98ff970820201ee801005474a640f9740000b5e0031faafa19f997e00314aac985ff970001003674a240f9740000b5e0031faaf319f997e00314aae7bbff970700001474a240f9740000b5e0031faaec19f997e00314aa57bbff97e00313aa48f4ff971f2c007140040054c0120035e00313aae1031f2ab1cbff97f40300aad41000b4358501f0b5c244f9890240f9a80240f92b8144390a8144397f010a6bc3000054296540f9290d0a8b29815ff83f0108eb80000054e0031faad119f997a80240f9890240f90a8144392b8144397f010a6b430e0054296540f9290d0a8b29815ff83f0108eb80029f9a6d00001461018052e00313aa91cbff97f40300aad40100b4088401d0082941f9890240f9080140f92b8144390a8144397f010a6bc3000054296540f9290d0a8b")
 if os.environ.get("KF_NATIVE") == "1":
     import hashlib as _hl
     if os.environ.get("KF_DIAG") == "1":
@@ -3276,6 +3281,12 @@ if os.environ.get("KF_NATIVE") == "1":
         if _o < _vend and _e > _vhost:
             raise SystemExit(f"patch at 0x{_o:x} overlaps the kfpatch veneer host 0x{_vhost:x}..0x{_vend:x}")
     NATIVE_PATCHES["arm64-v8a"] = _kept
+    # Ping HUD: hide the WiFi/radiowave alert icon (RadiowaveAlertView.SetVisible 0x16C41FC: `and w1,w20,#1` -> `movz w1,#0`, so the Image is
+    # never enabled). The ping is shown as text under the timer instead (hooks_pinghud.c). Tiny in-place immediate change.
+    NATIVE_PATCHES["arm64-v8a"].append({
+        "description": "ping HUD: RadiowaveAlertView.SetVisible always disables the WiFi icon image (and w1,w20,#1 -> movz w1,#0)",
+        "offset": 0x16C4220, "expected": bytes.fromhex("81020012"), "replacement": bytes.fromhex("01008052"),
+    })
     NATIVE_PATCHES["arm64-v8a"].append({
         "description": f"kfpatch fail-safe veneers (cave slots 16+ and CRI slot 8) in the dead body of PlayerCharacter.UpdateLookTarget @0x{_vhost:x}",
         "offset": _vhost, "expected": KF_VHOST_EXPECTED[:len(_vrep)], "replacement": _vrep,

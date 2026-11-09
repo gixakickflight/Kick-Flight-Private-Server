@@ -26,7 +26,7 @@ obtiene y renueva automáticamente el certificado de Let's Encrypt para `kick-fl
 certificados y estado en los volúmenes Docker `caddy-data` y `caddy-config`. El DNS A del dominio debe
 apuntar a la IP pública del VPS y el firewall de OCI y el del host deben permitir TCP 80/443.
 La portada pública se sirve desde `deploy/site/index.html` en `/` mediante el contenedor `cdn`; usa la ruta
-actual `/apk/KickFlight-2.11.0-remote-kickflightsg.apk` para descargar la APK. En una instalación limpia, la
+actual `/apk/Fenix-2.11.806.apk` para descargar la APK. En una instalación limpia, la
 APK es el único archivo que se instala manualmente; el primer arranque descarga los recursos del juego desde
 el CDN del VPS, por lo que se requiere conexión a internet.
 

@@ -1,8 +1,8 @@
 {
   "serverBaseUrl": "http://kick-flight-fenix.us.ci:18080",
   "photonHost": "kick-flight-fenix.us.ci",
-  "versionName": "2.11.805",
-  "versionCode": 70,
+  "versionName": "2.11.806",
+  "versionCode": 71,
   "updateUrl": "https://kick-flight-fenix.us.ci/",
   "expectedSourceSha256": "ffa620d2e2f905e729812606024e02741124951dce908bb2e0587f0a4e16e031",
   "patchFlags": {

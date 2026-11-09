@@ -9,7 +9,8 @@ set ADB=adb
 set EMU=%SDK%\emulator\emulator.exe
 set APK=%~dp0.local\KickFlight-2.11.0-current-patches.apk
 if defined APK_OVERRIDE set APK=%APK_OVERRIDE%
-set PKG=jp.grenge.kickflight
+if not defined KF_PACKAGE_ID set KF_PACKAGE_ID=world.global.fenix
+set PKG=%KF_PACKAGE_ID%
 
 if not exist "%APK%" (
     echo APK not found: %APK%

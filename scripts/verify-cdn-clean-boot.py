@@ -28,7 +28,7 @@ from urllib.request import Request, urlopen
 
 
 REPO = Path(__file__).resolve().parents[1]
-PACKAGE = "jp.grenge.kickflight"
+PACKAGE = os.environ.get("KF_PACKAGE_ID", "world.global.fenix")
 LAUNCH_ACTIVITY = f"{PACKAGE}/com.google.firebase.MessagingUnityPlayerActivity"
 API_PORT = 18080
 CLIENT_BASE = "http://10.0.2.2:18080"

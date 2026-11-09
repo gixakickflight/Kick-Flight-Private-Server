@@ -81,7 +81,7 @@ A DIAG build is the standard patched APK plus `DIAG_PATCHES_ARM64` from `scripts
 
 ### Locating NREs with `KF_NRE_LR=1`
 - `KFDIAG v=<n>` immediately preceding an NRE is `LR & 0xFFFFFFFF` (may print signed/negative).
-- Get module base: `adb shell run-as jp.grenge.kickflight cat /proc/$(pidof jp.grenge.kickflight)/maps | grep libil2cpp | head -1`
+- Get module base: `adb shell run-as world.global.fenix cat /proc/$(pidof world.global.fenix)/maps | grep libil2cpp | head -1`
 - Compute `RVA = (base & ~0xFFFFFFFF | n) - base` (if negative, add `0x100000000`).
 - RVA points to the instruction after `bl 0x12141ec` (NRE helper). Run `python scripts/re/a64dis.py <rva-0x20> 12` to inspect the null check.
 - *Example:* `0x13C74CC` = `FieldManager.FieldInfo == null` in `PlayerCharacter.Initialize` -> missing row `801` in `Field` master (`DemoSessionApi.cs` inline string).

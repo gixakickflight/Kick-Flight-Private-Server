@@ -135,9 +135,9 @@ boot_gate boot-after
 if [[ -n "$apk" ]]; then
  phase=install
  for srl in "${serials[@]}"; do
-  "$adb" -s "$srl" shell am force-stop jp.grenge.kickflight >/dev/null || die "no se pudo detener app en $srl"
+  "$adb" -s "$srl" shell am force-stop world.global.fenix >/dev/null || die "no se pudo detener app en $srl"
   "$adb" -s "$srl" install -r "$apk" >"$run_dir/install-$srl.log" 2>&1 || die "install -r falló en $srl; ver $run_dir/install-$srl.log"
-  installed_path="$("$adb" -s "$srl" shell pm path jp.grenge.kickflight | tr -d '\r' | sed -n '1s/^package://p')"
+  installed_path="$("$adb" -s "$srl" shell pm path world.global.fenix | tr -d '\r' | sed -n '1s/^package://p')"
   [[ -n "$installed_path" ]] || die "pm path no devolvió APK instalada en $srl"
   device_sha="$("$adb" -s "$srl" shell sha256sum "$installed_path" | awk 'NR==1{print toupper($1)}' | tr -d '\r')"
   [[ "$device_sha" == "$apk_sha" ]] || die "SHA-256 APK instalada no coincide en $srl (local=$apk_sha device=$device_sha)"

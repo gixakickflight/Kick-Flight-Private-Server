@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#ffe243">
-  <meta name="description" content="Kick Flight: The Fenix Returns. Descarga la APK para Android y vuelve a la arena.">
-  <title>Kick Flight: The Fenix Returns</title>
+  <meta name="description" content="Fenix. Descarga la APK para Android y vuelve a la arena.">
+  <title>Fenix</title>
   <style>
     :root {
       color-scheme: light;
@@ -34,7 +34,7 @@
     }
     .topbar-inner { min-height: 84px; display: flex; align-items: center; justify-content: space-between; }
     .brand { display: inline-flex; align-items: center; padding: 7px 10px; background: var(--black); text-decoration: none; }
-    .brand img { display: block; width: clamp(128px, 20vw, 172px); height: auto; }
+    .brand img { display: block; height: clamp(46px, 7vw, 62px); width: auto; }
     .menu-mark { width: 44px; height: 44px; display: grid; place-content: center; gap: 6px; border: 2px solid var(--black); background: var(--yellow); transform: rotate(-4deg); }
     .menu-mark span { display: block; width: 21px; height: 3px; background: var(--black); }
     .topbar-actions { display: flex; align-items: center; gap: 14px; }
@@ -122,11 +122,13 @@
     }
     @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *,*::before,*::after { transition-duration: .01ms !important; } }
   </style>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/fenix-icon-180.png">
 </head>
 <body>
   <header class="topbar">
     <div class="wrap topbar-inner">
-      <a class="brand" href="#inicio" aria-label="Kick Flight, inicio" data-i18n-aria="brandAria"><img src="/assets/kick-flight-logo.png" alt="Kick-Flight" data-i18n-alt="logoAlt"></a>
+      <a class="brand" href="#inicio" aria-label="Fenix, inicio" data-i18n-aria="brandAria"><img src="/assets/fenix-logo.png" alt="Fenix" data-i18n-alt="logoAlt"></a>
       <div class="topbar-actions">
         <div class="language-picker" role="group" aria-label="Language / Idioma" data-i18n-aria="languagePickerAria">
           <button type="button" data-language="es" aria-pressed="true">ES</button>
@@ -139,17 +141,23 @@
   <main id="inicio">
     <section class="hero" aria-labelledby="page-title">
       <p class="hero-kicker" data-i18n="heroKicker">Descarga para Android</p>
-      <h1 id="page-title"><span>Kick Flight:</span><span>The Fenix Returns</span></h1>
-      <div class="hero-cta"><a class="button" href="/apk/KickFlight-2.11.805-remote.apk"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M4 16.5v2A2.5 2.5 0 0 0 6.5 21h11a2.5 2.5 0 0 0 2.5-2.5v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="heroDownload">Descargar APK para Android</span></a></div>
+      <h1 id="page-title"><span>Fenix</span></h1>
+      <div class="hero-cta"><a class="button" href="/apk/Fenix-2.11.806.apk"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M4 16.5v2A2.5 2.5 0 0 0 6.5 21h11a2.5 2.5 0 0 0 2.5-2.5v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="heroDownload">Descargar APK para Android</span></a></div>
     </section>
     <section class="news" id="news" aria-labelledby="news-title">
       <div class="band"><h2 id="news-title" data-i18n="newsTitle">Novedades</h2></div>
       <div class="wrap">
         <ul class="news-list" lang="en">
           <li class="news-item">
+            <p class="news-date"><time datetime="2026-11-09">2026-11-09</time></p>
+            <h3>Patch 2.11.806: Kick Flight is now Fenix</h3>
+            <p>The game is now Fenix, a new app that installs alongside the old one (accounts do not carry over; uninstall the old app afterwards). Adds a battle ping counter (toggle in Settings &rsaquo; Battle) and a longer 60 s matchmaking window.</p>
+            <a class="news-link" href="/updates-2.11.806.html">Read the full notes</a>
+          </li>
+          <li class="news-item">
             <p class="news-date"><time datetime="2026-11-08">2026-11-08</time></p>
             <h3>Patch 2.11.805: Server moved to Europe</h3>
-            <p>The server now runs in Europe and the game connects through kick-flight-fenix.us.ci. Android: older versions can no longer connect, download 2.11.805 from this page.</p>
+            <p>The server now runs in Europe and the game connects through kick-flight-fenix.us.ci. Android: older versions can no longer connect, download the latest version from this page.</p>
             <a class="news-link" href="/updates-2.11.805.html">Read the full notes</a>
           </li>
           <li class="news-item">
@@ -218,16 +226,16 @@
     <section class="visuals" aria-labelledby="visuals-title">
       <div class="band"><h2 id="visuals-title" data-i18n="visualsTitle">Imágenes del juego</h2></div>
       <div class="wrap">
-        <p class="visuals-intro" data-i18n="visualsIntro">Captura de la pantalla de título de Kick Flight, versión 2.11.0.</p>
+        <p class="visuals-intro" data-i18n="visualsIntro">Captura de la pantalla de título, versión 2.11.0.</p>
         <div class="official-showcase">
-          <figure class="title-shot"><img src="/assets/kick-flight-title-screen.png" alt="Captura real de la pantalla de título de Kick Flight, versión 2.11.0" data-i18n-alt="titleScreenAlt" loading="lazy"><figcaption data-i18n="titleScreenCaption">Pantalla de título · Versión 2.11.0</figcaption></figure>
+          <figure class="title-shot"><img src="/assets/fenix-title-screen.png" alt="Captura real de la pantalla de título, versión 2.11.0" data-i18n-alt="titleScreenAlt" loading="lazy"><figcaption data-i18n="titleScreenCaption">Pantalla de título · Versión 2.11.0</figcaption></figure>
         </div>
       </div>
     </section>
     <section class="ai-content" aria-labelledby="ai-title">
       <div class="band"><h2 id="ai-title" data-i18n="aiTitle">Contenido AI</h2></div>
       <div class="wrap">
-        <p class="ai-disclaimer" data-i18n="aiDisclaimer">Estos 11 retratos para skins faltantes se generaron con IA a partir de referencias de Kick Flight. Son recreaciones de la comunidad, no arte oficial de Grenge. Este proyecto fan no está afiliado a Grenge.</p>
+        <p class="ai-disclaimer" data-i18n="aiDisclaimer">Estos 11 retratos para skins faltantes se generaron con IA a partir de referencias del juego. Son recreaciones de la comunidad. Este es un proyecto fan no oficial.</p>
         <div class="ai-grid" aria-label="Retratos de personajes generados con IA" data-i18n-aria="aiGridAria">
           <figure class="ai-card"><img src="/assets/ai-thumbnail_pc_001_022.png" alt="Retrato generado con IA de Tsubame con traje navideño" data-i18n-alt="aiTsubameAlt" loading="lazy"><figcaption data-i18n="aiTsubame">Tsubame · traje 22</figcaption></figure>
           <figure class="ai-card"><img src="/assets/ai-thumbnail_pc_002_022.png" alt="Retrato generado con IA de Ruriha con traje de reno" data-i18n-alt="aiRurihaAlt" loading="lazy"><figcaption data-i18n="aiRuriha">Ruriha · traje 22</figcaption></figure>
@@ -247,12 +255,12 @@
       <div class="band"><h2 id="download-title" data-i18n="downloadTitle">Descarga</h2></div>
       <div class="wrap download-card">
         <div>
-          <p class="project-name">Kick Flight: The Fenix Returns</p>
+          <p class="project-name">Fenix</p>
           <h3 data-i18n="downloadHeadline">Vuelve a volar.</h3>
-          <p class="download-info" data-i18n="downloadInfo">Android · Versión 2.11.805 · ≈150 MB</p>
+          <p class="download-info" data-i18n="downloadInfo">Android · Versión 2.11.806 · ≈150 MB</p>
           <p class="download-info"><a href="/updates" data-i18n="updatesLink">Notas del parche</a> · <a href="/badges" data-i18n="badgesLink">Catálogo de Insignias</a></p>
         </div>
-        <a class="button" href="/apk/KickFlight-2.11.805-remote.apk">
+        <a class="button" href="/apk/Fenix-2.11.806.apk">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M4 16.5v2A2.5 2.5 0 0 0 6.5 21h11a2.5 2.5 0 0 0 2.5-2.5v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span data-i18n="downloadButton">Descargar APK</span>
         </a>
@@ -263,16 +271,16 @@
       <div class="wrap install-card"><p data-i18n="installCopy">La APK es el único archivo que necesitas. <strong data-i18n="installImportant">Conéctate a internet en el primer inicio</strong> para que el juego descargue sus recursos desde el CDN.</p></div>
     </section>
   </main>
-  <footer><div class="wrap"><span data-i18n="footerProject">Proyecto comunitario no oficial · Kick Flight: The Fenix Returns</span><br><span data-i18n="footerCredits">Créditos a: Gixarde3 y TanukiFurHire.</span><br><a class="geo-credit" href="https://db-ip.com" rel="noopener noreferrer">IP Geolocation by DB-IP</a></div></footer>
+  <footer><div class="wrap"><span data-i18n="footerProject">Proyecto comunitario no oficial · Fenix</span><br><span data-i18n="footerCredits">Créditos a: Gixarde3 y TanukiFurHire.</span><br><a class="geo-credit" href="https://db-ip.com" rel="noopener noreferrer">IP Geolocation by DB-IP</a></div></footer>
   <script>
     const translations = {
       es: {
-        description: "Kick Flight: The Fenix Returns. Descarga la APK para Android y vuelve a la arena.",
-        brandAria: "Kick Flight, inicio", logoAlt: "Kick-Flight", languagePickerAria: "Idioma / Language",
+        description: "Fenix. Descarga la APK para Android y vuelve a la arena.",
+        brandAria: "Fenix, inicio", logoAlt: "Fenix", languagePickerAria: "Idioma / Language",
         heroKicker: "Descarga para Android", heroDownload: "Descargar APK para Android",
-        newsTitle: "Novedades", newsAll: "Ver todas las actualizaciones", visualsTitle: "Imágenes del juego", visualsIntro: "Captura de la pantalla de título de Kick Flight, versión 2.11.0.",
-        titleScreenAlt: "Captura real de la pantalla de título de Kick Flight, versión 2.11.0", titleScreenCaption: "Pantalla de título · Versión 2.11.0",
-        aiTitle: "Contenido AI", aiDisclaimer: "Estos 11 retratos para skins faltantes se generaron con IA a partir de referencias de Kick Flight. Son recreaciones de la comunidad, no arte oficial de Grenge. Este proyecto fan no está afiliado a Grenge.",
+        newsTitle: "Novedades", newsAll: "Ver todas las actualizaciones", visualsTitle: "Imágenes del juego", visualsIntro: "Captura de la pantalla de título, versión 2.11.0.",
+        titleScreenAlt: "Captura real de la pantalla de título, versión 2.11.0", titleScreenCaption: "Pantalla de título · Versión 2.11.0",
+        aiTitle: "Contenido AI", aiDisclaimer: "Estos 11 retratos para skins faltantes se generaron con IA a partir de referencias del juego. Son recreaciones de la comunidad. Este es un proyecto fan no oficial.",
         aiGridAria: "Retratos de personajes generados con IA",
         aiTsubameAlt: "Retrato generado con IA de Tsubame con traje navideño", aiTsubame: "Tsubame · traje 22",
         aiRurihaAlt: "Retrato generado con IA de Ruriha con traje de reno", aiRuriha: "Ruriha · traje 22",
@@ -285,17 +293,17 @@
         aiSid2Alt: "Retrato generado con IA de Sid, traje 2", aiSid2: "Sid · traje 2",
         aiSid3Alt: "Retrato generado con IA de Sid, traje 3", aiSid3: "Sid · traje 3",
         aiSid51Alt: "Retrato generado con IA de Sid, traje 51", aiSid51: "Sid · traje 51",
-        downloadTitle: "Descarga", downloadHeadline: "Vuelve a volar.", downloadInfo: "Android · Versión 2.11.805 · ≈150 MB", downloadButton: "Descargar APK", updatesLink: "Notas del parche", badgesLink: "Catálogo de Insignias",
+        downloadTitle: "Descarga", downloadHeadline: "Vuelve a volar.", downloadInfo: "Android · Versión 2.11.806 · ≈150 MB", downloadButton: "Descargar APK", updatesLink: "Notas del parche", badgesLink: "Catálogo de Insignias",
         installTitle: "Instalación", installCopy: "La APK es el único archivo que necesitas. Conéctate a internet en el primer inicio para que el juego descargue sus recursos desde el CDN.", installImportant: "Conéctate a internet en el primer inicio",
-        footerProject: "Proyecto comunitario no oficial · Kick Flight: The Fenix Returns", footerCredits: "Créditos a: Gixarde3 y TanukiFurHire."
+        footerProject: "Proyecto comunitario no oficial · Fenix", footerCredits: "Créditos a: Gixarde3 y TanukiFurHire."
       },
       en: {
-        description: "Kick Flight: The Fenix Returns. Download the Android APK and return to the arena.",
-        brandAria: "Kick Flight, home", logoAlt: "Kick-Flight", languagePickerAria: "Language / Idioma",
+        description: "Fenix. Download the Android APK and return to the arena.",
+        brandAria: "Fenix, home", logoAlt: "Fenix", languagePickerAria: "Language / Idioma",
         heroKicker: "Download for Android", heroDownload: "Download Android APK",
-        newsTitle: "News", newsAll: "See all updates", visualsTitle: "In-game image", visualsIntro: "Kick Flight title-screen capture from version 2.11.0.",
-        titleScreenAlt: "Real capture of the Kick Flight title screen, version 2.11.0", titleScreenCaption: "Title screen · Version 2.11.0",
-        aiTitle: "AI Content", aiDisclaimer: "These 11 portraits for missing skins were generated with AI from Kick Flight references. They are community recreations, not official Grenge artwork. This fan project is not affiliated with Grenge.",
+        newsTitle: "News", newsAll: "See all updates", visualsTitle: "In-game image", visualsIntro: "Title-screen capture from version 2.11.0.",
+        titleScreenAlt: "Real capture of the title screen, version 2.11.0", titleScreenCaption: "Title screen · Version 2.11.0",
+        aiTitle: "AI Content", aiDisclaimer: "These 11 portraits for missing skins were generated with AI from game references. They are community recreations. This is an unofficial fan project.",
         aiGridAria: "AI-generated character portraits",
         aiTsubameAlt: "AI-generated portrait of Tsubame in a holiday outfit", aiTsubame: "Tsubame · outfit 22",
         aiRurihaAlt: "AI-generated portrait of Ruriha in a reindeer outfit", aiRuriha: "Ruriha · outfit 22",
@@ -308,16 +316,16 @@
         aiSid2Alt: "AI-generated portrait of Sid, outfit 2", aiSid2: "Sid · outfit 2",
         aiSid3Alt: "AI-generated portrait of Sid, outfit 3", aiSid3: "Sid · outfit 3",
         aiSid51Alt: "AI-generated portrait of Sid, outfit 51", aiSid51: "Sid · outfit 51",
-        downloadTitle: "Download", downloadHeadline: "Fly again.", downloadInfo: "Android · Version 2.11.805 · ≈150 MB", downloadButton: "Download APK", updatesLink: "Patch notes", badgesLink: "Badge Catalog",
+        downloadTitle: "Download", downloadHeadline: "Fly again.", downloadInfo: "Android · Version 2.11.806 · ≈150 MB", downloadButton: "Download APK", updatesLink: "Patch notes", badgesLink: "Badge Catalog",
         installTitle: "Installation", installCopy: "The APK is the only file you need. Connect to the internet on first launch so the game can download its resources from the CDN.", installImportant: "Connect to the internet on first launch",
-        footerProject: "Unofficial community project · Kick Flight: The Fenix Returns", footerCredits: "Credits to: Gixarde3 and TanukiFurHire."
+        footerProject: "Unofficial community project · Fenix", footerCredits: "Credits to: Gixarde3 and TanukiFurHire."
       }
     };
     function setLanguage(language, persist = true) {
       const lang = language === "en" ? "en" : "es";
       const copy = translations[lang];
       document.documentElement.lang = lang;
-      document.title = "Kick Flight: The Fenix Returns";
+      document.title = "Fenix";
       document.querySelector('meta[name="description"]').content = copy.description;
       document.querySelectorAll("[data-i18n]").forEach(node => {
         const key = node.dataset.i18n;

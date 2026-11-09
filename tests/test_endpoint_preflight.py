@@ -20,8 +20,8 @@ class EndpointPreflightTests(unittest.TestCase):
         config = json.loads(config_path.read_text(encoding="utf-8"))
         self.assertEqual(config["serverBaseUrl"], "http://kick-flight-fenix.us.ci:18080")
         self.assertEqual(config["photonHost"], "kick-flight-fenix.us.ci")
-        self.assertEqual(config["versionName"], "2.11.805")
-        self.assertEqual(config["versionCode"], 70)
+        self.assertEqual(config["versionName"], "2.11.806")
+        self.assertEqual(config["versionCode"], 71)
         self.assertEqual(
             config["patchFlags"],
             {

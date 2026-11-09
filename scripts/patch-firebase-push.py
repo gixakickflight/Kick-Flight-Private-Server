@@ -20,7 +20,7 @@ import argparse, json, os, re, shutil, subprocess, sys, tempfile, zipfile
 from pathlib import Path
 from xml.sax.saxutils import escape
 
-PACKAGE = "jp.grenge.kickflight"
+PACKAGE = os.environ.get("KF_PACKAGE_ID", "world.global.fenix")  # must match the client entry in google-services.json
 HERE = Path(__file__).resolve().parent / "push-registrar"
 SOURCE = HERE / "jp/kickflight/push/PushRegistrar.java"
 PREBUILT = HERE / "push-registrar.dex"

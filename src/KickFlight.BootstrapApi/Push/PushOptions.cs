@@ -8,7 +8,7 @@ public sealed class PushOptions
     public bool Enabled { get; set; }
     // Path to the Firebase service-account JSON. Only the path is configuration; the file is read by FcmSender.
     public string CredentialsPath { get; set; } = "";
-    public string Title { get; set; } = "Kick Flight";
+    public string Title { get; set; } = "Fenix";
     public string Body { get; set; } = "Someone is searching for a ranked match! Jump in now to play.";
     public int GlobalCooldownSeconds { get; set; } = 240;
     public int PerPlayerCooldownSeconds { get; set; } = 240;

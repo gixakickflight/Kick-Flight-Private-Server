@@ -133,7 +133,7 @@ IResult ServeApk(string fileName)
         : Results.Json(new { error = "apk-not-built", expected = path }, statusCode: 404);
 }
 app.MapGet("/apk", () => ServeApk("KickFlight-2.11.0-current-patches.apk"));
-app.MapGet("/apk/remote", () => ServeApk("KickFlight-2.11.805-remote.apk"));
+app.MapGet("/apk/remote", () => ServeApk("Fenix-2.11.806.apk"));
 app.MapGet("/apk/diag", () => ServeApk("KickFlight-2.11.0-DIAG.apk"));
 app.MapGet("/apk/diag-remote", () => ServeApk("KickFlight-2.11.0-DIAG-remote.apk"));
 // Merged patch set (offline combat + Photon 2-player, scripts/patch-il2cpp-endpoints.py since 46f9392), built by
@@ -152,7 +152,7 @@ app.MapGet("/diag", () => Results.Content("""
 <!doctype html><meta name=viewport content="width=device-width,initial-scale=1">
 <title>KF diag upload</title>
 <body style="font-family:sans-serif;padding:24px;max-width:480px">
-<h2>Kick-Flight diag upload</h2>
+<h2>Fenix diag upload</h2>
 <form method=post action="/diag/upload-file" enctype="multipart/form-data">
 <p><input type=file name=file required></p>
 <p><input type=submit value="Upload" style="font-size:1.2em;padding:8px 24px"></p>
