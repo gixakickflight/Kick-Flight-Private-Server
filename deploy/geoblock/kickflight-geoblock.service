@@ -1,0 +1,8 @@
+[Unit]
+Description=Kick Flight country geo-block (JP/CN/KR) nftables refresh
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/kf-geoblock refresh

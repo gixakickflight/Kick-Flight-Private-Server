@@ -120,6 +120,13 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "Firebase push patch failed with exit code $LASTEXITCODE." }
     }
 
+    & python (Join-Path $repo 'scripts\patch-fenix-branding.py') $decoded
+    if ($LASTEXITCODE -ne 0) { throw "Fenix branding patch failed with exit code $LASTEXITCODE." }
+    $unityPy = Join-Path $repo '.local\assets-venv\Scripts\python.exe'
+    if (-not (Test-Path $unityPy)) { $unityPy = 'python' }
+    & $unityPy (Join-Path $repo 'scripts\patch-fenix-unity-text.py') $decoded
+    if ($LASTEXITCODE -ne 0) { throw "Fenix copyright text patch failed with exit code $LASTEXITCODE." }
+
     & java -jar $apktool b $decoded -o $unsigned
     if ($LASTEXITCODE -ne 0) { throw "Apktool build failed with exit code $LASTEXITCODE." }
 

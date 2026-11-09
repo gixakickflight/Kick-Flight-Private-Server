@@ -87,7 +87,7 @@
  {
   "id": 18,
   "key": "common.battleRuleFestival",
-  "text": "Kick-Flight Festival"
+  "text": "Fenix Festival"
  },
  {
   "id": 19,
@@ -117,7 +117,7 @@
  {
   "id": 24,
   "key": "common.battleRuleFestivalMatch",
-  "text": "Kick-Flight Festival"
+  "text": "Fenix Festival"
  },
  {
   "id": 25,
@@ -997,7 +997,7 @@
  {
   "id": 200,
   "key": "error.message.forceUpdateToTitle",
-  "text": "A new version of Kick Flight is available. Download it from kick-flight-fenix.us.ci and install it to keep playing."
+  "text": "A new version of Fenix is available. Download it from kick-flight-fenix.us.ci and install it to keep playing."
  },
  {
   "id": 201,
@@ -1337,7 +1337,7 @@
  {
   "id": 268,
   "key": "premium.description",
-  "text": "Kick-Flight Premium Pass"
+  "text": "Fenix Premium Pass"
  },
  {
   "id": 269,
@@ -4487,7 +4487,7 @@
  {
   "id": 898,
   "key": "review.androidMessage1",
-  "text": "Enjoying Kick-Flight?"
+  "text": "Enjoying Fenix?"
  },
  {
   "id": 899,

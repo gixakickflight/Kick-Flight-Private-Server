@@ -23,8 +23,8 @@ New-Item -ItemType Directory -Force -Path $captureDirectory | Out-Null
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $output = Join-Path $captureDirectory "logcat-$stamp.redacted.log"
 & $AdbPath @adbArgs logcat -c
-& $AdbPath @adbArgs shell am force-stop jp.grenge.kickflight
-& $AdbPath @adbArgs shell monkey -p jp.grenge.kickflight -c android.intent.category.LAUNCHER 1 | Out-Null
+& $AdbPath @adbArgs shell am force-stop world.global.fenix
+& $AdbPath @adbArgs shell monkey -p world.global.fenix -c android.intent.category.LAUNCHER 1 | Out-Null
 Write-Output "App launched. Capturing redacted logcat to $output. Press Ctrl+C to stop."
 & $AdbPath @adbArgs logcat -v threadtime | ForEach-Object {
     $_ `

@@ -51,7 +51,7 @@ public sealed class BattleReplayTests
     public void Archive_parser_matches_device_path_member_names_and_strips_the_bom()
     {
         // Captured from a 2.11.1 upload: members are named by their full path and JSON members carry a UTF-8 BOM.
-        const string dir = "/storage/emulated/0/Android/data/jp.grenge.kickflight/files/Replay/Work/";
+        const string dir = "/storage/emulated/0/Android/data/world.global.fenix/files/Replay/Work/";
         var json = Encoding.UTF8.GetBytes("{\"_appVersion\":\"2.11.1\"}");
         var withBom = new byte[] { 0xEF, 0xBB, 0xBF }.Concat(json).ToArray();
         var archive = BuildArchive((dir + "header", withBom), (dir + "frames", new byte[] { 1 }), (dir + "result", withBom));

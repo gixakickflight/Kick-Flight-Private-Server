@@ -73,9 +73,9 @@ poniendo nuestro API (`BattleMatchmakingService.BuildRoster`).
 abre una ventana que se extiende con cada join y en la que pueden entrar más humanos, y al cerrarse se rellenan con bots los huecos. La composición VPS no fija la ventana: rige el default de la API (40 s más los incrementos por join).
 La prioridad es que los humanos jueguen juntos; los bots son el relleno, no el disparador.
 
-* La ventana base empieza con la primera entrada (`KF_MATCH_WINDOW_SECONDS`, default de la API `40`; `0` la desactiva en entornos que configuren la API directamente). La composición VPS no pasa la variable, así que un `.env` del servidor no la cambia. Cada humano
+* La ventana base empieza con la primera entrada (`KF_MATCH_WINDOW_SECONDS`, default de la API `60`; `0` la desactiva en entornos que configuren la API directamente). La composición VPS no pasa la variable, así que un `.env` del servidor no la cambia. Cada humano
   que entra a la sala abierta la extiende: el 2º +5 s, el 3º +4,5 s, el 4º +4 s … el 8º +2 s (`5 - 0,5 * (n - 2)`), así
-  que una sala llena suma 64,5 s. El primer incremento se cambia con `KF_MATCH_JOIN_INCREMENT_SECONDS` (default `5`;
+  que una sala llena suma 84,5 s. El primer incremento se cambia con `KF_MATCH_JOIN_INCREMENT_SECONDS` (default `5`;
   `0` = los joins no extienden la ventana). Los equipos cuentan un join por humano.
 * El proxy gRPC VPS mantiene `GetAssignments` abierto durante `300` segundos entre lecturas del upstream. Esto cubre la
   ventana de 40 s, los incrementos de hasta 24,5 s para ocho humanos, la espera de 2 s entre Etapa 2 y Etapa 3 y la

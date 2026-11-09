@@ -79,62 +79,17 @@
       "sha256": "c0973c1afaeff3a715c724bebf333eb8f70cca099bb90f8e858bb19a570ce77b"
     },
     {
-      "id": "apk-remote-kickflightsg",
+      "id": "apk-remote-211806",
       "enabled": true,
       "host": "10.0.2.2",
-      "requestPath": "/apk/KickFlight-2.11.1-remote.apk",
-      "logicalName": "Remote-play APK download",
-      "description": "Patched client for kickflightsg.ddns.net",
-      "sourcePath": ".local/KickFlight-2.11.1-remote.apk",
+      "requestPath": "/apk/Fenix-2.11.806.apk",
+      "logicalName": "Fenix Android APK download (2.11.806)",
+      "description": "Android 2.11.806: the game is now Fenix (new app, package world.global.fenix, installed alongside the old one; accounts do not carry over). Adds the battle ping HUD (toggle in Settings > Battle) and a 60 s matchmaking window. Release-key APK gate-verified on an AVD against the live VPS; not verified on a real arm64 device.",
+      "sourcePath": ".local/Fenix-2.11.806.apk",
       "contentType": "application/vnd.android.package-archive",
-      "sha256": "f8951a73c607b1dd78ac1e334ca86bf17f26053ab8dbd07e5722e26723c99683"
-    },
-    {
-      "id": "apk-remote-2112",
-      "enabled": true,
-      "host": "10.0.2.2",
-      "requestPath": "/apk/KickFlight-2.11.2-remote.apk",
-      "logicalName": "Remote-play APK download (2.11.2)",
-      "description": "Patched 2.11.2 client for the VPS (Photon); the website links here",
-      "sourcePath": ".local/KickFlight-2.11.2-remote.apk",
-      "contentType": "application/vnd.android.package-archive",
-      "sha256": "7969069454bb3453f381a75f444c144a5b23d9243305c89d480dd697a6bd6c88"
-    },
-    {
-      "id": "apk-remote-2113",
-      "enabled": true,
-      "host": "10.0.2.2",
-      "requestPath": "/apk/KickFlight-2.11.3-remote.apk",
-      "logicalName": "Remote-play APK download (2.11.3)",
-      "description": "Patched 2.11.3 client for the VPS (Photon); the website links here",
-      "sourcePath": ".local/KickFlight-2.11.3-remote.apk",
-      "contentType": "application/vnd.android.package-archive",
-      "sha256": "da4f18cd68422c540e8fe6c202fe8453d264a325627947e1dc23f9a73d15e8cc"
-    },
-    {
-      "id": "apk-remote-2114",
-      "enabled": true,
-      "host": "10.0.2.2",
-      "requestPath": "/apk/KickFlight-2.11.4-remote.apk",
-      "logicalName": "Remote-play APK download (2.11.4)",
-      "description": "Patched 2.11.4 client for the VPS (Photon); the website links here",
-      "sourcePath": ".local/KickFlight-2.11.4-remote.apk",
-      "contentType": "application/vnd.android.package-archive",
-      "sha256": "008123a09affb6c70ada29715b24126d1f23b467e1dd0d2bd9f2197c74a34e24",
-      "bytes": 149884376
-    },
-    {
-      "id": "apk-remote-211805",
-      "enabled": true,
-      "host": "10.0.2.2",
-      "requestPath": "/apk/KickFlight-2.11.805-remote.apk",
-      "logicalName": "Remote-play APK download (2.11.805)",
-      "description": "Android 2.11.805: server moved to Europe; the client now connects through kick-flight-fenix.us.ci (API, Photon, chat) instead of a fixed IP. Required update (older APKs point to the offline previous server); release-key APK gate-verified (startup, login, matchmaking, battle) on an AVD against the live EU VPS; not verified on a real arm64 device.",
-      "sourcePath": ".local/KickFlight-2.11.805-remote.apk",
-      "contentType": "application/vnd.android.package-archive",
-      "sha256": "fe44c6f4ecddcd3966237405e9fcf30d379f319ec1472fb4eef0d0e51130b0a6",
-      "bytes": 149884565,
-      "releaseTag": "android-2.11.805"
+      "sha256": "6789485fc1df7be2cf1d8569af1728873bb9849b10b8da625a6e43b1e335ae97",
+      "bytes": 149450389,
+      "releaseTag": "android-2.11.806"
     },
     {
       "id": "kicker-skin-thumb-001-022-direct",

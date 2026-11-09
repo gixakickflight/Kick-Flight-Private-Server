@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#ffe243">
-  <meta name="description" content="Kick Flight: The Fenix Returns patch notes.">
-  <title>Kick Flight Updates</title>
+  <meta name="description" content="Fenix patch notes.">
+  <title>Fenix Updates</title>
   <!--
     Patch notes page. The live copy is the Latest Information HTML page (balance WebUI -> Latest information ->
     Content source "HTML page"); it is shown in-game and at https://kick-flight-fenix.us.ci/updates. This file is
@@ -28,7 +28,7 @@
     }
     .topbar-inner { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .brand { display: inline-flex; padding: 7px 10px; background: var(--black); }
-    .brand img { display: block; width: clamp(118px, 20vw, 160px); height: auto; }
+    .brand img { display: block; height: clamp(46px, 7vw, 62px); width: auto; }
     .home-link { font-weight: 900; font-size: .82rem; letter-spacing: .08em; text-transform: uppercase; }
     h1 {
       margin: 30px 0 22px; font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
@@ -53,28 +53,46 @@
     .patch li { margin: 3px 0; }
     footer { padding: 6px 0 28px; font-size: .85rem; font-weight: 600; text-align: center; }
   </style>
+  <link rel="icon" href="https://kick-flight-fenix.us.ci/favicon.ico" sizes="any">
 </head>
 <body>
   <header class="topbar">
     <div class="wrap topbar-inner">
-      <a class="brand" href="https://kick-flight-fenix.us.ci/" aria-label="Kick Flight home"><img src="https://kick-flight-fenix.us.ci/assets/kick-flight-logo.png" alt="Kick-Flight"></a>
+      <a class="brand" href="https://kick-flight-fenix.us.ci/" aria-label="Fenix home"><img src="https://kick-flight-fenix.us.ci/assets/fenix-logo.png" alt="Fenix"></a>
       <a class="home-link" href="https://kick-flight-fenix.us.ci/">Download</a>
     </div>
   </header>
   <main class="wrap">
     <h1>Updates</h1>
 
+    <article class="patch" id="v2-11-806">
+      <div class="patch-head"><h2>Patch 2.11.806</h2><time datetime="2026-11-09">2026-11-09</time></div>
+      <p class="headline">The game is now Fenix. It is a new app that installs alongside the old one, and accounts do not carry over.</p>
+      <h3>Important</h3>
+      <ul>
+        <li>Fenix (package world.global.fenix) is a new app: it installs alongside the old Kick Flight app, not over it.</li>
+        <li>Accounts do not carry over: everyone starts a new account. You can uninstall the old app afterwards.</li>
+        <li>Download <a href="/apk/Fenix-2.11.806.apk">Fenix-2.11.806.apk</a> from the site. Older versions show the update screen, which opens the download page.</li>
+      </ul>
+      <h3>New</h3>
+      <ul>
+        <li>Battle ping counter under the enemy team, colour-coded. Turn it on or off in Settings &rsaquo; Battle (Ping HUD). The Wi-Fi warning icon was removed.</li>
+        <li>Matchmaking waits 60 seconds (20 s longer) for other players before filling with bots.</li>
+        <li>Release details: <a href="/updates-2.11.806.html">Android 2.11.806 announcement</a>.</li>
+      </ul>
+    </article>
+
     <article class="patch" id="v2-11-805">
       <div class="patch-head"><h2>Patch 2.11.805</h2><time datetime="2026-11-08">2026-11-08</time></div>
       <p class="headline">The server moved to Europe and the game now connects through the domain kick-flight-fenix.us.ci.</p>
       <h3>Changed</h3>
       <ul>
-        <li>The Kick Flight server now runs in Europe, which should lower latency for players in Europe.</li>
+        <li>The Fenix server now runs in Europe, which should lower latency for players in Europe.</li>
         <li>The game connects to kick-flight-fenix.us.ci (API, chat and matches) instead of a fixed IP address, so future server moves will not require a new APK.</li>
       </ul>
       <h3>Update required</h3>
       <ul>
-        <li>Android: update to 2.11.805 is required. Older versions point to the previous server, which is offline. Download <a href="/apk/KickFlight-2.11.805-remote.apk">KickFlight-2.11.805-remote.apk</a> manually from the site.</li>
+        <li>Android: update to 2.11.805 is required. Older versions point to the previous server, which is offline. Download <a href="/apk/Fenix-2.11.806.apk">Fenix-2.11.806.apk</a> manually from the site.</li>
         <li>It installs over your current version without uninstalling (same signature), so your data is kept.</li>
         <li>Release details: <a href="/updates-2.11.805.html">Android 2.11.805 announcement</a>.</li>
       </ul>
@@ -96,7 +114,7 @@
       </ul>
       <h3>Update required</h3>
       <ul>
-        <li>Android: update to 2.11.804 is required. Download <a href="/apk/KickFlight-2.11.804-remote.apk">KickFlight-2.11.804-remote.apk</a>.</li>
+        <li>Android: update to 2.11.804 is required. Download <a href="/apk/Fenix-2.11.806.apk">Fenix-2.11.806.apk</a>.</li>
         <li>It installs over your current version without uninstalling (same signature), so your data is kept.</li>
         <li>Release details: <a href="/updates-2.11.804.html">Android 2.11.804 announcement</a>.</li>
       </ul>
@@ -117,7 +135,7 @@
       </ul>
       <h3>Update required</h3>
       <ul>
-        <li>Android clients on 2.11.706 and older must update to keep playing. Download <a href="/apk/KickFlight-2.11.800-remote.apk">KickFlight-2.11.800-remote.apk</a>.</li>
+        <li>Android clients on 2.11.706 and older must update to keep playing. Download <a href="/apk/Fenix-2.11.806.apk">Fenix-2.11.806.apk</a>.</li>
         <li>It installs over 2.11.706 without uninstalling (same signature), so your data is kept.</li>
         <li>Release details: <a href="/updates-2.11.800.html">Android 2.11.800 announcement</a>.</li>
       </ul>
@@ -138,7 +156,7 @@
       </ul>
       <h3>Update required</h3>
       <ul>
-        <li>Android clients on 2.11.705 and older can no longer connect: players in the same room must use the same version to get the same guardian HP. Download <a href="/apk/KickFlight-2.11.706-remote.apk">KickFlight-2.11.706-remote.apk</a>.</li>
+        <li>Android clients on 2.11.705 and older can no longer connect: players in the same room must use the same version to get the same guardian HP. Download <a href="/apk/Fenix-2.11.806.apk">Fenix-2.11.806.apk</a>.</li>
         <li>It installs over 2.11.705 without uninstalling (same signature), so your data is kept.</li>
         <li>Release details: <a href="/updates-2.11.706.html">Android 2.11.706 announcement</a>.</li>
       </ul>
@@ -163,7 +181,7 @@
       </ul>
       <h3>Update required</h3>
       <ul>
-        <li>Android clients on 2.11.6 and older can no longer connect. Download <a href="/apk/KickFlight-2.11.7-remote.apk">KickFlight-2.11.7-remote.apk</a>.</li>
+        <li>Android clients on 2.11.6 and older can no longer connect. Download <a href="/apk/Fenix-2.11.806.apk">Fenix-2.11.806.apk</a>.</li>
         <li>It installs over 2.11.6 without uninstalling (same signature), so your data is kept.</li>
         <li>Release details: <a href="/updates-2.11.7.html">Android 2.11.7 announcement</a>.</li>
       </ul>
@@ -185,7 +203,7 @@
       </ul>
       <h3>Update required</h3>
       <ul>
-        <li>Android clients on 2.11.5 and older can no longer connect. Download <a href="/apk/KickFlight-2.11.6-remote.apk">KickFlight-2.11.6-remote.apk</a>.</li>
+        <li>Android clients on 2.11.5 and older can no longer connect. Download <a href="/apk/Fenix-2.11.806.apk">Fenix-2.11.806.apk</a>.</li>
         <li>It installs over 2.11.5 without uninstalling (same signature), so your data is kept.</li>
         <li>Release details: <a href="/updates-2.11.6.html">Android 2.11.6 announcement</a>.</li>
       </ul>
@@ -209,7 +227,7 @@
 
     <article class="patch" id="badge-catalog">
       <div class="patch-head"><h2>Community Badge Catalog &amp; Contributor Rewards</h2><time datetime="2026-10-30">2026-10-30</time></div>
-      <p class="headline">Explore all 211 Kick-Flight badges and collaborate to decipher conditions and titles!</p>
+      <p class="headline">Explore all 211 Fenix badges and collaborate to decipher conditions and titles!</p>
       <h3>Badge Catalog &amp; Glyphs</h3>
       <ul>
         <li>Access the collaborative catalog at <a href="/badges">/badges</a> to browse all 211 badges, inspect high-resolution alien glyph art, and contribute missing information.</li>
@@ -239,7 +257,7 @@
       <ul>
         <li>Introduced experimental Scramble role targeting: bot combatants now evaluate targets and objectives according to their assigned combat roles.</li>
         <li>Introduced low HP carrier deposit threshold: bot carriers in Scramble now prioritize depositing crystals when below the critical health threshold.</li>
-        <li>Requires new APK to take effect: <a href="/apk/KickFlight-2.11.4-remote.apk">KickFlight-2.11.4-remote.apk</a>.</li>
+        <li>Requires new APK to take effect: <a href="/apk/Fenix-2.11.806.apk">Fenix-2.11.806.apk</a>.</li>
         <li>Standalone announcement and details: <a href="/updates-2.11.4.html">Release 2.11.4 Announcement</a>.</li>
       </ul>
     </article>
@@ -294,7 +312,7 @@
     </article>
   </main>
   <footer class="wrap">
-    Thank you for playing Kick-Flight Fenix! Join our official Discord at
+    Thank you for playing Fenix! Join our official Discord at
     <a href="https://discord.gg/nmrKeKh">discord.gg/nmrKeKh</a> for more resources and help.
   </footer>
 </body>

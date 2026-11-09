@@ -476,7 +476,7 @@ El cliente parcheado se firma con un keystore local. Sirve cualquiera, pero:
 
 - El par de la APK de tienda es de Grenge, así que **la primera instalación
   sobre una copia de la tienda exige desinstalar** (`adb uninstall
-  jp.grenge.kickflight`), y eso borra los datos locales del dispositivo.
+  world.global.fenix`), y eso borra los datos locales del dispositivo.
 - El keystore tiene que ser **el mismo** entre compilaciones, o Android rechaza
   cada actualización y hay que desinstalar otra vez.
 
@@ -489,8 +489,8 @@ tienes uno, apunta el build al tuyo y guárdalo fuera del repositorio.
 
 ```bash
 adb install -r <tu-apk>.apk
-adb shell am force-stop jp.grenge.kickflight
-adb shell monkey -p jp.grenge.kickflight -c android.intent.category.LAUNCHER 1
+adb shell am force-stop world.global.fenix
+adb shell monkey -p world.global.fenix -c android.intent.category.LAUNCHER 1
 ```
 
 Para diagnosticar, el contrato del proyecto es limpiar el buffer **antes** de la

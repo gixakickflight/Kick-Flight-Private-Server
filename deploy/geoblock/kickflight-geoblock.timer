@@ -1,0 +1,11 @@
+[Unit]
+Description=Weekly Kick Flight geo-block refresh (also at boot)
+
+[Timer]
+OnBootSec=2min
+OnCalendar=Mon *-*-* 04:30:00 UTC
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

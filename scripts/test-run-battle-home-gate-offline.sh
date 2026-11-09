@@ -47,7 +47,7 @@ SH
 chmod +x "$tmp/bin/sips"
 
 export PATH="$tmp/bin:$PATH" RUN_DIR="$tmp/run" TAPS="$tmp/taps"
-run_dir="$RUN_DIR"; adb="$tmp/bin/adb"; package=jp.grenge.kickflight
+run_dir="$RUN_DIR"; adb="$tmp/bin/adb"; package=world.global.fenix
 serials=(5554 5556 5558); listener_start=offline; phase=home-visual-gates
 source "$tmp/functions.sh"
 listener_pids() { echo offline; }

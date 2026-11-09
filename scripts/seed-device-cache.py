@@ -2,7 +2,7 @@
 """
 seed-device-cache.py
 Seeds the preserved Kick-Flight Octo assets directly into the Android app's
-local cache directory (/data/data/jp.grenge.kickflight/files/octo/v1/1/) via ADB.
+local cache directory (/data/data/world.global.fenix/files/octo/v1/1/) via ADB.
 This completely eliminates initial bundle download times over LAN.
 """
 
@@ -65,7 +65,7 @@ def main():
         # `pm clear` may remove files/ but recreates the package directory with
         # the correct per-emulator app UID.  Read that stable parent so a clean
         # reset never falls back to ownership from a different AVD image.
-        id_out = subprocess.check_output(adb_base + ["shell", "stat -c '%u %g' /data/data/jp.grenge.kickflight 2>/dev/null || echo ''"]).decode("utf-8").strip()
+        id_out = subprocess.check_output(adb_base + ["shell", "stat -c '%u %g' /data/data/world.global.fenix 2>/dev/null || echo ''"]).decode("utf-8").strip()
         if id_out:
             uid, gid = id_out.split()
             print(f"Detected app ownership: uid={uid}, gid={gid}")
@@ -142,7 +142,7 @@ def main():
     subprocess.check_call(adb_base + ["push", str(tar_path), "/data/local/tmp/octo_cache.tar"])
     subprocess.check_call(adb_base + ["shell", "chmod 666 /data/local/tmp/octo_cache.tar"])
 
-    # 3. Extract into /data/data/jp.grenge.kickflight/files/
+    # 3. Extract into /data/data/world.global.fenix/files/
     print("Extracting cache into app directory...")
     # Test if adb has root access
     is_root = False
@@ -155,22 +155,22 @@ def main():
     if is_root:
         print("Using root extraction...")
         extract_cmd = (
-            f"mkdir -p /data/data/jp.grenge.kickflight/files/octo/v1/1 "
-            f"/data/data/jp.grenge.kickflight/files/octo/pdb/1/12345 && "
-            f"tar -xf /data/local/tmp/octo_cache.tar -C /data/data/jp.grenge.kickflight/files/ && "
-            f"chown -R {uid}:{gid} /data/data/jp.grenge.kickflight/files/octo && "
+            f"mkdir -p /data/data/world.global.fenix/files/octo/v1/1 "
+            f"/data/data/world.global.fenix/files/octo/pdb/1/12345 && "
+            f"tar -xf /data/local/tmp/octo_cache.tar -C /data/data/world.global.fenix/files/ && "
+            f"chown -R {uid}:{gid} /data/data/world.global.fenix/files/octo && "
             f"rm -f /data/local/tmp/octo_cache.tar"
         )
         subprocess.check_call(adb_base + ["shell", extract_cmd])
     else:
-        print("Non-root device: checking run-as jp.grenge.kickflight...")
+        print("Non-root device: checking run-as world.global.fenix...")
         try:
-            run_as_test = subprocess.check_output(adb_base + ["shell", "run-as jp.grenge.kickflight id"]).decode("utf-8")
+            run_as_test = subprocess.check_output(adb_base + ["shell", "run-as world.global.fenix id"]).decode("utf-8")
             print(f"run-as available: {run_as_test.strip()}")
             extract_cmd = (
-                f"run-as jp.grenge.kickflight mkdir -p /data/data/jp.grenge.kickflight/files/octo/v1/1 "
-                f"/data/data/jp.grenge.kickflight/files/octo/pdb/1/12345 && "
-                f"run-as jp.grenge.kickflight tar -xf /data/local/tmp/octo_cache.tar -C /data/data/jp.grenge.kickflight/files/ && "
+                f"run-as world.global.fenix mkdir -p /data/data/world.global.fenix/files/octo/v1/1 "
+                f"/data/data/world.global.fenix/files/octo/pdb/1/12345 && "
+                f"run-as world.global.fenix tar -xf /data/local/tmp/octo_cache.tar -C /data/data/world.global.fenix/files/ && "
                 f"rm -f /data/local/tmp/octo_cache.tar"
             )
             subprocess.check_call(adb_base + ["shell", extract_cmd])

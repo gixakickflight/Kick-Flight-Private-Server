@@ -676,7 +676,7 @@ if [[ "$sync_site" == true && -f "$app_dir/docs/updates-page.html" && -f "$relea
   python3 "$release_dir/scripts/update-latest-information.py" \
     --state-file "$app_dir/.local/maintenance/latest-information.json" \
     --source-docs "$app_dir/docs/updates-page.html" \
-    --article-id "v2-11-805" \
+    --article-id "v2-11-806" \
     --backup-dir "$app_dir/.local/updates-backups" \
     --record-backup-path "$ci_info_backup"
 fi
@@ -701,6 +701,11 @@ if [[ "$ios_latch_needed" == true ]]; then
     --profile-sha256 "$ios_profile_sha256" --commit "$release_sha"
   ios_wire_floor_active=true
   echo "Latched persistent iOS wire floor at revision $ios_profile_revision; the iOS profile will remain enabled on future deployments."
+fi
+# Country geo-block (JP/CN/KR) nftables table + weekly timer; idempotent and non-fatal (see docs/GEO_BLOCK.md).
+if [[ -f "$release_dir/scripts/kf-geoblock.py" ]]; then
+  sudo -n timeout 300 python3 "$release_dir/scripts/kf-geoblock.py" install \
+    || echo "WARNING: geo-block install/refresh failed; previous rules (if any) remain active" >&2
 fi
 if [[ "$full_deploy" == true ]]; then
   compose_from_app up -d --build
@@ -871,12 +876,12 @@ if [[ "$sync_site" == true ]]; then
     [[ "$actual_updates" == "$expected_updates" ]] || { echo "served standalone updates checksum does not match deploy/site/updates-2.11.4.html" >&2; exit 1; }
   fi
 
-  if [[ -f "$app_dir/deploy/site/updates-2.11.805.html" ]]; then
-    expected_updates=$(sha256sum "$app_dir/deploy/site/updates-2.11.805.html" | cut -d ' ' -f 1)
-    curl --fail --silent --show-error --max-time 30 "http://127.0.0.1:$http_port/updates-2.11.805.html" -o "$smoke_file"
+  if [[ -f "$app_dir/deploy/site/updates-2.11.806.html" ]]; then
+    expected_updates=$(sha256sum "$app_dir/deploy/site/updates-2.11.806.html" | cut -d ' ' -f 1)
+    curl --fail --silent --show-error --max-time 30 "http://127.0.0.1:$http_port/updates-2.11.806.html" -o "$smoke_file"
     actual_updates=$(sha256sum "$smoke_file" | cut -d ' ' -f 1)
     rm -f -- "$smoke_file"
-    [[ "$actual_updates" == "$expected_updates" ]] || { echo "served standalone updates checksum does not match deploy/site/updates-2.11.805.html" >&2; exit 1; }
+    [[ "$actual_updates" == "$expected_updates" ]] || { echo "served standalone updates checksum does not match deploy/site/updates-2.11.806.html" >&2; exit 1; }
   fi
 
   # Announcement content is variable by design; only require the pages to be served.

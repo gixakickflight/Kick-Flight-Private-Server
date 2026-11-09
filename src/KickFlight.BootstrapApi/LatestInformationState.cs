@@ -35,7 +35,7 @@ public sealed class LatestInformationState
     public const string HtmlContentSecurityPolicy =
         "sandbox allow-scripts allow-forms allow-popups allow-top-navigation-by-user-activation; " + HtmlResourceContentSecurityPolicy;
     public const string DefaultContent = """
-**Bienvenido a Kick-Flight**
+**Bienvenido a Fenix**
 Este es un servidor privado de pruebas. El progreso es local y puede reiniciarse sin aviso.
 
 **Tienda y gacha**

@@ -55,7 +55,7 @@ adb install -r .local/artifacts/KickFlight-2.11.0-direct-IP_DEL_MAC-18080.apk
 
 Si Android muestra un conflicto de firma, la APK instalada fue firmada con otra
 clave. Para una instalación de pruebas limpia, desinstala primero el paquete
-`jp.grenge.kickflight`; eso también elimina sus datos locales.
+`world.global.fenix`; eso también elimina sus datos locales.
 
 El teléfono debe poder abrir `http://IP_DEL_MAC:18080/health/ready`. Algunos
 hotspots bloquean conexiones hacia sus clientes; el hotspot actual debe probarse

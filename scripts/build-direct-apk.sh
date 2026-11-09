@@ -76,7 +76,7 @@ safe_host="${server_base_url#http://}"
 safe_host="${safe_host//:/-}"
 artifact_dir="$repo/.local/artifacts"
 work_root="$repo/.local/apk-direct-work"
-output_apk="${OUTPUT_APK:-$artifact_dir/KickFlight-${KF_VERSION_NAME:-2.11.805}-remote.apk}"
+output_apk="${OUTPUT_APK:-$artifact_dir/Fenix-${KF_VERSION_NAME:-2.11.806}.apk}"
 
 # Keystore resolution: explicit path, then worktree-local production key
 if [[ -n "${KEYSTORE:-}" ]]; then
@@ -177,6 +177,14 @@ if [[ "${KF_PUSH:-}" == "1" ]]; then
   fi
   "$python" "$repo/scripts/patch-firebase-push.py" "$work/decoded" --base-url "$server_base_url" --firebase-config "$KF_FIREBASE_CONFIG"
 fi
+
+echo "==> Applying Fenix branding (package id, app name, icons)"
+"$python" "$repo/scripts/patch-fenix-branding.py" "$work/decoded"
+
+echo "==> Replacing in-scene copyright text (needs UnityPy)"
+unitypy_python="${UNITYPY_PYTHON:-$repo/.local/assets-venv/bin/python}"
+[[ -x "$unitypy_python" ]] || unitypy_python="$python"
+"$unitypy_python" "$repo/scripts/patch-fenix-unity-text.py" "$work/decoded"
 
 echo "==> Building APK"
 apktool b "$work/decoded" -o "$work/unsigned.apk"

@@ -13,17 +13,30 @@ static i64 hook_proof(i64 a, i64 b, i64 c, i64 d, i64 e, i64 f, i64 g, i64 h) {
 // hooks_cri.c: crash family 3 guard (slot 8, production).
 extern i64 hook_csobj(i64, i64, i64, i64, i64, i64, i64, i64);
 extern uint64_t csobj_ret;
+extern i64 hook_settime(i64, i64, i64, i64, i64, i64, i64, i64);
+extern uint64_t settime_ret;
+#ifdef KF_PINGHUD_OPTION
+extern i64 hook_sbcv_init(i64, i64, i64, i64, i64, i64, i64, i64);
+extern uint64_t sbcv_ret;
+#define KF_OPT_N 1
+#else
+#define KF_OPT_N 0
+#endif
 const kf_hook_t kf_hooks[] = {
+#ifdef KF_PINGHUD_OPTION
+    {27, 0x15E393C, (void*)hook_sbcv_init, &sbcv_ret, 4},  // SettingBattleCategoryView.Initialize (ping HUD Options toggle, stage 2)
+#endif
+    {26, 0x161DE68, (void*)hook_settime, &settime_ret, 4},  // Colorful.TimeView.SetTime (ping HUD)
     {8, 0x1BDBEFC, (void*)hook_csobj, &csobj_ret, 4},  // GRE.AudioManager.CreateSoundObject
 #if KF_PROOF_RVA
-    {0, KF_PROOF_RVA, (void*)hook_proof, &proof_ret},
+    {0, KF_PROOF_RVA, (void*)hook_proof, &proof_ret, 0},
 #endif
     {0, 0, 0, 0},
 };
 const int kf_hook_count =
 #if KF_PROOF_RVA
-    2;
+    3 + KF_OPT_N;
 #else
-    1;
+    2 + KF_OPT_N;
 #endif
 void kf_register_hooks(void) {}

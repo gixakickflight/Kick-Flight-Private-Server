@@ -1,13 +1,13 @@
 # Kick Flight: The Fenix Returns
 
-Servidor privado de comunidad para **Kick-Flight**. El cliente se parchea a partir de la APK base 2.11.0; la última versión de cliente publicada en el catálogo del repositorio es la **2.11.805** (Android). Este repositorio contiene la API compatible con el cliente, el servidor Photon basado en LuxonServer, los datos de juego editables, la herramienta web de balance y las herramientas para preparar el CDN y una APK parcheada.
+Servidor privado de comunidad para **Kick-Flight**. El cliente se parchea a partir de la APK base 2.11.0; la última versión de cliente publicada en el catálogo del repositorio es la **2.11.806** (Android). Este repositorio contiene la API compatible con el cliente, el servidor Photon basado en LuxonServer, los datos de juego editables, la herramienta web de balance y las herramientas para preparar el CDN y una APK parcheada.
 
 La instancia pública corre en una VM de OCI. Docker Compose levanta la API, Photon, el CDN y la landing; la persistencia de jugadores usa PostgreSQL administrado por Neon. Caddy publica la web por HTTPS en `kick-flight-fenix.us.ci`.
 
 ## Instancia pública
 
 - Sitio y descarga: [kick-flight-fenix.us.ci](https://kick-flight-fenix.us.ci/)
-- APK Android 2.11.805: [descargar](https://kick-flight-fenix.us.ci/apk/KickFlight-2.11.805-remote.apk)
+- APK Android 2.11.806: [descargar](https://kick-flight-fenix.us.ci/apk/Fenix-2.11.806.apk)
 - Estado de la API: [health/ready](https://kick-flight-fenix.us.ci/health/ready)
 
 La APK ya apunta a esta instancia. Tras instalarla, el primer inicio requiere internet para bajar los recursos del juego desde el CDN. Las partidas usan Photon; la API y Photon son servicios separados dentro de la pila.

@@ -36,7 +36,7 @@ DO_CLEAN=0
 DO_SEED=1
 SEED_MIN_FILES=2000
 TIMEOUT=60
-APP_PACKAGE="jp.grenge.kickflight"
+APP_PACKAGE="${KF_PACKAGE_ID:-world.global.fenix}"
 APP_ACTIVITY="com.google.firebase.MessagingUnityPlayerActivity"
 
 # Parse arguments

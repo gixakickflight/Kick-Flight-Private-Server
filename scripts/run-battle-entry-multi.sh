@@ -8,8 +8,8 @@ set -Eeuo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd -P)"
 serial_csv=""; player_csv=""; run_id="$(date -u +%Y%m%dT%H%M%SZ)"
 port="${HTTP_PORT:-18080}"; api_log="${API_LOG:-}"
-timeout=240; settle=60; launch_stagger=0; package=jp.grenge.kickflight
-activity=jp.grenge.kickflight/com.google.firebase.MessagingUnityPlayerActivity
+timeout=240; settle=60; launch_stagger=0; package=world.global.fenix
+activity=world.global.fenix/com.google.firebase.MessagingUnityPlayerActivity
 base="$repo/.local/battle-test"; adb="${ADB:-}"
 phase=preflight; result=failed; failure=""; boot_status=not-run
 identity_check=unavailable; profile_identity=not-verified; run_dir=""; listener_start=""; api_offset=-1

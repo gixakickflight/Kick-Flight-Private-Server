@@ -7,8 +7,8 @@ repo="$(cd "$(dirname "$0")/.." && pwd -P)"
 serial_csv=""; names_csv=""; name_prefix="K$(date -u +%j%H%M)"
 run_id="$(date -u +%Y%m%dT%H%M%SZ)"; port="${HTTP_PORT:-18080}"
 adb="${ADB:-}"; timeout=240; manual_checkpoints=0
-package=jp.grenge.kickflight
-activity=jp.grenge.kickflight/com.google.firebase.MessagingUnityPlayerActivity
+package=world.global.fenix
+activity=world.global.fenix/com.google.firebase.MessagingUnityPlayerActivity
 users_dir="$repo/src/KickFlight.BootstrapApi/data/users"
 base="$repo/.local/battle-test"; phase=preflight; result=failed; failure=""
 run_dir=""; lock=""; listener_start=""; boot_status=not-run
