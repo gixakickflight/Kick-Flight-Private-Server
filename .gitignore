@@ -38,6 +38,7 @@ logs/
 # Small generated bundles required by the reconstructed title catalog. Keep these
 # exact runtime dependencies in source control; the wider game-asset bundles stay ignored.
 !content/resources/ui-kicker-skin-thumbnails/*.bundle
+!content/resources/fenix-localize/*.bundle
 !content/resources/actioneditor/41616564303032_dee54a556d81fcda9d315a76db8890b7.bundle
 !content/resources/actioneditor/41616564303033_3f32616ee89bb55126b858bff3e7c7b0.bundle
 !content/resources/actioneditor/41616564303036_cb77a351fe13164d9b51b953bac6e47e.bundle
