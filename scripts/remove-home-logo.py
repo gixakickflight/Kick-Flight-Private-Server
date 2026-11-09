@@ -30,6 +30,9 @@ TEXTURES = {
     "tx_home_helloween":  (True,  None),
     "tx_home_newyear":    (True,  (1240, 920, 1560, 1100)),
     "tx_BG01_co2_C":      (False, (980, 1050, 1260, 1210)),
+    # battle fields fld00301/fld00302: small yellow Kick-Flight sign at the left of the atlas (found by scripts' sign scan)
+    "fd_tx_00301_co":     (False, (0, 1000, 440, 1230)),
+    "fd_tx_00302_co":     (False, (0, 1000, 440, 1230)),
 }
 
 
@@ -123,7 +126,10 @@ def main():
         sp = e.get("sourcePath", "")
         if e.get("kind") != "assetBundle" or not any(n.startswith("field/") for n in e.get("names", [])):
             continue
-        src = (ROOT / sp).resolve() if not sp.startswith("content/") else None
+        # always start from the pristine capture (the same prefix in the assets checkout), so reruns are idempotent
+        prefix = Path(sp).name.split("_")[0]
+        cands = sorted((Path(a.assets) / "octo_sorted/3_unity_bundles").glob(prefix + "_*.bundle"))
+        src = cands[0] if cands else None
         if src is None or not src.exists():
             continue
         out, done = process(src, a.preview)

@@ -8975,9 +8975,9 @@
       "requestPath": "/cdn/DlX7ri",
       "logicalName": "Unity AssetBundle field/fld00302.unity3d",
       "description": "Preserved Unity bundle for field/fld00302.unity3d",
-      "sourcePath": "content/resources/fenix-home/41446C58377269_28c36f634fc432088a81c3fcbea2640f.bundle",
+      "sourcePath": "content/resources/fenix-home/41446C58377269_9f5f42ec4bbc5a2ce53343a065c9176a.bundle",
       "contentType": "application/octet-stream",
-      "sha256": "77db8d71dd9fce6779ed2d124e719c68973b8e2fb45a403db95904d8f03e658d"
+      "sha256": "7fa7b8af6d1f7feec5fe597cbf259635f26477e6d7c799628717b99c8238cbed"
     },
     {
       "id": "unity-bundle-765",
@@ -18435,9 +18435,9 @@
       "requestPath": "/cdn/bJ9pwB",
       "logicalName": "Unity AssetBundle field/fld00301.unity3d",
       "description": "Preserved Unity bundle for field/fld00301.unity3d",
-      "sourcePath": "../Kick-Flight-Assets/octo_sorted/3_unity_bundles/41624A39707742_21878806c7663a8f20a0eda47bf732ea.bundle",
+      "sourcePath": "content/resources/fenix-home/41624A39707742_29c32e0e392205843bd9885b0bf55f75.bundle",
       "contentType": "application/octet-stream",
-      "sha256": "2d532ae34ae4736fba40896107c863acf6867d2fefb6924c0ae6de266db35dad"
+      "sha256": "a72db86217b19c49f9ab1de75c14c6223249493f502dcc18e33e64d565e7c20a"
     },
     {
       "id": "unity-bundle-1625",
