@@ -87,8 +87,8 @@
       "description": "Android 2.11.807: removed the logo from the title, loading and home screens; app icon is now a single F. Updates Fenix 2.11.806 in place (account kept). Build gate: signed with the publication key (cert 81ca6334); live-VPS gate pending.",
       "sourcePath": ".local/Fenix-2.11.807.apk",
       "contentType": "application/vnd.android.package-archive",
-      "sha256": "98912b68cde136f484afacb56603c8d2fa4f0575207facf941ff89cbb253e86a",
-      "bytes": 149098133,
+      "sha256": "5d59d6ed328e12675792d9b2f88aea3cc31fa0e4b275f66d1aa07da51b883164",
+      "bytes": 149094037,
       "releaseTag": "android-2.11.807"
     },
     {

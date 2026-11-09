@@ -29,7 +29,9 @@ def fix_raw(data: bytes):
 # 1024x2048 ASTC 6x6) at bottom-left rect (0,895); title intro wordmark = sprite "title_logo_animation" (2000x698) in the
 # "Title" atlas (path_id 4, 2048x1024 ASTC 4x4) at rect (0,0). Both rects are cleared to transparent; nothing else is touched.
 CLEAR_RECTS = ((3, (1024, 2048), (0, 895, 368, 92), "loading_logo (Common atlas)"),
-               (4, (2048, 1024), (0, 0, 2000, 698), "title_logo_animation (Title atlas)"))
+               (4, (2048, 1024), (0, 0, 2000, 698), "title_logo_animation (Title atlas)"),
+               # standalone 360x36 RGBA "Logo@2x" texture (black Kick-Flight wordmark, sprite 526): whole texture
+               (117, (360, 36), (0, 0, 360, 36), "Logo@2x (standalone texture)"))
 def clear_logo_rects(env):
     from PIL import Image
     done = 0
